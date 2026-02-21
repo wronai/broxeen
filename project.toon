@@ -1,6 +1,6 @@
-# broxeen | 39f 4846L | python:3/typescript:27/javascript:3/rust:6
+# broxeen | 49f 6288L | python:3/typescript:35/javascript:3/rust:8
 # Keys: M=modules, D=details, i=imports, c=classes, f=functions, m=methods
-M[39]:
+M[49]:
   phonetic.py,73
   vite.config.ts,35
   tailwind.config.js,23
@@ -9,6 +9,11 @@ M[39]:
   test_phonetic.py,67
   src-tauri/build.rs,3
   src-tauri/test_read.rs,16
+  TODO/llm.rs,71
+  TODO/llmPrompts.ts,47
+  TODO/useLlm.ts,144
+  TODO/llmClient.ts,189
+  TODO/llmClient.test.ts,124
   src/main.tsx,28
   src/App.tsx,113
   src/vite-env.d.ts,0
@@ -16,19 +21,23 @@ M[39]:
   src/lib/phonetic.test.ts,105
   src/lib/browseGateway.ts,217
   src/lib/browseGateway.test.ts,128
+  src/lib/llmPrompts.ts,47
   src/lib/logger.ts,74
   src/lib/resolver.ts,160
+  src/lib/llmClient.ts,189
   src/lib/phonetic.ts,69
   src/lib/runtime.ts,3
   src/lib/resolver.test.ts,108
+  src/lib/llmClient.test.ts,124
   src/hooks/useTts.ts,162
   src/hooks/useSpeech.test.ts,224
   src/hooks/useTts.test.ts,169
+  src/hooks/useLlm.ts,144
   src/hooks/useSpeech.ts,201
   src/components/Chat.test.tsx,477
   src/components/Settings.test.tsx,215
   src/components/Settings.tsx,253
-  src/components/Chat.tsx,345
+  src/components/Chat.tsx,387
   src/components/TtsControls.tsx,84
   src/components/TtsControls.test.tsx,85
   src/domain/audioSettings.ts,29
@@ -36,7 +45,8 @@ M[39]:
   src/domain/chatEvents.test.ts,78
   src/domain/audioSettings.test.ts,31
   src/test/setup.ts,50
-  src-tauri/src/main.rs,296
+  src-tauri/src/llm.rs,71
+  src-tauri/src/main.rs,298
   src-tauri/src/test_read.rs,16
   src-tauri/tests/placeholder_test.rs,7
   src-tauri/tests/test_read.rs,17
@@ -64,32 +74,73 @@ D:
     i: std::io::Cursor,url::Url
     e: main
     main()
+  TODO/llm.rs:
+    i: serde::{Deserialize, Serialize},std::env
+    e: LlmResponse
+    LlmResponse: 
+  TODO/llmPrompts.ts:
+    e: getPrompt,PromptMode
+    getPrompt(mode: PromptMode;override?)->string
+  TODO/useLlm.ts:
+    i: react,..{/lib/llmClient,/lib/llmPrompts,/lib/logger}
+    e: IntentType,UseLlmReturn,UseLlmOptions,useLlm
+    useLlm(options: UseLlmOptions)->UseLlmReturn
+  TODO/llmClient.ts:
+    i: .{/logger,/runtime}
+    e: LlmConfig,chatViaTauri,summarizeForTts,chatDirect,LlmMessage,askAboutContent,LlmResponse,chat
+    getConfig()->LlmConfig
+    chat(messages: LlmMessage[];configOverride?)->Promise<LlmResponse>
+    chatDirect(messages: LlmMessage[];cfg: LlmConfig)->Promise<LlmResponse>
+    chatViaTauri(messages: LlmMessage[];cfg: LlmConfig)->Promise<LlmResponse>
+    askAboutContent(pageContent: string;question: string)->Promise<string>
+    describeImage(base64Image: string;mimeType;prompt)->Promise<string>
+    summarizeForTts(pageContent: string;maxSentences)->Promise<string>
+    detectIntent(userText: string)->Promise<string>
+  TODO/llmClient.test.ts:
+    i: vitest
+    e: mockFetchSuccess,mockFetchError
+    mockFetchSuccess(responseText: string;model)
+    mockFetchError(status: number;body: string)
   src/App.tsx:
     i: react,@tauri-apps/api/core,lucide-react,.{/components/Chat,/components/Settings,/domain/audioSettings,/lib/logger,/lib/runtime}
     e: App
     App()
   src/lib/browseGateway.ts:
     i: @tauri-apps/api/core,.{/logger,/runtime}
-    e: browseInBrowser,executeBrowseCommand,looksLikeHtml,AllOriginsResponse,BrowseResult,normalizeText,normalizeBrowseResult,extractBrowserReadableContent
+    e: normalizeBrowseResult,looksLikeHtml,BrowseResult,AllOriginsResponse,normalizeText,executeBrowseCommand,extractBrowserReadableContent,browseInBrowser
     normalizeText(text: string)->string
     extractBrowserReadableContent(rawHtml: string)->{ title: string; content: string }
     looksLikeHtml(text: string)->boolean
     normalizeBrowseResult(result: BrowseResult;source: "tauri" | "browser")->BrowseResult
     browseInBrowser(url: string)->Promise<BrowseResult>
     executeBrowseCommand(url: string;runtimeIsTauri: boolean)->Promise<BrowseResult>
+  src/lib/llmPrompts.ts:
+    e: getPrompt,PromptMode
+    getPrompt(mode: PromptMode;override?)->string
   src/lib/logger.ts:
-    e: createScopedLogger,emit,logSyncDecorator,LogLevel,logAsyncDecorator,LogMethod,ScopedLogger
+    e: createScopedLogger,LogLevel,logSyncDecorator,LogMethod,logAsyncDecorator,emit,ScopedLogger
     emit(level: LogLevel;scope: string | undefined;message: string)
     createScopedLogger(scope?)
     logSyncDecorator(scope: string;operationName: string;fn: (...args: TArgs) => TResult)->(...args: TArgs) => TResult
     logAsyncDecorator(scope: string;operationName: string;fn: (...args: TArgs) => Promise<TResult>)->(...args: TArgs) => Promise<TResult>
   src/lib/resolver.ts:
     i: .{/logger,/phonetic}
-    e: ResolveResult,similarity,fuzzyMatchDomain,levenshtein,resolve
+    e: levenshtein,fuzzyMatchDomain,resolve,similarity,ResolveResult
     levenshtein(a: string;b: string)->number
     similarity(a: string;b: string)->number
     fuzzyMatchDomain(input: string;threshold;maxResults)->Array<[string, number]>
     resolve(rawInput: string;threshold)->ResolveResult
+  src/lib/llmClient.ts:
+    i: .{/logger,/runtime}
+    e: LlmConfig,chatViaTauri,summarizeForTts,chatDirect,LlmMessage,askAboutContent,LlmResponse,chat
+    getConfig()->LlmConfig
+    chat(messages: LlmMessage[];configOverride?)->Promise<LlmResponse>
+    chatDirect(messages: LlmMessage[];cfg: LlmConfig)->Promise<LlmResponse>
+    chatViaTauri(messages: LlmMessage[];cfg: LlmConfig)->Promise<LlmResponse>
+    askAboutContent(pageContent: string;question: string)->Promise<string>
+    describeImage(base64Image: string;mimeType;prompt)->Promise<string>
+    summarizeForTts(pageContent: string;maxSentences)->Promise<string>
+    detectIntent(userText: string)->Promise<string>
   src/lib/phonetic.ts:
     i: ./logger
     e: looksLikeUrl,normalize
@@ -98,18 +149,27 @@ D:
   src/lib/runtime.ts:
     e: isTauriRuntime
     isTauriRuntime()->boolean
+  src/lib/llmClient.test.ts:
+    i: vitest
+    e: mockFetchSuccess,mockFetchError
+    mockFetchSuccess(responseText: string;model)
+    mockFetchError(status: number;body: string)
   src/hooks/useTts.ts:
     i: react,../lib/logger
-    e: TtsOptions,preprocessForTts,useTts
+    e: preprocessForTts,useTts,TtsOptions
     preprocessForTts(text: string)->string
     useTts(options: Partial<TtsOptions>)
   src/hooks/useSpeech.test.ts:
     i: vitest,@testing-library/react,./useSpeech
     e: MockRecognition
     makeMockRecognition()
+  src/hooks/useLlm.ts:
+    i: react,..{/lib/llmClient,/lib/llmPrompts,/lib/logger}
+    e: IntentType,UseLlmReturn,UseLlmOptions,useLlm
+    useLlm(options: UseLlmOptions)->UseLlmReturn
   src/hooks/useSpeech.ts:
     i: react,..{/lib/logger,/lib/runtime}
-    e: SpeechRecognitionErrorEvent,SpeechRecognitionEvent,useSpeech,SpeechRecognitionInstance,getUnsupportedReason,getSpeechRecognitionCtor
+    e: SpeechRecognitionEvent,getSpeechRecognitionCtor,SpeechRecognitionInstance,useSpeech,SpeechRecognitionErrorEvent,getUnsupportedReason
     getSpeechRecognitionCtor()->(new () => SpeechRecognitionInstance) | undefined
     getUnsupportedReason(supported: boolean;runtimeIsTauri: boolean)->string | null
     useSpeech(lang: string)
@@ -128,10 +188,10 @@ D:
     addMessage(msg: Omit<ChatMessage; "id">)
     updateMessage(id: number;updates: Partial<ChatMessage>)
     handleSubmit(text?)
+    handleLlmQuestion(question: string)
     handleSuggestionClick(url: string)
     handleKeyDown(e: React.KeyboardEvent)
     toggleMic()
-    resolveIcon(type?)
   src/components/TtsControls.tsx:
     i: lucide-react,../lib/logger
     e: TtsControlsProps
@@ -143,8 +203,12 @@ D:
     e: AudioSettings,withAudioSettingsDefaults
     withAudioSettingsDefaults(partial: Partial<AudioSettings>)->AudioSettings
   src/domain/chatEvents.ts:
-    e: ChatMessage,projectChatMessages,ChatMessageRole,ChatEvent
+    e: projectChatMessages,ChatMessage,ChatEvent,ChatMessageRole
     projectChatMessages(current: ChatMessage[];event: ChatEvent)->ChatMessage[]
+  src-tauri/src/llm.rs:
+    i: serde::{Deserialize, Serialize},std::env
+    e: LlmResponse
+    LlmResponse: 
   src-tauri/src/main.rs:
     i: serde::{Deserialize, Serialize},std::fs,std::path::PathBuf
     e: AudioSettings,BrowseResult,backend_info,backend_warn,backend_error,truncate_to_chars,settings_path,get_settings

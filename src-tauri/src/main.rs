@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod llm;
+
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -317,7 +319,7 @@ fn normalize_whitespace(text: &str) -> String {
 
 fn main() {
     backend_info("Booting Broxeen Tauri backend...");
-    backend_info("Registering command handlers: get_settings, save_settings, browse");
+    backend_info("Registering command handlers: get_settings, save_settings, browse, llm_chat");
 
     if let Err(err) = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -325,6 +327,7 @@ fn main() {
             get_settings,
             save_settings,
             browse,
+            llm::llm_chat,
         ])
         .run(tauri::generate_context!())
     {

@@ -25,7 +25,7 @@ function emit(level: LogLevel, scope: string | undefined, message: string, ...ar
   console.log(line, ...args);
 }
 
-function createScopedLogger(scope?: string) {
+export function createScopedLogger(scope?: string) {
   const log = (level: LogLevel): LogMethod => (message, ...args) => {
     emit(level, scope, message, ...args);
   };

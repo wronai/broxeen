@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Mic, MicOff, Loader2, Globe, Search, Zap, Copy } from "lucide-react";
+import { Send, Mic, MicOff, Loader2, Globe, Search, Zap, Copy, Bot } from "lucide-react";
 import { resolve } from "../lib/resolver";
+import { looksLikeUrl } from "../lib/phonetic";
 import { useSpeech } from "../hooks/useSpeech";
 import { useTts } from "../hooks/useTts";
+import { useLlm } from "../hooks/useLlm";
 import TtsControls from "./TtsControls";
 import type { AudioSettings } from "../domain/audioSettings";
 import {
@@ -12,6 +14,7 @@ import {
 } from "../domain/chatEvents";
 import { executeBrowseCommand } from "../lib/browseGateway";
 import { logger, logAsyncDecorator } from "../lib/logger";
+import { getConfig } from "../lib/llmClient";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -28,10 +31,14 @@ interface ChatProps {
 export default function Chat({ settings }: ChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
+  const [pageContent, setPageContent] = useState<string>("");
   const nextIdRef = useRef(1);
   const eventsRef = useRef<ChatEvent[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatLogger = logger.scope("chat:ui");
+
+  const llm = useLlm({ pageContent });
+  const llmAvailable = !!getConfig().apiKey;
 
   const {
     isListening,
@@ -126,6 +133,14 @@ export default function Chat({ settings }: ChatProps) {
       }
 
       if (!result.url) {
+        // If LLM is available and we have page content or it's a general question, route to LLM
+        if (llmAvailable && !looksLikeUrl(query)) {
+          chatLogger.info("No URL resolved, routing to LLM Q&A", {
+            hasPageContent: !!pageContent,
+          });
+          await handleLlmQuestion(query);
+          return;
+        }
         chatLogger.warn("Resolution returned no URL and no clarification request");
         return;
       }
@@ -147,15 +162,13 @@ export default function Chat({ settings }: ChatProps) {
       try {
         const browseResult = await executeBrowseCommand(resolvedUrl);
         const content = browseResult.content.slice(0, 5000).trim();
-        const assistantText = content
-          ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${content}`
-          : `Nie udało się wyodrębnić treści z: ${browseResult.url}`;
+        setPageContent(browseResult.content);
 
         chatLogger.info("Browse result received", {
           url: browseResult.url,
           titleLength: browseResult.title.length,
           contentLength: browseResult.content.length,
-          renderedLength: assistantText.length,
+          llmAvailable,
         });
 
         if (!content) {
@@ -163,6 +176,22 @@ export default function Chat({ settings }: ChatProps) {
             url: browseResult.url,
             title: browseResult.title,
           });
+        }
+
+        // If LLM is available, summarize via LLM; otherwise fall back to raw content
+        let assistantText: string;
+        if (llmAvailable && content) {
+          updateMessage(loadingId, {
+            text: "Analizuję treść strony...",
+            url: browseResult.url,
+            loading: true,
+          });
+          const summary = await llm.summarize(browseResult.content);
+          assistantText = `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${summary}`;
+        } else {
+          assistantText = content
+            ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${content}`
+            : `Nie udało się wyodrębnić treści z: ${browseResult.url}`;
         }
 
         updateMessage(loadingId, {
@@ -173,10 +202,9 @@ export default function Chat({ settings }: ChatProps) {
 
         if (settings.tts_enabled) {
           chatLogger.info("TTS enabled for assistant response", {
-            readLength: Math.min(browseResult.content.length, 3000),
+            readLength: Math.min(assistantText.length, 3000),
           });
-          const toRead = browseResult.content.slice(0, 3000);
-          tts.speak(toRead);
+          tts.speak(assistantText.slice(0, 3000));
         }
       } catch (err) {
         chatLogger.error("Browse failed", err);
@@ -188,6 +216,29 @@ export default function Chat({ settings }: ChatProps) {
     });
 
     await runHandleSubmit();
+  };
+
+  const handleLlmQuestion = async (question: string) => {
+    const runLlmQuestion = logAsyncDecorator("chat:ui", "handleLlmQuestion", async () => {
+      chatLogger.info("LLM Q&A question", {
+        questionLength: question.length,
+        hasPageContent: !!pageContent,
+      });
+
+      const thinkingId = addMessage({ role: "assistant", text: "Myślę...", loading: true });
+      const answer = await llm.send(question);
+
+      updateMessage(thinkingId, {
+        text: answer,
+        loading: false,
+      });
+
+      if (settings.tts_enabled) {
+        tts.speak(answer.slice(0, 3000));
+      }
+    });
+
+    await runLlmQuestion();
   };
 
   const handleSuggestionClick = (url: string) => {

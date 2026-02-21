@@ -1,3 +1,28 @@
+## [1.0.11] - 2026-02-21
+
+### Summary
+
+fix(goal): CLI interface improvements
+
+### Docs
+
+- docs: update plan-llm-broxeen.md
+
+### Other
+
+- update .env.example
+- update TODO/.env.example
+- update TODO/llm.rs
+- update TODO/llmClient.test.ts
+- update TODO/llmClient.ts
+- update TODO/llmPrompts.ts
+- update TODO/useLlm.ts
+- update project.functions.toon
+- update project.toon
+- update src-tauri/src/llm.rs
+- ... and 7 more
+
+
 ## [1.0.10] - 2026-02-21
 
 ### Summary
