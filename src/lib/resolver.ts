@@ -1,4 +1,5 @@
 import { normalize, looksLikeUrl } from "./phonetic";
+import { logger } from "./logger";
 
 const KNOWN_DOMAINS = [
   "google.com", "youtube.com", "facebook.com", "twitter.com", "instagram.com",
@@ -87,6 +88,7 @@ function fuzzyMatchDomain(
 
 export function resolve(rawInput: string, threshold = 0.55): ResolveResult {
   const text = rawInput.trim();
+  logger.debug(`Resolving input: "${text}"`);
   if (!text) {
     return {
       url: null,
@@ -99,6 +101,7 @@ export function resolve(rawInput: string, threshold = 0.55): ResolveResult {
 
   // 1) Already a valid URL?
   if (/^https?:\/\//.test(text)) {
+    logger.debug("Input is already a full URL");
     return {
       url: text,
       suggestions: [],
@@ -110,6 +113,7 @@ export function resolve(rawInput: string, threshold = 0.55): ResolveResult {
 
   // 2) Looks like a domain?
   if (/^[\w.-]+\.\w{2,}/.test(text)) {
+    logger.debug("Input looks like a domain");
     return {
       url: `https://${text}`,
       suggestions: [],
@@ -121,7 +125,9 @@ export function resolve(rawInput: string, threshold = 0.55): ResolveResult {
 
   // 3) Apply phonetic normalization
   const normalized = normalize(text);
+  logger.debug(`Phonetic normalization: "${text}" -> "${normalized}"`);
   if (looksLikeUrl(normalized)) {
+    logger.debug("Normalized input looks like a URL after phonetic rules");
     const fuzzy = fuzzyMatchDomain(normalized, threshold);
     const suggestions = fuzzy
       .filter(([d]) => d !== normalized)
@@ -139,6 +145,7 @@ export function resolve(rawInput: string, threshold = 0.55): ResolveResult {
   // 4) Fuzzy match against known domains
   const fuzzy = fuzzyMatchDomain(text, threshold);
   if (fuzzy.length > 0) {
+    logger.debug(`Fuzzy matches found: ${fuzzy.length}`);
     const [, bestScore] = fuzzy[0];
     const allSuggestions = fuzzy.map(([d]) => `https://${d}`);
 
@@ -162,6 +169,7 @@ export function resolve(rawInput: string, threshold = 0.55): ResolveResult {
   }
 
   // 5) Fallback — search
+  logger.debug("No match found, falling back to search");
   const searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(text)}`;
   return {
     url: searchUrl,

@@ -7,6 +7,9 @@ import { useTts } from "../hooks/useTts";
 import TtsControls from "./TtsControls";
 import { logger } from "../lib/logger";
 
+// Check if running in Tauri environment
+const isTauriApp = typeof window !== 'undefined' && '__TAURI__' in window;
+
 interface Message {
   id: number;
   role: "user" | "assistant" | "system";
@@ -125,6 +128,40 @@ export default function Chat({ settings }: ChatProps) {
 
     try {
       logger.debug(`Invoking 'browse' for URL: ${resolvedUrl}`);
+      
+      if (!isTauriApp) {
+        // Fallback for browser - simulate browsing with CORS proxy
+        const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(resolvedUrl)}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        const data = await response.json();
+        const browseResult = {
+          url: resolvedUrl,
+          title: "Page Title (Browser Mode)",
+          content: data.contents?.slice(0, 5000) || "Content not available in browser mode. Please use the desktop app for full functionality.",
+        };
+        
+        logger.debug("Browse result received (browser mode):", {
+          url: browseResult.url,
+          title: browseResult.title,
+          contentLength: browseResult.content.length,
+        });
+
+        updateMessage(loadingId, {
+          text: browseResult.content,
+          url: browseResult.url,
+          loading: false,
+        });
+
+        if (settings.tts_enabled) {
+          logger.debug("TTS is enabled, starting speech...");
+          const toRead = browseResult.content.slice(0, 3000);
+          tts.speak(toRead);
+        }
+        return;
+      }
+
       const browseResult = await invoke<{
         url: string;
         title: string;

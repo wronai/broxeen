@@ -5,6 +5,9 @@ import Chat from "./components/Chat";
 import Settings from "./components/Settings";
 import { logger } from "./lib/logger";
 
+// Check if running in Tauri environment
+const isTauriApp = typeof window !== 'undefined' && '__TAURI__' in window;
+
 interface AudioSettings {
   tts_enabled: boolean;
   tts_rate: number;
@@ -38,14 +41,21 @@ export default function App() {
 
   useEffect(() => {
     logger.debug("App component mounted, fetching settings...");
-    invoke<AudioSettings>("get_settings")
-      .then((s) => {
-        logger.debug("Settings loaded:", s);
-        setSettings(s);
-      })
-      .catch((e) => {
-        logger.error("Failed to load settings:", e);
-      });
+    
+    if (isTauriApp) {
+      invoke<AudioSettings>("get_settings")
+        .then((s) => {
+          logger.debug("Settings loaded:", s);
+          setSettings(s);
+        })
+        .catch((e) => {
+          logger.error("Failed to load settings:", e);
+        });
+    } else {
+      // Browser fallback - use default settings
+      logger.debug("Running in browser mode, using default settings");
+      setSettings(DEFAULT_SETTINGS);
+    }
 
     const loadVoices = () => {
       const availableVoices = window.speechSynthesis.getVoices();

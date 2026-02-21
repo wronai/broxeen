@@ -1,4 +1,5 @@
 import { Play, Pause, Square, Volume2 } from "lucide-react";
+import { logger } from "../lib/logger";
 
 interface TtsControlsProps {
   isSpeaking: boolean;
@@ -19,11 +20,31 @@ export default function TtsControls({
   onResume,
   onStop,
 }: TtsControlsProps) {
+  const handleSpeak = () => {
+    logger.debug("TTS Controls: Odsłuchaj clicked");
+    onSpeak();
+  };
+
+  const handlePause = () => {
+    logger.debug("TTS Controls: Pauza clicked");
+    onPause();
+  };
+
+  const handleResume = () => {
+    logger.debug("TTS Controls: Wznów clicked");
+    onResume();
+  };
+
+  const handleStop = () => {
+    logger.debug("TTS Controls: Stop clicked");
+    onStop();
+  };
+
   return (
     <div className="flex items-center gap-2">
       {!isSpeaking ? (
         <button
-          onClick={onSpeak}
+          onClick={handleSpeak}
           className="flex items-center gap-1.5 rounded-lg bg-broxeen-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-broxeen-500"
           title="Odczytaj (TTS)"
         >
@@ -34,7 +55,7 @@ export default function TtsControls({
         <>
           {isPaused ? (
             <button
-              onClick={onResume}
+              onClick={handleResume}
               className="rounded-lg bg-broxeen-600 p-1.5 text-white transition hover:bg-broxeen-500"
               title="Wznów"
             >
@@ -42,7 +63,7 @@ export default function TtsControls({
             </button>
           ) : (
             <button
-              onClick={onPause}
+              onClick={handlePause}
               className="rounded-lg bg-yellow-600 p-1.5 text-white transition hover:bg-yellow-500"
               title="Pauza"
             >
@@ -50,7 +71,7 @@ export default function TtsControls({
             </button>
           )}
           <button
-            onClick={onStop}
+            onClick={handleStop}
             className="rounded-lg bg-red-600 p-1.5 text-white transition hover:bg-red-500"
             title="Stop"
           >

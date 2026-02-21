@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Settings as SettingsIcon, X, Mic, Volume2 } from "lucide-react";
+import { logger } from "../lib/logger";
 
 interface AudioSettings {
   tts_enabled: boolean;
@@ -48,25 +49,36 @@ export default function Settings({
   useEffect(() => {
     if (!isOpen) return;
 
+    logger.debug("Settings modal opened, loading data...");
     invoke<AudioSettings>("get_settings")
-      .then(setSettings)
-      .catch(() => setSettings(DEFAULT_SETTINGS));
+      .then((s) => {
+        logger.debug("Settings fetched from backend:", s);
+        setSettings(s);
+      })
+      .catch((e) => {
+        logger.error("Failed to fetch settings:", e);
+        setSettings(DEFAULT_SETTINGS);
+      });
 
     navigator.mediaDevices
       .enumerateDevices()
-      .then((devices) => setAudioDevices(devices))
-      .catch(() => {});
+      .then((devices) => {
+        logger.debug(`Found ${devices.length} audio devices`);
+        setAudioDevices(devices);
+      })
+      .catch((e) => logger.error("Failed to enumerate devices:", e));
 
     // Request mic permission to get device labels
     navigator.mediaDevices
       .getUserMedia({ audio: true })
       .then((stream) => {
+        logger.debug("Microphone permission granted for labels");
         stream.getTracks().forEach((t) => t.stop());
         navigator.mediaDevices
           .enumerateDevices()
           .then((devices) => setAudioDevices(devices));
       })
-      .catch(() => {});
+      .catch((e) => logger.warn("Microphone permission denied or failed:", e));
   }, [isOpen]);
 
   const micDevices = audioDevices.filter((d) => d.kind === "audioinput");
@@ -80,12 +92,14 @@ export default function Settings({
 
   const handleSave = async () => {
     try {
+      logger.debug("Saving settings to backend...", settings);
       await invoke("save_settings", { settings });
       onSettingsChange(settings);
       setSaved(true);
+      logger.info("Settings saved successfully");
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
-      console.error("Failed to save settings:", e);
+      logger.error("Failed to save settings:", e);
     }
   };
 

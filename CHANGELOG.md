@@ -1,3 +1,19 @@
+## [1.0.6] - 2026-02-21
+
+### Summary
+
+feat(None): core module improvements
+
+### Other
+
+- update src/App.tsx
+- update src/components/Chat.tsx
+- update src/components/Settings.tsx
+- update src/components/TtsControls.tsx
+- update src/lib/phonetic.ts
+- update src/lib/resolver.ts
+
+
 ## [1.0.5] - 2026-02-21
 
 ### Summary

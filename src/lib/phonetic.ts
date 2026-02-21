@@ -1,3 +1,5 @@
+import { logger } from "./logger";
+
 const PHONETIC_RULES: Record<string, string> = {
   "ha te te pe es dwa kropki slash slash": "https://",
   "ha te te pe dwa kropki slash slash": "http://",
@@ -45,9 +47,16 @@ const SORTED_RULES = Object.entries(PHONETIC_RULES).sort(
 
 export function normalize(text: string): string {
   let result = text.toLowerCase().trim();
+  const original = result;
 
   for (const [spoken, replacement] of SORTED_RULES) {
-    result = result.split(spoken).join(replacement);
+    if (result.includes(spoken)) {
+      result = result.split(spoken).join(replacement);
+    }
+  }
+
+  if (original !== result) {
+    logger.debug(`Phonetic replacement applied: "${original}" -> "${result}"`);
   }
 
   result = result.replace(/\s*\.\s*/g, ".");
