@@ -13,7 +13,7 @@ import {
   type ChatMessage,
 } from "../domain/chatEvents";
 import { executeBrowseCommand } from "../lib/browseGateway";
-import { logger, logAsyncDecorator } from "../lib/logger";
+import { logger } from "../lib/logger";
 import { getConfig } from "../lib/llmClient";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
@@ -111,148 +111,140 @@ export default function Chat({ settings }: ChatProps) {
   };
 
   const handleSubmit = async (text?: string) => {
-    const runHandleSubmit = logAsyncDecorator("chat:ui", "handleSubmit", async () => {
-      const query = (text || input).trim();
-      if (!query) {
-        chatLogger.debug("Ignoring empty submit");
-        return;
-      }
+    const query = (text || input).trim();
+    if (!query) {
+      chatLogger.debug("Ignoring empty submit");
+      return;
+    }
 
-      setInput("");
-      chatLogger.info("Handling submit", { queryLength: query.length });
-      addMessage({ role: "user", text: query });
+    setInput("");
+    chatLogger.info("Handling submit", { queryLength: query.length });
+    addMessage({ role: "user", text: query });
 
-      const result = resolve(query);
-      chatLogger.info("Query resolved", {
-        resolveType: result.resolveType,
-        needsClarification: result.needsClarification,
-        hasUrl: !!result.url,
-        suggestionsCount: result.suggestions.length,
-      });
-
-      if (result.needsClarification) {
-        addMessage({
-          role: "assistant",
-          text: "Czy chodziło Ci o jedną z tych stron?",
-          suggestions: result.suggestions,
-          resolveType: result.resolveType,
-        });
-        return;
-      }
-
-      if (!result.url) {
-        // If LLM is available and we have page content or it's a general question, route to LLM
-        if (llmAvailable && !looksLikeUrl(query)) {
-          chatLogger.info("No URL resolved, routing to LLM Q&A", {
-            hasPageContent: !!pageContent,
-          });
-          await handleLlmQuestion(query);
-          return;
-        }
-        chatLogger.warn("Resolution returned no URL and no clarification request");
-        return;
-      }
-
-      const loadingId = nextIdRef.current++;
-      const resolvedUrl = result.url;
-      applyEvent({
-        type: "message_added",
-        payload: {
-          id: loadingId,
-          role: "assistant",
-          text: `Pobieram: ${resolvedUrl}...`,
-          url: resolvedUrl,
-          resolveType: result.resolveType,
-          loading: true,
-        },
-      });
-
-      try {
-        const browseResult = await executeBrowseCommand(resolvedUrl);
-        const content = browseResult.content.slice(0, 5000).trim();
-        setPageContent(browseResult.content);
-
-        chatLogger.info("Browse result received", {
-          url: browseResult.url,
-          titleLength: browseResult.title.length,
-          contentLength: browseResult.content.length,
-          llmAvailable,
-        });
-
-        if (!content) {
-          chatLogger.warn("Browse result had empty extracted content", {
-            url: browseResult.url,
-            title: browseResult.title,
-          });
-        }
-
-        // If LLM is available, summarize via LLM; otherwise fall back to raw content
-        let assistantText: string;
-        if (llmAvailable && content) {
-          updateMessage(loadingId, {
-            text: "Analizuję treść strony...",
-            url: browseResult.url,
-            loading: true,
-          });
-          const summary = await llm.summarize(browseResult.content);
-          const safeSummary = typeof summary === "string" ? summary.trim() : "";
-          assistantText = safeSummary
-            ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${safeSummary}`
-            : content
-              ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${content}`
-              : `Nie udało się wyodrębnić treści z: ${browseResult.url}`;
-        } else {
-          assistantText = content
-            ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${content}`
-            : `Nie udało się wyodrębnić treści z: ${browseResult.url}`;
-        }
-
-        updateMessage(loadingId, {
-          text: assistantText,
-          url: browseResult.url,
-          loading: false,
-        });
-
-        if (settings.tts_enabled) {
-          chatLogger.info("TTS enabled for assistant response", {
-            readLength: Math.min(assistantText.length, 3000),
-          });
-          tts.speak(assistantText.slice(0, 3000));
-        }
-      } catch (err) {
-        chatLogger.error("Browse failed", err);
-        updateMessage(loadingId, {
-          text: `Nie udało się pobrać strony: ${err}`,
-          loading: false,
-        });
-      }
+    const result = resolve(query);
+    chatLogger.info("Query resolved", {
+      resolveType: result.resolveType,
+      needsClarification: result.needsClarification,
+      hasUrl: !!result.url,
+      suggestionsCount: result.suggestions.length,
     });
 
-    await runHandleSubmit();
-  };
+    if (result.needsClarification) {
+      addMessage({
+        role: "assistant",
+        text: "Czy chodziło Ci o jedną z tych stron?",
+        suggestions: result.suggestions,
+        resolveType: result.resolveType,
+      });
+      return;
+    }
 
-  const handleLlmQuestion = async (question: string) => {
-    const runLlmQuestion = logAsyncDecorator("chat:ui", "handleLlmQuestion", async () => {
-      chatLogger.info("LLM Q&A question", {
-        questionLength: question.length,
-        hasPageContent: !!pageContent,
+    if (!result.url) {
+      // If LLM is available and we have page content or it's a general question, route to LLM
+      if (llmAvailable && !looksLikeUrl(query)) {
+        chatLogger.info("No URL resolved, routing to LLM Q&A", {
+          hasPageContent: !!pageContent,
+        });
+        await handleLlmQuestion(query);
+        return;
+      }
+      chatLogger.warn("Resolution returned no URL and no clarification request");
+      return;
+    }
+
+    const loadingId = nextIdRef.current++;
+    const resolvedUrl = result.url;
+    applyEvent({
+      type: "message_added",
+      payload: {
+        id: loadingId,
+        role: "assistant",
+        text: `Pobieram: ${resolvedUrl}...`,
+        url: resolvedUrl,
+        resolveType: result.resolveType,
+        loading: true,
+      },
+    });
+
+    try {
+      const browseResult = await executeBrowseCommand(resolvedUrl);
+      const content = browseResult.content.slice(0, 5000).trim();
+      setPageContent(browseResult.content);
+
+      chatLogger.info("Browse result received", {
+        url: browseResult.url,
+        titleLength: browseResult.title.length,
+        contentLength: browseResult.content.length,
+        llmAvailable,
       });
 
-      const thinkingId = addMessage({ role: "assistant", text: "Myślę...", loading: true });
-      const answer = await llm.send(question);
-      const safeAnswer = typeof answer === "string" ? answer.trim() : "";
+      if (!content) {
+        chatLogger.warn("Browse result had empty extracted content", {
+          url: browseResult.url,
+          title: browseResult.title,
+        });
+      }
 
-      updateMessage(thinkingId, {
-        text: safeAnswer || "Nie udało się wygenerować odpowiedzi.",
+      // If LLM is available, summarize via LLM; otherwise fall back to raw content
+      let assistantText: string;
+      if (llmAvailable && content) {
+        updateMessage(loadingId, {
+          text: "Analizuję treść strony...",
+          url: browseResult.url,
+          loading: true,
+        });
+        const summary = await llm.summarize(browseResult.content);
+        const safeSummary = typeof summary === "string" ? summary.trim() : "";
+        assistantText = safeSummary
+          ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${safeSummary}`
+          : content
+            ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${content}`
+            : `Nie udało się wyodrębnić treści z: ${browseResult.url}`;
+      } else {
+        assistantText = content
+          ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${content}`
+          : `Nie udało się wyodrębnić treści z: ${browseResult.url}`;
+      }
+
+      updateMessage(loadingId, {
+        text: assistantText,
+        url: browseResult.url,
         loading: false,
       });
 
       if (settings.tts_enabled) {
-        tts.speak((safeAnswer || "Nie udało się wygenerować odpowiedzi.").slice(0, 3000));
+        chatLogger.info("TTS enabled for assistant response", {
+          readLength: Math.min(assistantText.length, 3000),
+        });
+        tts.speak(assistantText.slice(0, 3000));
       }
+    } catch (err) {
+      chatLogger.error("Browse failed", err);
+      updateMessage(loadingId, {
+        text: `Nie udało się pobrać strony: ${err}`,
+        loading: false,
+      });
+    }
+  };
+
+  const handleLlmQuestion = async (question: string) => {
+    chatLogger.info("LLM Q&A question", {
+      questionLength: question.length,
+      hasPageContent: !!pageContent,
     });
 
-    await runLlmQuestion();
+    const thinkingId = addMessage({ role: "assistant", text: "Myślę...", loading: true });
+    const answer = await llm.send(question);
+    const safeAnswer = typeof answer === "string" ? answer.trim() : "";
+
+    updateMessage(thinkingId, {
+      text: safeAnswer || "Nie udało się wygenerować odpowiedzi.",
+      loading: false,
+    });
+
+    if (settings.tts_enabled) {
+      tts.speak((safeAnswer || "Nie udało się wygenerować odpowiedzi.").slice(0, 3000));
+    }
   };
 
   const handleSuggestionClick = (url: string) => {
