@@ -37,9 +37,7 @@ dist/
 # Tauri / Rust
 src-tauri/target/
 src-tauri/WixTools/
-src-tauri/icons/*.png
-src-tauri/icons/*.ico
-src-tauri/icons/*.icns
+# src-tauri/icons are committed - required for cargo check/build
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

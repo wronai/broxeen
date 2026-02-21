@@ -70,6 +70,7 @@ export default function Chat({ settings }: ChatProps) {
     if (transcript && !isListening) {
       handleSubmit(transcript);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcript, isListening]);
 
   const addMessage = (msg: Omit<Message, "id">) => {
@@ -108,13 +109,14 @@ export default function Chat({ settings }: ChatProps) {
 
     const loadingId = nextId;
     setNextId((n) => n + 1);
+    const resolvedUrl = result.url!;
     setMessages((prev) => [
       ...prev,
       {
         id: loadingId,
-        role: "assistant",
-        text: `Pobieram: ${result.url}...`,
-        url: result.url,
+        role: "assistant" as const,
+        text: `Pobieram: ${resolvedUrl}...`,
+        url: resolvedUrl,
         resolveType: result.resolveType,
         loading: true,
       },
@@ -125,7 +127,7 @@ export default function Chat({ settings }: ChatProps) {
         url: string;
         title: string;
         content: string;
-      }>("browse", { url: result.url });
+      }>("browse", { url: resolvedUrl });
 
       updateMessage(loadingId, {
         text: browseResult.content.slice(0, 5000),

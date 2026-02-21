@@ -1,3 +1,24 @@
+## [1.0.3] - 2026-02-21
+
+### Summary
+
+feat(src-tauri): configuration management system
+
+### Other
+
+- update .gitignore
+- update src-tauri/Cargo.lock
+- update src-tauri/Cargo.toml
+- update src-tauri/capabilities/default.json
+- update src-tauri/gen/schemas/acl-manifests.json
+- update src-tauri/gen/schemas/capabilities.json
+- update src-tauri/gen/schemas/desktop-schema.json
+- update src-tauri/gen/schemas/linux-schema.json
+- update src-tauri/icons/128x128.png
+- update src-tauri/icons/128x128@2x.png
+- ... and 5 more
+
+
 ## [1.0.2] - 2026-02-21
 
 ### Summary

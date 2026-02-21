@@ -10,7 +10,6 @@
     "beforeBuildCommand": "npm run build"
   },
   "app": {
-    "title": "Broxeen — News Browser z TTS",
     "windows": [
       {
         "title": "Broxeen",
