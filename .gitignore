@@ -1,3 +1,35 @@
+.idea
+screenshots/
+fixPI/.env
+fixPI/.venv/
+/logs
+logs/
+.zip
+backups/
+venv
+node_modules
+package-lock.json
+
+# Hybrid structure — keys (auto-generated, keep .gitkeep)
+management/keys/*
+!management/keys/.gitkeep
+!management/keys/manager/
+management/keys/manager/*
+!management/keys/manager/.gitkeep
+!management/keys/autopilot/
+management/keys/autopilot/*
+!management/keys/autopilot/.gitkeep
+!management/keys/monitor/
+management/keys/monitor/*
+!management/keys/monitor/.gitkeep
+# app/ is now a separate repo: git@github.com:wronai/dockfra-app.git
+app/
+management/.env.local
+management/.env.production
+management/shared/tickets/
+management/shared/logs/
+management/shared/backups/
+# package-lock.json is committed for reproducible Docker builds (npm ci)
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -14,8 +46,12 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/ — disabled, conflicts with shared/lib
+# lib/
 lib64/
+
+# Re-include shared/lib
+!shared/lib/
 parts/
 sdist/
 var/
@@ -151,8 +187,8 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
-# mkdocs documentation
-/site
+# mkdocs documentation (disabled — site/ is our docs project)
+# /site
 
 # mypy
 .mypy_cache/
@@ -205,3 +241,16 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Generated test artifacts and local data
+syntax-report.json
+tmp/
+
+# K8s secrets (never commit actual keys)
+**/secret.env
+!**/secret.env.example
+
+# Local databases
+*.db
+*.sqlite
+wizard/.venv/
