@@ -2,6 +2,7 @@
 
 mod llm;
 mod stt;
+mod tts;
 
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -427,7 +428,7 @@ fn normalize_whitespace(text: &str) -> String {
 fn main() {
     backend_info("Booting Broxeen Tauri backend...");
     backend_info(
-        "Registering command handlers: get_settings, save_settings, browse, llm_chat, stt_transcribe",
+        "Registering command handlers: get_settings, save_settings, browse, llm_chat, stt_transcribe, tts_is_available, tts_speak, tts_stop",
     );
 
     if let Err(err) = tauri::Builder::default()
@@ -438,6 +439,9 @@ fn main() {
             browse,
             llm::llm_chat,
             stt::stt_transcribe,
+            tts::tts_is_available,
+            tts::tts_speak,
+            tts::tts_stop,
         ])
         .run(tauri::generate_context!())
     {
