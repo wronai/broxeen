@@ -1,3 +1,17 @@
+## [1.0.9] - 2026-02-21
+
+### Summary
+
+feat(tests): multi-language support with 3 supporting modules
+
+### Other
+
+- update src-tauri/src/main.rs
+- update src/hooks/useTts.ts
+- update src/lib/browseGateway.test.ts
+- update src/lib/browseGateway.ts
+
+
 ## [1.0.8] - 2026-02-21
 
 ### Summary

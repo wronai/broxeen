@@ -18,6 +18,21 @@ const DEFAULT_OPTIONS: TtsOptions = {
 };
 
 const ttsLogger = logger.scope("speech:tts");
+const MAX_TTS_SENTENCES = 100;
+
+function preprocessForTts(text: string): string {
+  const normalized = text
+    .replace(/[^\p{L}\p{N}\s.,!?;:()\-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .replace(/([.!?])\s*([A-ZĄĆĘŁŃÓŚŹŻ])/g, "$1 | $2")
+    .trim();
+
+  if (!normalized) {
+    return "";
+  }
+
+  return normalized.split(" | ").slice(0, MAX_TTS_SENTENCES).join(" ");
+}
 
 export function useTts(options: Partial<TtsOptions> = {}) {
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -67,19 +82,21 @@ export function useTts(options: Partial<TtsOptions> = {}) {
           return;
         }
 
-        if (!text.trim()) {
-          ttsLogger.warn("Empty text provided for TTS");
+        const preparedText = preprocessForTts(text);
+
+        if (!preparedText) {
+          ttsLogger.warn("Empty text provided for TTS after preprocessing");
           return;
         }
 
         ttsLogger.info("Starting TTS utterance", {
-          textLength: text.length,
+          textLength: preparedText.length,
           lang: opts.lang,
           requestedVoice: opts.voice || "auto",
         });
 
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(text);
+        const utterance = new SpeechSynthesisUtterance(preparedText);
         utterance.rate = opts.rate;
         utterance.pitch = opts.pitch;
         utterance.volume = opts.volume;
@@ -101,7 +118,7 @@ export function useTts(options: Partial<TtsOptions> = {}) {
           }
         }
 
-        totalLenRef.current = text.length;
+        totalLenRef.current = preparedText.length;
         utterance.onboundary = (e) => {
           if (totalLenRef.current > 0) {
             setProgress(Math.round((e.charIndex / totalLenRef.current) * 100));

@@ -3,11 +3,91 @@ import { logger, logAsyncDecorator } from "./logger";
 import { isTauriRuntime } from "./runtime";
 
 const browseLogger = logger.scope("browse:gateway");
+const MAX_CONTENT_LENGTH = 5000;
 
 export interface BrowseResult {
   url: string;
   title: string;
   content: string;
+}
+
+function normalizeText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function extractBrowserReadableContent(rawHtml: string): { title: string; content: string } {
+  const fallbackContent =
+    "Nie udało się wyodrębnić treści ze strony w trybie przeglądarki.";
+
+  if (!rawHtml) {
+    return {
+      title: "Untitled",
+      content: fallbackContent,
+    };
+  }
+
+  if (typeof DOMParser === "undefined") {
+    return {
+      title: "Page Title (Browser Mode)",
+      content: rawHtml.slice(0, MAX_CONTENT_LENGTH),
+    };
+  }
+
+  const document = new DOMParser().parseFromString(rawHtml, "text/html");
+  document
+    .querySelectorAll("script, style, noscript, template")
+    .forEach((el) => el.remove());
+
+  const title = normalizeText(document.title) || "Untitled";
+
+  const selectors = [
+    "article",
+    "main",
+    "[role='main']",
+    ".content",
+    "#content",
+    "body",
+  ];
+
+  for (const selector of selectors) {
+    const node = document.querySelector(selector);
+    if (!node) {
+      continue;
+    }
+
+    const text = normalizeText(node.textContent || "");
+    if (text.length > 120) {
+      return {
+        title,
+        content: text.slice(0, MAX_CONTENT_LENGTH),
+      };
+    }
+  }
+
+  const paragraphText = Array.from(document.querySelectorAll("p"))
+    .map((p) => normalizeText(p.textContent || ""))
+    .filter((p) => p.length > 20)
+    .join("\n\n");
+
+  if (paragraphText) {
+    return {
+      title,
+      content: paragraphText.slice(0, MAX_CONTENT_LENGTH),
+    };
+  }
+
+  const bodyText = normalizeText(document.body?.textContent || "");
+  if (bodyText) {
+    return {
+      title,
+      content: bodyText.slice(0, MAX_CONTENT_LENGTH),
+    };
+  }
+
+  return {
+    title,
+    content: fallbackContent,
+  };
 }
 
 async function browseInBrowser(url: string): Promise<BrowseResult> {
@@ -29,19 +109,19 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
       }
 
       const data = await response.json();
-      const content =
-        data.contents?.slice(0, 5000) ||
-        "Content not available in browser mode. Please use the desktop app for full functionality.";
+      const rawHtml = typeof data?.contents === "string" ? data.contents : "";
+      const extracted = extractBrowserReadableContent(rawHtml);
 
       browseLogger.info("Browser fallback content prepared", {
         url,
-        contentLength: content.length,
+        titleLength: extracted.title.length,
+        contentLength: extracted.content.length,
       });
 
       return {
         url,
-        title: "Page Title (Browser Mode)",
-        content,
+        title: extracted.title,
+        content: extracted.content,
       };
     },
   );

@@ -35,7 +35,7 @@ describe("browseGateway", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
-        contents: "<html>Example body</html>",
+        contents: "<html><body>Example body</body></html>",
       }),
     });
     vi.stubGlobal("fetch", fetchMock);
@@ -47,6 +47,39 @@ describe("browseGateway", () => {
     );
     expect(result.url).toBe("https://example.com");
     expect(result.content).toContain("Example body");
+    expect(result.content).not.toContain("<html");
+  });
+
+  it("extracts readable title and text from browser fallback HTML", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        contents: `
+          <html>
+            <head>
+              <title>Google</title>
+              <script>console.log("hidden");</script>
+            </head>
+            <body>
+              <main>
+                <p>
+                  Search the world's information, including webpages, images, videos and more.
+                  Google has many special features to help you find exactly what you're looking for.
+                </p>
+              </main>
+            </body>
+          </html>
+        `,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await executeBrowseCommand("https://google.com", false);
+
+    expect(result.title).toBe("Google");
+    expect(result.content).toContain("Search the world's information");
+    expect(result.content).not.toContain("<html");
+    expect(result.content).not.toContain("<script");
   });
 
   it("throws when browser fallback response is not ok", async () => {

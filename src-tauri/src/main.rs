@@ -154,18 +154,30 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
     })?;
     backend_info(format!("Fetched {} bytes for {}", html.len(), url));
 
-    let document = scraper::Html::parse_document(&html);
+    let parsed_url = url::Url::parse(&url).unwrap_or_else(|_| url::Url::parse("https://example.com").unwrap());
+    let mut cursor = std::io::Cursor::new(html.clone());
 
-    // Extract title
-    let title_selector = scraper::Selector::parse("title").unwrap();
-    let title = document
-        .select(&title_selector)
-        .next()
-        .map(|el| el.inner_html())
-        .unwrap_or_else(|| url.clone());
+    let (title, content) = match readability::extractor::extract(&mut cursor, &parsed_url) {
+        Ok(product) => {
+            backend_info("Readability extraction successful");
+            (product.title, product.text)
+        }
+        Err(e) => {
+            backend_warn(format!("Readability extraction failed: {}. Falling back to scraper.", e));
+            let document = scraper::Html::parse_document(&html);
 
-    // Extract main content - try article, main, then body
-    let content = extract_content(&document);
+            let title_selector = scraper::Selector::parse("title").unwrap();
+            let title = document
+                .select(&title_selector)
+                .next()
+                .map(|el| el.inner_html())
+                .unwrap_or_else(|| url.clone());
+
+            let content = extract_content(&document);
+            (title, content)
+        }
+    };
+
     backend_info(format!(
         "Content extracted for {} (title_len={}, content_len={})",
         url,
