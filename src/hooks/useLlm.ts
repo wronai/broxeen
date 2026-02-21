@@ -56,18 +56,21 @@ export function useLlm(options: UseLlmOptions = {}): UseLlmReturn {
   const [error, setError] = useState<string | null>(null);
   const historyRef = useRef<LlmMessage[]>([]);
 
-  const send = useCallback(
-    async (text: string): Promise<string> => {
+  const send = useCallback(async (text: string): Promise<string> => {
+    const runSend = logAsyncDecorator("hooks:useLlm", "send", async () => {
       setLoading(true);
       setError(null);
       try {
         let result: string;
 
         if (pageContent) {
-          // Q&A mode: answer questions about current page
+          llmLogger.info("LLM Q&A mode triggered", { queryLength: text.length });
           result = await askAboutContent(pageContent, text);
         } else {
-          // General chat mode with history
+          llmLogger.info("LLM general chat mode triggered", {
+            queryLength: text.length,
+            historyLength: historyRef.current.length,
+          });
           const messages: LlmMessage[] = [
             { role: "system", content: PROMPTS.browse },
             ...historyRef.current.slice(-maxHistory),
@@ -77,7 +80,6 @@ export function useLlm(options: UseLlmOptions = {}): UseLlmReturn {
           result = resp.text;
         }
 
-        // Track history
         historyRef.current = [
           ...historyRef.current,
           { role: "user", content: text },
@@ -87,68 +89,75 @@ export function useLlm(options: UseLlmOptions = {}): UseLlmReturn {
         return result;
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
-        log.error(msg);
+        llmLogger.error("Failed to send LLM query", { error: msg });
         setError(msg);
         return `Błąd LLM: ${msg}`;
       } finally {
         setLoading(false);
       }
-    },
-    [pageContent, maxHistory]
-  );
+    });
+    return runSend();
+  }, [pageContent, maxHistory]);
 
-  const describe = useCallback(
-    async (base64: string, mime = "image/png"): Promise<string> => {
+  const describe = useCallback(async (base64: string, mime = "image/png"): Promise<string> => {
+    const runDescribe = logAsyncDecorator("hooks:useLlm", "describe", async () => {
       setLoading(true);
       setError(null);
       try {
+        llmLogger.info("LLM image description triggered");
         return await describeImage(base64, mime);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
+        llmLogger.error("Failed to describe image via LLM", { error: msg });
         setError(msg);
         return `Błąd opisu obrazu: ${msg}`;
       } finally {
         setLoading(false);
       }
-    },
-    []
-  );
+    });
+    return runDescribe();
+  }, []);
 
-  const summarize = useCallback(
-    async (content: string, maxSentences = 5): Promise<string> => {
+  const summarize = useCallback(async (content: string, maxSentences = 5): Promise<string> => {
+    const runSummarize = logAsyncDecorator("hooks:useLlm", "summarize", async () => {
       setLoading(true);
       setError(null);
       try {
+        llmLogger.info("LLM summarize triggered", { contentLength: content.length, maxSentences });
         return await summarizeForTts(content, maxSentences);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
+        llmLogger.error("Failed to summarize content via LLM", { error: msg });
         setError(msg);
         return `Błąd streszczenia: ${msg}`;
       } finally {
         setLoading(false);
       }
-    },
-    []
-  );
+    });
+    return runSummarize();
+  }, []);
 
-  const detectIntent = useCallback(
-    async (text: string): Promise<IntentType> => {
+  const detectIntent = useCallback(async (text: string): Promise<IntentType> => {
+    const runDetectIntent = logAsyncDecorator("hooks:useLlm", "detectIntent", async () => {
       try {
+        llmLogger.debug("Detecting intent", { queryLength: text.length });
         const raw = await detectIntentFn(text);
         const valid: IntentType[] = [
           "BROWSE", "ASK", "DESCRIBE", "SEARCH", "COMMAND", "CHAT",
         ];
-        return valid.includes(raw as IntentType)
-          ? (raw as IntentType)
-          : "BROWSE";
-      } catch {
+        const finalIntent = valid.includes(raw as IntentType) ? (raw as IntentType) : "BROWSE";
+        llmLogger.debug("Intent detected", { intent: finalIntent });
+        return finalIntent;
+      } catch (e) {
+        llmLogger.warn("Failed to detect intent, falling back to BROWSE", { error: e });
         return "BROWSE";
       }
-    },
-    []
-  );
+    });
+    return runDetectIntent();
+  }, []);
 
   const clearHistory = useCallback(() => {
+    llmLogger.info("Clearing LLM chat history");
     historyRef.current = [];
   }, []);
 

@@ -4,9 +4,9 @@
  */
 
 import { isTauriRuntime } from "./runtime";
-import { createScopedLogger } from "./logger";
+import { logger, logAsyncDecorator } from "./logger";
 
-const log = createScopedLogger("llm");
+const llmClientLogger = logger.scope("llm:client");
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
@@ -56,69 +56,107 @@ export async function chat(
   messages: LlmMessage[],
   configOverride?: Partial<LlmConfig>
 ): Promise<LlmResponse> {
-  const cfg = { ...getConfig(), ...configOverride };
+  const runChat = logAsyncDecorator("llm:client", "chat", async () => {
+    const cfg = { ...getConfig(), ...configOverride };
 
-  if (!cfg.apiKey) {
-    throw new Error("OPENROUTER_API_KEY not set. Configure in .env file.");
-  }
+    if (!cfg.apiKey) {
+      llmClientLogger.error("OPENROUTER_API_KEY not set in configuration");
+      throw new Error("OPENROUTER_API_KEY not set. Configure in .env file.");
+    }
 
-  if (isTauriRuntime()) {
-    return chatViaTauri(messages, cfg);
-  }
+    const isTauri = isTauriRuntime();
+    llmClientLogger.info("Dispatching LLM chat completion request", {
+      messagesCount: messages.length,
+      model: cfg.model,
+      runtime: isTauri ? "tauri" : "browser",
+    });
 
-  return chatDirect(messages, cfg);
+    if (isTauri) {
+      return chatViaTauri(messages, cfg);
+    }
+
+    return chatDirect(messages, cfg);
+  });
+  return runChat();
 }
 
 async function chatDirect(
   messages: LlmMessage[],
   cfg: LlmConfig
 ): Promise<LlmResponse> {
-  log.info(`Sending ${messages.length} messages to ${cfg.model}`);
+  const runChatDirect = logAsyncDecorator("llm:client", "chatDirect", async () => {
+    llmClientLogger.debug("Executing HTTP POST to OpenRouter", {
+      url: OPENROUTER_URL,
+    });
 
-  const resp = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${cfg.apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://broxeen.local",
-      "X-Title": "broxeen",
-    },
-    body: JSON.stringify({
-      model: cfg.model,
-      messages,
-      max_tokens: cfg.maxTokens,
-      temperature: cfg.temperature,
-    }),
+    const resp = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${cfg.apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://broxeen.local",
+        "X-Title": "broxeen",
+      },
+      body: JSON.stringify({
+        model: cfg.model,
+        messages,
+        max_tokens: cfg.maxTokens,
+        temperature: cfg.temperature,
+      }),
+    });
+
+    if (!resp.ok) {
+      const body = await resp.text();
+      llmClientLogger.error("OpenRouter HTTP request failed", {
+        status: resp.status,
+        responseBody: body.slice(0, 200),
+      });
+      throw new Error(`LLM HTTP ${resp.status}: ${body.slice(0, 200)}`);
+    }
+
+    const data = await resp.json();
+    const text = data.choices?.[0]?.message?.content ?? "";
+
+    llmClientLogger.info("OpenRouter response received", {
+      model: data.model ?? cfg.model,
+      promptTokens: data.usage?.prompt_tokens,
+      completionTokens: data.usage?.completion_tokens,
+      responseLength: text.length,
+    });
+
+    return {
+      text,
+      model: data.model ?? cfg.model,
+      usage: data.usage,
+    };
   });
-
-  if (!resp.ok) {
-    const body = await resp.text();
-    log.error(`LLM HTTP ${resp.status}: ${body.slice(0, 200)}`);
-    throw new Error(`LLM HTTP ${resp.status}: ${body.slice(0, 200)}`);
-  }
-
-  const data = await resp.json();
-  const text = data.choices?.[0]?.message?.content ?? "";
-
-  return {
-    text,
-    model: data.model ?? cfg.model,
-    usage: data.usage,
-  };
+  return runChatDirect();
 }
 
 async function chatViaTauri(
   messages: LlmMessage[],
   cfg: LlmConfig
 ): Promise<LlmResponse> {
-  const { invoke } = await import("@tauri-apps/api/core");
-  return invoke<LlmResponse>("llm_chat", {
-    messages: JSON.stringify(messages),
-    apiKey: cfg.apiKey,
-    model: cfg.model,
-    maxTokens: cfg.maxTokens,
-    temperature: cfg.temperature,
+  const runChatViaTauri = logAsyncDecorator("llm:client", "chatViaTauri", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    llmClientLogger.debug("Invoking Tauri command llm_chat");
+
+    const result = await invoke<LlmResponse>("llm_chat", {
+      messages: JSON.stringify(messages),
+      apiKey: cfg.apiKey,
+      model: cfg.model,
+      maxTokens: cfg.maxTokens,
+      temperature: cfg.temperature,
+    });
+
+    llmClientLogger.info("Tauri LLM command completed", {
+      model: result.model,
+      responseLength: result.text.length,
+    });
+
+    return result;
   });
+  return runChatViaTauri();
 }
 
 // ── Convenience wrappers ────────────────────────────
