@@ -227,14 +227,17 @@ export async function executeBrowseCommand(
 
       if (runtimeIsTauri) {
         const result = await invoke<BrowseResult>("browse", { url });
+        const rawTitle = typeof result.title === "string" ? result.title : "";
+        const rawContent = typeof result.content === "string" ? result.content : "";
         const normalized = normalizeBrowseResult(result, "tauri");
 
         browseLogger.info("Tauri browse command completed", {
           url: normalized.url,
           titleLength: normalized.title.length,
           contentLength: normalized.content.length,
-          originalContentLength: result.content.length,
-          contentAppearedHtml: looksLikeHtml(result.content),
+          originalTitleLength: rawTitle.length,
+          originalContentLength: rawContent.length,
+          contentAppearedHtml: looksLikeHtml(rawContent),
         });
 
         return normalized;

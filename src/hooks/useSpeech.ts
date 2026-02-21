@@ -119,6 +119,9 @@ export function useSpeech(lang: string = "pl-PL") {
           return;
         }
 
+        setIsSupported(true);
+        setUnsupportedReason(null);
+
         if (recognitionRef.current) {
           speechLogger.warn(
             "Existing recognition instance found. Aborting before restart.",

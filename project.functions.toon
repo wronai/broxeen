@@ -1,0 +1,163 @@
+project: broxeen
+generated: "2026-02-21T16:51:45.333376"
+modules[39]{path,lang,items}:
+  phonetic.py,python,2
+  vite.config.ts,typescript,0
+  tailwind.config.js,javascript,0
+  resolver.py,python,2
+  postcss.config.js,javascript,0
+  test_phonetic.py,python,12
+  src-tauri/build.rs,rust,1
+  src-tauri/test_read.rs,rust,1
+  src/main.tsx,typescript,0
+  src/App.tsx,typescript,1
+  src/vite-env.d.ts,typescript,0
+  test/broxeen.test.js,javascript,0
+  src/lib/phonetic.test.ts,typescript,0
+  src/lib/browseGateway.ts,typescript,6
+  src/lib/browseGateway.test.ts,typescript,0
+  src/lib/logger.ts,typescript,4
+  src/lib/resolver.ts,typescript,4
+  src/lib/phonetic.ts,typescript,2
+  src/lib/runtime.ts,typescript,1
+  src/lib/resolver.test.ts,typescript,0
+  src/hooks/useTts.ts,typescript,2
+  src/hooks/useSpeech.test.ts,typescript,1
+  src/hooks/useTts.test.ts,typescript,0
+  src/hooks/useSpeech.ts,typescript,3
+  src/components/Chat.test.tsx,typescript,1
+  src/components/Settings.test.tsx,typescript,0
+  src/components/Settings.tsx,typescript,2
+  src/components/Chat.tsx,typescript,9
+  src/components/TtsControls.tsx,typescript,4
+  src/components/TtsControls.test.tsx,typescript,0
+  src/domain/audioSettings.ts,typescript,1
+  src/domain/chatEvents.ts,typescript,1
+  src/domain/chatEvents.test.ts,typescript,0
+  src/domain/audioSettings.test.ts,typescript,0
+  src/test/setup.ts,typescript,0
+  src-tauri/src/main.rs,rust,11
+  src-tauri/src/test_read.rs,rust,1
+  src-tauri/tests/placeholder_test.rs,rust,0
+  src-tauri/tests/test_read.rs,rust,1
+
+function_details:
+  phonetic.py:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      normalize,function,"(text:str) -> str",60-96,false,37,3,Apply phonetic rules to convert spoken Polish text to a URL-like string.
+      looks_like_url,function,"(text:str) -> bool",99-101,false,3,1,Check if text looks like a URL or domain after normalization.
+  resolver.py:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      fuzzy_match_domain,function,"(input_str:str, threshold:float=0.55, max_results:int=6) -> list[tuple[str, float]]",31-58,false,28,3,Find closest matching domains using SequenceMatcher.
+      resolve,function,"(raw_input:str, threshold:float=0.55) -> ResolveResult",61-129,false,69,10,Resolve user input into a browseable URL.
+  test_phonetic.py:
+    functions[12]{name,kind,sig,loc,async,lines,cc,does}:
+      TestNormalize.test_polish_domains,method,"(speech, expected)",22-23,false,2,1,checks polish domains
+      TestNormalize.test_international_domains,method,"(speech, expected)",34-35,false,2,1,checks international domains
+      TestNormalize.test_separators,method,"(speech, expected)",44-45,false,2,1,checks separators
+      TestNormalize.test_direct_url_passthrough,method,(),49-52,false,4,1,checks direct url passthrough
+      TestNormalize.test_double_dot_cleanup,method,(),56-59,false,4,1,Double dots from 'kropka' + TLD-with-dot should be cleaned.
+      TestNormalize.test_trailing_dot_removed,method,(),61-63,false,3,1,checks trailing dot removed
+      TestNormalize.test_empty_input,method,(),65-66,false,2,1,checks empty input
+      TestNormalize.test_whitespace_only,method,(),68-69,false,2,1,checks whitespace only
+      TestNormalize.test_www_prefix,method,(),71-73,false,3,1,checks www prefix
+      TestNormalize.test_case_insensitive,method,(),77-79,false,3,1,checks case insensitive
+      TestLooksLikeUrl.test_valid_urls,method,(text),90-91,false,2,1,checks valid urls
+      TestLooksLikeUrl.test_not_urls,method,(text),97-98,false,2,1,checks not urls
+  src-tauri/build.rs:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      main,function,(),"-",false,1,1,main
+  src-tauri/test_read.rs:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      main,function,(),"-",false,1,1,main
+  src/App.tsx:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      App,function,(),14-128,false,115,1,app
+  src/lib/browseGateway.ts:
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      normalizeText,function,"(text: string) -> string",24-26,false,3,1,normalize text
+      extractBrowserReadableContent,function,"(rawHtml: string) -> { title: string; content: string }",28-101,false,74,1,parses browser readable content
+      looksLikeHtml,function,"(text: string) -> boolean",103-112,false,10,1,looks like html
+      normalizeBrowseResult,function,"(result: BrowseResult, source: \"tauri\" | \"browser\") -> BrowseResult",114-154,false,41,1,normalize browse result
+      browseInBrowser,function,"(url: string) -> Promise<BrowseResult>",156-213,true,58,1,browse in browser
+      executeBrowseCommand,function,"(url: string, runtimeIsTauri: boolean) -> Promise<BrowseResult>",215-256,true,42,1,starts browse command
+  src/lib/logger.ts:
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      emit,function,"(level: LogLevel, scope: string | undefined, message: string)",6-26,false,21,1,sends
+      createScopedLogger,function,(scope?),28-39,false,12,1,creates scoped logger
+      logSyncDecorator,function,"(scope: string, operationName: string, fn: (...args: TArgs) => TResult) -> (...args: TArgs) => TResult",48-68,false,21,1,logs sync decorator
+      logAsyncDecorator,function,"(scope: string, operationName: string, fn: (...args: TArgs) => Promise<TResult>) -> (...args: TArgs) => Promise<TResult>",70-90,false,21,1,logs async decorator
+  src/lib/resolver.ts:
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      levenshtein,function,"(a: string, b: string) -> number",37-53,false,17,1,levenshtein
+      similarity,function,"(a: string, b: string) -> number",55-62,false,8,1,similarity
+      fuzzyMatchDomain,function,"(input: string, threshold, maxResults) -> Array<[string, number]>",64-87,false,24,1,fuzzy match domain
+      resolve,function,"(rawInput: string, threshold) -> ResolveResult",89-181,false,93,1,resolve
+  src/lib/phonetic.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      normalize,function,"(text: string) -> string",48-74,false,27,1,normalize
+      looksLikeUrl,function,"(text: string) -> boolean",76-78,false,3,1,looks like url
+  src/lib/runtime.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      isTauriRuntime,function,() -> boolean,1-3,false,3,1,checks tauri runtime
+  src/hooks/useTts.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      preprocessForTts,function,"(text: string) -> string",23-35,false,13,1,preprocess for tts
+      useTts,function,"(options: Partial<TtsOptions>)",37-193,false,157,1,use tts
+  src/hooks/useSpeech.test.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      makeMockRecognition,function,(),20-31,false,12,1,creates mock recognition
+  src/hooks/useSpeech.ts:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      getSpeechRecognitionCtor,function,() -> (new () => SpeechRecognitionInstance) | undefined,41-47,false,7,1,retrieves speech recognition ctor
+      getUnsupportedReason,function,"(supported: boolean, runtimeIsTauri: boolean) -> string | null",49-55,false,7,1,retrieves unsupported reason
+      useSpeech,function,"(lang: string)",57-234,false,178,1,use speech
+  src/components/Chat.test.tsx:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      mockTauriEnvironment,function,(),29-35,false,7,1,mock tauri environment
+  src/components/Settings.tsx:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      update,function,"(partial: Partial<AudioSettings>)",66-70,false,5,1,updates
+      handleSave,function,(),72-83,true,12,1,handles save
+  src/components/Chat.tsx:
+    functions[9]{name,kind,sig,loc,async,lines,cc,does}:
+      applyEvent,function,"(event: ChatEvent)",76-80,false,5,1,apply event
+      addMessage,function,"(msg: Omit<ChatMessage, \"id\">)",82-89,false,8,1,creates message
+      updateMessage,function,"(id: number, updates: Partial<ChatMessage>)",91-96,false,6,1,updates message
+      handleSubmit,function,(text?),98-191,true,94,1,handles submit
+      handleSuggestionClick,function,"(url: string)",193-197,false,5,1,handles suggestion click
+      handleKeyDown,function,"(e: React.KeyboardEvent)",199-204,false,6,1,handles key down
+      toggleMic,function,(),206-214,false,9,1,toggle mic
+      resolveIcon,function,(type?),216-227,false,12,1,resolve icon
+      copyChatContent,function,(),229-250,false,22,1,copy chat content
+  src/components/TtsControls.tsx:
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      handleSpeak,function,(),23-26,false,4,1,handles speak
+      handlePause,function,(),28-31,false,4,1,handles pause
+      handleResume,function,(),33-36,false,4,1,handles resume
+      handleStop,function,(),38-41,false,4,1,handles stop
+  src/domain/audioSettings.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      withAudioSettingsDefaults,function,"(partial: Partial<AudioSettings>) -> AudioSettings",27-31,false,5,1,with audio settings defaults
+  src/domain/chatEvents.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      projectChatMessages,function,"(current: ChatMessage[], event: ChatEvent) -> ChatMessage[]",29-47,false,19,1,project chat messages
+  src-tauri/src/main.rs:
+    functions[11]{name,kind,sig,loc,async,lines,cc,does}:
+      backend_info,function,"(message: impl AsRef<str>)","-",false,1,1,backend info
+      backend_warn,function,"(message: impl AsRef<str>)","-",false,1,1,backend warn
+      backend_error,function,"(message: impl AsRef<str>)","-",false,1,1,backend error
+      truncate_to_chars,function,"(text: &str, max_chars: usize) -> String","-",false,1,1,truncate to chars
+      settings_path,function,() -> PathBuf,"-",false,1,1,settings path
+      get_settings,function,() -> AudioSettings,"-",false,1,1,retrieves settings
+      save_settings,function,"(settings: AudioSettings) -> Result<(),","-",false,1,1,caches settings
+      extract_content,function,"(document: &scraper::Html) -> String","-",false,1,1,parses content
+      extract_with_scraper,function,"(html: &str, url: &str) -> (String,","-",false,1,1,parses with scraper
+      normalize_whitespace,function,"(text: &str) -> String","-",false,1,1,normalize whitespace
+      main,function,(),"-",false,1,1,main
+  src-tauri/src/test_read.rs:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      main,function,(),"-",false,1,1,main
+  src-tauri/tests/test_read.rs:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      test_extractor,function,(),"-",false,1,1,checks extractor

@@ -70,6 +70,20 @@ describe("browseGateway", () => {
     expect(result.content).toBe("Nie udało się wyodrębnić treści ze strony.");
   });
 
+  it("handles malformed tauri payload without throwing", async () => {
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValueOnce({
+      url: "https://example.com",
+      title: undefined,
+      content: undefined,
+    } as unknown as Awaited<ReturnType<typeof executeBrowseCommand>>);
+
+    const result = await executeBrowseCommand("https://example.com", true);
+
+    expect(result.title).toBe("https://example.com");
+    expect(result.content).toBe("Nie udało się wyodrębnić treści ze strony.");
+  });
+
   it("uses browser fallback outside tauri runtime", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

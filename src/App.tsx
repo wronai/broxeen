@@ -69,9 +69,17 @@ export default function App() {
       window.speechSynthesis.onvoiceschanged = loadVoices;
     }
 
-    void warmupMicrophone().catch((error) => {
-      startupLogger.warn("Microphone warmup failed", error);
-    });
+    const hasSpeechRecognition =
+      typeof window !== "undefined" &&
+      !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+    if (hasSpeechRecognition) {
+      void warmupMicrophone().catch((error) => {
+        startupLogger.warn("Microphone warmup failed", error);
+      });
+    } else {
+      startupLogger.debug("Skipping microphone warmup – SpeechRecognition not available");
+    }
 
     return () => {
       if (window.speechSynthesis) {

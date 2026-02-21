@@ -1,3 +1,21 @@
+## [1.0.10] - 2026-02-21
+
+### Summary
+
+feat(tests): CLI interface with 2 supporting modules
+
+### Other
+
+- update project.functions.toon
+- update project.toon
+- update project.toon-schema.json
+- update src/App.tsx
+- update src/components/Settings.test.tsx
+- update src/hooks/useSpeech.ts
+- update src/lib/browseGateway.test.ts
+- update src/lib/browseGateway.ts
+
+
 ## [1.0.9] - 2026-02-21
 
 ### Summary
