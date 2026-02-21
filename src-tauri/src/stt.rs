@@ -1,7 +1,6 @@
 //! stt.rs — Speech-to-Text via OpenRouter Whisper API.
 //! Now accepts WAV base64 from native audio capture (audio_capture.rs).
 
-use serde::{Deserialize, Serialize};
 use std::env;
 
 const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/audio/transcriptions";

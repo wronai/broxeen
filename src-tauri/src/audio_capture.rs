@@ -2,11 +2,10 @@
 //! Bypasses WebKitGTK's broken getUserMedia by capturing audio natively.
 
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{SampleFormat, SampleRate, StreamConfig};
+use cpal::{SampleRate, StreamConfig};
 use hound::{WavSpec, WavWriter};
 use std::io::Cursor;
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 /// Recording state shared between Tauri commands and the audio thread.
 pub struct RecordingState {
@@ -102,7 +101,7 @@ pub fn start_recording(state: &SharedRecordingState) -> Result<cpal::Stream, Str
 /// Stop recording and encode collected samples to WAV (16-bit PCM, mono).
 /// Returns the WAV bytes as base64 string (ready for STT API).
 pub fn stop_and_encode_wav(state: &SharedRecordingState) -> Result<(String, u32), String> {
-    let (samples, sample_rate, channels) = {
+    let (samples, sample_rate, _channels) = {
         let mut s = state.lock().unwrap();
         s.is_recording = false;
         let samples = std::mem::take(&mut s.samples);

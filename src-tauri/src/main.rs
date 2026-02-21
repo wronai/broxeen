@@ -8,7 +8,6 @@ mod tts;
 mod tts_backend;
 
 use audio_capture::SharedRecordingState;
-use audio_commands::ActiveStream;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
