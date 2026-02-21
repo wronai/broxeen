@@ -1,20 +1,12 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Settings as SettingsIcon, X, Mic, Volume2 } from "lucide-react";
+import {
+  DEFAULT_AUDIO_SETTINGS,
+  withAudioSettingsDefaults,
+  type AudioSettings,
+} from "../domain/audioSettings";
 import { logger } from "../lib/logger";
-
-interface AudioSettings {
-  tts_enabled: boolean;
-  tts_rate: number;
-  tts_pitch: number;
-  tts_volume: number;
-  tts_voice: string;
-  tts_lang: string;
-  mic_enabled: boolean;
-  mic_device_id: string;
-  speaker_device_id: string;
-  auto_listen: boolean;
-}
 
 interface SettingsProps {
   isOpen: boolean;
@@ -23,26 +15,13 @@ interface SettingsProps {
   voices: SpeechSynthesisVoice[];
 }
 
-const DEFAULT_SETTINGS: AudioSettings = {
-  tts_enabled: true,
-  tts_rate: 1.0,
-  tts_pitch: 1.0,
-  tts_volume: 1.0,
-  tts_voice: "",
-  tts_lang: "pl-PL",
-  mic_enabled: true,
-  mic_device_id: "default",
-  speaker_device_id: "default",
-  auto_listen: false,
-};
-
 export default function Settings({
   isOpen,
   onClose,
   onSettingsChange,
   voices,
 }: SettingsProps) {
-  const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<AudioSettings>(DEFAULT_AUDIO_SETTINGS);
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [saved, setSaved] = useState(false);
 
@@ -50,14 +29,14 @@ export default function Settings({
     if (!isOpen) return;
 
     logger.debug("Settings modal opened, loading data...");
-    invoke<AudioSettings>("get_settings")
+    invoke<Partial<AudioSettings>>("get_settings")
       .then((s) => {
         logger.debug("Settings fetched from backend:", s);
-        setSettings(s);
+        setSettings(withAudioSettingsDefaults(s));
       })
       .catch((e) => {
         logger.error("Failed to fetch settings:", e);
-        setSettings(DEFAULT_SETTINGS);
+        setSettings(DEFAULT_AUDIO_SETTINGS);
       });
 
     navigator.mediaDevices

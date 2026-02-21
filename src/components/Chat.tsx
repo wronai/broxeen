@@ -1,52 +1,35 @@
 import { useState, useRef, useEffect } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { Send, Mic, MicOff, Loader2, Globe, Search, Zap, Copy } from "lucide-react";
 import { resolve } from "../lib/resolver";
 import { useSpeech } from "../hooks/useSpeech";
 import { useTts } from "../hooks/useTts";
 import TtsControls from "./TtsControls";
+import type { AudioSettings } from "../domain/audioSettings";
+import {
+  projectChatMessages,
+  type ChatEvent,
+  type ChatMessage,
+} from "../domain/chatEvents";
+import { executeBrowseCommand } from "../lib/browseGateway";
 import { logger } from "../lib/logger";
 
-// Check if running in Tauri environment
-const isTauriApp = typeof window !== 'undefined' && '__TAURI__' in window;
-
-interface Message {
-  id: number;
-  role: "user" | "assistant" | "system";
-  text: string;
-  url?: string;
-  resolveType?: string;
-  suggestions?: string[];
-  loading?: boolean;
-}
-
-interface AudioSettings {
-  tts_enabled: boolean;
-  tts_rate: number;
-  tts_pitch: number;
-  tts_volume: number;
-  tts_voice: string;
-  tts_lang: string;
-  mic_enabled: boolean;
-  mic_device_id: string;
-  speaker_device_id: string;
-  auto_listen: boolean;
-}
+const INITIAL_MESSAGES: ChatMessage[] = [
+  {
+    id: 0,
+    role: "system",
+    text: "Witaj w Broxeen! Wpisz adres strony, powiedz go głosem, lub wpisz zapytanie. Treść możesz odsłuchać przez TTS. 🎧",
+  },
+];
 
 interface ChatProps {
   settings: AudioSettings;
 }
 
 export default function Chat({ settings }: ChatProps) {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 0,
-      role: "system",
-      text: 'Witaj w Broxeen! Wpisz adres strony, powiedz go głosem, lub wpisz zapytanie. Treść możesz odsłuchać przez TTS. 🎧',
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const [input, setInput] = useState("");
   const nextIdRef = useRef(1);
+  const eventsRef = useRef<ChatEvent[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -77,16 +60,25 @@ export default function Chat({ settings }: ChatProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcript, isListening]);
 
-  const addMessage = (msg: Omit<Message, "id">) => {
+  const applyEvent = (event: ChatEvent) => {
+    eventsRef.current.push(event);
+    setMessages((prev) => projectChatMessages(prev, event));
+  };
+
+  const addMessage = (msg: Omit<ChatMessage, "id">) => {
     const id = nextIdRef.current++;
-    setMessages((prev) => [...prev, { ...msg, id }]);
+    applyEvent({
+      type: "message_added",
+      payload: { ...msg, id },
+    });
     return id;
   };
 
-  const updateMessage = (id: number, updates: Partial<Message>) => {
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, ...updates } : m)),
-    );
+  const updateMessage = (id: number, updates: Partial<ChatMessage>) => {
+    applyEvent({
+      type: "message_updated",
+      payload: { id, updates },
+    });
   };
 
   const handleSubmit = async (text?: string) => {
@@ -113,60 +105,21 @@ export default function Chat({ settings }: ChatProps) {
     if (!result.url) return;
 
     const loadingId = nextIdRef.current++;
-    const resolvedUrl = result.url!;
-    setMessages((prev) => [
-      ...prev,
-      {
+    const resolvedUrl = result.url;
+    applyEvent({
+      type: "message_added",
+      payload: {
         id: loadingId,
-        role: "assistant" as const,
+        role: "assistant",
         text: `Pobieram: ${resolvedUrl}...`,
         url: resolvedUrl,
         resolveType: result.resolveType,
         loading: true,
       },
-    ]);
+    });
 
     try {
-      logger.debug(`Invoking 'browse' for URL: ${resolvedUrl}`);
-      
-      if (!isTauriApp) {
-        // Fallback for browser - simulate browsing with CORS proxy
-        const response = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(resolvedUrl)}`);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        const data = await response.json();
-        const browseResult = {
-          url: resolvedUrl,
-          title: "Page Title (Browser Mode)",
-          content: data.contents?.slice(0, 5000) || "Content not available in browser mode. Please use the desktop app for full functionality.",
-        };
-        
-        logger.debug("Browse result received (browser mode):", {
-          url: browseResult.url,
-          title: browseResult.title,
-          contentLength: browseResult.content.length,
-        });
-
-        updateMessage(loadingId, {
-          text: browseResult.content,
-          url: browseResult.url,
-          loading: false,
-        });
-
-        if (settings.tts_enabled) {
-          logger.debug("TTS is enabled, starting speech...");
-          const toRead = browseResult.content.slice(0, 3000);
-          tts.speak(toRead);
-        }
-        return;
-      }
-
-      const browseResult = await invoke<{
-        url: string;
-        title: string;
-        content: string;
-      }>("browse", { url: resolvedUrl });
+      const browseResult = await executeBrowseCommand(resolvedUrl);
 
       logger.debug("Browse result received:", {
         url: browseResult.url,

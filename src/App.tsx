@@ -3,50 +3,28 @@ import { invoke } from "@tauri-apps/api/core";
 import { Settings as SettingsIcon } from "lucide-react";
 import Chat from "./components/Chat";
 import Settings from "./components/Settings";
+import {
+  DEFAULT_AUDIO_SETTINGS,
+  withAudioSettingsDefaults,
+  type AudioSettings,
+} from "./domain/audioSettings";
 import { logger } from "./lib/logger";
-
-// Check if running in Tauri environment
-const isTauriApp = typeof window !== 'undefined' && '__TAURI__' in window;
-
-interface AudioSettings {
-  tts_enabled: boolean;
-  tts_rate: number;
-  tts_pitch: number;
-  tts_volume: number;
-  tts_voice: string;
-  tts_lang: string;
-  mic_enabled: boolean;
-  mic_device_id: string;
-  speaker_device_id: string;
-  auto_listen: boolean;
-}
-
-const DEFAULT_SETTINGS: AudioSettings = {
-  tts_enabled: true,
-  tts_rate: 1.0,
-  tts_pitch: 1.0,
-  tts_volume: 1.0,
-  tts_voice: "",
-  tts_lang: "pl-PL",
-  mic_enabled: true,
-  mic_device_id: "default",
-  speaker_device_id: "default",
-  auto_listen: false,
-};
+import { isTauriRuntime } from "./lib/runtime";
 
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<AudioSettings>(DEFAULT_AUDIO_SETTINGS);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   useEffect(() => {
     logger.debug("App component mounted, fetching settings...");
+    const runtimeIsTauri = isTauriRuntime();
     
-    if (isTauriApp) {
-      invoke<AudioSettings>("get_settings")
+    if (runtimeIsTauri) {
+      invoke<Partial<AudioSettings>>("get_settings")
         .then((s) => {
           logger.debug("Settings loaded:", s);
-          setSettings(s);
+          setSettings(withAudioSettingsDefaults(s));
         })
         .catch((e) => {
           logger.error("Failed to load settings:", e);
@@ -54,7 +32,7 @@ export default function App() {
     } else {
       // Browser fallback - use default settings
       logger.debug("Running in browser mode, using default settings");
-      setSettings(DEFAULT_SETTINGS);
+      setSettings(DEFAULT_AUDIO_SETTINGS);
     }
 
     const loadVoices = () => {

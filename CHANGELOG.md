@@ -1,3 +1,21 @@
+## [1.0.7] - 2026-02-21
+
+### Summary
+
+feat(tests): configuration management system
+
+### Other
+
+- update src/App.tsx
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/components/Settings.tsx
+- update src/domain/audioSettings.ts
+- update src/domain/chatEvents.ts
+- update src/lib/browseGateway.ts
+- update src/lib/runtime.ts
+
+
 ## [1.0.6] - 2026-02-21
 
 ### Summary

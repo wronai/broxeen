@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import Chat from "./Chat";
 
@@ -370,14 +370,6 @@ describe("Chat — mikrofon", () => {
     mockTauriEnvironment();
     vi.clearAllMocks();
     
-    // Mock invoke for STT tests
-    const mockInvoke = vi.mocked(invoke);
-    mockInvoke.mockResolvedValue({
-      url: "https://wp.pl",
-      title: "WP",
-      content: "Test content",
-    });
-    
     // Mock SpeechRecognition
     mockRecognition = {
       continuous: false,
@@ -421,30 +413,45 @@ describe("Chat — mikrofon", () => {
   });
 
   it("STT przekazuje rozpoznany tekst do inputa", async () => {
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValueOnce({
+      url: "https://wp.pl",
+      title: "WP",
+      content: "Test content",
+    });
+
     render(<Chat settings={defaultSettings} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
     
     // Start listening
     fireEvent.click(micButton);
-    mockRecognition.onstart?.();
+    
+    // Wait for recognition to start and set isListening to true
+    await act(async () => {
+      mockRecognition.onstart?.();
+    });
     
     // Check if input is disabled and shows listening state
     expect(input).toBeDisabled();
     expect(input).toHaveValue("Słucham...");
     
     // Simulate speech recognition result
-    mockRecognition.onresult?.({
-      resultIndex: 0,
-      results: [
-        Object.assign([{ transcript: "wpis kropka pl" }], {
-          isFinal: true,
-          length: 1,
-        }),
-      ],
+    act(() => {
+      mockRecognition.onresult?.({
+        resultIndex: 0,
+        results: [
+          Object.assign([{ transcript: "wpis kropka pl" }], {
+            isFinal: true,
+            length: 1,
+          }),
+        ],
+      });
     });
     
-    mockRecognition.onend?.();
+    act(() => {
+      mockRecognition.onend?.();
+    });
     
     // Check if transcript was submitted (input enabled and cleared after submit)
     await waitFor(() => {
@@ -452,28 +459,41 @@ describe("Chat — mikrofon", () => {
       expect(input).toHaveValue("");
     });
     
-    // Check if message was added
+    // Check if message was added - check for user message, not assistant response
     expect(screen.getByText("wpis kropka pl")).toBeInTheDocument();
   });
 
   it("STT obsługuje wyniki tymczasowe (interim)", async () => {
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValueOnce({
+      url: "https://wp.pl",
+      title: "WP",
+      content: "Test content",
+    });
+
     render(<Chat settings={defaultSettings} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
     
     // Start listening
     fireEvent.click(micButton);
-    mockRecognition.onstart?.();
+    
+    // Wait for recognition to start
+    await act(async () => {
+      mockRecognition.onstart?.();
+    });
     
     // Simulate interim result
-    mockRecognition.onresult?.({
-      resultIndex: 0,
-      results: [
-        Object.assign([{ transcript: "wpis kro..." }], {
-          isFinal: false,
-          length: 1,
-        }),
-      ],
+    act(() => {
+      mockRecognition.onresult?.({
+        resultIndex: 0,
+        results: [
+          Object.assign([{ transcript: "wpis kro..." }], {
+            isFinal: false,
+            length: 1,
+          }),
+        ],
+      });
     });
     
     // Check if interim transcript appears (input is disabled during listening)
@@ -481,17 +501,21 @@ describe("Chat — mikrofon", () => {
     expect(input).toHaveValue("wpis kro...");
     
     // Simulate final result
-    mockRecognition.onresult?.({
-      resultIndex: 1,
-      results: [
-        Object.assign([{ transcript: "wpis kropka pl" }], {
-          isFinal: true,
-          length: 1,
-        }),
-      ],
+    act(() => {
+      mockRecognition.onresult?.({
+        resultIndex: 1,
+        results: [
+          Object.assign([{ transcript: "wpis kropka pl" }], {
+            isFinal: true,
+            length: 1,
+          }),
+        ],
+      });
     });
     
-    mockRecognition.onend?.();
+    act(() => {
+      mockRecognition.onend?.();
+    });
     
     // Check if final result was submitted
     await waitFor(() => {
@@ -499,6 +523,7 @@ describe("Chat — mikrofon", () => {
       expect(input).toHaveValue("");
     });
     
+    // Check if user message was added
     expect(screen.getByText("wpis kropka pl")).toBeInTheDocument();
   });
 
@@ -508,7 +533,11 @@ describe("Chat — mikrofon", () => {
     
     // Start listening
     fireEvent.click(micButton);
-    mockRecognition.onstart?.();
+    
+    // Wait for recognition to start
+    await act(async () => {
+      mockRecognition.onstart?.();
+    });
     
     // Stop listening
     fireEvent.click(micButton);
@@ -520,15 +549,26 @@ describe("Chat — mikrofon", () => {
   it("błąd rozpoznawania mowy zatrzymuje nasłuchiwanie", async () => {
     render(<Chat settings={defaultSettings} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
     
     // Start listening
     fireEvent.click(micButton);
-    mockRecognition.onstart?.();
+    
+    // Wait for recognition to start
+    await act(async () => {
+      mockRecognition.onstart?.();
+    });
+    
+    // Input should be disabled during listening
+    expect(input).toBeDisabled();
     
     // Simulate error
-    mockRecognition.onerror?.({ error: 'network' });
+    act(() => {
+      mockRecognition.onerror?.({ error: 'network' });
+    });
     
-    expect(mockRecognition.abort).toHaveBeenCalled();
+    // Input should be enabled after error
+    expect(input).not.toBeDisabled();
   });
 
   it("STT używa odpowiedniego języka z ustawień", async () => {
