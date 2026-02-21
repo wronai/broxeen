@@ -8,50 +8,70 @@ import {
   withAudioSettingsDefaults,
   type AudioSettings,
 } from "./domain/audioSettings";
-import { logger } from "./lib/logger";
+import { logger, logAsyncDecorator, logSyncDecorator } from "./lib/logger";
 import { isTauriRuntime } from "./lib/runtime";
 
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_AUDIO_SETTINGS);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const startupLogger = logger.scope("startup:app");
 
   useEffect(() => {
-    logger.debug("App component mounted, fetching settings...");
+    startupLogger.info("App mounted. Running startup initialization...");
     const runtimeIsTauri = isTauriRuntime();
-    
-    if (runtimeIsTauri) {
-      invoke<Partial<AudioSettings>>("get_settings")
-        .then((s) => {
-          logger.debug("Settings loaded:", s);
-          setSettings(withAudioSettingsDefaults(s));
-        })
-        .catch((e) => {
-          logger.error("Failed to load settings:", e);
-        });
-    } else {
-      // Browser fallback - use default settings
-      logger.debug("Running in browser mode, using default settings");
-      setSettings(DEFAULT_AUDIO_SETTINGS);
-    }
 
-    const loadVoices = () => {
+    startupLogger.info("Runtime detected", {
+      runtime: runtimeIsTauri ? "tauri" : "browser",
+    });
+
+    const loadSettings = logAsyncDecorator(
+      "startup:app",
+      "loadSettings",
+      async () => {
+        if (runtimeIsTauri) {
+          const backendSettings = await invoke<Partial<AudioSettings>>("get_settings");
+          startupLogger.info("Settings loaded from backend", backendSettings);
+          setSettings(withAudioSettingsDefaults(backendSettings));
+          return;
+        }
+
+        startupLogger.info("Using default settings (browser mode)");
+        setSettings(DEFAULT_AUDIO_SETTINGS);
+      },
+    );
+
+    const loadVoices = logSyncDecorator("startup:app", "loadVoices", () => {
       const availableVoices = window.speechSynthesis.getVoices();
-      logger.debug(`Voices loaded: ${availableVoices.length}`);
+      startupLogger.info("Speech synthesis voices snapshot captured", {
+        count: availableVoices.length,
+      });
       setVoices(availableVoices);
-    };
+    });
+
+    const warmupMicrophone = logAsyncDecorator(
+      "startup:app",
+      "warmupMicrophone",
+      async () => {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        startupLogger.info("Microphone permission granted during startup");
+        stream.getTracks().forEach((track) => track.stop());
+      },
+    );
+
+    void loadSettings().catch((error) => {
+      startupLogger.error("Startup settings load failed", error);
+    });
+
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
-    // Request microphone permission on startup for default device
-    navigator.mediaDevices
-      .getUserMedia({ audio: true })
-      .then((stream) => {
-        stream.getTracks().forEach((t) => t.stop());
-      })
-      .catch(() => {});
+    void warmupMicrophone().catch((error) => {
+      startupLogger.warn("Microphone warmup failed", error);
+    });
 
     return () => {
+      startupLogger.debug("App unmount cleanup - removing speech voice listener");
       window.speechSynthesis.onvoiceschanged = null;
     };
   }, []);

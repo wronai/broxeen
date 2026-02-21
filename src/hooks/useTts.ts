@@ -29,19 +29,31 @@ export function useTts(options: Partial<TtsOptions> = {}) {
 
   useEffect(() => {
     const loadVoices = () => {
+      if (!window.speechSynthesis) {
+        logger.warn("TTS: window.speechSynthesis is not supported in this environment");
+        return;
+      }
       const available = window.speechSynthesis.getVoices();
       logger.debug(`TTS Voices loaded: ${available.length}`);
       setVoices(available);
     };
     loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
     return () => {
-      window.speechSynthesis.onvoiceschanged = null;
+      if (window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
     };
   }, []);
 
   const speak = useCallback(
     (text: string) => {
+      if (!window.speechSynthesis) {
+        logger.warn("TTS: window.speechSynthesis is not supported");
+        return;
+      }
       logger.debug(`TTS Speaking: "${text.slice(0, 50)}..."`);
       window.speechSynthesis.cancel();
       if (!text.trim()) {
@@ -102,18 +114,21 @@ export function useTts(options: Partial<TtsOptions> = {}) {
   );
 
   const pause = useCallback(() => {
+    if (!window.speechSynthesis) return;
     logger.debug("TTS paused");
     window.speechSynthesis.pause();
     setIsPaused(true);
   }, []);
 
   const resume = useCallback(() => {
+    if (!window.speechSynthesis) return;
     logger.debug("TTS resumed");
     window.speechSynthesis.resume();
     setIsPaused(false);
   }, []);
 
   const stop = useCallback(() => {
+    if (!window.speechSynthesis) return;
     logger.debug("TTS stopped manually");
     window.speechSynthesis.cancel();
     setIsSpeaking(false);
