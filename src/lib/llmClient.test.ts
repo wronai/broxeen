@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock runtime
 vi.mock("./runtime", () => ({ isTauriRuntime: () => false }));
@@ -42,6 +42,10 @@ describe("llmClient", () => {
   beforeEach(() => {
     vi.stubEnv("VITE_OPENROUTER_API_KEY", "test-key-123");
     vi.stubEnv("VITE_LLM_MODEL", "google/gemini-3-flash-preview");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   describe("chat", () => {

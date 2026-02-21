@@ -80,6 +80,14 @@ export default function Chat({ settings }: ChatProps) {
     }
   }, [settings.mic_enabled, speechSupported, speechUnsupportedReason]);
 
+  useEffect(() => {
+    if (settings.tts_enabled && !tts.isSupported && tts.unsupportedReason) {
+      chatLogger.warn("TTS is enabled in settings but speech synthesis is unavailable", {
+        reason: tts.unsupportedReason,
+      });
+    }
+  }, [settings.tts_enabled, tts.isSupported, tts.unsupportedReason]);
+
   const applyEvent = (event: ChatEvent) => {
     chatLogger.debug("Applying chat event", { type: event.type });
     eventsRef.current.push(event);
@@ -187,7 +195,12 @@ export default function Chat({ settings }: ChatProps) {
             loading: true,
           });
           const summary = await llm.summarize(browseResult.content);
-          assistantText = `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${summary}`;
+          const safeSummary = typeof summary === "string" ? summary.trim() : "";
+          assistantText = safeSummary
+            ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${safeSummary}`
+            : content
+              ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${content}`
+              : `Nie udało się wyodrębnić treści z: ${browseResult.url}`;
         } else {
           assistantText = content
             ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${content}`
@@ -227,14 +240,15 @@ export default function Chat({ settings }: ChatProps) {
 
       const thinkingId = addMessage({ role: "assistant", text: "Myślę...", loading: true });
       const answer = await llm.send(question);
+      const safeAnswer = typeof answer === "string" ? answer.trim() : "";
 
       updateMessage(thinkingId, {
-        text: answer,
+        text: safeAnswer || "Nie udało się wygenerować odpowiedzi.",
         loading: false,
       });
 
       if (settings.tts_enabled) {
-        tts.speak(answer.slice(0, 3000));
+        tts.speak((safeAnswer || "Nie udało się wygenerować odpowiedzi.").slice(0, 3000));
       }
     });
 
@@ -426,6 +440,10 @@ export default function Chat({ settings }: ChatProps) {
 
           {settings.mic_enabled && !speechSupported && speechUnsupportedReason && (
             <p className="mt-2 text-xs text-amber-300">ℹ️ {speechUnsupportedReason}</p>
+          )}
+
+          {settings.tts_enabled && !tts.isSupported && tts.unsupportedReason && (
+            <p className="mt-1 text-xs text-amber-300">ℹ️ {tts.unsupportedReason}</p>
           )}
         </div>
       </div>

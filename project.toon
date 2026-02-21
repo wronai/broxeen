@@ -1,4 +1,4 @@
-# broxeen | 49f 6288L | python:3/typescript:35/javascript:3/rust:8
+# broxeen | 49f 6310L | python:3/typescript:35/javascript:3/rust:8
 # Keys: M=modules, D=details, i=imports, c=classes, f=functions, m=methods
 M[49]:
   phonetic.py,73
@@ -19,8 +19,8 @@ M[49]:
   src/vite-env.d.ts,0
   test/broxeen.test.js,5
   src/lib/phonetic.test.ts,105
-  src/lib/browseGateway.ts,217
-  src/lib/browseGateway.test.ts,128
+  src/lib/browseGateway.ts,224
+  src/lib/browseGateway.test.ts,140
   src/lib/llmPrompts.ts,47
   src/lib/logger.ts,74
   src/lib/resolver.ts,160
@@ -83,11 +83,11 @@ D:
     getPrompt(mode: PromptMode;override?)->string
   TODO/useLlm.ts:
     i: react,..{/lib/llmClient,/lib/llmPrompts,/lib/logger}
-    e: IntentType,UseLlmReturn,UseLlmOptions,useLlm
+    e: useLlm,UseLlmOptions,IntentType,UseLlmReturn
     useLlm(options: UseLlmOptions)->UseLlmReturn
   TODO/llmClient.ts:
     i: .{/logger,/runtime}
-    e: LlmConfig,chatViaTauri,summarizeForTts,chatDirect,LlmMessage,askAboutContent,LlmResponse,chat
+    e: getConfig,chatDirect,LlmMessage,LlmResponse,chatViaTauri,describeImage,summarizeForTts,chat
     getConfig()->LlmConfig
     chat(messages: LlmMessage[];configOverride?)->Promise<LlmResponse>
     chatDirect(messages: LlmMessage[];cfg: LlmConfig)->Promise<LlmResponse>
@@ -107,32 +107,32 @@ D:
     App()
   src/lib/browseGateway.ts:
     i: @tauri-apps/api/core,.{/logger,/runtime}
-    e: normalizeBrowseResult,looksLikeHtml,BrowseResult,AllOriginsResponse,normalizeText,executeBrowseCommand,extractBrowserReadableContent,browseInBrowser
+    e: looksLikeHtml,browseInBrowser,normalizeText,AllOriginsResponse,normalizeBrowseResult,BrowseResult,extractBrowserReadableContent,executeBrowseCommand
     normalizeText(text: string)->string
     extractBrowserReadableContent(rawHtml: string)->{ title: string; content: string }
     looksLikeHtml(text: string)->boolean
-    normalizeBrowseResult(result: BrowseResult;source: "tauri" | "browser")->BrowseResult
+    normalizeBrowseResult(result: BrowseResult;source: "tauri" | "browser";requestedUrl?)->BrowseResult
     browseInBrowser(url: string)->Promise<BrowseResult>
     executeBrowseCommand(url: string;runtimeIsTauri: boolean)->Promise<BrowseResult>
   src/lib/llmPrompts.ts:
     e: getPrompt,PromptMode
     getPrompt(mode: PromptMode;override?)->string
   src/lib/logger.ts:
-    e: createScopedLogger,LogLevel,logSyncDecorator,LogMethod,logAsyncDecorator,emit,ScopedLogger
+    e: ScopedLogger,emit,logAsyncDecorator,LogLevel,logSyncDecorator,createScopedLogger,LogMethod
     emit(level: LogLevel;scope: string | undefined;message: string)
     createScopedLogger(scope?)
     logSyncDecorator(scope: string;operationName: string;fn: (...args: TArgs) => TResult)->(...args: TArgs) => TResult
     logAsyncDecorator(scope: string;operationName: string;fn: (...args: TArgs) => Promise<TResult>)->(...args: TArgs) => Promise<TResult>
   src/lib/resolver.ts:
     i: .{/logger,/phonetic}
-    e: levenshtein,fuzzyMatchDomain,resolve,similarity,ResolveResult
+    e: resolve,levenshtein,fuzzyMatchDomain,similarity,ResolveResult
     levenshtein(a: string;b: string)->number
     similarity(a: string;b: string)->number
     fuzzyMatchDomain(input: string;threshold;maxResults)->Array<[string, number]>
     resolve(rawInput: string;threshold)->ResolveResult
   src/lib/llmClient.ts:
     i: .{/logger,/runtime}
-    e: LlmConfig,chatViaTauri,summarizeForTts,chatDirect,LlmMessage,askAboutContent,LlmResponse,chat
+    e: getConfig,chatDirect,LlmMessage,LlmResponse,chatViaTauri,describeImage,summarizeForTts,chat
     getConfig()->LlmConfig
     chat(messages: LlmMessage[];configOverride?)->Promise<LlmResponse>
     chatDirect(messages: LlmMessage[];cfg: LlmConfig)->Promise<LlmResponse>
@@ -143,7 +143,7 @@ D:
     detectIntent(userText: string)->Promise<string>
   src/lib/phonetic.ts:
     i: ./logger
-    e: looksLikeUrl,normalize
+    e: normalize,looksLikeUrl
     normalize(text: string)->string
     looksLikeUrl(text: string)->boolean
   src/lib/runtime.ts:
@@ -156,7 +156,7 @@ D:
     mockFetchError(status: number;body: string)
   src/hooks/useTts.ts:
     i: react,../lib/logger
-    e: preprocessForTts,useTts,TtsOptions
+    e: TtsOptions,useTts,preprocessForTts
     preprocessForTts(text: string)->string
     useTts(options: Partial<TtsOptions>)
   src/hooks/useSpeech.test.ts:
@@ -165,11 +165,11 @@ D:
     makeMockRecognition()
   src/hooks/useLlm.ts:
     i: react,..{/lib/llmClient,/lib/llmPrompts,/lib/logger}
-    e: IntentType,UseLlmReturn,UseLlmOptions,useLlm
+    e: useLlm,UseLlmOptions,IntentType,UseLlmReturn
     useLlm(options: UseLlmOptions)->UseLlmReturn
   src/hooks/useSpeech.ts:
     i: react,..{/lib/logger,/lib/runtime}
-    e: SpeechRecognitionEvent,getSpeechRecognitionCtor,SpeechRecognitionInstance,useSpeech,SpeechRecognitionErrorEvent,getUnsupportedReason
+    e: getUnsupportedReason,SpeechRecognitionEvent,SpeechRecognitionErrorEvent,useSpeech,SpeechRecognitionInstance,getSpeechRecognitionCtor
     getSpeechRecognitionCtor()->(new () => SpeechRecognitionInstance) | undefined
     getUnsupportedReason(supported: boolean;runtimeIsTauri: boolean)->string | null
     useSpeech(lang: string)
@@ -203,7 +203,7 @@ D:
     e: AudioSettings,withAudioSettingsDefaults
     withAudioSettingsDefaults(partial: Partial<AudioSettings>)->AudioSettings
   src/domain/chatEvents.ts:
-    e: projectChatMessages,ChatMessage,ChatEvent,ChatMessageRole
+    e: ChatMessageRole,projectChatMessages,ChatMessage,ChatEvent
     projectChatMessages(current: ChatMessage[];event: ChatEvent)->ChatMessage[]
   src-tauri/src/llm.rs:
     i: serde::{Deserialize, Serialize},std::env

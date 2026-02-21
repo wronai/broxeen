@@ -19,6 +19,16 @@ const DEFAULT_OPTIONS: TtsOptions = {
 
 const ttsLogger = logger.scope("speech:tts");
 const MAX_TTS_SENTENCES = 100;
+const TTS_UNAVAILABLE_REASON =
+  "Synteza mowy (TTS) nie jest wspierana w tym środowisku (brak SpeechSynthesis API).";
+
+function getSpeechSynthesisApi(): SpeechSynthesis | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  return window.speechSynthesis;
+}
 
 function preprocessForTts(text: string): string {
   const normalized = text
@@ -39,37 +49,45 @@ export function useTts(options: Partial<TtsOptions> = {}) {
   const [isPaused, setIsPaused] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [progress, setProgress] = useState(0);
+  const [isSupported, setIsSupported] = useState(false);
+  const [unsupportedReason, setUnsupportedReason] = useState<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const totalLenRef = useRef(0);
 
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
   useEffect(() => {
+    const speechSynthesisApi = getSpeechSynthesisApi();
+    const supported = !!speechSynthesisApi;
+    setIsSupported(supported);
+    setUnsupportedReason(supported ? null : TTS_UNAVAILABLE_REASON);
+
     ttsLogger.info("Initializing TTS hook", {
-      hasSpeechSynthesis:
-        typeof window !== "undefined" && !!window.speechSynthesis,
+      hasSpeechSynthesis: supported,
     });
 
     const loadVoices = logSyncDecorator("speech:tts", "loadVoices", () => {
-      if (!window.speechSynthesis) {
+      const synthesis = getSpeechSynthesisApi();
+      if (!synthesis) {
         ttsLogger.warn("window.speechSynthesis is not supported in this environment");
         return;
       }
-      const available = window.speechSynthesis.getVoices();
+      const available = synthesis.getVoices();
       ttsLogger.info("TTS voices snapshot captured", { count: available.length });
       setVoices(available);
     });
 
     loadVoices();
-    if (window.speechSynthesis) {
+    if (speechSynthesisApi) {
       ttsLogger.debug("Registering speechSynthesis.onvoiceschanged listener");
-      window.speechSynthesis.onvoiceschanged = loadVoices;
+      speechSynthesisApi.onvoiceschanged = loadVoices;
     }
 
     return () => {
-      if (window.speechSynthesis) {
+      const synthesis = getSpeechSynthesisApi();
+      if (synthesis) {
         ttsLogger.debug("Removing speechSynthesis.onvoiceschanged listener");
-        window.speechSynthesis.onvoiceschanged = null;
+        synthesis.onvoiceschanged = null;
       }
     };
   }, []);
@@ -77,7 +95,8 @@ export function useTts(options: Partial<TtsOptions> = {}) {
   const speak = useCallback(
     (text: string) => {
       const runSpeak = logSyncDecorator("speech:tts", "speak", () => {
-        if (!window.speechSynthesis) {
+        const synthesis = getSpeechSynthesisApi();
+        if (!synthesis) {
           ttsLogger.warn("window.speechSynthesis is not supported");
           return;
         }
@@ -95,7 +114,7 @@ export function useTts(options: Partial<TtsOptions> = {}) {
           requestedVoice: opts.voice || "auto",
         });
 
-        window.speechSynthesis.cancel();
+        synthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(preparedText);
         utterance.rate = opts.rate;
         utterance.pitch = opts.pitch;
@@ -146,7 +165,7 @@ export function useTts(options: Partial<TtsOptions> = {}) {
         };
 
         utteranceRef.current = utterance;
-        window.speechSynthesis.speak(utterance);
+        synthesis.speak(utterance);
       });
 
       runSpeak();
@@ -156,9 +175,10 @@ export function useTts(options: Partial<TtsOptions> = {}) {
 
   const pause = useCallback(() => {
     const runPause = logSyncDecorator("speech:tts", "pause", () => {
-      if (!window.speechSynthesis) return;
+      const synthesis = getSpeechSynthesisApi();
+      if (!synthesis) return;
       ttsLogger.info("Pausing TTS");
-      window.speechSynthesis.pause();
+      synthesis.pause();
       setIsPaused(true);
     });
 
@@ -167,9 +187,10 @@ export function useTts(options: Partial<TtsOptions> = {}) {
 
   const resume = useCallback(() => {
     const runResume = logSyncDecorator("speech:tts", "resume", () => {
-      if (!window.speechSynthesis) return;
+      const synthesis = getSpeechSynthesisApi();
+      if (!synthesis) return;
       ttsLogger.info("Resuming TTS");
-      window.speechSynthesis.resume();
+      synthesis.resume();
       setIsPaused(false);
     });
 
@@ -178,9 +199,10 @@ export function useTts(options: Partial<TtsOptions> = {}) {
 
   const stop = useCallback(() => {
     const runStop = logSyncDecorator("speech:tts", "stop", () => {
-      if (!window.speechSynthesis) return;
+      const synthesis = getSpeechSynthesisApi();
+      if (!synthesis) return;
       ttsLogger.info("Stopping TTS manually");
-      window.speechSynthesis.cancel();
+      synthesis.cancel();
       setIsSpeaking(false);
       setIsPaused(false);
       setProgress(0);
@@ -189,5 +211,16 @@ export function useTts(options: Partial<TtsOptions> = {}) {
     runStop();
   }, []);
 
-  return { speak, pause, resume, stop, isSpeaking, isPaused, voices, progress };
+  return {
+    speak,
+    pause,
+    resume,
+    stop,
+    isSpeaking,
+    isPaused,
+    voices,
+    progress,
+    isSupported,
+    unsupportedReason,
+  };
 }

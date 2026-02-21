@@ -21,8 +21,28 @@ interface AllOriginsResponse {
   };
 }
 
+interface BrowserProxyPayload {
+  proxyName: string;
+  rawContent: string;
+  sourceHttpCode?: number;
+  sourceContentType?: string;
+  sourceContentLength?: number;
+  sourceUrl?: string;
+}
+
 function normalizeText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
+}
+
+function withHttpScheme(url: string): string {
+  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+function summarizeUnknownError(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return String(error);
 }
 
 function extractBrowserReadableContent(rawHtml: string): { title: string; content: string } {
@@ -114,11 +134,16 @@ function looksLikeHtml(text: string): boolean {
 function normalizeBrowseResult(
   result: BrowseResult,
   source: "tauri" | "browser",
+  requestedUrl?: string,
 ): BrowseResult {
+  const rawUrl = typeof result.url === "string" ? result.url.trim() : "";
+  const safeRequestedUrl =
+    typeof requestedUrl === "string" ? requestedUrl.trim() : "";
+  const safeUrl = rawUrl || safeRequestedUrl || "about:blank";
   const rawTitle = typeof result.title === "string" ? result.title : "";
   const rawContent = typeof result.content === "string" ? result.content : "";
 
-  const title = normalizeText(rawTitle) || (source === "browser" ? "Untitled" : result.url);
+  const title = normalizeText(rawTitle) || (source === "browser" ? "Untitled" : safeUrl);
   const contentWasHtml = looksLikeHtml(rawContent);
   const extractedContent = contentWasHtml
     ? extractBrowserReadableContent(rawContent).content
@@ -132,7 +157,7 @@ function normalizeBrowseResult(
   if (contentWasHtml) {
     browseLogger.warn("Browse payload looked like raw HTML and was normalized", {
       source,
-      url: result.url,
+      url: safeUrl,
       originalLength: rawContent.length,
       normalizedLength: normalizedContent.length,
     });
@@ -141,15 +166,71 @@ function normalizeBrowseResult(
   if (!normalizedContent) {
     browseLogger.warn("Browse payload has empty content after normalization", {
       source,
-      url: result.url,
+      url: safeUrl,
       title,
     });
   }
 
   return {
     ...result,
+    url: safeUrl,
     title,
     content: normalizedContent || fallbackContent,
+  };
+}
+
+async function fetchViaAllOriginsJson(url: string): Promise<BrowserProxyPayload> {
+  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+  const response = await fetch(proxyUrl);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const data = (await response.json()) as AllOriginsResponse;
+  return {
+    proxyName: "allorigins:get",
+    rawContent: typeof data?.contents === "string" ? data.contents : "",
+    sourceHttpCode: data?.status?.http_code,
+    sourceContentType: data?.status?.content_type,
+    sourceContentLength: data?.status?.content_length,
+    sourceUrl: data?.status?.url,
+  };
+}
+
+async function fetchViaAllOriginsRaw(url: string): Promise<BrowserProxyPayload> {
+  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+  const response = await fetch(proxyUrl);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const rawContent = await response.text();
+  return {
+    proxyName: "allorigins:raw",
+    rawContent,
+    sourceHttpCode: response.status,
+    sourceContentType: response.headers.get("content-type") || undefined,
+    sourceContentLength: rawContent.length,
+    sourceUrl: url,
+  };
+}
+
+async function fetchViaJina(url: string): Promise<BrowserProxyPayload> {
+  const targetUrl = withHttpScheme(url);
+  const proxyUrl = `https://r.jina.ai/${targetUrl}`;
+  const response = await fetch(proxyUrl);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const rawContent = await response.text();
+  return {
+    proxyName: "jina-ai",
+    rawContent,
+    sourceHttpCode: response.status,
+    sourceContentType: response.headers.get("content-type") || undefined,
+    sourceContentLength: rawContent.length,
+    sourceUrl: targetUrl,
   };
 }
 
@@ -158,54 +239,79 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
     "browse:gateway",
     "browseInBrowser",
     async () => {
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      browseLogger.info("Using browser fallback via AllOrigins", { url, proxyUrl });
+      const fetchers: Array<() => Promise<BrowserProxyPayload>> = [
+        () => fetchViaAllOriginsJson(url),
+        () => fetchViaAllOriginsRaw(url),
+        () => fetchViaJina(url),
+      ];
 
-      const response = await fetch(proxyUrl);
-      browseLogger.info("Browser fallback HTTP response received", {
-        url,
-        status: response.status,
-      });
+      const failures: string[] = [];
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      for (const fetcher of fetchers) {
+        try {
+          const payload = await fetcher();
+          const rawContent = payload.rawContent || "";
+
+          browseLogger.info("Browser proxy payload received", {
+            url,
+            proxy: payload.proxyName,
+            hasContents: !!rawContent,
+            sourceHttpCode: payload.sourceHttpCode,
+            sourceContentType: payload.sourceContentType,
+            sourceContentLength: payload.sourceContentLength,
+          });
+
+          if (!rawContent.trim()) {
+            const emptyMessage = `Empty payload from ${payload.proxyName}`;
+            failures.push(emptyMessage);
+            browseLogger.warn("Browser proxy returned empty payload", {
+              url,
+              proxy: payload.proxyName,
+              sourceUrl: payload.sourceUrl,
+            });
+            continue;
+          }
+
+          const htmlPayload = looksLikeHtml(rawContent);
+          const extracted = htmlPayload
+            ? extractBrowserReadableContent(rawContent)
+            : {
+                title: "Untitled",
+                content: rawContent,
+              };
+
+          const normalized = normalizeBrowseResult(
+            {
+              url,
+              title: extracted.title,
+              content: extracted.content,
+            },
+            "browser",
+            url,
+          );
+
+          browseLogger.info("Browser fallback content prepared", {
+            url,
+            proxy: payload.proxyName,
+            titleLength: normalized.title.length,
+            contentLength: normalized.content.length,
+            htmlPayload,
+          });
+
+          return normalized;
+        } catch (error) {
+          const message = summarizeUnknownError(error);
+          failures.push(message);
+          browseLogger.warn("Browser proxy attempt failed", {
+            url,
+            error: message,
+          });
+        }
       }
 
-      const data = (await response.json()) as AllOriginsResponse;
-      const rawHtml = typeof data?.contents === "string" ? data.contents : "";
-
-      browseLogger.info("AllOrigins payload received", {
-        url,
-        hasContents: !!rawHtml,
-        sourceHttpCode: data?.status?.http_code,
-        sourceContentType: data?.status?.content_type,
-        sourceContentLength: data?.status?.content_length,
-      });
-
-      if (!rawHtml) {
-        browseLogger.warn("AllOrigins response has empty `contents` payload", {
-          url,
-          sourceUrl: data?.status?.url,
-        });
-      }
-
-      const extracted = extractBrowserReadableContent(rawHtml);
-      const normalized = normalizeBrowseResult(
-        {
-          url,
-          title: extracted.title,
-          content: extracted.content,
-        },
-        "browser",
+      throw new Error(
+        `Nie udało się pobrać strony w trybie przeglądarkowym (CORS/proxy). Szczegóły: ${failures.join(" | ")}`,
       );
-
-      browseLogger.info("Browser fallback content prepared", {
-        url,
-        titleLength: normalized.title.length,
-        contentLength: normalized.content.length,
-      });
-
-      return normalized;
     },
   );
 
@@ -229,7 +335,7 @@ export async function executeBrowseCommand(
         const result = await invoke<BrowseResult>("browse", { url });
         const rawTitle = typeof result.title === "string" ? result.title : "";
         const rawContent = typeof result.content === "string" ? result.content : "";
-        const normalized = normalizeBrowseResult(result, "tauri");
+        const normalized = normalizeBrowseResult(result, "tauri", url);
 
         browseLogger.info("Tauri browse command completed", {
           url: normalized.url,

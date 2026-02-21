@@ -1,5 +1,5 @@
 project: broxeen
-generated: "2026-02-21T16:59:24.574770"
+generated: "2026-02-21T17:11:01.008898"
 modules[49]{path,lang,items}:
   phonetic.py,python,2
   vite.config.ts,typescript,0
@@ -108,9 +108,9 @@ function_details:
       normalizeText,function,"(text: string) -> string",24-26,false,3,1,normalize text
       extractBrowserReadableContent,function,"(rawHtml: string) -> { title: string; content: string }",28-101,false,74,1,parses browser readable content
       looksLikeHtml,function,"(text: string) -> boolean",103-112,false,10,1,looks like html
-      normalizeBrowseResult,function,"(result: BrowseResult, source: \"tauri\" | \"browser\") -> BrowseResult",114-154,false,41,1,normalize browse result
-      browseInBrowser,function,"(url: string) -> Promise<BrowseResult>",156-213,true,58,1,browse in browser
-      executeBrowseCommand,function,"(url: string, runtimeIsTauri: boolean) -> Promise<BrowseResult>",215-256,true,42,1,starts browse command
+      normalizeBrowseResult,function,"(result: BrowseResult, source: \"tauri\" | \"browser\", requestedUrl?) -> BrowseResult",114-160,false,47,1,normalize browse result
+      browseInBrowser,function,"(url: string) -> Promise<BrowseResult>",162-220,true,59,1,browse in browser
+      executeBrowseCommand,function,"(url: string, runtimeIsTauri: boolean) -> Promise<BrowseResult>",222-263,true,42,1,starts browse command
   src/lib/llmPrompts.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       getPrompt,function,"(mode: PromptMode, override?) -> string",53-55,false,3,1,retrieves prompt
