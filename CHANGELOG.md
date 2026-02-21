@@ -1,3 +1,15 @@
+## [1.0.14] - 2026-02-21
+
+### Summary
+
+feat(src-tauri): CLI interface with 2 supporting modules
+
+### Other
+
+- update src-tauri/src/audio_commands.rs
+- update src-tauri/src/tts_backend.rs
+
+
 ## [1.0.13] - 2026-02-21
 
 ### Summary

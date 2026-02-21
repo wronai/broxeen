@@ -76,9 +76,46 @@ pub fn tts_engine_info() -> String {
 
 // ── TTS Synthesis ────────────────────────────────────
 
+/// Select TTS engine based on user preference and availability.
+pub fn select_tts_engine(preferred: &str) -> TtsEngine {
+    match preferred {
+        "piper" => {
+            if detect_tts_engine() == TtsEngine::Piper {
+                TtsEngine::Piper
+            } else {
+                crate::backend_warn("Piper requested but not available, falling back to espeak-ng");
+                detect_tts_engine()
+            }
+        }
+        "espeak" | "espeak-ng" => {
+            if detect_tts_engine() == TtsEngine::EspeakNg {
+                TtsEngine::EspeakNg
+            } else {
+                crate::backend_warn("espeak-ng requested but not available, using auto-detection");
+                detect_tts_engine()
+            }
+        }
+        "auto" | _ => detect_tts_engine(),
+    }
+}
+
 /// Synthesize text to WAV bytes using the best available engine.
 pub fn synthesize_to_wav(text: &str, rate: f32, lang: &str) -> Result<Vec<u8>, String> {
     let engine = detect_tts_engine();
+
+    match engine {
+        TtsEngine::Piper => synthesize_piper(text, rate),
+        TtsEngine::EspeakNg => synthesize_espeak(text, rate, lang),
+        TtsEngine::None => Err(
+            "Brak silnika TTS. Zainstaluj Piper lub espeak-ng:\n\
+             sudo apt install espeak-ng".into()
+        ),
+    }
+}
+
+/// Synthesize text to WAV bytes using user-preferred engine.
+pub fn synthesize_to_wav_with_engine(text: &str, rate: f32, lang: &str, preferred_engine: &str) -> Result<Vec<u8>, String> {
+    let engine = select_tts_engine(preferred_engine);
 
     match engine {
         TtsEngine::Piper => synthesize_piper(text, rate),
@@ -212,9 +249,29 @@ pub fn speak(text: &str, rate: f32, volume: f32, lang: &str) -> Result<(), Strin
     Ok(())
 }
 
+/// Full pipeline with user-preferred engine selection.
+pub fn speak_with_engine(text: &str, rate: f32, volume: f32, lang: &str, preferred_engine: &str) -> Result<(), String> {
+    if text.trim().is_empty() {
+        return Ok(());
+    }
+
+    println!("[tts] Speaking: \"{}\"", truncate(text, 60));
+
+    let wav = synthesize_to_wav_with_engine(text, rate, lang, preferred_engine)?;
+    play_wav_async(wav, volume)?;
+
+    Ok(())
+}
+
 /// Speak text and return WAV as base64 (for frontend playback option).
 pub fn speak_to_base64(text: &str, rate: f32, lang: &str) -> Result<String, String> {
     let wav = synthesize_to_wav(text, rate, lang)?;
+    Ok(base64_encode(&wav))
+}
+
+/// Speak text and return WAV as base64 using user-preferred engine.
+pub fn speak_to_base64_with_engine(text: &str, rate: f32, lang: &str, preferred_engine: &str) -> Result<String, String> {
+    let wav = synthesize_to_wav_with_engine(text, rate, lang, preferred_engine)?;
     Ok(base64_encode(&wav))
 }
 

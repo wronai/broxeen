@@ -16,6 +16,35 @@ use crate::audio_capture::{self, SharedRecordingState};
 use crate::stt;
 use crate::tts_backend;
 use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+use serde_json;
+
+/// Load current settings from disk
+fn load_settings() -> crate::AudioSettings {
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+    let settings_path = PathBuf::from(home).join(".config/broxeen/settings.json");
+    
+    if !settings_path.exists() {
+        crate::backend_warn("Settings file not found, using defaults");
+        return crate::AudioSettings::default();
+    }
+    
+    let data = match std::fs::read_to_string(&settings_path) {
+        Ok(data) => data,
+        Err(err) => {
+            crate::backend_error(format!("Failed to read settings: {}", err));
+            return crate::AudioSettings::default();
+        }
+    };
+    
+    match serde_json::from_str::<crate::AudioSettings>(&data) {
+        Ok(settings) => settings,
+        Err(err) => {
+            crate::backend_error(format!("Failed to parse settings: {}", err));
+            crate::AudioSettings::default()
+        }
+    }
+}
 
 /// Active recording stream, stored in Tauri state.
 pub struct ActiveStream(pub Arc<Mutex<Option<cpal::Stream>>>);
@@ -142,7 +171,14 @@ pub fn backend_tts_speak(
         volume
     ));
 
-    tts_backend::speak(&text, rate, volume, &lang)
+    // Load current settings to get preferred TTS engine
+    let settings = load_settings();
+    crate::backend_info(format!(
+        "Using TTS engine from settings: '{}'", 
+        settings.tts_engine
+    ));
+
+    tts_backend::speak_with_engine(&text, rate, volume, &lang, &settings.tts_engine)
 }
 
 /// Synthesize text to WAV and return as base64.
@@ -163,7 +199,14 @@ pub fn backend_tts_speak_base64(
         rate
     ));
 
-    tts_backend::speak_to_base64(&text, rate, &lang)
+    // Load current settings to get preferred TTS engine
+    let settings = load_settings();
+    crate::backend_info(format!(
+        "Using TTS engine from settings: '{}'", 
+        settings.tts_engine
+    ));
+
+    tts_backend::speak_to_base64_with_engine(&text, rate, &lang, &settings.tts_engine)
 }
 
 /// Get info about available TTS engine.
