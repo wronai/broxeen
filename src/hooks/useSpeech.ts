@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { logger } from "../lib/logger";
+import { logger, logSyncDecorator } from "../lib/logger";
 
 interface SpeechRecognitionEvent {
   results: SpeechRecognitionResultList;
@@ -30,6 +30,8 @@ declare global {
   }
 }
 
+const speechLogger = logger.scope("speech:recognition");
+
 export function useSpeech(lang: string = "pl-PL") {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -39,71 +41,133 @@ export function useSpeech(lang: string = "pl-PL") {
 
   useEffect(() => {
     const SpeechRecognition =
-      typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : undefined;
+      typeof window !== "undefined"
+        ? window.SpeechRecognition || window.webkitSpeechRecognition
+        : undefined;
     const supported = !!SpeechRecognition;
-    logger.debug(`Speech recognition supported: ${supported}`);
+
+    speechLogger.info("Speech recognition capability check", {
+      supported,
+      lang,
+      hasSpeechRecognition:
+        typeof window !== "undefined" && !!window.SpeechRecognition,
+      hasWebkitSpeechRecognition:
+        typeof window !== "undefined" && !!window.webkitSpeechRecognition,
+    });
+
+    if (!supported) {
+      speechLogger.warn("Speech recognition is not available in this runtime");
+    }
+
     setIsSupported(supported);
+  }, [lang]);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        speechLogger.debug(
+          "Unmount cleanup: aborting active speech recognition instance",
+        );
+        recognitionRef.current.abort();
+        recognitionRef.current = null;
+      }
+    };
   }, []);
 
   const startListening = useCallback(() => {
-    const SpeechRecognition =
-      typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : undefined;
-    if (!SpeechRecognition) {
-      logger.error("SpeechRecognition API not found");
-      return;
-    }
-
-    logger.debug(`Starting speech recognition (lang: ${lang})...`);
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = lang;
-
-    recognition.onstart = () => {
-      logger.debug("Speech recognition started");
-      setIsListening(true);
-      setTranscript("");
-      setInterimTranscript("");
-    };
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let interim = "";
-      let final_ = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          final_ += result[0].transcript;
-        } else {
-          interim += result[0].transcript;
+    const runStartListening = logSyncDecorator(
+      "speech:recognition",
+      "startListening",
+      () => {
+        const SpeechRecognition =
+          typeof window !== "undefined"
+            ? window.SpeechRecognition || window.webkitSpeechRecognition
+            : undefined;
+        if (!SpeechRecognition) {
+          speechLogger.error("SpeechRecognition API not found");
+          return;
         }
-      }
-      if (final_) {
-        logger.debug(`Final transcript: "${final_}"`);
-        setTranscript(final_);
-      }
-      setInterimTranscript(interim);
-    };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      logger.error("Speech recognition error:", event.error);
-      setIsListening(false);
-    };
+        if (recognitionRef.current) {
+          speechLogger.warn(
+            "Existing recognition instance found. Aborting before restart.",
+          );
+          recognitionRef.current.abort();
+        }
 
-    recognition.onend = () => {
-      logger.debug("Speech recognition ended");
-      setIsListening(false);
-    };
+        speechLogger.info("Starting speech recognition session", {
+          lang,
+          interimResults: true,
+          continuous: false,
+        });
 
-    recognitionRef.current = recognition;
-    recognition.start();
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = lang;
+
+        recognition.onstart = () => {
+          speechLogger.info("Speech recognition started");
+          setIsListening(true);
+          setTranscript("");
+          setInterimTranscript("");
+        };
+
+        recognition.onresult = (event: SpeechRecognitionEvent) => {
+          let interim = "";
+          let final_ = "";
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              final_ += result[0].transcript;
+            } else {
+              interim += result[0].transcript;
+            }
+          }
+
+          if (final_) {
+            speechLogger.debug("Final transcript captured", { final_ });
+            setTranscript(final_);
+          }
+
+          setInterimTranscript(interim);
+        };
+
+        recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+          speechLogger.error("Speech recognition error", { error: event.error });
+          setIsListening(false);
+        };
+
+        recognition.onend = () => {
+          speechLogger.info("Speech recognition ended");
+          setIsListening(false);
+          recognitionRef.current = null;
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+      },
+    );
+
+    runStartListening();
   }, [lang]);
 
   const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      logger.debug("Stopping speech recognition manually");
-      recognitionRef.current.stop();
-    }
-    setIsListening(false);
+    const runStopListening = logSyncDecorator(
+      "speech:recognition",
+      "stopListening",
+      () => {
+        if (recognitionRef.current) {
+          speechLogger.info("Stopping speech recognition manually");
+          recognitionRef.current.stop();
+        } else {
+          speechLogger.debug("No active recognition instance to stop");
+        }
+        setIsListening(false);
+      },
+    );
+
+    runStopListening();
   }, []);
 
   return {

@@ -11,7 +11,7 @@ import {
   type ChatMessage,
 } from "../domain/chatEvents";
 import { executeBrowseCommand } from "../lib/browseGateway";
-import { logger } from "../lib/logger";
+import { logger, logAsyncDecorator } from "../lib/logger";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -31,6 +31,7 @@ export default function Chat({ settings }: ChatProps) {
   const nextIdRef = useRef(1);
   const eventsRef = useRef<ChatEvent[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatLogger = logger.scope("chat:ui");
 
   const {
     isListening,
@@ -55,12 +56,16 @@ export default function Chat({ settings }: ChatProps) {
 
   useEffect(() => {
     if (transcript && !isListening) {
+      chatLogger.info("Applying finalized speech transcript", {
+        transcriptLength: transcript.length,
+      });
       handleSubmit(transcript);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcript, isListening]);
 
   const applyEvent = (event: ChatEvent) => {
+    chatLogger.debug("Applying chat event", { type: event.type });
     eventsRef.current.push(event);
     setMessages((prev) => projectChatMessages(prev, event));
   };
@@ -82,69 +87,86 @@ export default function Chat({ settings }: ChatProps) {
   };
 
   const handleSubmit = async (text?: string) => {
-    const query = (text || input).trim();
-    if (!query) return;
-    setInput("");
+    const runHandleSubmit = logAsyncDecorator("chat:ui", "handleSubmit", async () => {
+      const query = (text || input).trim();
+      if (!query) {
+        chatLogger.debug("Ignoring empty submit");
+        return;
+      }
 
-    logger.debug(`Handling submit: "${query}"`);
-    addMessage({ role: "user", text: query });
+      setInput("");
+      chatLogger.info("Handling submit", { queryLength: query.length });
+      addMessage({ role: "user", text: query });
 
-    const result = resolve(query);
-    logger.debug("Resolution result:", result);
-
-    if (result.needsClarification) {
-      addMessage({
-        role: "assistant",
-        text: "Czy chodziło Ci o jedną z tych stron?",
-        suggestions: result.suggestions,
+      const result = resolve(query);
+      chatLogger.info("Query resolved", {
         resolveType: result.resolveType,
+        needsClarification: result.needsClarification,
+        hasUrl: !!result.url,
+        suggestionsCount: result.suggestions.length,
       });
-      return;
-    }
 
-    if (!result.url) return;
+      if (result.needsClarification) {
+        addMessage({
+          role: "assistant",
+          text: "Czy chodziło Ci o jedną z tych stron?",
+          suggestions: result.suggestions,
+          resolveType: result.resolveType,
+        });
+        return;
+      }
 
-    const loadingId = nextIdRef.current++;
-    const resolvedUrl = result.url;
-    applyEvent({
-      type: "message_added",
-      payload: {
-        id: loadingId,
-        role: "assistant",
-        text: `Pobieram: ${resolvedUrl}...`,
-        url: resolvedUrl,
-        resolveType: result.resolveType,
-        loading: true,
-      },
+      if (!result.url) {
+        chatLogger.warn("Resolution returned no URL and no clarification request");
+        return;
+      }
+
+      const loadingId = nextIdRef.current++;
+      const resolvedUrl = result.url;
+      applyEvent({
+        type: "message_added",
+        payload: {
+          id: loadingId,
+          role: "assistant",
+          text: `Pobieram: ${resolvedUrl}...`,
+          url: resolvedUrl,
+          resolveType: result.resolveType,
+          loading: true,
+        },
+      });
+
+      try {
+        const browseResult = await executeBrowseCommand(resolvedUrl);
+
+        chatLogger.info("Browse result received", {
+          url: browseResult.url,
+          titleLength: browseResult.title.length,
+          contentLength: browseResult.content.length,
+        });
+
+        updateMessage(loadingId, {
+          text: browseResult.content.slice(0, 5000),
+          url: browseResult.url,
+          loading: false,
+        });
+
+        if (settings.tts_enabled) {
+          chatLogger.info("TTS enabled for assistant response", {
+            readLength: Math.min(browseResult.content.length, 3000),
+          });
+          const toRead = browseResult.content.slice(0, 3000);
+          tts.speak(toRead);
+        }
+      } catch (err) {
+        chatLogger.error("Browse failed", err);
+        updateMessage(loadingId, {
+          text: `Nie udało się pobrać strony: ${err}`,
+          loading: false,
+        });
+      }
     });
 
-    try {
-      const browseResult = await executeBrowseCommand(resolvedUrl);
-
-      logger.debug("Browse result received:", {
-        url: browseResult.url,
-        title: browseResult.title,
-        contentLength: browseResult.content.length,
-      });
-
-      updateMessage(loadingId, {
-        text: browseResult.content.slice(0, 5000),
-        url: browseResult.url,
-        loading: false,
-      });
-
-      if (settings.tts_enabled) {
-        logger.debug("TTS is enabled, starting speech...");
-        const toRead = browseResult.content.slice(0, 3000);
-        tts.speak(toRead);
-      }
-    } catch (err) {
-      logger.error("Browse failed:", err);
-      updateMessage(loadingId, {
-        text: `Nie udało się pobrać strony: ${err}`,
-        loading: false,
-      });
-    }
+    await runHandleSubmit();
   };
 
   const handleSuggestionClick = (url: string) => {
@@ -162,8 +184,10 @@ export default function Chat({ settings }: ChatProps) {
 
   const toggleMic = () => {
     if (isListening) {
+      chatLogger.info("Microphone toggle -> stop listening");
       stopListening();
     } else {
+      chatLogger.info("Microphone toggle -> start listening");
       startListening();
     }
   };
@@ -182,6 +206,7 @@ export default function Chat({ settings }: ChatProps) {
   };
 
   const copyChatContent = () => {
+    chatLogger.debug("Preparing chat transcript copy");
     const chatContent = messages
       .filter(msg => msg.role !== "system")
       .map(msg => {
@@ -195,10 +220,11 @@ export default function Chat({ settings }: ChatProps) {
       .join("\n\n---\n\n");
     
     navigator.clipboard.writeText(chatContent).then(() => {
-      // Optional: Add toast notification here
-      logger.info("Chat content copied to clipboard");
+      chatLogger.info("Chat content copied to clipboard", {
+        characters: chatContent.length,
+      });
     }).catch(err => {
-      logger.error("Failed to copy chat content:", err);
+      chatLogger.error("Failed to copy chat content", err);
     });
   };
 
