@@ -11,7 +11,7 @@ type MockRecognition = {
   abort: ReturnType<typeof vi.fn>;
   onstart: (() => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
   onresult: ((e: unknown) => void) | null;
 };
 
@@ -33,6 +33,7 @@ const makeMockRecognition = (): MockRecognition => ({
 describe("useSpeech", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete (window as { __TAURI__?: unknown }).__TAURI__;
     mockRecognition = makeMockRecognition();
     const MockSpeechRecognition = vi.fn(() => mockRecognition);
     Object.defineProperty(window, "SpeechRecognition", {
@@ -65,8 +66,54 @@ describe("useSpeech", () => {
       writable: true,
       configurable: true,
     });
+    Object.defineProperty(window, "webkitSpeechRecognition", {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
     const { result } = renderHook(() => useSpeech());
     expect(result.current.isSupported).toBe(false);
+  });
+
+  it("ustawia unsupportedReason dla przeglądarki bez Web Speech API", () => {
+    Object.defineProperty(window, "SpeechRecognition", {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(window, "webkitSpeechRecognition", {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+
+    const { result } = renderHook(() => useSpeech());
+
+    expect(result.current.isSupported).toBe(false);
+    expect(result.current.unsupportedReason).toContain("brak Web Speech API");
+  });
+
+  it("ustawia unsupportedReason dla runtime Tauri bez STT", () => {
+    Object.defineProperty(window, "SpeechRecognition", {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(window, "webkitSpeechRecognition", {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(window, "__TAURI__", {
+      value: {},
+      writable: true,
+      configurable: true,
+    });
+
+    const { result } = renderHook(() => useSpeech());
+
+    expect(result.current.isSupported).toBe(false);
+    expect(result.current.unsupportedReason).toContain("desktop Tauri");
   });
 
   it("startListening() wywołuje recognition.start()", () => {
