@@ -1,3 +1,20 @@
+## [1.0.8] - 2026-02-21
+
+### Summary
+
+feat(tests): configuration management system
+
+### Other
+
+- update src/components/Chat.test.tsx
+- update src/domain/audioSettings.test.ts
+- update src/domain/chatEvents.test.ts
+- update src/lib/browseGateway.test.ts
+- update src/lib/logger.ts
+- update src/main.tsx
+- update src/vite-env.d.ts
+
+
 ## [1.0.7] - 2026-02-21
 
 ### Summary

@@ -2,19 +2,31 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import { logger } from "./lib/logger";
+import { logger, logSyncDecorator } from "./lib/logger";
 
-logger.info("Starting Broxeen frontend...");
+const startupLogger = logger.scope("startup:frontend");
+startupLogger.info("Starting Broxeen frontend", {
+  mode: import.meta.env.MODE,
+  debugLogs: import.meta.env.VITE_DEBUG === "true",
+});
+
+const renderApp = logSyncDecorator(
+  "startup:frontend",
+  "renderReactTree",
+  (root: HTMLElement) => {
+    ReactDOM.createRoot(root).render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>,
+    );
+  },
+);
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
-  logger.error("Failed to find root element!");
+  startupLogger.error("Failed to find #root element. App cannot start.");
 } else {
-  logger.debug("Root element found, rendering app...");
-  ReactDOM.createRoot(rootElement).render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>,
-  );
+  startupLogger.info("Root element found. Rendering app...");
+  renderApp(rootElement);
 }
 

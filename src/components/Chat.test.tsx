@@ -119,7 +119,7 @@ describe("Chat — browse flow", () => {
   });
 
   it("pokazuje wiadomość ładowania po wysłaniu URL", async () => {
-    (invoke as ReturnType<typeof vi.fn>).mockImplementation(
+    (invoke as ReturnType<typeof vi.fn>).mockImplementationOnce(
       () => new Promise(() => {}), // nigdy nie resolve — symuluje ładowanie
     );
 
@@ -503,7 +503,7 @@ describe("Chat — mikrofon", () => {
     // Simulate final result
     act(() => {
       mockRecognition.onresult?.({
-        resultIndex: 1,
+        resultIndex: 0,
         results: [
           Object.assign([{ transcript: "wpis kropka pl" }], {
             isFinal: true,
