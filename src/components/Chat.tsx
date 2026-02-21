@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Send, Mic, MicOff, Loader2, Globe, Search, Zap } from "lucide-react";
+import { Send, Mic, MicOff, Loader2, Globe, Search, Zap, Copy } from "lucide-react";
 import { resolve } from "../lib/resolver";
 import { useSpeech } from "../hooks/useSpeech";
 import { useTts } from "../hooks/useTts";
 import TtsControls from "./TtsControls";
+import { logger } from "../lib/logger";
 
 interface Message {
   id: number;
@@ -90,9 +91,11 @@ export default function Chat({ settings }: ChatProps) {
     if (!query) return;
     setInput("");
 
+    logger.debug(`Handling submit: "${query}"`);
     addMessage({ role: "user", text: query });
 
     const result = resolve(query);
+    logger.debug("Resolution result:", result);
 
     if (result.needsClarification) {
       addMessage({
@@ -121,11 +124,18 @@ export default function Chat({ settings }: ChatProps) {
     ]);
 
     try {
+      logger.debug(`Invoking 'browse' for URL: ${resolvedUrl}`);
       const browseResult = await invoke<{
         url: string;
         title: string;
         content: string;
       }>("browse", { url: resolvedUrl });
+
+      logger.debug("Browse result received:", {
+        url: browseResult.url,
+        title: browseResult.title,
+        contentLength: browseResult.content.length,
+      });
 
       updateMessage(loadingId, {
         text: browseResult.content.slice(0, 5000),
@@ -134,10 +144,12 @@ export default function Chat({ settings }: ChatProps) {
       });
 
       if (settings.tts_enabled) {
+        logger.debug("TTS is enabled, starting speech...");
         const toRead = browseResult.content.slice(0, 3000);
         tts.speak(toRead);
       }
     } catch (err) {
+      logger.error("Browse failed:", err);
       updateMessage(loadingId, {
         text: `Nie udało się pobrać strony: ${err}`,
         loading: false,
@@ -179,11 +191,46 @@ export default function Chat({ settings }: ChatProps) {
     }
   };
 
+  const copyChatContent = () => {
+    const chatContent = messages
+      .filter(msg => msg.role !== "system")
+      .map(msg => {
+        const role = msg.role === "user" ? "Użytkownik:" : "Asystent:";
+        let content = `${role}\n${msg.text}`;
+        if (msg.url) {
+          content += `\nURL: ${msg.url}`;
+        }
+        return content;
+      })
+      .join("\n\n---\n\n");
+    
+    navigator.clipboard.writeText(chatContent).then(() => {
+      // Optional: Add toast notification here
+      logger.info("Chat content copied to clipboard");
+    }).catch(err => {
+      logger.error("Failed to copy chat content:", err);
+    });
+  };
+
   return (
     <div className="flex h-full flex-col">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="mx-auto max-w-3xl space-y-4">
+        <div className="mx-auto max-w-3xl">
+          {/* Header with copy button */}
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-gray-200">Czat</h2>
+            <button
+              onClick={copyChatContent}
+              className="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-2 text-sm text-gray-300 transition hover:bg-gray-700 hover:text-white"
+              title="Kopiuj zawartość czatu"
+            >
+              <Copy size={16} />
+              <span>Kopiuj</span>
+            </button>
+          </div>
+          
+          <div className="space-y-4">
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -247,6 +294,7 @@ export default function Chat({ settings }: ChatProps) {
             </div>
           ))}
           <div ref={messagesEndRef} />
+          </div>
         </div>
       </div>
 

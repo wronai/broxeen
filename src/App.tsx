@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Settings as SettingsIcon } from "lucide-react";
 import Chat from "./components/Chat";
 import Settings from "./components/Settings";
+import { logger } from "./lib/logger";
 
 interface AudioSettings {
   tts_enabled: boolean;
@@ -36,12 +37,20 @@ export default function App() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
 
   useEffect(() => {
+    logger.debug("App component mounted, fetching settings...");
     invoke<AudioSettings>("get_settings")
-      .then(setSettings)
-      .catch(() => {});
+      .then((s) => {
+        logger.debug("Settings loaded:", s);
+        setSettings(s);
+      })
+      .catch((e) => {
+        logger.error("Failed to load settings:", e);
+      });
 
     const loadVoices = () => {
-      setVoices(window.speechSynthesis.getVoices());
+      const availableVoices = window.speechSynthesis.getVoices();
+      logger.debug(`Voices loaded: ${availableVoices.length}`);
+      setVoices(availableVoices);
     };
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;

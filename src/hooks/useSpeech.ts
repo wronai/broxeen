@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { logger } from "../lib/logger";
 
 interface SpeechRecognitionEvent {
   results: SpeechRecognitionResultList;
@@ -39,20 +40,27 @@ export function useSpeech(lang: string = "pl-PL") {
   useEffect(() => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
-    setIsSupported(!!SpeechRecognition);
+    const supported = !!SpeechRecognition;
+    logger.debug(`Speech recognition supported: ${supported}`);
+    setIsSupported(supported);
   }, []);
 
   const startListening = useCallback(() => {
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition) {
+      logger.error("SpeechRecognition API not found");
+      return;
+    }
 
+    logger.debug(`Starting speech recognition (lang: ${lang})...`);
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = lang;
 
     recognition.onstart = () => {
+      logger.debug("Speech recognition started");
       setIsListening(true);
       setTranscript("");
       setInterimTranscript("");
@@ -69,15 +77,20 @@ export function useSpeech(lang: string = "pl-PL") {
           interim += result[0].transcript;
         }
       }
-      if (final_) setTranscript(final_);
+      if (final_) {
+        logger.debug(`Final transcript: "${final_}"`);
+        setTranscript(final_);
+      }
       setInterimTranscript(interim);
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      logger.error("Speech recognition error:", event.error);
       setIsListening(false);
     };
 
     recognition.onend = () => {
+      logger.debug("Speech recognition ended");
       setIsListening(false);
     };
 
@@ -87,6 +100,7 @@ export function useSpeech(lang: string = "pl-PL") {
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
+      logger.debug("Stopping speech recognition manually");
       recognitionRef.current.stop();
     }
     setIsListening(false);

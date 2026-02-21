@@ -1,3 +1,21 @@
+## [1.0.5] - 2026-02-21
+
+### Summary
+
+feat(build): deep code analysis engine with 6 supporting modules
+
+### Other
+
+- build: update Makefile
+- update src-tauri/tauri.conf.json
+- update src/App.tsx
+- update src/components/Chat.tsx
+- update src/hooks/useSpeech.ts
+- update src/hooks/useTts.ts
+- update src/lib/logger.ts
+- update src/main.tsx
+
+
 ## [1.0.4] - 2026-02-21
 
 ### Summary
