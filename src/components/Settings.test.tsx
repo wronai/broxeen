@@ -15,17 +15,6 @@ const baseProps = {
   voices: defaultVoices,
 };
 
-function renderSettings(overrides: Partial<typeof baseProps> = {}) {
-  return render(<Settings {...baseProps} {...overrides} />);
-}
-
-async function renderOpenSettings(overrides: Partial<typeof baseProps> = {}) {
-  renderSettings(overrides);
-  await waitFor(() => {
-    expect(invoke).toHaveBeenCalledWith("get_settings");
-  });
-}
-
 describe("Settings — widoczność", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -36,19 +25,25 @@ describe("Settings — widoczność", () => {
     });
   });
 
-  it("nie renderuje gdy isOpen=false", () => {
-    renderSettings({ isOpen: false });
+  it("nie renderuje gdy isOpen=false", async () => {
+    await act(async () => {
+      render(<Settings {...baseProps} isOpen={false} />);
+    });
     expect(screen.queryByText("Ustawienia Audio")).not.toBeInTheDocument();
   });
 
   it("renderuje gdy isOpen=true", async () => {
-    await renderOpenSettings();
+    await act(async () => {
+      render(<Settings {...baseProps} />);
+    });
     expect(screen.getByText("Ustawienia Audio")).toBeInTheDocument();
   });
 
   it("przycisk X zamyka modal", async () => {
     const onClose = vi.fn();
-    await renderOpenSettings({ onClose });
+    await act(async () => {
+      render(<Settings {...baseProps} onClose={onClose} />);
+    });
     // X button is the one with title attribute
     const xBtn = document.querySelector("button[class*='rounded-lg p-1.5']");
     if (xBtn) fireEvent.click(xBtn);
@@ -58,7 +53,9 @@ describe("Settings — widoczność", () => {
 
   it("przycisk Anuluj wywołuje onClose", async () => {
     const onClose = vi.fn();
-    await renderOpenSettings({ onClose });
+    await act(async () => {
+      render(<Settings {...baseProps} onClose={onClose} />);
+    });
     fireEvent.click(screen.getByText("Anuluj"));
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -83,12 +80,18 @@ describe("Settings — ładowanie ustawień", () => {
       auto_listen: false,
     });
 
-    await renderOpenSettings();
+    render(<Settings {...baseProps} />);
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("get_settings");
+    });
   });
 
   it("używa domyślnych gdy invoke się nie powiedzie", async () => {
     (invoke as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("fail"));
-    await renderOpenSettings();
+    await act(async () => {
+      render(<Settings {...baseProps} />);
+    });
     await waitFor(() => {
       expect(screen.getByText("Ustawienia Audio")).toBeInTheDocument();
     });
@@ -112,42 +115,42 @@ describe("Settings — kontrolki TTS", () => {
     });
   });
 
-  it("pokazuje sekcję TTS", async () => {
-    await renderOpenSettings();
+  it("pokazuje sekcję TTS", () => {
+    render(<Settings {...baseProps} />);
     expect(screen.getByText(/Text-to-Speech/i)).toBeInTheDocument();
   });
 
   it("pokazuje sekcję Mikrofon", async () => {
-    await renderOpenSettings();
+    render(<Settings {...baseProps} />);
     await waitFor(() => {
       // The heading uses uppercase via CSS, match the actual text
       expect(screen.getAllByText(/mikrofon/i).length).toBeGreaterThan(0);
     });
   });
 
-  it("pokazuje dostępne głosy w select", async () => {
-    await renderOpenSettings();
+  it("pokazuje dostępne głosy w select", () => {
+    render(<Settings {...baseProps} />);
     expect(screen.getByText("Polish Female (pl-PL)")).toBeInTheDocument();
     expect(screen.getByText("English US (en-US)")).toBeInTheDocument();
   });
 
-  it("pokazuje opcję domyślnego głosu", async () => {
-    await renderOpenSettings();
+  it("pokazuje opcję domyślnego głosu", () => {
+    render(<Settings {...baseProps} />);
     expect(screen.getByText("Domyślny (polski)")).toBeInTheDocument();
   });
 
-  it("pokazuje suwak szybkości", async () => {
-    await renderOpenSettings();
+  it("pokazuje suwak szybkości", () => {
+    render(<Settings {...baseProps} />);
     expect(screen.getByText(/Szybkość/i)).toBeInTheDocument();
   });
 
-  it("pokazuje suwak głośności", async () => {
-    await renderOpenSettings();
+  it("pokazuje suwak głośności", () => {
+    render(<Settings {...baseProps} />);
     expect(screen.getByText(/Głośność/i)).toBeInTheDocument();
   });
 
-  it("pokazuje suwak tonu", async () => {
-    await renderOpenSettings();
+  it("pokazuje suwak tonu", () => {
+    render(<Settings {...baseProps} />);
     expect(screen.getByText(/Ton/i)).toBeInTheDocument();
   });
 });
@@ -170,7 +173,11 @@ describe("Settings — zapisywanie", () => {
   });
 
   it("kliknięcie 'Zapisz ustawienia' wywołuje invoke save_settings", async () => {
-    await renderOpenSettings();
+    render(<Settings {...baseProps} />);
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("get_settings");
+    });
 
     (invoke as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     fireEvent.click(screen.getByText("Zapisz ustawienia"));
@@ -184,7 +191,11 @@ describe("Settings — zapisywanie", () => {
 
   it("po zapisaniu wywołuje onSettingsChange", async () => {
     const onSettingsChange = vi.fn();
-    await renderOpenSettings({ onSettingsChange });
+    render(<Settings {...baseProps} onSettingsChange={onSettingsChange} />);
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("get_settings");
+    });
 
     (invoke as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     fireEvent.click(screen.getByText("Zapisz ustawienia"));
@@ -195,7 +206,11 @@ describe("Settings — zapisywanie", () => {
   });
 
   it("po zapisaniu pokazuje komunikat '✓ Zapisano'", async () => {
-    await renderOpenSettings();
+    render(<Settings {...baseProps} />);
+
+    await waitFor(() => {
+      expect(invoke).toHaveBeenCalledWith("get_settings");
+    });
 
     (invoke as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
     fireEvent.click(screen.getByText("Zapisz ustawienia"));
@@ -223,18 +238,18 @@ describe("Settings — checkbox mikrofon", () => {
     });
   });
 
-  it("pokazuje checkbox 'Mikrofon włączony'", async () => {
-    await renderOpenSettings();
+  it("pokazuje checkbox 'Mikrofon włączony'", () => {
+    render(<Settings {...baseProps} />);
     expect(screen.getByText("Mikrofon włączony")).toBeInTheDocument();
   });
 
-  it("pokazuje checkbox 'Auto-nasłuchiwanie'", async () => {
-    await renderOpenSettings();
+  it("pokazuje checkbox 'Auto-nasłuchiwanie'", () => {
+    render(<Settings {...baseProps} />);
     expect(screen.getByText("Auto-nasłuchiwanie")).toBeInTheDocument();
   });
 
-  it("pokazuje checkbox 'TTS włączony'", async () => {
-    await renderOpenSettings();
+  it("pokazuje checkbox 'TTS włączony'", () => {
+    render(<Settings {...baseProps} />);
     expect(screen.getByText("TTS włączony")).toBeInTheDocument();
   });
 });

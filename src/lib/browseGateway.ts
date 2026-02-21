@@ -11,6 +11,16 @@ export interface BrowseResult {
   content: string;
 }
 
+interface AllOriginsResponse {
+  contents?: string;
+  status?: {
+    url?: string;
+    content_type?: string;
+    content_length?: number;
+    http_code?: number;
+  };
+}
+
 function normalizeText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
@@ -90,6 +100,59 @@ function extractBrowserReadableContent(rawHtml: string): { title: string; conten
   };
 }
 
+function looksLikeHtml(text: string): boolean {
+  const probe = text.trim().slice(0, 2000);
+  if (!probe) {
+    return false;
+  }
+
+  return /<!doctype html|<html|<head|<body|<main|<article|<script|<style|<div|<p|<span|<a\s|<meta|<title|<h[1-6]|<ul|<ol|<li|<table|<form/i.test(
+    probe,
+  );
+}
+
+function normalizeBrowseResult(
+  result: BrowseResult,
+  source: "tauri" | "browser",
+): BrowseResult {
+  const rawTitle = typeof result.title === "string" ? result.title : "";
+  const rawContent = typeof result.content === "string" ? result.content : "";
+
+  const title = normalizeText(rawTitle) || (source === "browser" ? "Untitled" : result.url);
+  const contentWasHtml = looksLikeHtml(rawContent);
+  const extractedContent = contentWasHtml
+    ? extractBrowserReadableContent(rawContent).content
+    : rawContent;
+  const normalizedContent = extractedContent.slice(0, MAX_CONTENT_LENGTH).trim();
+  const fallbackContent =
+    source === "browser"
+      ? "Nie udało się wyodrębnić treści ze strony w trybie przeglądarki."
+      : "Nie udało się wyodrębnić treści ze strony.";
+
+  if (contentWasHtml) {
+    browseLogger.warn("Browse payload looked like raw HTML and was normalized", {
+      source,
+      url: result.url,
+      originalLength: rawContent.length,
+      normalizedLength: normalizedContent.length,
+    });
+  }
+
+  if (!normalizedContent) {
+    browseLogger.warn("Browse payload has empty content after normalization", {
+      source,
+      url: result.url,
+      title,
+    });
+  }
+
+  return {
+    ...result,
+    title,
+    content: normalizedContent || fallbackContent,
+  };
+}
+
 async function browseInBrowser(url: string): Promise<BrowseResult> {
   const runBrowseInBrowser = logAsyncDecorator(
     "browse:gateway",
@@ -108,21 +171,41 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as AllOriginsResponse;
       const rawHtml = typeof data?.contents === "string" ? data.contents : "";
+
+      browseLogger.info("AllOrigins payload received", {
+        url,
+        hasContents: !!rawHtml,
+        sourceHttpCode: data?.status?.http_code,
+        sourceContentType: data?.status?.content_type,
+        sourceContentLength: data?.status?.content_length,
+      });
+
+      if (!rawHtml) {
+        browseLogger.warn("AllOrigins response has empty `contents` payload", {
+          url,
+          sourceUrl: data?.status?.url,
+        });
+      }
+
       const extracted = extractBrowserReadableContent(rawHtml);
+      const normalized = normalizeBrowseResult(
+        {
+          url,
+          title: extracted.title,
+          content: extracted.content,
+        },
+        "browser",
+      );
 
       browseLogger.info("Browser fallback content prepared", {
         url,
-        titleLength: extracted.title.length,
-        contentLength: extracted.content.length,
+        titleLength: normalized.title.length,
+        contentLength: normalized.content.length,
       });
 
-      return {
-        url,
-        title: extracted.title,
-        content: extracted.content,
-      };
+      return normalized;
     },
   );
 
@@ -144,12 +227,17 @@ export async function executeBrowseCommand(
 
       if (runtimeIsTauri) {
         const result = await invoke<BrowseResult>("browse", { url });
+        const normalized = normalizeBrowseResult(result, "tauri");
+
         browseLogger.info("Tauri browse command completed", {
-          url: result.url,
-          titleLength: result.title.length,
-          contentLength: result.content.length,
+          url: normalized.url,
+          titleLength: normalized.title.length,
+          contentLength: normalized.content.length,
+          originalContentLength: result.content.length,
+          contentAppearedHtml: looksLikeHtml(result.content),
         });
-        return result;
+
+        return normalized;
       }
 
       const result = await browseInBrowser(url);

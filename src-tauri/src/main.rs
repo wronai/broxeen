@@ -44,6 +44,8 @@ pub struct BrowseResult {
     pub suggestions: Vec<String>,
 }
 
+const MIN_READABLE_CONTENT_LENGTH: usize = 120;
+
 fn backend_info(message: impl AsRef<str>) {
     println!("[backend][INFO] {}", message.as_ref());
 }
@@ -159,22 +161,33 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
 
     let (title, content) = match readability::extractor::extract(&mut cursor, &parsed_url) {
         Ok(product) => {
-            backend_info("Readability extraction successful");
-            (product.title, product.text)
+            let readable_title = normalize_whitespace(&product.title);
+            let readable_content = normalize_whitespace(&product.text);
+
+            if readable_content.len() >= MIN_READABLE_CONTENT_LENGTH {
+                backend_info("Readability extraction successful");
+                (
+                    if readable_title.is_empty() {
+                        url.clone()
+                    } else {
+                        readable_title
+                    },
+                    readable_content,
+                )
+            } else {
+                backend_warn(format!(
+                    "Readability returned short content ({} chars). Falling back to scraper.",
+                    readable_content.len()
+                ));
+                extract_with_scraper(&html, &url)
+            }
         }
         Err(e) => {
-            backend_warn(format!("Readability extraction failed: {}. Falling back to scraper.", e));
-            let document = scraper::Html::parse_document(&html);
-
-            let title_selector = scraper::Selector::parse("title").unwrap();
-            let title = document
-                .select(&title_selector)
-                .next()
-                .map(|el| el.inner_html())
-                .unwrap_or_else(|| url.clone());
-
-            let content = extract_content(&document);
-            (title, content)
+            backend_warn(format!(
+                "Readability extraction failed: {}. Falling back to scraper.",
+                e
+            ));
+            extract_with_scraper(&html, &url)
         }
     };
 
@@ -196,19 +209,21 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
 
 fn extract_content(document: &scraper::Html) -> String {
     // Try to find article content first
-    let selectors = ["article", "main", "[role=\"main\"]", ".content", "#content", "body"];
+    let selectors = [
+        "article",
+        "main",
+        "[role=\"main\"]",
+        ".content",
+        "#content",
+        ".article-body",
+        ".post-content",
+    ];
 
     for sel_str in &selectors {
         if let Ok(selector) = scraper::Selector::parse(sel_str) {
             if let Some(element) = document.select(&selector).next() {
-                let text = element
-                    .text()
-                    .collect::<Vec<_>>()
-                    .join(" ")
-                    .split_whitespace()
-                    .collect::<Vec<_>>()
-                    .join(" ");
-                if text.len() > 100 {
+                let text = normalize_whitespace(&element.text().collect::<Vec<_>>().join(" "));
+                if text.len() >= MIN_READABLE_CONTENT_LENGTH {
                     return text;
                 }
             }
@@ -219,8 +234,8 @@ fn extract_content(document: &scraper::Html) -> String {
     if let Ok(p_selector) = scraper::Selector::parse("p") {
         let paragraphs: Vec<String> = document
             .select(&p_selector)
-            .map(|el| el.text().collect::<Vec<_>>().join(" "))
-            .filter(|t| t.len() > 20)
+            .map(|el| normalize_whitespace(&el.text().collect::<Vec<_>>().join(" ")))
+            .filter(|t| t.len() > 40)
             .collect();
         if !paragraphs.is_empty() {
             return paragraphs.join("\n\n");
@@ -228,6 +243,26 @@ fn extract_content(document: &scraper::Html) -> String {
     }
 
     "Nie udało się wyodrębnić treści ze strony.".to_string()
+}
+
+fn extract_with_scraper(html: &str, url: &str) -> (String, String) {
+    let document = scraper::Html::parse_document(html);
+
+    let title_selector = scraper::Selector::parse("title").unwrap();
+    let title = document
+        .select(&title_selector)
+        .next()
+        .map(|el| normalize_whitespace(&el.text().collect::<Vec<_>>().join(" ")))
+        .filter(|t| !t.is_empty())
+        .unwrap_or_else(|| url.to_string());
+
+    let content = extract_content(&document);
+
+    (title, content)
+}
+
+fn normalize_whitespace(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 fn main() {

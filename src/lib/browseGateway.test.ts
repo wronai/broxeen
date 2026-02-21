@@ -31,6 +31,45 @@ describe("browseGateway", () => {
     });
   });
 
+  it("normalizes raw HTML payload returned by tauri command", async () => {
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValueOnce({
+      url: "https://example.com",
+      title: "",
+      content: `
+        <html>
+          <body>
+            <main>
+              <p>
+                This page contains enough readable text to pass extraction thresholds and
+                should be returned as normalized plain text instead of raw HTML markup.
+              </p>
+            </main>
+          </body>
+        </html>
+      `,
+    });
+
+    const result = await executeBrowseCommand("https://example.com", true);
+
+    expect(result.title).toBe("https://example.com");
+    expect(result.content).toContain("normalized plain text");
+    expect(result.content).not.toContain("<html");
+  });
+
+  it("returns fallback text when tauri response has empty content", async () => {
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValueOnce({
+      url: "https://example.com",
+      title: "Example",
+      content: "   ",
+    });
+
+    const result = await executeBrowseCommand("https://example.com", true);
+
+    expect(result.content).toBe("Nie udało się wyodrębnić treści ze strony.");
+  });
+
   it("uses browser fallback outside tauri runtime", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
