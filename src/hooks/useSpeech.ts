@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { logger, logSyncDecorator } from "../lib/logger";
+import { isTauriRuntime } from "../lib/runtime";
 
 interface SpeechRecognitionEvent {
   results: SpeechRecognitionResultList;
@@ -25,41 +26,66 @@ interface SpeechRecognitionInstance extends EventTarget {
 
 declare global {
   interface Window {
-    SpeechRecognition: new () => SpeechRecognitionInstance;
-    webkitSpeechRecognition: new () => SpeechRecognitionInstance;
+    SpeechRecognition?: new () => SpeechRecognitionInstance;
+    webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
   }
 }
 
 const speechLogger = logger.scope("speech:recognition");
+
+const STT_UNAVAILABLE_TAURI_REASON =
+  "Analiza mowy (STT) nie jest dostępna w aplikacji desktop Tauri na Linux (WebKitGTK).";
+const STT_UNAVAILABLE_BROWSER_REASON =
+  "Analiza mowy (STT) nie jest wspierana w tym środowisku (brak Web Speech API).";
+
+function getSpeechRecognitionCtor(): (new () => SpeechRecognitionInstance) | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  return window.SpeechRecognition || window.webkitSpeechRecognition;
+}
+
+function getUnsupportedReason(supported: boolean, runtimeIsTauri: boolean): string | null {
+  if (supported) {
+    return null;
+  }
+
+  return runtimeIsTauri ? STT_UNAVAILABLE_TAURI_REASON : STT_UNAVAILABLE_BROWSER_REASON;
+}
 
 export function useSpeech(lang: string = "pl-PL") {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [isSupported, setIsSupported] = useState(false);
+  const [unsupportedReason, setUnsupportedReason] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   useEffect(() => {
-    const SpeechRecognition =
-      typeof window !== "undefined"
-        ? window.SpeechRecognition || window.webkitSpeechRecognition
-        : undefined;
+    const runtimeIsTauri = isTauriRuntime();
+    const SpeechRecognition = getSpeechRecognitionCtor();
     const supported = !!SpeechRecognition;
+    const reason = getUnsupportedReason(supported, runtimeIsTauri);
 
     speechLogger.info("Speech recognition capability check", {
       supported,
       lang,
+      runtime: runtimeIsTauri ? "tauri" : "browser",
       hasSpeechRecognition:
         typeof window !== "undefined" && !!window.SpeechRecognition,
       hasWebkitSpeechRecognition:
         typeof window !== "undefined" && !!window.webkitSpeechRecognition,
     });
 
-    if (!supported) {
-      speechLogger.warn("Speech recognition is not available in this runtime");
+    if (reason) {
+      speechLogger.warn("Speech recognition is not available in this runtime", {
+        reason,
+      });
     }
 
     setIsSupported(supported);
+    setUnsupportedReason(reason);
   }, [lang]);
 
   useEffect(() => {
@@ -79,12 +105,17 @@ export function useSpeech(lang: string = "pl-PL") {
       "speech:recognition",
       "startListening",
       () => {
-        const SpeechRecognition =
-          typeof window !== "undefined"
-            ? window.SpeechRecognition || window.webkitSpeechRecognition
-            : undefined;
+        const runtimeIsTauri = isTauriRuntime();
+        const SpeechRecognition = getSpeechRecognitionCtor();
         if (!SpeechRecognition) {
-          speechLogger.error("SpeechRecognition API not found");
+          const reason = getUnsupportedReason(false, runtimeIsTauri);
+          speechLogger.error("SpeechRecognition API not found", {
+            runtime: runtimeIsTauri ? "tauri" : "browser",
+            reason,
+          });
+          setIsSupported(false);
+          setUnsupportedReason(reason);
+          setIsListening(false);
           return;
         }
 
@@ -114,6 +145,11 @@ export function useSpeech(lang: string = "pl-PL") {
         };
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
+          speechLogger.debug("Speech recognition result event", {
+            resultIndex: event.resultIndex,
+            resultsLength: event.results.length,
+          });
+
           let interim = "";
           let final_ = "";
           for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -126,16 +162,22 @@ export function useSpeech(lang: string = "pl-PL") {
           }
 
           if (final_) {
-            speechLogger.debug("Final transcript captured", { final_ });
-            setTranscript(final_);
+            speechLogger.debug("Final transcript captured", {
+              finalLength: final_.length,
+            });
+            setTranscript((prev) => (prev ? `${prev} ${final_}`.trim() : final_));
           }
 
+          speechLogger.debug("Interim transcript captured", {
+            interimLength: interim.length,
+          });
           setInterimTranscript(interim);
         };
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
           speechLogger.error("Speech recognition error", { error: event.error });
           setIsListening(false);
+          recognitionRef.current = null;
         };
 
         recognition.onend = () => {
@@ -145,7 +187,14 @@ export function useSpeech(lang: string = "pl-PL") {
         };
 
         recognitionRef.current = recognition;
-        recognition.start();
+        try {
+          recognition.start();
+          speechLogger.debug("Speech recognition start() invoked");
+        } catch (error) {
+          speechLogger.error("Failed to start speech recognition", error);
+          setIsListening(false);
+          recognitionRef.current = null;
+        }
       },
     );
 
@@ -175,6 +224,7 @@ export function useSpeech(lang: string = "pl-PL") {
     transcript,
     interimTranscript,
     isSupported,
+    unsupportedReason,
     startListening,
     stopListening,
   };

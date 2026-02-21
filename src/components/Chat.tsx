@@ -38,6 +38,7 @@ export default function Chat({ settings }: ChatProps) {
     transcript,
     interimTranscript,
     isSupported: speechSupported,
+    unsupportedReason: speechUnsupportedReason,
     startListening,
     stopListening,
   } = useSpeech(settings.tts_lang);
@@ -63,6 +64,14 @@ export default function Chat({ settings }: ChatProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcript, isListening]);
+
+  useEffect(() => {
+    if (settings.mic_enabled && !speechSupported && speechUnsupportedReason) {
+      chatLogger.warn("Microphone is enabled in settings but STT is unavailable", {
+        reason: speechUnsupportedReason,
+      });
+    }
+  }, [settings.mic_enabled, speechSupported, speechUnsupportedReason]);
 
   const applyEvent = (event: ChatEvent) => {
     chatLogger.debug("Applying chat event", { type: event.type });
@@ -137,15 +146,27 @@ export default function Chat({ settings }: ChatProps) {
 
       try {
         const browseResult = await executeBrowseCommand(resolvedUrl);
+        const content = browseResult.content.slice(0, 5000).trim();
+        const assistantText = content
+          ? `${browseResult.title ? `Tytuł: ${browseResult.title}\n\n` : ""}${content}`
+          : `Nie udało się wyodrębnić treści z: ${browseResult.url}`;
 
         chatLogger.info("Browse result received", {
           url: browseResult.url,
           titleLength: browseResult.title.length,
           contentLength: browseResult.content.length,
+          renderedLength: assistantText.length,
         });
 
+        if (!content) {
+          chatLogger.warn("Browse result had empty extracted content", {
+            url: browseResult.url,
+            title: browseResult.title,
+          });
+        }
+
         updateMessage(loadingId, {
-          text: browseResult.content.slice(0, 5000),
+          text: assistantText,
           url: browseResult.url,
           loading: false,
         });
@@ -316,39 +337,45 @@ export default function Chat({ settings }: ChatProps) {
 
       {/* Input bar */}
       <div className="border-t border-gray-800 bg-gray-900/80 px-4 py-4 backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center gap-3">
-          {speechSupported && settings.mic_enabled && (
-            <button
-              onClick={toggleMic}
-              className={`rounded-xl p-2.5 transition ${
-                isListening
-                  ? "animate-pulse bg-red-600 text-white"
-                  : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
-              }`}
-              title={isListening ? "Zatrzymaj słuchanie" : "Mów (mikrofon)"}
-            >
-              {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-            </button>
-          )}
+        <div className="mx-auto max-w-3xl">
+          <div className="flex items-center gap-3">
+            {speechSupported && settings.mic_enabled && (
+              <button
+                onClick={toggleMic}
+                className={`rounded-xl p-2.5 transition ${
+                  isListening
+                    ? "animate-pulse bg-red-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
+                }`}
+                title={isListening ? "Zatrzymaj słuchanie" : "Mów (mikrofon)"}
+              >
+                {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+              </button>
+            )}
 
-          <div className="relative flex-1">
-            <input
-              type="text"
-              value={isListening ? interimTranscript || "Słucham..." : input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Wpisz adres, zapytanie lub powiedz głosem..."
-              disabled={isListening}
-              className="w-full rounded-xl bg-gray-800 px-4 py-3 pr-12 text-sm text-white placeholder-gray-500 outline-none ring-1 ring-gray-700 transition focus:ring-broxeen-500 disabled:opacity-50"
-            />
-            <button
-              onClick={() => handleSubmit()}
-              disabled={isListening || !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 transition hover:text-broxeen-400 disabled:opacity-30"
-            >
-              <Send size={18} />
-            </button>
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={isListening ? interimTranscript || "Słucham..." : input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Wpisz adres, zapytanie lub powiedz głosem..."
+                disabled={isListening}
+                className="w-full rounded-xl bg-gray-800 px-4 py-3 pr-12 text-sm text-white placeholder-gray-500 outline-none ring-1 ring-gray-700 transition focus:ring-broxeen-500 disabled:opacity-50"
+              />
+              <button
+                onClick={() => handleSubmit()}
+                disabled={isListening || !input.trim()}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 transition hover:text-broxeen-400 disabled:opacity-30"
+              >
+                <Send size={18} />
+              </button>
+            </div>
           </div>
+
+          {settings.mic_enabled && !speechSupported && speechUnsupportedReason && (
+            <p className="mt-2 text-xs text-amber-300">ℹ️ {speechUnsupportedReason}</p>
+          )}
         </div>
       </div>
     </div>
