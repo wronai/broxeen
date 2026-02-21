@@ -6,16 +6,16 @@
 //!     audio_commands::stt_start,
 //!     audio_commands::stt_stop,
 //!     audio_commands::stt_status,
-//!     audio_commands::tts_speak,
-//!     audio_commands::tts_speak_base64,
-//!     audio_commands::tts_info,
-//!     audio_commands::audio_devices,
+//!     audio_commands::backend_tts_speak,
+//!     audio_commands::backend_tts_speak_base64,
+//!     audio_commands::backend_tts_info,
+//!     audio_commands::backend_audio_devices,
 //! ])
 
 use crate::audio_capture::{self, SharedRecordingState};
-use crate::tts_backend;
 use crate::stt;
-use std::sync::{Arc, Mutex};
+use crate::tts_backend;
+use std::sync::Mutex;
 
 /// Active recording stream, stored in Tauri state.
 pub struct ActiveStream(pub Mutex<Option<cpal::Stream>>);
@@ -28,10 +28,13 @@ pub fn stt_start(
     recording_state: tauri::State<SharedRecordingState>,
     active_stream: tauri::State<ActiveStream>,
 ) -> Result<String, String> {
+    crate::backend_info("Command stt_start invoked");
+
     // Check if already recording
     {
         let s = recording_state.lock().unwrap();
         if s.is_recording {
+            crate::backend_warn("stt_start rejected: already recording");
             return Err("Already recording".into());
         }
     }
@@ -40,6 +43,7 @@ pub fn stt_start(
 
     // Store stream handle so it stays alive
     *active_stream.0.lock().unwrap() = Some(stream);
+    crate::backend_info("Native microphone recording started");
 
     Ok("Recording started".into())
 }
@@ -49,7 +53,10 @@ pub fn stt_start(
 pub async fn stt_stop(
     recording_state: tauri::State<'_, SharedRecordingState>,
     active_stream: tauri::State<'_, ActiveStream>,
+    language: Option<String>,
 ) -> Result<String, String> {
+    crate::backend_info("Command stt_stop invoked");
+
     // Drop the stream to stop recording
     {
         let mut stream = active_stream.0.lock().unwrap();
@@ -61,11 +68,25 @@ pub async fn stt_stop(
 
     // Encode recorded audio to WAV base64
     let (wav_base64, _sample_rate) = audio_capture::stop_and_encode_wav(&recording_state)?;
+    let lang = language
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("pl");
+
+    crate::backend_info(format!(
+        "Forwarding recorded audio to STT provider (lang={}, payload_kb={})",
+        lang,
+        wav_base64.len() / 1024
+    ));
 
     // Send to OpenRouter Whisper for transcription
-    let transcript = stt::transcribe_wav_base64(&wav_base64, "pl").await?;
+    let transcript = stt::transcribe_wav_base64(&wav_base64, lang).await?;
 
-    println!("[stt] Transcript: \"{transcript}\"");
+    crate::backend_info(format!(
+        "STT transcript ready (len={})",
+        transcript.len()
+    ));
     Ok(transcript)
 }
 
@@ -74,6 +95,8 @@ pub async fn stt_stop(
 pub fn stt_status(
     recording_state: tauri::State<SharedRecordingState>,
 ) -> Result<SttStatus, String> {
+    crate::backend_info("Command stt_status invoked");
+
     let s = recording_state.lock().unwrap();
     Ok(SttStatus {
         is_recording: s.is_recording,
@@ -98,7 +121,7 @@ pub struct SttStatus {
 /// Speak text through the system audio output (Piper or espeak-ng).
 /// Non-blocking — audio plays in background.
 #[tauri::command]
-pub fn tts_speak(
+pub fn backend_tts_speak(
     text: String,
     rate: Option<f32>,
     volume: Option<f32>,
@@ -108,13 +131,21 @@ pub fn tts_speak(
     let volume = volume.unwrap_or(1.0);
     let lang = lang.unwrap_or_else(|| "pl-PL".into());
 
+    crate::backend_info(format!(
+        "Command backend_tts_speak invoked (text_len={}, lang={}, rate={}, volume={})",
+        text.len(),
+        lang,
+        rate,
+        volume
+    ));
+
     tts_backend::speak(&text, rate, volume, &lang)
 }
 
 /// Synthesize text to WAV and return as base64.
 /// For frontend playback via <audio> element.
 #[tauri::command]
-pub fn tts_speak_base64(
+pub fn backend_tts_speak_base64(
     text: String,
     rate: Option<f32>,
     lang: Option<String>,
@@ -122,12 +153,21 @@ pub fn tts_speak_base64(
     let rate = rate.unwrap_or(1.0);
     let lang = lang.unwrap_or_else(|| "pl-PL".into());
 
+    crate::backend_info(format!(
+        "Command backend_tts_speak_base64 invoked (text_len={}, lang={}, rate={})",
+        text.len(),
+        lang,
+        rate
+    ));
+
     tts_backend::speak_to_base64(&text, rate, &lang)
 }
 
 /// Get info about available TTS engine.
 #[tauri::command]
-pub fn tts_info() -> TtsInfo {
+pub fn backend_tts_info() -> TtsInfo {
+    crate::backend_info("Command backend_tts_info invoked");
+
     let engine = tts_backend::detect_tts_engine();
     let setup_hint = tts_backend::piper_setup_instructions();
 
@@ -151,7 +191,9 @@ pub struct TtsInfo {
 
 /// List available audio input devices.
 #[tauri::command]
-pub fn audio_devices() -> Result<AudioDevices, String> {
+pub fn backend_audio_devices() -> Result<AudioDevices, String> {
+    crate::backend_info("Command backend_audio_devices invoked");
+
     let inputs = audio_capture::list_input_devices()?;
     Ok(AudioDevices { inputs })
 }

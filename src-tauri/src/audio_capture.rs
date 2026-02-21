@@ -10,10 +10,10 @@ use std::time::Duration;
 
 /// Recording state shared between Tauri commands and the audio thread.
 pub struct RecordingState {
-    samples: Vec<i16>,
-    is_recording: bool,
-    sample_rate: u32,
-    channels: u16,
+    pub(crate) samples: Vec<i16>,
+    pub(crate) is_recording: bool,
+    pub(crate) sample_rate: u32,
+    pub(crate) channels: u16,
 }
 
 impl RecordingState {
