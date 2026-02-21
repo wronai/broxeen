@@ -8,6 +8,16 @@ vi.mock("./logger", () => ({
     warn: vi.fn(),
     error: vi.fn(),
   }),
+  logger: {
+    scope: () => ({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    }),
+  },
+  logAsyncDecorator: (scope: string, name: string, fn: any) => fn,
+  logSyncDecorator: (scope: string, name: string, fn: any) => fn,
 }));
 
 // Must import after mocks
