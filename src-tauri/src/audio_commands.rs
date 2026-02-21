@@ -15,10 +15,13 @@
 use crate::audio_capture::{self, SharedRecordingState};
 use crate::stt;
 use crate::tts_backend;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// Active recording stream, stored in Tauri state.
-pub struct ActiveStream(pub Mutex<Option<cpal::Stream>>);
+pub struct ActiveStream(pub Arc<Mutex<Option<cpal::Stream>>>);
+
+unsafe impl Send for ActiveStream {}
+unsafe impl Sync for ActiveStream {}
 
 // ── STT Commands ─────────────────────────────────────
 

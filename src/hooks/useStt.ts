@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { isTauriRuntime } from "../lib/runtime";
 import { logger, logAsyncDecorator, logSyncDecorator } from "../lib/logger";
 import { transcribeAudio, type SttAudioFormat } from "../lib/sttClient";
 
 const sttLogger = logger.scope("speech:stt:ui");
+const STT_TAURI_BACKEND_REASON =
+  "Web Speech/MediaRecorder niedostępne — używam natywnego backendu STT Tauri (cpal + Whisper).";
+const STT_TAURI_BACKEND_UNAVAILABLE_REASON =
+  "Analiza mowy (STT) niedostępna: brak MediaRecorder i błąd natywnego backendu STT w Tauri.";
 
 interface UseSttOptions {
   lang?: string;
@@ -130,23 +135,42 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const modeRef = useRef<"media" | "tauri" | "none">("none");
 
   useEffect(() => {
     const reason = getUnsupportedReason();
-    const supported = !reason;
+    const runtime = isTauriRuntime() ? "tauri" : "browser";
+    const browserMediaSupported = !reason;
+
+    if (browserMediaSupported) {
+      modeRef.current = "media";
+      setIsSupported(true);
+      setUnsupportedReason(null);
+    } else if (runtime === "tauri") {
+      modeRef.current = "tauri";
+      setIsSupported(true);
+      setUnsupportedReason(STT_TAURI_BACKEND_REASON);
+    } else {
+      modeRef.current = "none";
+      setIsSupported(false);
+      setUnsupportedReason(reason);
+    }
+
     sttLogger.info("STT(MediaRecorder) capability check", {
-      supported,
-      runtime: isTauriRuntime() ? "tauri" : "browser",
+      supported: modeRef.current !== "none",
+      runtime,
+      mode: modeRef.current,
       hasMediaRecorder: typeof window !== "undefined" && !!window.MediaRecorder,
       isSecureContext: typeof window !== "undefined" ? window.isSecureContext : undefined,
       origin: typeof window !== "undefined" ? window.location?.origin : undefined,
       lang,
     });
     if (reason) {
-      sttLogger.warn("STT(MediaRecorder) not supported", { reason });
+      sttLogger.warn("STT(MediaRecorder) not supported", {
+        reason,
+        fallbackMode: modeRef.current,
+      });
     }
-    setIsSupported(supported);
-    setUnsupportedReason(reason);
   }, [lang]);
 
   const stopTracks = useCallback(() => {
@@ -159,7 +183,31 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
       setError(null);
       setTranscript("");
 
-      if (!isSupported) {
+      if (modeRef.current === "tauri") {
+        const runBackendStart = logAsyncDecorator(
+          "speech:stt:ui",
+          "startRecordingTauriBackend",
+          async () => {
+            await invoke("stt_start");
+            setIsRecording(true);
+            sttLogger.info("Native Tauri STT recording started");
+          },
+        );
+
+        void runBackendStart().catch((e: unknown) => {
+          const msg = e instanceof Error ? e.message : String(e);
+          sttLogger.error("Failed to start Tauri STT recording", { error: msg });
+          setIsSupported(false);
+          setUnsupportedReason(
+            `${STT_TAURI_BACKEND_UNAVAILABLE_REASON} ${msg}`.trim(),
+          );
+          setError(msg);
+          setIsRecording(false);
+        });
+        return;
+      }
+
+      if (modeRef.current !== "media" || !isSupported) {
         const reason = getUnsupportedReason();
         setUnsupportedReason(reason);
         throw new Error(reason || "STT not supported");
@@ -234,6 +282,47 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
 
   const stopRecording = useCallback(() => {
     const run = logSyncDecorator("speech:stt:ui", "stopRecording", () => {
+      if (modeRef.current === "tauri") {
+        const runBackendStop = logAsyncDecorator(
+          "speech:stt:ui",
+          "stopRecordingTauriBackend",
+          async () => {
+            if (!isRecording) {
+              sttLogger.debug("Tauri STT stop ignored — not recording");
+              return;
+            }
+
+            setIsRecording(false);
+            setIsTranscribing(true);
+            setError(null);
+
+            try {
+              const transcriptValue = await invoke<string>("stt_stop", {
+                language: lang.split("-")[0],
+              });
+              const normalized = (transcriptValue || "").trim();
+              if (normalized) {
+                setTranscript(normalized);
+                sttLogger.info("Native STT transcription received", {
+                  length: normalized.length,
+                });
+              } else {
+                sttLogger.warn("Native STT transcription returned empty text");
+              }
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : String(e);
+              sttLogger.error("Native STT stop/transcribe failed", { error: msg });
+              setError(msg);
+            } finally {
+              setIsTranscribing(false);
+            }
+          },
+        );
+
+        void runBackendStop();
+        return;
+      }
+
       const rec = recorderRef.current;
       if (!rec) {
         sttLogger.debug("No recorder instance to stop");
@@ -249,7 +338,15 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
     });
 
     run();
-  }, [stopTracks]);
+  }, [isRecording, lang, stopTracks]);
+
+  useEffect(() => {
+    return () => {
+      if (modeRef.current === "tauri" && isRecording) {
+        invoke("stt_stop", { language: lang.split("-")[0] }).catch(() => undefined);
+      }
+    };
+  }, [isRecording, lang]);
 
   return {
     isSupported,

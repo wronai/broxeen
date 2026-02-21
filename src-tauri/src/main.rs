@@ -1,12 +1,18 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod audio_capture;
+mod audio_commands;
 mod llm;
 mod stt;
 mod tts;
+mod tts_backend;
 
+use audio_capture::SharedRecordingState;
+use audio_commands::ActiveStream;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AudioSettings {
@@ -427,11 +433,25 @@ fn normalize_whitespace(text: &str) -> String {
 
 fn main() {
     backend_info("Booting Broxeen Tauri backend...");
+
+    let tts_engine = tts_backend::detect_tts_engine();
+    backend_info(format!("Detected native backend TTS engine: {:?}", tts_engine));
+
+    if let Some(instructions) = tts_backend::piper_setup_instructions() {
+        backend_warn("Piper TTS not found. Falling back to espeak-ng/espeak when available.");
+        backend_info(format!("Piper setup hint:\n{}", instructions));
+    }
+
     backend_info(
-        "Registering command handlers: get_settings, save_settings, browse, llm_chat, stt_transcribe, tts_is_available, tts_speak, tts_stop",
+        "Registering command handlers: get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop",
     );
 
+    let recording_state: SharedRecordingState = Arc::new(Mutex::new(audio_capture::RecordingState::new()));
+    let active_stream = audio_commands::ActiveStream(Arc::new(Mutex::new(None)));
+
     if let Err(err) = tauri::Builder::default()
+        .manage(recording_state)
+        .manage(active_stream)
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
             get_settings,
@@ -439,6 +459,13 @@ fn main() {
             browse,
             llm::llm_chat,
             stt::stt_transcribe,
+            audio_commands::stt_start,
+            audio_commands::stt_stop,
+            audio_commands::stt_status,
+            audio_commands::backend_tts_speak,
+            audio_commands::backend_tts_speak_base64,
+            audio_commands::backend_tts_info,
+            audio_commands::backend_audio_devices,
             tts::tts_is_available,
             tts::tts_speak,
             tts::tts_stop,
