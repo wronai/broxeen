@@ -178,32 +178,34 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
     streamRef.current = null;
   }, []);
 
+  const startTauriRecording = useCallback(() => {
+    const runBackendStart = logAsyncDecorator(
+      "speech:stt:ui",
+      "startRecordingTauriBackend",
+      async () => {
+        await invoke("stt_start");
+        setIsRecording(true);
+        sttLogger.info("Native Tauri STT recording started");
+      },
+    );
+
+    void runBackendStart().catch((e: unknown) => {
+      const msg = e instanceof Error ? e.message : String(e);
+      sttLogger.error("Failed to start Tauri STT recording", { error: msg });
+      setIsSupported(false);
+      setUnsupportedReason(`${STT_TAURI_BACKEND_UNAVAILABLE_REASON} ${msg}`.trim());
+      setError(msg);
+      setIsRecording(false);
+    });
+  }, [lang]);
+
   const startRecording = useCallback(() => {
     const run = logSyncDecorator("speech:stt:ui", "startRecording", () => {
       setError(null);
       setTranscript("");
 
       if (modeRef.current === "tauri") {
-        const runBackendStart = logAsyncDecorator(
-          "speech:stt:ui",
-          "startRecordingTauriBackend",
-          async () => {
-            await invoke("stt_start");
-            setIsRecording(true);
-            sttLogger.info("Native Tauri STT recording started");
-          },
-        );
-
-        void runBackendStart().catch((e: unknown) => {
-          const msg = e instanceof Error ? e.message : String(e);
-          sttLogger.error("Failed to start Tauri STT recording", { error: msg });
-          setIsSupported(false);
-          setUnsupportedReason(
-            `${STT_TAURI_BACKEND_UNAVAILABLE_REASON} ${msg}`.trim(),
-          );
-          setError(msg);
-          setIsRecording(false);
-        });
+        startTauriRecording();
         return;
       }
 
@@ -265,12 +267,25 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
         })
         .catch((e: unknown) => {
           const details = toErrorDetails(e);
+          const runtime = isTauriRuntime() ? "tauri" : "browser";
           sttLogger.error("Failed to getUserMedia for STT", {
             ...details,
-            runtime: isTauriRuntime() ? "tauri" : "browser",
+            runtime,
             isSecureContext: typeof window !== "undefined" ? window.isSecureContext : undefined,
             origin: typeof window !== "undefined" ? window.location?.origin : undefined,
           });
+
+          const shouldFallbackToNative = runtime === "tauri" && modeRef.current === "media";
+          if (shouldFallbackToNative) {
+            sttLogger.warn("Switching to native STT after getUserMedia failure", details);
+            modeRef.current = "tauri";
+            setUnsupportedReason(STT_TAURI_BACKEND_REASON);
+            setIsSupported(true);
+            stopTracks();
+            startTauriRecording();
+            return;
+          }
+
           setError(details.message);
           setIsRecording(false);
           stopTracks();
@@ -278,7 +293,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
     });
 
     run();
-  }, [isSupported, lang, stopTracks]);
+  }, [isSupported, lang, startTauriRecording, stopTracks]);
 
   const stopRecording = useCallback(() => {
     const run = logSyncDecorator("speech:stt:ui", "stopRecording", () => {

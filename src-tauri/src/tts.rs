@@ -3,6 +3,8 @@
 use serde::{Deserialize, Serialize};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Mutex, OnceLock};
+use std::path::PathBuf;
+use serde_json;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TtsAvailability {
@@ -12,6 +14,37 @@ pub struct TtsAvailability {
 }
 
 static ACTIVE_TTS_CHILD: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
+
+/// Load current settings from disk
+fn load_settings() -> crate::AudioSettings {
+    crate::backend_info("tts.rs: load_settings() called - reading TTS engine preference");
+    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+    let settings_path = PathBuf::from(home).join(".config/broxeen/settings.json");
+    
+    if !settings_path.exists() {
+        crate::backend_warn("tts.rs: Settings file not found, using defaults");
+        return crate::AudioSettings::default();
+    }
+    
+    let data = match std::fs::read_to_string(&settings_path) {
+        Ok(data) => data,
+        Err(err) => {
+            crate::backend_error(format!("tts.rs: Failed to read settings: {}", err));
+            return crate::AudioSettings::default();
+        }
+    };
+    
+    match serde_json::from_str::<crate::AudioSettings>(&data) {
+        Ok(settings) => {
+            crate::backend_info(format!("tts.rs: Loaded TTS engine preference: '{}'", settings.tts_engine));
+            settings
+        },
+        Err(err) => {
+            crate::backend_error(format!("tts.rs: Failed to parse settings: {}", err));
+            crate::AudioSettings::default()
+        }
+    }
+}
 
 fn active_tts_child() -> &'static Mutex<Option<Child>> {
     ACTIVE_TTS_CHILD.get_or_init(|| Mutex::new(None))
@@ -140,9 +173,26 @@ pub fn tts_speak(
         return Err("Empty text payload for TTS".to_string());
     }
 
-    let backend = detect_backend().ok_or_else(|| {
-        "Brak lokalnego backendu TTS. Zainstaluj pakiet 'espeak-ng' lub 'espeak'.".to_string()
-    })?;
+    // Load settings to get preferred TTS engine
+    let settings = load_settings();
+    crate::backend_info(format!(
+        "tts_speak: Using TTS engine from settings: '{}'", 
+        settings.tts_engine
+    ));
+
+    // Choose backend based on settings
+    let backend = if settings.tts_engine == "piper" {
+        // Try to use Piper if available, otherwise fallback to espeak
+        crate::backend_warn("Piper requested in settings but not available in tts_speak, falling back to espeak-ng");
+        detect_backend().ok_or_else(|| {
+            "Brak lokalnego backendu TTS. Zainstaluj pakiet 'espeak-ng' lub 'espeak'.".to_string()
+        })?
+    } else {
+        // Use auto-detection for espeak or auto
+        detect_backend().ok_or_else(|| {
+            "Brak lokalnego backendu TTS. Zainstaluj pakiet 'espeak-ng' lub 'espeak'.".to_string()
+        })?
+    };
 
     stop_active_tts_child()?;
 

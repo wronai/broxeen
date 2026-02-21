@@ -21,6 +21,7 @@ use serde_json;
 
 /// Load current settings from disk
 fn load_settings() -> crate::AudioSettings {
+    crate::backend_info("load_settings() called - reading TTS engine preference");
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
     let settings_path = PathBuf::from(home).join(".config/broxeen/settings.json");
     
