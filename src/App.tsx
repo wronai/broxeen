@@ -42,6 +42,7 @@ export default function App() {
     );
 
     const loadVoices = logSyncDecorator("startup:app", "loadVoices", () => {
+      if (!window.speechSynthesis) return;
       const availableVoices = window.speechSynthesis.getVoices();
       startupLogger.info("Speech synthesis voices snapshot captured", {
         count: availableVoices.length,
@@ -64,15 +65,19 @@ export default function App() {
     });
 
     loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
 
     void warmupMicrophone().catch((error) => {
       startupLogger.warn("Microphone warmup failed", error);
     });
 
     return () => {
-      startupLogger.debug("App unmount cleanup - removing speech voice listener");
-      window.speechSynthesis.onvoiceschanged = null;
+      if (window.speechSynthesis) {
+        startupLogger.debug("App unmount cleanup - removing speech voice listener");
+        window.speechSynthesis.onvoiceschanged = null;
+      }
     };
   }, []);
 

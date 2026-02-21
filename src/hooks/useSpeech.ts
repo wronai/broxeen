@@ -39,7 +39,7 @@ export function useSpeech(lang: string = "pl-PL") {
 
   useEffect(() => {
     const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+      typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : undefined;
     const supported = !!SpeechRecognition;
     logger.debug(`Speech recognition supported: ${supported}`);
     setIsSupported(supported);
@@ -47,7 +47,7 @@ export function useSpeech(lang: string = "pl-PL") {
 
   const startListening = useCallback(() => {
     const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+      typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : undefined;
     if (!SpeechRecognition) {
       logger.error("SpeechRecognition API not found");
       return;
