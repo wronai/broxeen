@@ -1,0 +1,46 @@
+services:
+  # ── Production ─────────────────────────────────────
+  chatbrowse:
+    build:
+      context: .
+      target: production
+    ports:
+      - "8080:8080"
+    volumes:
+      - chatbrowse-data:/data
+    restart: unless-stopped
+    environment:
+      - CACHE_DIR=/data/cache
+      - CONTACTS_FILE=/data/contacts/contacts.json
+      - CACHE_TTL=3600
+      - FETCH_TIMEOUT=15
+
+  # ── Development (hot reload) ───────────────────────
+  chatbrowse-dev:
+    build:
+      context: .
+      target: base
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - chatbrowse-dev-data:/tmp
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+    command: python wsgi.py
+    profiles:
+      - dev
+
+  # ── Tests ──────────────────────────────────────────
+  chatbrowse-test:
+    build:
+      context: .
+      target: base
+    command: pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
+    profiles:
+      - test
+
+volumes:
+  chatbrowse-data:
+  chatbrowse-dev-data:
