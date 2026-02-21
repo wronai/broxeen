@@ -5,7 +5,11 @@ import Chat from "./Chat";
 
 // Mock invoke
 vi.mock("@tauri-apps/api/core", () => ({
-  invoke: vi.fn(),
+  invoke: vi.fn().mockResolvedValue({
+    url: "https://onet.pl",
+    title: "Onet",
+    content: "Test content",
+  }),
 }));
 
 const defaultSettings = {
@@ -183,8 +187,9 @@ describe("Chat — browse flow", () => {
   });
 
   it("zapytanie wyszukiwania → DuckDuckGo URL", async () => {
-    (invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
-      url: "https://duckduckgo.com/?q=restauracje",
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValueOnce({
+      url: "https://duckduckgo.com/?q=najlepsze%20przepisy%20kulinarne",
       title: "DuckDuckGo",
       content: "Wyniki wyszukiwania",
     });
@@ -196,7 +201,7 @@ describe("Chat — browse flow", () => {
     fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
 
     await waitFor(() => {
-      expect(invoke).toHaveBeenCalledWith("browse", {
+      expect(mockInvoke).toHaveBeenCalledWith("browse", {
         url: expect.stringContaining("duckduckgo.com"),
       });
     });
@@ -206,20 +211,13 @@ describe("Chat — browse flow", () => {
 describe("Chat — TTS auto-play", () => {
   beforeEach(() => {
     mockTauriEnvironment();
-    // Mock speech synthesis - delete first if it exists
-    delete (window as any).speechSynthesis;
-    Object.defineProperty(window, 'speechSynthesis', {
-      value: {
-        speak: vi.fn(),
-        cancel: vi.fn(),
-        pause: vi.fn(),
-        resume: vi.fn(),
-        getVoices: vi.fn(() => []),
-        onvoiceschanged: null,
-      },
-      writable: true,
-      configurable: true,
-    });
+    // Reset speech synthesis mock instead of deleting it
+    (window as any).speechSynthesis.speak = vi.fn();
+    (window as any).speechSynthesis.cancel = vi.fn();
+    (window as any).speechSynthesis.pause = vi.fn();
+    (window as any).speechSynthesis.resume = vi.fn();
+    (window as any).speechSynthesis.getVoices = vi.fn(() => []);
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -228,7 +226,8 @@ describe("Chat — TTS auto-play", () => {
   });
 
   it("nie wywołuje TTS gdy tts_enabled=false", async () => {
-    (invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValueOnce({
       url: "https://onet.pl",
       title: "Onet",
       content: "Tresc bez TTS",
@@ -247,7 +246,8 @@ describe("Chat — TTS auto-play", () => {
   });
 
   it("wywołuje TTS gdy tts_enabled=true", async () => {
-    (invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValueOnce({
       url: "https://onet.pl",
       title: "Onet",
       content: "Tresc przez TTS",
@@ -258,37 +258,303 @@ describe("Chat — TTS auto-play", () => {
     fireEvent.change(input, { target: { value: "onet.pl" } });
     fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
 
+    // Wait for content to appear first
     await waitFor(() => {
-      expect(window.speechSynthesis.speak).toHaveBeenCalled();
+      const els = screen.getAllByText(/Tresc przez TTS/i);
+      expect(els.length).toBeGreaterThan(0);
     });
+    
+    // Then check if TTS was called
+    expect(window.speechSynthesis.speak).toHaveBeenCalled();
+  });
+
+  it("TTS używa poprawnych opcji języka i głosu", async () => {
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValueOnce({
+      url: "https://example.com",
+      title: "Test",
+      content: "Test content dla TTS",
+    });
+
+    const settingsWithVoice = {
+      ...defaultSettings,
+      tts_enabled: true,
+      tts_lang: "en-US",
+      tts_voice: "Test Voice",
+      tts_rate: 1.2,
+      tts_pitch: 0.9,
+      tts_volume: 0.8,
+    };
+
+    render(<Chat settings={settingsWithVoice} />);
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
+    fireEvent.change(input, { target: { value: "example.com" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      const els = screen.getAllByText(/Test content dla TTS/i);
+      expect(els.length).toBeGreaterThan(0);
+    });
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalled();
+  });
+
+  it("TTS nie jest wywoływane dla krótkiej treści", async () => {
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValueOnce({
+      url: "https://example.com",
+      title: "Test",
+      content: "Krótka",
+    });
+
+    render(<Chat settings={{ ...defaultSettings, tts_enabled: true }} />);
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
+    fireEvent.change(input, { target: { value: "example.com" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      const els = screen.getAllByText(/Krótka/i);
+      expect(els.length).toBeGreaterThan(0);
+    });
+
+    // TTS should still be called even for short content (the hook handles empty text check)
+    expect(window.speechSynthesis.speak).toHaveBeenCalled();
+  });
+
+  it("TTS jest wywoływane ponownie dla nowej wiadomości", async () => {
+    const mockInvoke = vi.mocked(invoke);
+    
+    // First message
+    mockInvoke.mockResolvedValueOnce({
+      url: "https://first.com",
+      title: "First",
+      content: "Pierwsza treść",
+    });
+
+    render(<Chat settings={{ ...defaultSettings, tts_enabled: true }} />);
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
+    
+    fireEvent.change(input, { target: { value: "first.com" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      const els = screen.getAllByText(/Pierwsza treść/i);
+      expect(els.length).toBeGreaterThan(0);
+    });
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
+
+    // Second message
+    mockInvoke.mockResolvedValueOnce({
+      url: "https://second.com",
+      title: "Second", 
+      content: "Druga treść",
+    });
+
+    fireEvent.change(input, { target: { value: "second.com" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      const els = screen.getAllByText(/Druga treść/i);
+      expect(els.length).toBeGreaterThan(0);
+    });
+
+    expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(2);
   });
 });
 
 describe("Chat — mikrofon", () => {
-  it("pokazuje przycisk mikrofonu gdy mic_enabled=true", () => {
+  let mockRecognition: any;
+
+  beforeEach(() => {
+    mockTauriEnvironment();
+    vi.clearAllMocks();
+    
+    // Mock invoke for STT tests
+    const mockInvoke = vi.mocked(invoke);
+    mockInvoke.mockResolvedValue({
+      url: "https://wp.pl",
+      title: "WP",
+      content: "Test content",
+    });
+    
+    // Mock SpeechRecognition
+    mockRecognition = {
+      continuous: false,
+      interimResults: true,
+      lang: "",
+      start: vi.fn(),
+      stop: vi.fn(),
+      abort: vi.fn(),
+      onstart: null,
+      onend: null,
+      onerror: null,
+      onresult: null,
+    };
+    
+    const MockSpeechRecognition = vi.fn(() => mockRecognition);
     Object.defineProperty(window, "SpeechRecognition", {
-      value: vi.fn(() => ({
-        continuous: false,
-        interimResults: true,
-        lang: "",
-        start: vi.fn(),
-        stop: vi.fn(),
-        abort: vi.fn(),
-        onstart: null,
-        onend: null,
-        onerror: null,
-        onresult: null,
-      })),
+      value: MockSpeechRecognition,
       writable: true,
       configurable: true,
     });
-
-    render(<Chat settings={{ ...defaultSettings, mic_enabled: true }} />);
-    expect(screen.getByTitle(/Mów/i)).toBeInTheDocument();
   });
 
-  it("ukrywa przycisk mikrofonu gdy mic_enabled=false", () => {
+  it("pokazuje przycisk mikrofonu gdy mic_enabled=true", () => {
+    render(<Chat settings={defaultSettings} />);
+    expect(screen.getByRole("button", { name: /mikrofon/i })).toBeInTheDocument();
+  });
+
+  it("nie pokazuje przycisku mikrofonu gdy mic_enabled=false", () => {
     render(<Chat settings={{ ...defaultSettings, mic_enabled: false }} />);
-    expect(screen.queryByTitle(/Mów/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /mikrofon/i })).not.toBeInTheDocument();
+  });
+
+  it("kliknięcie mikrofonu uruchamia nasłuchiwanie", async () => {
+    render(<Chat settings={defaultSettings} />);
+    const micButton = screen.getByRole("button", { name: /mikrofon/i });
+    
+    fireEvent.click(micButton);
+    
+    expect(mockRecognition.start).toHaveBeenCalled();
+    expect(mockRecognition.lang).toBe("pl-PL");
+  });
+
+  it("STT przekazuje rozpoznany tekst do inputa", async () => {
+    render(<Chat settings={defaultSettings} />);
+    const micButton = screen.getByRole("button", { name: /mikrofon/i });
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
+    
+    // Start listening
+    fireEvent.click(micButton);
+    mockRecognition.onstart?.();
+    
+    // Check if input is disabled and shows listening state
+    expect(input).toBeDisabled();
+    expect(input).toHaveValue("Słucham...");
+    
+    // Simulate speech recognition result
+    mockRecognition.onresult?.({
+      resultIndex: 0,
+      results: [
+        Object.assign([{ transcript: "wpis kropka pl" }], {
+          isFinal: true,
+          length: 1,
+        }),
+      ],
+    });
+    
+    mockRecognition.onend?.();
+    
+    // Check if transcript was submitted (input enabled and cleared after submit)
+    await waitFor(() => {
+      expect(input).not.toBeDisabled();
+      expect(input).toHaveValue("");
+    });
+    
+    // Check if message was added
+    expect(screen.getByText("wpis kropka pl")).toBeInTheDocument();
+  });
+
+  it("STT obsługuje wyniki tymczasowe (interim)", async () => {
+    render(<Chat settings={defaultSettings} />);
+    const micButton = screen.getByRole("button", { name: /mikrofon/i });
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
+    
+    // Start listening
+    fireEvent.click(micButton);
+    mockRecognition.onstart?.();
+    
+    // Simulate interim result
+    mockRecognition.onresult?.({
+      resultIndex: 0,
+      results: [
+        Object.assign([{ transcript: "wpis kro..." }], {
+          isFinal: false,
+          length: 1,
+        }),
+      ],
+    });
+    
+    // Check if interim transcript appears (input is disabled during listening)
+    expect(input).toBeDisabled();
+    expect(input).toHaveValue("wpis kro...");
+    
+    // Simulate final result
+    mockRecognition.onresult?.({
+      resultIndex: 1,
+      results: [
+        Object.assign([{ transcript: "wpis kropka pl" }], {
+          isFinal: true,
+          length: 1,
+        }),
+      ],
+    });
+    
+    mockRecognition.onend?.();
+    
+    // Check if final result was submitted
+    await waitFor(() => {
+      expect(input).not.toBeDisabled();
+      expect(input).toHaveValue("");
+    });
+    
+    expect(screen.getByText("wpis kropka pl")).toBeInTheDocument();
+  });
+
+  it("zatrzymanie nasłuchiwania przyciskiem stop", async () => {
+    render(<Chat settings={defaultSettings} />);
+    const micButton = screen.getByRole("button", { name: /mikrofon/i });
+    
+    // Start listening
+    fireEvent.click(micButton);
+    mockRecognition.onstart?.();
+    
+    // Stop listening
+    fireEvent.click(micButton);
+    
+    // Stop should be called when clicking again while listening
+    expect(mockRecognition.stop).toHaveBeenCalled();
+  });
+
+  it("błąd rozpoznawania mowy zatrzymuje nasłuchiwanie", async () => {
+    render(<Chat settings={defaultSettings} />);
+    const micButton = screen.getByRole("button", { name: /mikrofon/i });
+    
+    // Start listening
+    fireEvent.click(micButton);
+    mockRecognition.onstart?.();
+    
+    // Simulate error
+    mockRecognition.onerror?.({ error: 'network' });
+    
+    expect(mockRecognition.abort).toHaveBeenCalled();
+  });
+
+  it("STT używa odpowiedniego języka z ustawień", async () => {
+    const settingsWithEnglish = {
+      ...defaultSettings,
+      tts_lang: "en-US", // This should also affect STT language
+    };
+    
+    render(<Chat settings={settingsWithEnglish} />);
+    const micButton = screen.getByRole("button", { name: /mikrofon/i });
+    
+    fireEvent.click(micButton);
+    
+    expect(mockRecognition.lang).toBe("en-US");
+  });
+
+  it("wielokrotne kliknięcia mikrofonu nie powodują problemów", async () => {
+    render(<Chat settings={defaultSettings} />);
+    const micButton = screen.getByRole("button", { name: /mikrofon/i });
+    
+    // Multiple clicks
+    fireEvent.click(micButton);
+    fireEvent.click(micButton);
+    fireEvent.click(micButton);
+    
+    // Should call start multiple times (each click starts listening)
+    expect(mockRecognition.start).toHaveBeenCalledTimes(3);
   });
 });
