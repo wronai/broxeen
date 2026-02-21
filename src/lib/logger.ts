@@ -3,6 +3,30 @@ type LogMethod = (message: string, ...args: any[]) => void;
 
 const isDebug = import.meta.env.VITE_DEBUG === "true";
 
+function normalizeLogArg(arg: any) {
+  if (arg instanceof Error) {
+    return {
+      name: arg.name,
+      message: arg.message,
+      stack: arg.stack,
+    };
+  }
+
+  return arg;
+}
+
+function safeStringify(value: any): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    try {
+      return String(value);
+    } catch {
+      return "[unserializable]";
+    }
+  }
+}
+
 function emit(level: LogLevel, scope: string | undefined, message: string, ...args: any[]) {
   if (level === "debug" && !isDebug) {
     return;
@@ -12,17 +36,23 @@ function emit(level: LogLevel, scope: string | undefined, message: string, ...ar
   const scopePrefix = scope ? `[${scope}] ` : "";
   const line = `[${timestamp}] [${level.toUpperCase()}] ${scopePrefix}${message}`;
 
+  const normalizedArgs = args.map(normalizeLogArg);
+  const printableArgs =
+    level === "warn" || level === "error"
+      ? normalizedArgs.map((a) => (typeof a === "object" ? safeStringify(a) : a))
+      : normalizedArgs;
+
   if (level === "warn") {
-    console.warn(line, ...args);
+    console.warn(line, ...printableArgs);
     return;
   }
 
   if (level === "error") {
-    console.error(line, ...args);
+    console.error(line, ...printableArgs);
     return;
   }
 
-  console.log(line, ...args);
+  console.log(line, ...printableArgs);
 }
 
 export function createScopedLogger(scope?: string) {

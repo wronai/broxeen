@@ -1,12 +1,13 @@
 project: broxeen
-generated: "2026-02-21T17:11:01.008898"
-modules[49]{path,lang,items}:
+generated: "2026-02-21T19:16:41.710844"
+modules[54]{path,lang,items}:
   phonetic.py,python,2
   vite.config.ts,typescript,0
   tailwind.config.js,javascript,0
   resolver.py,python,2
   postcss.config.js,javascript,0
   test_phonetic.py,python,12
+  playwright.config.ts,typescript,0
   src-tauri/build.rs,rust,1
   src-tauri/test_read.rs,rust,1
   TODO/llm.rs,rust,0
@@ -17,21 +18,24 @@ modules[49]{path,lang,items}:
   src/main.tsx,typescript,0
   src/App.tsx,typescript,1
   src/vite-env.d.ts,typescript,0
+  e2e/voice-interface.spec.ts,typescript,1
   test/broxeen.test.js,javascript,0
   src/lib/phonetic.test.ts,typescript,0
-  src/lib/browseGateway.ts,typescript,6
+  src/lib/browseGateway.ts,typescript,12
   src/lib/browseGateway.test.ts,typescript,0
+  src/lib/sttClient.ts,typescript,2
   src/lib/llmPrompts.ts,typescript,1
-  src/lib/logger.ts,typescript,4
+  src/lib/logger.ts,typescript,6
   src/lib/resolver.ts,typescript,4
   src/lib/llmClient.ts,typescript,8
   src/lib/phonetic.ts,typescript,2
   src/lib/runtime.ts,typescript,1
   src/lib/resolver.test.ts,typescript,0
   src/lib/llmClient.test.ts,typescript,2
-  src/hooks/useTts.ts,typescript,2
+  src/hooks/useTts.ts,typescript,3
   src/hooks/useSpeech.test.ts,typescript,1
   src/hooks/useTts.test.ts,typescript,0
+  src/hooks/useStt.ts,typescript,6
   src/hooks/useLlm.ts,typescript,1
   src/hooks/useSpeech.ts,typescript,3
   src/components/Chat.test.tsx,typescript,1
@@ -46,6 +50,7 @@ modules[49]{path,lang,items}:
   src/domain/audioSettings.test.ts,typescript,0
   src/test/setup.ts,typescript,0
   src-tauri/src/llm.rs,rust,0
+  src-tauri/src/stt.rs,rust,0
   src-tauri/src/main.rs,rust,11
   src-tauri/src/test_read.rs,rust,1
   src-tauri/tests/placeholder_test.rs,rust,0
@@ -103,23 +108,38 @@ function_details:
   src/App.tsx:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       App,function,(),14-128,false,115,1,app
+  e2e/voice-interface.spec.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      openApp,function,"(page: Page)",5-8,true,4,1,starts app
   src/lib/browseGateway.ts:
-    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
-      normalizeText,function,"(text: string) -> string",24-26,false,3,1,normalize text
-      extractBrowserReadableContent,function,"(rawHtml: string) -> { title: string; content: string }",28-101,false,74,1,parses browser readable content
-      looksLikeHtml,function,"(text: string) -> boolean",103-112,false,10,1,looks like html
-      normalizeBrowseResult,function,"(result: BrowseResult, source: \"tauri\" | \"browser\", requestedUrl?) -> BrowseResult",114-160,false,47,1,normalize browse result
-      browseInBrowser,function,"(url: string) -> Promise<BrowseResult>",162-220,true,59,1,browse in browser
-      executeBrowseCommand,function,"(url: string, runtimeIsTauri: boolean) -> Promise<BrowseResult>",222-263,true,42,1,starts browse command
+    functions[12]{name,kind,sig,loc,async,lines,cc,does}:
+      stripCookieBannerText,function,"(text: string) -> string",8-76,false,69,1,strip cookie banner text
+      normalizeText,function,"(text: string) -> string",103-105,false,3,1,normalize text
+      withHttpScheme,function,"(url: string) -> string",107-109,false,3,1,with http scheme
+      summarizeUnknownError,function,"(error: unknown) -> string",111-116,false,6,1,summarize unknown error
+      extractBrowserReadableContent,function,"(rawHtml: string) -> { title: string; content: string }",118-191,false,74,1,parses browser readable content
+      looksLikeHtml,function,"(text: string) -> boolean",193-202,false,10,1,looks like html
+      normalizeBrowseResult,function,"(result: BrowseResult, source: \"tauri\" | \"browser\", requestedUrl?) -> BrowseResult",204-260,false,57,1,normalize browse result
+      fetchViaAllOriginsJson,function,"(url: string) -> Promise<BrowserProxyPayload>",262-278,true,17,1,retrieves via all origins json
+      fetchViaAllOriginsRaw,function,"(url: string) -> Promise<BrowserProxyPayload>",280-296,true,17,1,retrieves via all origins raw
+      fetchViaJina,function,"(url: string) -> Promise<BrowserProxyPayload>",298-315,true,18,1,retrieves via jina
+      browseInBrowser,function,"(url: string) -> Promise<BrowseResult>",317-399,true,83,1,browse in browser
+      executeBrowseCommand,function,"(url: string, runtimeIsTauri: boolean) -> Promise<BrowseResult>",401-442,true,42,1,starts browse command
+  src/lib/sttClient.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      getSttConfig,function,() -> SttConfig,26-32,false,7,1,retrieves stt config
+      transcribeAudio,function,"(audioBase64: string, format: SttAudioFormat, languageOverride?, configOverride?) -> Promise<string>",34-116,true,83,1,transcribe audio
   src/lib/llmPrompts.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       getPrompt,function,"(mode: PromptMode, override?) -> string",53-55,false,3,1,retrieves prompt
   src/lib/logger.ts:
-    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
-      emit,function,"(level: LogLevel, scope: string | undefined, message: string)",6-26,false,21,1,sends
-      createScopedLogger,function,(scope?),28-39,false,12,1,creates scoped logger
-      logSyncDecorator,function,"(scope: string, operationName: string, fn: (...args: TArgs) => TResult) -> (...args: TArgs) => TResult",48-68,false,21,1,logs sync decorator
-      logAsyncDecorator,function,"(scope: string, operationName: string, fn: (...args: TArgs) => Promise<TResult>) -> (...args: TArgs) => Promise<TResult>",70-90,false,21,1,logs async decorator
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      normalizeLogArg,function,"(arg: any)",6-16,false,11,1,normalize log arg
+      safeStringify,function,"(value: any) -> string",18-28,false,11,1,safe stringify
+      emit,function,"(level: LogLevel, scope: string | undefined, message: string)",30-56,false,27,1,sends
+      createScopedLogger,function,(scope?),58-69,false,12,1,creates scoped logger
+      logSyncDecorator,function,"(scope: string, operationName: string, fn: (...args: TArgs) => TResult) -> (...args: TArgs) => TResult",78-98,false,21,1,logs sync decorator
+      logAsyncDecorator,function,"(scope: string, operationName: string, fn: (...args: TArgs) => Promise<TResult>) -> (...args: TArgs) => Promise<TResult>",100-120,false,21,1,logs async decorator
   src/lib/resolver.ts:
     functions[4]{name,kind,sig,loc,async,lines,cc,does}:
       levenshtein,function,"(a: string, b: string) -> number",37-53,false,17,1,levenshtein
@@ -129,34 +149,43 @@ function_details:
   src/lib/llmClient.ts:
     functions[8]{name,kind,sig,loc,async,lines,cc,does}:
       getConfig,function,() -> LlmConfig,40-47,false,8,1,retrieves config
-      chat,function,"(messages: LlmMessage[], configOverride?) -> Promise<LlmResponse>",55-70,true,16,1,chat
-      chatDirect,function,"(messages: LlmMessage[], cfg: LlmConfig) -> Promise<LlmResponse>",72-108,true,37,1,chat direct
-      chatViaTauri,function,"(messages: LlmMessage[], cfg: LlmConfig) -> Promise<LlmResponse>",110-122,true,13,1,chat via tauri
-      askAboutContent,function,"(pageContent: string, question: string) -> Promise<string>",130-151,true,22,1,ask about content
-      describeImage,function,"(base64Image: string, mimeType, prompt) -> Promise<string>",154-179,true,26,1,describe image
-      summarizeForTts,function,"(pageContent: string, maxSentences) -> Promise<string>",182-198,true,17,1,summarize for tts
-      detectIntent,function,"(userText: string) -> Promise<string>",201-220,true,20,1,detect intent
+      chat,function,"(messages: LlmMessage[], configOverride?) -> Promise<LlmResponse>",55-81,true,27,1,chat
+      chatDirect,function,"(messages: LlmMessage[], cfg: LlmConfig) -> Promise<LlmResponse>",83-134,true,52,1,chat direct
+      chatViaTauri,function,"(messages: LlmMessage[], cfg: LlmConfig) -> Promise<LlmResponse>",136-160,true,25,1,chat via tauri
+      askAboutContent,function,"(pageContent: string, question: string) -> Promise<string>",168-193,true,26,1,ask about content
+      describeImage,function,"(base64Image: string, mimeType, prompt) -> Promise<string>",196-225,true,30,1,describe image
+      summarizeForTts,function,"(pageContent: string, maxSentences) -> Promise<string>",228-248,true,21,1,summarize for tts
+      detectIntent,function,"(userText: string) -> Promise<string>",251-274,true,24,1,detect intent
   src/lib/phonetic.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       normalize,function,"(text: string) -> string",48-74,false,27,1,normalize
       looksLikeUrl,function,"(text: string) -> boolean",76-78,false,3,1,looks like url
   src/lib/runtime.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      isTauriRuntime,function,() -> boolean,1-3,false,3,1,checks tauri runtime
+      isTauriRuntime,function,() -> boolean,1-12,false,12,1,checks tauri runtime
   src/lib/llmClient.test.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      mockFetchSuccess,function,"(responseText: string, model)",19-29,false,11,1,mock fetch success
-      mockFetchError,function,"(status: number, body: string)",31-37,false,7,1,mock fetch error
+      mockFetchSuccess,function,"(responseText: string, model)",29-39,false,11,1,mock fetch success
+      mockFetchError,function,"(status: number, body: string)",41-47,false,7,1,mock fetch error
   src/hooks/useTts.ts:
-    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      preprocessForTts,function,"(text: string) -> string",23-35,false,13,1,preprocess for tts
-      useTts,function,"(options: Partial<TtsOptions>)",37-193,false,157,1,use tts
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      getSpeechSynthesisApi,function,() -> SpeechSynthesis | undefined,25-31,false,7,1,retrieves speech synthesis api
+      preprocessForTts,function,"(text: string) -> string",33-45,false,13,1,preprocess for tts
+      useTts,function,"(options: Partial<TtsOptions>)",47-226,false,180,1,use tts
   src/hooks/useSpeech.test.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       makeMockRecognition,function,(),20-31,false,12,1,creates mock recognition
+  src/hooks/useStt.ts:
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      arrayBufferToBase64,function,"(buf: ArrayBuffer) -> string",23-31,false,9,1,array buffer to base64
+      writeWavPcm16,function,"(audioBuffer: AudioBuffer) -> ArrayBuffer",33-76,false,44,1,logs wav pcm16
+      blobToWavBase64,function,"(blob: Blob) -> Promise<{ base64: string; format: SttAudioFormat }>",78-93,true,16,1,blob to wav base64
+      getUnsupportedReason,function,() -> string | null,95-109,false,15,1,retrieves unsupported reason
+      toErrorDetails,function,"(e: unknown)",111-119,false,9,1,converts error details
+      useStt,function,"(options: UseSttOptions) -> UseSttReturn",121-264,false,144,1,use stt
   src/hooks/useLlm.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      useLlm,function,"(options: UseLlmOptions) -> UseLlmReturn",53-165,false,113,1,use llm
+      useLlm,function,"(options: UseLlmOptions) -> UseLlmReturn",53-175,false,123,1,use llm
   src/hooks/useSpeech.ts:
     functions[3]{name,kind,sig,loc,async,lines,cc,does}:
       getSpeechRecognitionCtor,function,() -> (new () => SpeechRecognitionInstance) | undefined,41-47,false,7,1,retrieves speech recognition ctor
@@ -164,23 +193,23 @@ function_details:
       useSpeech,function,"(lang: string)",57-234,false,178,1,use speech
   src/components/Chat.test.tsx:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      mockTauriEnvironment,function,(),29-35,false,7,1,mock tauri environment
+      mockTauriEnvironment,function,(),52-58,false,7,1,mock tauri environment
   src/components/Settings.tsx:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       update,function,"(partial: Partial<AudioSettings>)",66-70,false,5,1,updates
       handleSave,function,(),72-83,true,12,1,handles save
   src/components/Chat.tsx:
     functions[10]{name,kind,sig,loc,async,lines,cc,does}:
-      applyEvent,function,"(event: ChatEvent)",83-87,false,5,1,apply event
-      addMessage,function,"(msg: Omit<ChatMessage, \"id\">)",89-96,false,8,1,creates message
-      updateMessage,function,"(id: number, updates: Partial<ChatMessage>)",98-103,false,6,1,updates message
-      handleSubmit,function,(text?),105-219,true,115,1,handles submit
-      handleLlmQuestion,function,"(question: string)",221-242,true,22,1,handles llm question
-      handleSuggestionClick,function,"(url: string)",244-248,false,5,1,handles suggestion click
-      handleKeyDown,function,"(e: React.KeyboardEvent)",250-255,false,6,1,handles key down
-      toggleMic,function,(),257-265,false,9,1,toggle mic
-      resolveIcon,function,(type?),267-278,false,12,1,resolve icon
-      copyChatContent,function,(),280-301,false,22,1,copy chat content
+      applyEvent,function,"(event: ChatEvent)",115-119,false,5,1,apply event
+      addMessage,function,"(msg: Omit<ChatMessage, \"id\">)",121-128,false,8,1,creates message
+      updateMessage,function,"(id: number, updates: Partial<ChatMessage>)",130-135,false,6,1,updates message
+      handleSubmit,function,(text?),137-252,true,116,1,handles submit
+      handleLlmQuestion,function,"(question: string)",254-272,true,19,1,handles llm question
+      handleSuggestionClick,function,"(url: string)",274-278,false,5,1,handles suggestion click
+      handleKeyDown,function,"(e: React.KeyboardEvent)",280-285,false,6,1,handles key down
+      toggleMic,function,(),287-314,false,28,1,toggle mic
+      resolveIcon,function,(type?),316-327,false,12,1,resolve icon
+      copyChatContent,function,(),329-350,false,22,1,copy chat content
   src/components/TtsControls.tsx:
     functions[4]{name,kind,sig,loc,async,lines,cc,does}:
       handleSpeak,function,(),23-26,false,4,1,handles speak

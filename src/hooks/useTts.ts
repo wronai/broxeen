@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { logger, logSyncDecorator } from "../lib/logger";
+import { invoke } from "@tauri-apps/api/core";
+import { logger, logAsyncDecorator, logSyncDecorator } from "../lib/logger";
+import { isTauriRuntime } from "../lib/runtime";
 
 export interface TtsOptions {
   rate: number;
@@ -21,6 +23,14 @@ const ttsLogger = logger.scope("speech:tts");
 const MAX_TTS_SENTENCES = 100;
 const TTS_UNAVAILABLE_REASON =
   "Synteza mowy (TTS) nie jest wspierana w tym środowisku (brak SpeechSynthesis API).";
+const TTS_TAURI_FALLBACK_UNAVAILABLE_REASON =
+  "Synteza mowy (TTS) nie jest dostępna: brak SpeechSynthesis API i brak backendu TTS w Tauri.";
+
+interface TauriTtsAvailability {
+  supported?: boolean;
+  backend?: string;
+  reason?: string | null;
+}
 
 function getSpeechSynthesisApi(): SpeechSynthesis | undefined {
   if (typeof window === "undefined") {
@@ -44,6 +54,13 @@ function preprocessForTts(text: string): string {
   return normalized.split(" | ").slice(0, MAX_TTS_SENTENCES).join(" ");
 }
 
+function estimateBackendSpeechDurationMs(text: string, rate: number): number {
+  const words = Math.max(1, text.split(/\s+/).length);
+  const wordsPerMinute = Math.max(80, Math.round(175 * Math.max(0.5, rate)));
+  const minutes = words / wordsPerMinute;
+  return Math.max(900, Math.round(minutes * 60_000));
+}
+
 export function useTts(options: Partial<TtsOptions> = {}) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -53,17 +70,60 @@ export function useTts(options: Partial<TtsOptions> = {}) {
   const [unsupportedReason, setUnsupportedReason] = useState<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const totalLenRef = useRef(0);
+  const backendSupportedRef = useRef(false);
+  const backendProgressTimerRef = useRef<number | null>(null);
+  const backendProgressIntervalRef = useRef<number | null>(null);
 
   const opts = { ...DEFAULT_OPTIONS, ...options };
 
+  const clearBackendProgress = useCallback(() => {
+    if (backendProgressTimerRef.current !== null) {
+      window.clearTimeout(backendProgressTimerRef.current);
+      backendProgressTimerRef.current = null;
+    }
+
+    if (backendProgressIntervalRef.current !== null) {
+      window.clearInterval(backendProgressIntervalRef.current);
+      backendProgressIntervalRef.current = null;
+    }
+  }, []);
+
+  const startBackendProgress = useCallback(
+    (durationMs: number) => {
+      clearBackendProgress();
+
+      const startedAt = Date.now();
+      setProgress(0);
+
+      backendProgressIntervalRef.current = window.setInterval(() => {
+        const elapsed = Date.now() - startedAt;
+        const next = Math.min(95, Math.round((elapsed / durationMs) * 95));
+        setProgress(next);
+      }, 250);
+
+      backendProgressTimerRef.current = window.setTimeout(() => {
+        clearBackendProgress();
+        setProgress(100);
+        setIsSpeaking(false);
+        setIsPaused(false);
+      }, durationMs);
+    },
+    [clearBackendProgress],
+  );
+
   useEffect(() => {
+    let isMounted = true;
     const speechSynthesisApi = getSpeechSynthesisApi();
-    const supported = !!speechSynthesisApi;
-    setIsSupported(supported);
-    setUnsupportedReason(supported ? null : TTS_UNAVAILABLE_REASON);
+    const runtimeIsTauri = isTauriRuntime();
+    const browserSupported = !!speechSynthesisApi;
+
+    backendSupportedRef.current = false;
+    setIsSupported(browserSupported);
+    setUnsupportedReason(browserSupported ? null : TTS_UNAVAILABLE_REASON);
 
     ttsLogger.info("Initializing TTS hook", {
-      hasSpeechSynthesis: supported,
+      hasSpeechSynthesis: browserSupported,
+      runtime: runtimeIsTauri ? "tauri" : "browser",
     });
 
     const loadVoices = logSyncDecorator("speech:tts", "loadVoices", () => {
@@ -77,34 +137,121 @@ export function useTts(options: Partial<TtsOptions> = {}) {
       setVoices(available);
     });
 
-    loadVoices();
-    if (speechSynthesisApi) {
+    if (browserSupported) {
+      loadVoices();
       ttsLogger.debug("Registering speechSynthesis.onvoiceschanged listener");
       speechSynthesisApi.onvoiceschanged = loadVoices;
+    } else if (runtimeIsTauri) {
+      const probeTauriTtsAvailability = logAsyncDecorator(
+        "speech:tts",
+        "probeTauriTtsAvailability",
+        async () => {
+          try {
+            const availability = await invoke<TauriTtsAvailability>("tts_is_available");
+            const backendSupported = !!availability?.supported;
+
+            if (!isMounted) {
+              return;
+            }
+
+            backendSupportedRef.current = backendSupported;
+            setIsSupported(backendSupported);
+            setUnsupportedReason(
+              backendSupported
+                ? null
+                : availability?.reason || TTS_TAURI_FALLBACK_UNAVAILABLE_REASON,
+            );
+
+            ttsLogger.info("Tauri backend TTS probe completed", {
+              supported: backendSupported,
+              backend: availability?.backend || "unknown",
+              reason: availability?.reason || null,
+            });
+          } catch (error) {
+            if (!isMounted) {
+              return;
+            }
+
+            backendSupportedRef.current = false;
+            setIsSupported(false);
+            setUnsupportedReason(TTS_TAURI_FALLBACK_UNAVAILABLE_REASON);
+            ttsLogger.warn("Failed to probe Tauri backend TTS support", { error });
+          }
+        },
+      );
+
+      void probeTauriTtsAvailability();
     }
 
     return () => {
+      isMounted = false;
+      clearBackendProgress();
       const synthesis = getSpeechSynthesisApi();
       if (synthesis) {
         ttsLogger.debug("Removing speechSynthesis.onvoiceschanged listener");
         synthesis.onvoiceschanged = null;
       }
     };
-  }, []);
+  }, [clearBackendProgress]);
 
   const speak = useCallback(
     (text: string) => {
       const runSpeak = logSyncDecorator("speech:tts", "speak", () => {
-        const synthesis = getSpeechSynthesisApi();
-        if (!synthesis) {
-          ttsLogger.warn("window.speechSynthesis is not supported");
-          return;
-        }
-
         const preparedText = preprocessForTts(text);
 
         if (!preparedText) {
           ttsLogger.warn("Empty text provided for TTS after preprocessing");
+          return;
+        }
+
+        const synthesis = getSpeechSynthesisApi();
+
+        if (!synthesis) {
+          const runtimeIsTauri = isTauriRuntime();
+          if (!runtimeIsTauri || !backendSupportedRef.current) {
+            ttsLogger.warn("TTS backend is not available for this runtime");
+            return;
+          }
+
+          setIsSpeaking(true);
+          setIsPaused(false);
+
+          const estimatedDurationMs = estimateBackendSpeechDurationMs(preparedText, opts.rate);
+          startBackendProgress(estimatedDurationMs);
+
+          const runSpeakViaBackend = logAsyncDecorator(
+            "speech:tts",
+            "speakViaTauriBackend",
+            async () => {
+              try {
+                await invoke("tts_speak", {
+                  text: preparedText,
+                  lang: opts.lang,
+                  rate: opts.rate,
+                  pitch: opts.pitch,
+                  volume: opts.volume,
+                  voice: opts.voice || null,
+                });
+
+                ttsLogger.info("Started TTS through Tauri backend", {
+                  textLength: preparedText.length,
+                  lang: opts.lang,
+                  estimatedDurationMs,
+                });
+              } catch (error) {
+                clearBackendProgress();
+                setIsSpeaking(false);
+                setIsPaused(false);
+                setProgress(0);
+
+                const message = error instanceof Error ? error.message : String(error);
+                ttsLogger.error("Tauri backend TTS failed", { error: message });
+                setUnsupportedReason(message || TTS_TAURI_FALLBACK_UNAVAILABLE_REASON);
+              }
+            },
+          );
+
+          void runSpeakViaBackend();
           return;
         }
 
@@ -170,13 +317,27 @@ export function useTts(options: Partial<TtsOptions> = {}) {
 
       runSpeak();
     },
-    [opts.rate, opts.pitch, opts.volume, opts.voice, opts.lang, voices],
+    [
+      clearBackendProgress,
+      opts.rate,
+      opts.pitch,
+      opts.volume,
+      opts.voice,
+      opts.lang,
+      startBackendProgress,
+      voices,
+    ],
   );
 
   const pause = useCallback(() => {
     const runPause = logSyncDecorator("speech:tts", "pause", () => {
       const synthesis = getSpeechSynthesisApi();
-      if (!synthesis) return;
+      if (!synthesis) {
+        if (isTauriRuntime() && backendSupportedRef.current) {
+          ttsLogger.warn("Pause is not supported for Tauri backend TTS. Use stop instead.");
+        }
+        return;
+      }
       ttsLogger.info("Pausing TTS");
       synthesis.pause();
       setIsPaused(true);
@@ -188,7 +349,12 @@ export function useTts(options: Partial<TtsOptions> = {}) {
   const resume = useCallback(() => {
     const runResume = logSyncDecorator("speech:tts", "resume", () => {
       const synthesis = getSpeechSynthesisApi();
-      if (!synthesis) return;
+      if (!synthesis) {
+        if (isTauriRuntime() && backendSupportedRef.current) {
+          ttsLogger.warn("Resume is not supported for Tauri backend TTS.");
+        }
+        return;
+      }
       ttsLogger.info("Resuming TTS");
       synthesis.resume();
       setIsPaused(false);
@@ -200,16 +366,35 @@ export function useTts(options: Partial<TtsOptions> = {}) {
   const stop = useCallback(() => {
     const runStop = logSyncDecorator("speech:tts", "stop", () => {
       const synthesis = getSpeechSynthesisApi();
-      if (!synthesis) return;
-      ttsLogger.info("Stopping TTS manually");
-      synthesis.cancel();
+
+      clearBackendProgress();
+
+      if (synthesis) {
+        ttsLogger.info("Stopping TTS manually");
+        synthesis.cancel();
+      } else if (isTauriRuntime() && backendSupportedRef.current) {
+        const runStopViaBackend = logAsyncDecorator(
+          "speech:tts",
+          "stopViaTauriBackend",
+          async () => {
+            try {
+              await invoke("tts_stop");
+            } catch (error) {
+              ttsLogger.warn("Failed to stop Tauri backend TTS", { error });
+            }
+          },
+        );
+
+        void runStopViaBackend();
+      }
+
       setIsSpeaking(false);
       setIsPaused(false);
       setProgress(0);
     });
 
     runStop();
-  }, []);
+  }, [clearBackendProgress]);
 
   return {
     speak,
