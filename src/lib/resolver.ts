@@ -33,30 +33,31 @@ export interface ResolveResult {
   normalizedInput: string;
 }
 
-function similarity(a: string, b: string): number {
-  if (a === b) return 1;
-  const longer = a.length > b.length ? a : b;
-  const shorter = a.length > b.length ? b : a;
-  if (longer.length === 0) return 1;
-
-  const costs: number[] = [];
-  for (let i = 0; i <= longer.length; i++) {
-    let lastValue = i;
-    for (let j = 0; j <= shorter.length; j++) {
-      if (i === 0) {
-        costs[j] = j;
-      } else if (j > 0) {
-        let newValue = costs[j - 1];
-        if (longer[i - 1] !== shorter[j - 1]) {
-          newValue = Math.min(Math.min(newValue, lastValue), costs[j]) + 1;
-        }
-        costs[j - 1] = lastValue;
-        lastValue = newValue;
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, (_, i) =>
+    Array.from({ length: n + 1 }, (_, j) => (i === 0 ? j : j === 0 ? i : 0)),
+  );
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] = 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
       }
     }
-    if (i > 0) costs[shorter.length] = lastValue;
   }
-  return (longer.length - costs[shorter.length]) / longer.length;
+  return dp[m][n];
+}
+
+function similarity(a: string, b: string): number {
+  if (a === b) return 1;
+  if (a.length === 0 && b.length === 0) return 1;
+  const dist = levenshtein(a, b);
+  // SequenceMatcher-style: 2*matches / (len_a + len_b)
+  const matches = (a.length + b.length - dist) / 2;
+  return (2 * matches) / (a.length + b.length);
 }
 
 function fuzzyMatchDomain(
@@ -70,7 +71,11 @@ function fuzzyMatchDomain(
 
   const matches: Array<[string, number]> = [];
   for (const domain of KNOWN_DOMAINS) {
-    const ratio = similarity(cleaned, domain);
+    // Compare against full domain AND stem (without TLD) for better typo matching
+    const stem = domain.split(".")[0];
+    const ratioFull = similarity(cleaned, domain);
+    const ratioStem = similarity(cleaned, stem);
+    const ratio = Math.max(ratioFull, ratioStem);
     if (ratio >= threshold) {
       matches.push([domain, ratio]);
     }
@@ -137,7 +142,7 @@ export function resolve(rawInput: string, threshold = 0.55): ResolveResult {
     const [, bestScore] = fuzzy[0];
     const allSuggestions = fuzzy.map(([d]) => `https://${d}`);
 
-    if (bestScore > 0.8) {
+    if (bestScore > 0.65) {
       return {
         url: allSuggestions[0],
         suggestions: allSuggestions.slice(1, 4),

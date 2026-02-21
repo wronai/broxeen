@@ -42,7 +42,7 @@ export default function Chat({ settings }: ChatProps) {
     },
   ]);
   const [input, setInput] = useState("");
-  const [nextId, setNextId] = useState(1);
+  const nextIdRef = useRef(1);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -74,8 +74,7 @@ export default function Chat({ settings }: ChatProps) {
   }, [transcript, isListening]);
 
   const addMessage = (msg: Omit<Message, "id">) => {
-    const id = nextId;
-    setNextId((n) => n + 1);
+    const id = nextIdRef.current++;
     setMessages((prev) => [...prev, { ...msg, id }]);
     return id;
   };
@@ -107,8 +106,7 @@ export default function Chat({ settings }: ChatProps) {
 
     if (!result.url) return;
 
-    const loadingId = nextId;
-    setNextId((n) => n + 1);
+    const loadingId = nextIdRef.current++;
     const resolvedUrl = result.url!;
     setMessages((prev) => [
       ...prev,

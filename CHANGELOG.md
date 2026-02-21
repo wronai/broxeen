@@ -1,3 +1,32 @@
+## [1.0.4] - 2026-02-21
+
+### Summary
+
+feat(tests): configuration management system
+
+### Docs
+
+- docs: update README
+
+### Build
+
+- deps: update package.json
+
+### Other
+
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/components/Settings.test.tsx
+- update src/components/TtsControls.test.tsx
+- update src/hooks/useSpeech.test.ts
+- update src/hooks/useTts.test.ts
+- update src/lib/phonetic.test.ts
+- update src/lib/resolver.test.ts
+- update src/lib/resolver.ts
+- update src/test/setup.ts
+- ... and 3 more
+
+
 ## [1.0.3] - 2026-02-21
 
 ### Summary
