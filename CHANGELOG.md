@@ -1,3 +1,18 @@
+## [1.0.13] - 2026-02-21
+
+### Summary
+
+feat(tests): CLI interface improvements
+
+### Other
+
+- update src-tauri/src/main.rs
+- update src/components/Chat.test.tsx
+- update src/components/Settings.tsx
+- update src/domain/audioSettings.ts
+- update src/lib/sttClient.ts
+
+
 ## [1.0.12] - 2026-02-21
 
 ### Summary

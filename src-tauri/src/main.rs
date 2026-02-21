@@ -15,16 +15,82 @@ use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AudioSettings {
+    #[serde(default = "default_tts_enabled")]
     pub tts_enabled: bool,
+    #[serde(default = "default_tts_rate")]
     pub tts_rate: f32,
+    #[serde(default = "default_tts_pitch")]
     pub tts_pitch: f32,
+    #[serde(default = "default_tts_volume")]
     pub tts_volume: f32,
+    #[serde(default = "String::new")]
     pub tts_voice: String,
+    #[serde(default = "default_tts_lang")]
     pub tts_lang: String,
+    #[serde(default = "default_tts_engine")]
+    pub tts_engine: String,
+    #[serde(default = "default_stt_enabled")]
+    pub stt_enabled: bool,
+    #[serde(default = "default_stt_engine")]
+    pub stt_engine: String,
+    #[serde(default = "default_stt_model")]
+    pub stt_model: String,
+    #[serde(default = "default_mic_enabled")]
     pub mic_enabled: bool,
+    #[serde(default = "default_device_id")]
     pub mic_device_id: String,
+    #[serde(default = "default_device_id")]
     pub speaker_device_id: String,
+    #[serde(default = "default_auto_listen")]
     pub auto_listen: bool,
+}
+
+fn default_tts_enabled() -> bool {
+    true
+}
+
+fn default_tts_rate() -> f32 {
+    1.0
+}
+
+fn default_tts_pitch() -> f32 {
+    1.0
+}
+
+fn default_tts_volume() -> f32 {
+    1.0
+}
+
+fn default_tts_lang() -> String {
+    "pl-PL".to_string()
+}
+
+fn default_tts_engine() -> String {
+    "auto".to_string()
+}
+
+fn default_stt_enabled() -> bool {
+    true
+}
+
+fn default_stt_engine() -> String {
+    "openrouter".to_string()
+}
+
+fn default_stt_model() -> String {
+    "whisper-1".to_string()
+}
+
+fn default_mic_enabled() -> bool {
+    true
+}
+
+fn default_device_id() -> String {
+    "default".to_string()
+}
+
+fn default_auto_listen() -> bool {
+    false
 }
 
 impl Default for AudioSettings {
@@ -36,6 +102,10 @@ impl Default for AudioSettings {
             tts_volume: 1.0,
             tts_voice: String::new(),
             tts_lang: "pl-PL".to_string(),
+            tts_engine: "auto".to_string(),
+            stt_enabled: true,
+            stt_engine: "openrouter".to_string(),
+            stt_model: "whisper-1".to_string(),
             mic_enabled: true,
             mic_device_id: "default".to_string(),
             speaker_device_id: "default".to_string(),
@@ -217,18 +287,62 @@ fn get_settings() -> AudioSettings {
         }
     };
 
+    // Try to parse as current AudioSettings, if fails try legacy and migrate
     match serde_json::from_str::<AudioSettings>(&data) {
         Ok(settings) => {
             backend_info("Settings loaded successfully from disk");
             settings
         }
-        Err(err) => {
-            backend_error(format!(
-                "Failed to parse settings JSON from {}: {}",
-                path.display(),
-                err
-            ));
-            AudioSettings::default()
+        Err(_) => {
+            // Try legacy format (without new fields)
+            #[derive(Deserialize)]
+            struct LegacyAudioSettings {
+                pub tts_enabled: bool,
+                pub tts_rate: f32,
+                pub tts_pitch: f32,
+                pub tts_volume: f32,
+                pub tts_voice: String,
+                pub tts_lang: String,
+                pub mic_enabled: bool,
+                pub mic_device_id: String,
+                pub speaker_device_id: String,
+                pub auto_listen: bool,
+            }
+
+            match serde_json::from_str::<LegacyAudioSettings>(&data) {
+                Ok(legacy) => {
+                    backend_info("Migrating legacy settings to new format");
+                    let migrated = AudioSettings {
+                        tts_enabled: legacy.tts_enabled,
+                        tts_rate: legacy.tts_rate,
+                        tts_pitch: legacy.tts_pitch,
+                        tts_volume: legacy.tts_volume,
+                        tts_voice: legacy.tts_voice,
+                        tts_lang: legacy.tts_lang,
+                        tts_engine: "auto".to_string(),
+                        stt_enabled: true,
+                        stt_engine: "openrouter".to_string(),
+                        stt_model: "whisper-1".to_string(),
+                        mic_enabled: legacy.mic_enabled,
+                        mic_device_id: legacy.mic_device_id,
+                        speaker_device_id: legacy.speaker_device_id,
+                        auto_listen: legacy.auto_listen,
+                    };
+                    // Save migrated settings immediately
+                    if let Err(e) = save_settings(migrated.clone()) {
+                        backend_error(format!("Failed to save migrated settings: {}", e));
+                    }
+                    migrated
+                }
+                Err(err) => {
+                    backend_error(format!(
+                        "Failed to parse settings JSON from {}: {}",
+                        path.display(),
+                        err
+                    ));
+                    AudioSettings::default()
+                }
+            }
         }
     }
 }

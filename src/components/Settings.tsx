@@ -117,6 +117,20 @@ export default function Settings({
               </label>
 
               <label className="block">
+                <span className="text-sm text-gray-300">Silnik TTS</span>
+                <select
+                  value={settings.tts_engine}
+                  onChange={(e) => update({ tts_engine: e.target.value })}
+                  className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-white"
+                >
+                  <option value="auto">Auto (wykryj)</option>
+                  <option value="piper">Piper (wysoka jakość)</option>
+                  <option value="espeak">eSpeak-ng (fallback)</option>
+                  <option value="webspeech">Web Speech API (przeglądarka)</option>
+                </select>
+              </label>
+
+              <label className="block">
                 <span className="text-sm text-gray-300">Głos</span>
                 <select
                   value={settings.tts_voice}
@@ -209,6 +223,40 @@ export default function Settings({
               <Mic size={16} /> Mikrofon
             </h3>
             <div className="space-y-3 rounded-xl bg-gray-800/50 p-4">
+              <label className="flex items-center justify-between">
+                <span className="text-sm">STT włączony</span>
+                <input
+                  type="checkbox"
+                  checked={settings.stt_enabled}
+                  onChange={(e) => update({ stt_enabled: e.target.checked })}
+                  className="h-4 w-4 rounded accent-broxeen-500"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-gray-300">Silnik STT</span>
+                <select
+                  value={settings.stt_engine}
+                  onChange={(e) => update({ stt_engine: e.target.value })}
+                  className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-white"
+                >
+                  <option value="openrouter">OpenRouter Whisper (chmura)</option>
+                  <option value="webspeech">Web Speech API (przeglądarka)</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-gray-300">Model STT</span>
+                <select
+                  value={settings.stt_model}
+                  onChange={(e) => update({ stt_model: e.target.value })}
+                  className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-white"
+                >
+                  <option value="whisper-1">Whisper-1 (OpenRouter)</option>
+                  <option value="whisper-1-turbo">Whisper-1 Turbo (szybszy)</option>
+                </select>
+              </label>
+
               <label className="flex items-center justify-between">
                 <span className="text-sm">Mikrofon włączony</span>
                 <input

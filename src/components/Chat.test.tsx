@@ -445,7 +445,7 @@ describe("Chat — mikrofon", () => {
     expect(screen.queryByRole("button", { name: /mikrofon/i })).not.toBeInTheDocument();
   });
 
-  it("pokazuje komunikat o braku STT w Tauri i ukrywa mikrofon", () => {
+  it("pokazuje fallback STT w Tauri i pozostawia przycisk mikrofonu", async () => {
     Object.defineProperty(window, "SpeechRecognition", {
       value: undefined,
       writable: true,
@@ -459,8 +459,12 @@ describe("Chat — mikrofon", () => {
 
     render(<Chat settings={defaultSettings} />);
 
-    expect(screen.queryByRole("button", { name: /mikrofon/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/desktop tauri/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTitle(/Mów \(STT w chmurze\)/i)).toBeInTheDocument();
+    });
+    expect(
+      screen.getByText(/STT w tym runtime używa transkrypcji w chmurze/i),
+    ).toBeInTheDocument();
   });
 
   it("kliknięcie mikrofonu uruchamia nasłuchiwanie", async () => {

@@ -5,6 +5,10 @@ export interface AudioSettings {
   tts_volume: number;
   tts_voice: string;
   tts_lang: string;
+  tts_engine: string;
+  stt_enabled: boolean;
+  stt_engine: string;
+  stt_model: string;
   mic_enabled: boolean;
   mic_device_id: string;
   speaker_device_id: string;
@@ -18,6 +22,10 @@ export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
   tts_volume: 1.0,
   tts_voice: "",
   tts_lang: "pl-PL",
+  tts_engine: "auto",
+  stt_enabled: true,
+  stt_engine: "openrouter",
+  stt_model: "whisper-1",
   mic_enabled: true,
   mic_device_id: "default",
   speaker_device_id: "default",
