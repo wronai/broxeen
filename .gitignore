@@ -30,6 +30,17 @@ management/shared/tickets/
 management/shared/logs/
 management/shared/backups/
 # package-lock.json is committed for reproducible Docker builds (npm ci)
+# Node.js
+node_modules/
+dist/
+
+# Tauri / Rust
+src-tauri/target/
+src-tauri/WixTools/
+src-tauri/icons/*.png
+src-tauri/icons/*.ico
+src-tauri/icons/*.icns
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

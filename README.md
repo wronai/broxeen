@@ -1,68 +1,63 @@
-# ⚡ ChatBrowse — Przeglądaj Internet przez Chat
+# ⚡ Broxeen — Przeglądaj Internet przez Chat z TTS
 
-Chat-based web browser MVP. Zamiast tradycyjnej przeglądarki z zakładkami, paskami adresu i reklamami — wpisujesz (lub mówisz) zapytanie w chat i dostajesz czysty, czytelny content.
+Desktopowa aplikacja Tauri do przeglądania internetu przez chat z wbudowanym TTS.
+Zamiast tradycyjnej przeglądarki — wpisujesz (lub mówisz) zapytanie i dostajesz czysty content, który możesz odsłuchać.
 
 ## Szybki start
 
 ```bash
-# Produkcja
-make prod
-# → http://localhost:8080
+# Zainstaluj zależności
+npm install
 
-# Development (hot reload)
-make dev
+# Development z hot reload
+npm run tauri dev
 
-# Testy
-make test          # lokalnie
-make test-docker   # w Docker
+# Build produkcyjny
+npm run tauri build
 ```
 
 ## Architektura
 
 ```
-chatbrowse/
-├── app/
-│   ├── __init__.py        # Package + create_app export
-│   ├── config.py          # Config / TestConfig
-│   ├── factory.py         # Flask app factory
-│   ├── routes.py          # API endpoints
-│   ├── phonetic.py        # Mowa → URL normalizacja
-│   ├── resolver.py        # URL resolution pipeline
-│   ├── extractor.py       # Content extraction (readability)
-│   ├── cache.py           # File-based cache z TTL
-│   ├── contacts.py        # Kontakty/zakładki URI
-│   ├── domains.py         # Baza znanych domen (~90)
-│   ├── templates/
-│   │   └── index.html     # Chat UI + Speech API
-│   └── static/
-├── tests/
-│   ├── conftest.py        # Shared fixtures
-│   ├── test_phonetic.py   # 15+ testów normalizacji
-│   ├── test_resolver.py   # 18+ testów resolution
-│   ├── test_cache.py      # 9+ testów cache
-│   ├── test_contacts.py   # 14+ testów CRUD
-│   ├── test_extractor.py  # 16+ testów ekstrakcji
-│   └── test_routes.py     # 13+ testów API
-├── wsgi.py                # Entrypoint
-├── Dockerfile             # Multi-stage (base/test/production)
-├── docker-compose.yml     # prod + dev + test profiles
-├── Makefile               # Dev commands
-├── requirements.txt
-└── pyproject.toml
+broxeen/
+├── src-tauri/
+│   ├── Cargo.toml          # Rust dependencies
+│   ├── tauri.conf.json     # Tauri config (permissions, window)
+│   ├── build.rs            # Tauri build script
+│   └── src/
+│       └── main.rs         # Tauri commands (fetch, extract)
+├── src/
+│   ├── main.tsx            # React entry
+│   ├── App.tsx             # Main app component
+│   ├── index.css           # TailwindCSS
+│   ├── components/
+│   │   ├── Chat.tsx        # Chat UI
+│   │   ├── Settings.tsx    # Audio device settings
+│   │   └── TtsControls.tsx # TTS playback controls
+│   ├── hooks/
+│   │   ├── useTts.ts       # TTS hook (Web Speech API)
+│   │   └── useSpeech.ts    # Speech recognition hook
+│   └── lib/
+│       ├── phonetic.ts     # Mowa → URL normalizacja
+│       └── resolver.ts     # URL resolution pipeline
+├── index.html              # Vite entry
+├── package.json
+├── vite.config.ts
+├── tailwind.config.js
+├── tsconfig.json
+└── phonetic.py             # Original Python module
 ```
 
-## API
+## Tauri Commands
 
-| Endpoint | Metoda | Opis |
-|----------|--------|------|
-| `/` | GET | Chat UI |
-| `/api/browse` | POST | Resolve + fetch + extract |
-| `/api/resolve` | POST | Tylko resolution (debug) |
-| `/api/contacts` | GET | Lista kontaktów |
-| `/api/contacts` | POST | Dodaj kontakt |
-| `/api/contacts/delete` | POST | Usuń kontakt |
-| `/api/cache/clear` | POST | Wyczyść cache |
-| `/health` | GET | Health check |
+| Komenda | Opis |
+|---------|------|
+| `browse` | Resolve + fetch + extract content |
+| `resolve` | URL resolution (phonetic + fuzzy) |
+| `tts_speak` | Odczytaj tekst przez TTS |
+| `tts_stop` | Zatrzymaj TTS |
+| `get_settings` | Pobierz ustawienia audio |
+| `save_settings` | Zapisz ustawienia audio |
 
 ## Pipeline rozwiązywania URL
 
@@ -90,14 +85,9 @@ Input użytkownika
 ## Komendy
 
 ```bash
-make help          # Wszystkie komendy
-make install       # Zainstaluj zależności
-make test          # Testy + coverage
-make test-docker   # Testy w Docker
-make dev           # Dev server (hot reload)
-make prod          # Production (gunicorn)
-make clean         # Cleanup
-make lint          # Sprawdź kompilację
+npm install        # Zainstaluj zależności frontend
+npm run tauri dev  # Development (hot reload)
+npm run tauri build # Build produkcyjny (.deb/.AppImage/.exe)
 ```
 
 ## License

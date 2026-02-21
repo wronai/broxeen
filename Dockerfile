@@ -19,14 +19,14 @@ RUN pytest tests/ -v --tb=short
 # ── Production stage ─────────────────────────────────
 FROM base AS production
 
-RUN useradd -r -s /bin/false chatbrowse
-RUN mkdir -p /data/cache /data/contacts && chown -R chatbrowse:chatbrowse /data
+RUN useradd -r -s /bin/false broxeen
+RUN mkdir -p /data/cache /data/contacts && chown -R broxeen:broxeen /data
 
 ENV CACHE_DIR=/data/cache \
     CONTACTS_FILE=/data/contacts/contacts.json \
     PYTHONUNBUFFERED=1
 
-USER chatbrowse
+USER broxeen
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

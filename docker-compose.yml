@@ -1,13 +1,13 @@
 services:
   # ── Production ─────────────────────────────────────
-  chatbrowse:
+  broxeen:
     build:
       context: .
       target: production
     ports:
       - "8080:8080"
     volumes:
-      - chatbrowse-data:/data
+      - broxeen-data:/data
     restart: unless-stopped
     environment:
       - CACHE_DIR=/data/cache
@@ -16,7 +16,7 @@ services:
       - FETCH_TIMEOUT=15
 
   # ── Development (hot reload) ───────────────────────
-  chatbrowse-dev:
+  broxeen-dev:
     build:
       context: .
       target: base
@@ -24,7 +24,7 @@ services:
       - "8080:8080"
     volumes:
       - .:/app
-      - chatbrowse-dev-data:/tmp
+      - broxeen-dev-data:/tmp
     environment:
       - FLASK_ENV=development
       - FLASK_DEBUG=1
@@ -33,7 +33,7 @@ services:
       - dev
 
   # ── Tests ──────────────────────────────────────────
-  chatbrowse-test:
+  broxeen-test:
     build:
       context: .
       target: base
@@ -42,5 +42,5 @@ services:
       - test
 
 volumes:
-  chatbrowse-data:
-  chatbrowse-dev-data:
+  broxeen-data:
+  broxeen-dev-data:

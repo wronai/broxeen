@@ -1,0 +1,282 @@
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { Settings as SettingsIcon, X, Mic, Volume2 } from "lucide-react";
+
+interface AudioSettings {
+  tts_enabled: boolean;
+  tts_rate: number;
+  tts_pitch: number;
+  tts_volume: number;
+  tts_voice: string;
+  tts_lang: string;
+  mic_enabled: boolean;
+  mic_device_id: string;
+  speaker_device_id: string;
+  auto_listen: boolean;
+}
+
+interface SettingsProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSettingsChange: (settings: AudioSettings) => void;
+  voices: SpeechSynthesisVoice[];
+}
+
+const DEFAULT_SETTINGS: AudioSettings = {
+  tts_enabled: true,
+  tts_rate: 1.0,
+  tts_pitch: 1.0,
+  tts_volume: 1.0,
+  tts_voice: "",
+  tts_lang: "pl-PL",
+  mic_enabled: true,
+  mic_device_id: "default",
+  speaker_device_id: "default",
+  auto_listen: false,
+};
+
+export default function Settings({
+  isOpen,
+  onClose,
+  onSettingsChange,
+  voices,
+}: SettingsProps) {
+  const [settings, setSettings] = useState<AudioSettings>(DEFAULT_SETTINGS);
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    invoke<AudioSettings>("get_settings")
+      .then(setSettings)
+      .catch(() => setSettings(DEFAULT_SETTINGS));
+
+    navigator.mediaDevices
+      .enumerateDevices()
+      .then((devices) => setAudioDevices(devices))
+      .catch(() => {});
+
+    // Request mic permission to get device labels
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        stream.getTracks().forEach((t) => t.stop());
+        navigator.mediaDevices
+          .enumerateDevices()
+          .then((devices) => setAudioDevices(devices));
+      })
+      .catch(() => {});
+  }, [isOpen]);
+
+  const micDevices = audioDevices.filter((d) => d.kind === "audioinput");
+  const speakerDevices = audioDevices.filter((d) => d.kind === "audiooutput");
+
+  const update = (partial: Partial<AudioSettings>) => {
+    const next = { ...settings, ...partial };
+    setSettings(next);
+    setSaved(false);
+  };
+
+  const handleSave = async () => {
+    try {
+      await invoke("save_settings", { settings });
+      onSettingsChange(settings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error("Failed to save settings:", e);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl bg-gray-900 p-6 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-xl font-bold">
+            <SettingsIcon size={22} /> Ustawienia Audio
+          </h2>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-800 hover:text-white"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="space-y-5">
+          {/* TTS Section */}
+          <section>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase text-gray-400">
+              <Volume2 size={16} /> Text-to-Speech
+            </h3>
+            <div className="space-y-3 rounded-xl bg-gray-800/50 p-4">
+              <label className="flex items-center justify-between">
+                <span className="text-sm">TTS włączony</span>
+                <input
+                  type="checkbox"
+                  checked={settings.tts_enabled}
+                  onChange={(e) => update({ tts_enabled: e.target.checked })}
+                  className="h-4 w-4 rounded accent-broxeen-500"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-gray-300">Głos</span>
+                <select
+                  value={settings.tts_voice}
+                  onChange={(e) => update({ tts_voice: e.target.value })}
+                  className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-white"
+                >
+                  <option value="">Domyślny (polski)</option>
+                  {voices.map((v) => (
+                    <option key={v.name} value={v.name}>
+                      {v.name} ({v.lang})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-gray-300">
+                  Szybkość: {settings.tts_rate.toFixed(1)}x
+                </span>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={settings.tts_rate}
+                  onChange={(e) => update({ tts_rate: parseFloat(e.target.value) })}
+                  className="mt-1 w-full accent-broxeen-500"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-gray-300">
+                  Głośność: {Math.round(settings.tts_volume * 100)}%
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={settings.tts_volume}
+                  onChange={(e) =>
+                    update({ tts_volume: parseFloat(e.target.value) })
+                  }
+                  className="mt-1 w-full accent-broxeen-500"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm text-gray-300">
+                  Ton: {settings.tts_pitch.toFixed(1)}
+                </span>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="2"
+                  step="0.1"
+                  value={settings.tts_pitch}
+                  onChange={(e) =>
+                    update({ tts_pitch: parseFloat(e.target.value) })
+                  }
+                  className="mt-1 w-full accent-broxeen-500"
+                />
+              </label>
+
+              {speakerDevices.length > 0 && (
+                <label className="block">
+                  <span className="text-sm text-gray-300">Głośnik</span>
+                  <select
+                    value={settings.speaker_device_id}
+                    onChange={(e) =>
+                      update({ speaker_device_id: e.target.value })
+                    }
+                    className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-white"
+                  >
+                    <option value="default">Domyślne urządzenie</option>
+                    {speakerDevices.map((d) => (
+                      <option key={d.deviceId} value={d.deviceId}>
+                        {d.label || `Głośnik ${d.deviceId.slice(0, 8)}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          </section>
+
+          {/* Microphone Section */}
+          <section>
+            <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase text-gray-400">
+              <Mic size={16} /> Mikrofon
+            </h3>
+            <div className="space-y-3 rounded-xl bg-gray-800/50 p-4">
+              <label className="flex items-center justify-between">
+                <span className="text-sm">Mikrofon włączony</span>
+                <input
+                  type="checkbox"
+                  checked={settings.mic_enabled}
+                  onChange={(e) => update({ mic_enabled: e.target.checked })}
+                  className="h-4 w-4 rounded accent-broxeen-500"
+                />
+              </label>
+
+              <label className="flex items-center justify-between">
+                <span className="text-sm">Auto-nasłuchiwanie</span>
+                <input
+                  type="checkbox"
+                  checked={settings.auto_listen}
+                  onChange={(e) => update({ auto_listen: e.target.checked })}
+                  className="h-4 w-4 rounded accent-broxeen-500"
+                />
+              </label>
+
+              {micDevices.length > 0 && (
+                <label className="block">
+                  <span className="text-sm text-gray-300">Urządzenie wejściowe</span>
+                  <select
+                    value={settings.mic_device_id}
+                    onChange={(e) =>
+                      update({ mic_device_id: e.target.value })
+                    }
+                    className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-white"
+                  >
+                    <option value="default">Domyślny mikrofon</option>
+                    {micDevices.map((d) => (
+                      <option key={d.deviceId} value={d.deviceId}>
+                        {d.label || `Mikrofon ${d.deviceId.slice(0, 8)}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <div className="mt-6 flex items-center justify-end gap-3">
+          {saved && (
+            <span className="text-sm text-green-400">✓ Zapisano</span>
+          )}
+          <button
+            onClick={onClose}
+            className="rounded-lg px-4 py-2 text-sm text-gray-400 transition hover:text-white"
+          >
+            Anuluj
+          </button>
+          <button
+            onClick={handleSave}
+            className="rounded-lg bg-broxeen-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-broxeen-500"
+          >
+            Zapisz ustawienia
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
