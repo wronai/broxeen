@@ -12,6 +12,29 @@ vi.mock("@tauri-apps/api/core", () => ({
   }),
 }));
 
+vi.mock("../lib/logger", () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+    scope: vi.fn().mockReturnValue({
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+    }),
+  },
+  createScopedLogger: vi.fn().mockReturnValue({
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    debug: vi.fn(),
+  }),
+  logAsyncDecorator: vi.fn().mockImplementation((_scope, _name, fn) => fn),
+  logSyncDecorator: vi.fn().mockImplementation((_scope, _name, fn) => fn),
+}));
+
 const defaultSettings = {
   tts_enabled: false,
   tts_rate: 1.0,
@@ -38,6 +61,12 @@ describe("Chat — renderowanie", () => {
   beforeEach(() => {
     mockTauriEnvironment();
     vi.clearAllMocks();
+    // Ensure LLM is not available by default in Chat tests
+    vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
   it("pokazuje wiadomość powitalną", () => {
     render(<Chat settings={defaultSettings} />);
@@ -63,6 +92,11 @@ describe("Chat — renderowanie", () => {
 describe("Chat — wpisywanie i wysyłanie", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("wpisanie tekstu aktualizuje input", () => {
@@ -112,10 +146,12 @@ describe("Chat — browse flow", () => {
   beforeEach(() => {
     mockTauriEnvironment();
     vi.clearAllMocks();
+    vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
   });
 
   afterEach(() => {
     cleanup();
+    vi.unstubAllEnvs();
   });
 
   it("pokazuje wiadomość ładowania po wysłaniu URL", async () => {
@@ -218,11 +254,13 @@ describe("Chat — TTS auto-play", () => {
     (window as any).speechSynthesis.resume = vi.fn();
     (window as any).speechSynthesis.getVoices = vi.fn(() => []);
     vi.clearAllMocks();
+    vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
   });
 
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.unstubAllEnvs();
   });
 
   it("nie wywołuje TTS gdy tts_enabled=false", async () => {
@@ -369,6 +407,7 @@ describe("Chat — mikrofon", () => {
   beforeEach(() => {
     mockTauriEnvironment();
     vi.clearAllMocks();
+    vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
     
     // Mock SpeechRecognition
     mockRecognition = {
@@ -390,6 +429,10 @@ describe("Chat — mikrofon", () => {
       writable: true,
       configurable: true,
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
   });
 
   it("pokazuje przycisk mikrofonu gdy mic_enabled=true", () => {

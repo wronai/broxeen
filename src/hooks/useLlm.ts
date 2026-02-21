@@ -8,9 +8,9 @@ import {
 } from "../lib/llmClient";
 import { PROMPTS } from "../lib/llmPrompts";
 import type { LlmMessage } from "../lib/llmClient";
-import { createScopedLogger } from "../lib/logger";
+import { createScopedLogger, logAsyncDecorator } from "../lib/logger";
 
-const log = createScopedLogger("useLlm");
+const llmLogger = createScopedLogger("useLlm");
 
 // ── Types ───────────────────────────────────────────
 
@@ -80,11 +80,12 @@ export function useLlm(options: UseLlmOptions = {}): UseLlmReturn {
           result = resp.text;
         }
 
-        historyRef.current = [
+        const nextHistory: LlmMessage[] = [
           ...historyRef.current,
           { role: "user", content: text },
           { role: "assistant", content: result },
-        ].slice(-maxHistory * 2);
+        ];
+        historyRef.current = nextHistory.slice(-maxHistory * 2);
 
         return result;
       } catch (e: unknown) {

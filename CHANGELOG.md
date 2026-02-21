@@ -1,3 +1,26 @@
+## [1.0.12] - 2026-02-21
+
+### Summary
+
+refactor(tests): CLI interface improvements
+
+### Test
+
+- update test-results/.last-run.json
+
+### Other
+
+- update src-tauri/src/main.rs
+- update src-tauri/src/stt.rs
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/hooks/useLlm.ts
+- update src/hooks/useStt.ts
+- update src/lib/browseGateway.test.ts
+- update src/lib/browseGateway.ts
+- update src/lib/sttClient.ts
+
+
 ## [1.0.11] - 2026-02-21
 
 ### Summary

@@ -3,6 +3,7 @@ import { Send, Mic, MicOff, Loader2, Globe, Search, Zap, Copy, Bot } from "lucid
 import { resolve } from "../lib/resolver";
 import { looksLikeUrl } from "../lib/phonetic";
 import { useSpeech } from "../hooks/useSpeech";
+import { useStt } from "../hooks/useStt";
 import { useTts } from "../hooks/useTts";
 import { useLlm } from "../hooks/useLlm";
 import TtsControls from "./TtsControls";
@@ -50,6 +51,8 @@ export default function Chat({ settings }: ChatProps) {
     stopListening,
   } = useSpeech(settings.tts_lang);
 
+  const stt = useStt({ lang: settings.tts_lang });
+
   const tts = useTts({
     rate: settings.tts_rate,
     pitch: settings.tts_pitch,
@@ -73,12 +76,33 @@ export default function Chat({ settings }: ChatProps) {
   }, [transcript, isListening]);
 
   useEffect(() => {
-    if (settings.mic_enabled && !speechSupported && speechUnsupportedReason) {
-      chatLogger.warn("Microphone is enabled in settings but STT is unavailable", {
+    if (stt.transcript && !stt.isRecording && !stt.isTranscribing) {
+      chatLogger.info("Applying finalized cloud STT transcript", {
+        transcriptLength: stt.transcript.length,
+      });
+      handleSubmit(stt.transcript);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stt.transcript, stt.isRecording, stt.isTranscribing]);
+
+  useEffect(() => {
+    if (!settings.mic_enabled) {
+      return;
+    }
+
+    if (!speechSupported && speechUnsupportedReason) {
+      chatLogger.warn("Native STT (Web Speech API) is unavailable", {
         reason: speechUnsupportedReason,
+        cloudFallbackSupported: stt.isSupported,
       });
     }
-  }, [settings.mic_enabled, speechSupported, speechUnsupportedReason]);
+
+    if (!speechSupported && !stt.isSupported && stt.unsupportedReason) {
+      chatLogger.warn("Cloud STT fallback is also unavailable", {
+        reason: stt.unsupportedReason,
+      });
+    }
+  }, [settings.mic_enabled, speechSupported, speechUnsupportedReason, stt.isSupported, stt.unsupportedReason]);
 
   useEffect(() => {
     if (settings.tts_enabled && !tts.isSupported && tts.unsupportedReason) {
@@ -221,7 +245,7 @@ export default function Chat({ settings }: ChatProps) {
     } catch (err) {
       chatLogger.error("Browse failed", err);
       updateMessage(loadingId, {
-        text: `Nie udało się pobrać strony: ${err}`,
+        text: `Nie udało się pobrać strony: ${err instanceof Error ? err.stack : err}`,
         loading: false,
       });
     }
@@ -261,13 +285,32 @@ export default function Chat({ settings }: ChatProps) {
   };
 
   const toggleMic = () => {
-    if (isListening) {
-      chatLogger.info("Microphone toggle -> stop listening");
-      stopListening();
-    } else {
-      chatLogger.info("Microphone toggle -> start listening");
-      startListening();
+    if (speechSupported) {
+      if (isListening) {
+        chatLogger.info("Microphone toggle -> stop listening (native)");
+        stopListening();
+      } else {
+        chatLogger.info("Microphone toggle -> start listening (native)");
+        startListening();
+      }
+      return;
     }
+
+    if (!stt.isSupported) {
+      chatLogger.warn("Microphone pressed but cloud STT is unsupported", {
+        reason: stt.unsupportedReason,
+      });
+      return;
+    }
+
+    if (stt.isRecording) {
+      chatLogger.info("Microphone toggle -> stop recording (cloud STT)");
+      stt.stopRecording();
+      return;
+    }
+
+    chatLogger.info("Microphone toggle -> start recording (cloud STT)");
+    stt.startRecording();
   };
 
   const resolveIcon = (type?: string) => {
@@ -396,33 +439,47 @@ export default function Chat({ settings }: ChatProps) {
       <div className="border-t border-gray-800 bg-gray-900/80 px-4 py-4 backdrop-blur">
         <div className="mx-auto max-w-3xl">
           <div className="flex items-center gap-3">
-            {speechSupported && settings.mic_enabled && (
+            {settings.mic_enabled && (speechSupported || stt.isSupported) && (
               <button
                 onClick={toggleMic}
                 className={`rounded-xl p-2.5 transition ${
-                  isListening
+                  isListening || stt.isRecording
                     ? "animate-pulse bg-red-600 text-white"
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
                 }`}
-                title={isListening ? "Zatrzymaj słuchanie" : "Mów (mikrofon)"}
+                title={
+                  isListening || stt.isRecording
+                    ? "Zatrzymaj"
+                    : speechSupported
+                      ? "Mów (mikrofon)"
+                      : "Mów (STT w chmurze)"
+                }
               >
-                {isListening ? <MicOff size={20} /> : <Mic size={20} />}
+                {isListening || stt.isRecording ? <MicOff size={20} /> : <Mic size={20} />}
               </button>
             )}
 
             <div className="relative flex-1">
               <input
                 type="text"
-                value={isListening ? interimTranscript || "Słucham..." : input}
+                value={
+                  isListening
+                    ? interimTranscript || "Słucham..."
+                    : stt.isRecording
+                      ? "Nagrywam..."
+                      : stt.isTranscribing
+                        ? "Transkrybuję..."
+                        : input
+                }
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Wpisz adres, zapytanie lub powiedz głosem..."
-                disabled={isListening}
+                disabled={isListening || stt.isRecording || stt.isTranscribing}
                 className="w-full rounded-xl bg-gray-800 px-4 py-3 pr-12 text-sm text-white placeholder-gray-500 outline-none ring-1 ring-gray-700 transition focus:ring-broxeen-500 disabled:opacity-50"
               />
               <button
                 onClick={() => handleSubmit()}
-                disabled={isListening || !input.trim()}
+                disabled={isListening || stt.isRecording || stt.isTranscribing || !input.trim()}
                 className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-gray-400 transition hover:text-broxeen-400 disabled:opacity-30"
               >
                 <Send size={18} />
@@ -430,8 +487,16 @@ export default function Chat({ settings }: ChatProps) {
             </div>
           </div>
 
-          {settings.mic_enabled && !speechSupported && speechUnsupportedReason && (
+          {settings.mic_enabled && !speechSupported && speechUnsupportedReason && !stt.isSupported && (
             <p className="mt-2 text-xs text-amber-300">ℹ️ {speechUnsupportedReason}</p>
+          )}
+
+          {settings.mic_enabled && !speechSupported && stt.isSupported && (
+            <p className="mt-2 text-xs text-amber-300">ℹ️ STT w tym runtime używa transkrypcji w chmurze (OpenRouter).</p>
+          )}
+
+          {settings.mic_enabled && !speechSupported && stt.error && (
+            <p className="mt-2 text-xs text-amber-300">ℹ️ Błąd STT: {stt.error}</p>
           )}
 
           {settings.tts_enabled && !tts.isSupported && tts.unsupportedReason && (

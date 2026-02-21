@@ -232,6 +232,38 @@ describe("browseGateway", () => {
     expect(result.content).not.toContain("<script");
   });
 
+  it("strips cookie banner boilerplate from extracted content", async () => {
+    const cookieBanner =
+      "Strona korzysta z plików tekstowych zwanych ciasteczkami, aby zapewnić użytkownikom jak najlepszą obsługę. Są one zapisywane w przeglądarce i pozwalają rozpoznać Cię podczas kolejnej wizyty w serwisie. Dzięki nim właściciele witryny mogą lepiej zrozumieć, które treści są dla Ciebie najbardziej przydatne i interesujące. Pomaga to w ciągłym ulepszaniu zawartości strony i dostosowywaniu jej do Twoich potrzeb. Korzystanie z witryny oznacza akceptację tych mechanizmów.";
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        contents: `
+          <html>
+            <head><title>Example</title></head>
+            <body>
+              <main>
+                <p>${cookieBanner}</p>
+                <p>
+                  This page contains enough readable text to pass extraction thresholds and should remain
+                  even after cookie boilerplate is stripped.
+                </p>
+              </main>
+            </body>
+          </html>
+        `,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await executeBrowseCommand("https://example.com", false);
+
+    expect(result.title).toBe("Example");
+    expect(result.content).toContain("This page contains enough readable text");
+    expect(result.content).not.toContain("zwanych ciasteczkami");
+  });
+
   it("throws when browser fallback response is not ok", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,

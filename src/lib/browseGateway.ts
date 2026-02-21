@@ -5,6 +5,76 @@ import { isTauriRuntime } from "./runtime";
 const browseLogger = logger.scope("browse:gateway");
 const MAX_CONTENT_LENGTH = 5000;
 
+function stripCookieBannerText(text: string): string {
+  const raw = text || "";
+  const normalized = raw.replace(/\r\n?/g, "\n");
+  const blocks = normalized
+    .split(/\n\s*\n+/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+
+  const cleanedBlocks: string[] = [];
+  let removedCount = 0;
+
+  for (const block of blocks) {
+    const hasCookieWord = /\b(ciasteczk\w*|cookie\w*|cookies)\b/i.test(block);
+    if (!hasCookieWord) {
+      cleanedBlocks.push(block);
+      continue;
+    }
+
+    const score =
+      (/(polityk\w*\s+prywatn\w*|privacy\s+policy)/i.test(block) ? 1 : 0) +
+      (/(akcept|zgadzam\s+się|consent)/iu.test(block) ? 1 : 0) +
+      (/(przegl\w*dar\w*|browser)/i.test(block) ? 1 : 0) +
+      (/(użytkownik\w*|user)/i.test(block) ? 1 : 0) +
+      (/(zapisywan\w*|stored)/i.test(block) ? 1 : 0) +
+      (/(najlepsz\w*\s+obsług\w*|best\s+experience)/i.test(block) ? 1 : 0);
+
+    const looksLikeBanner =
+      score >= 2 ||
+      /strona\s+korzysta\s+z\s+plik\w*\s+tekstow\w*\s+zwanych\s+ciasteczkami/i.test(
+        block,
+      );
+
+    if (!looksLikeBanner) {
+      cleanedBlocks.push(block);
+      continue;
+    }
+
+    // Try to strip the boilerplate segment from a mixed block.
+    let stripped = block;
+
+    stripped = stripped.replace(
+      /strona\s+korzysta[\s\S]{0,3000}?akcept[\s\S]{0,200}?tych\s+mechanizm[\s\S]{0,40}?\.?/giu,
+      " ",
+    );
+
+    stripped = stripped.replace(
+      /we\s+use\s+cookies[\s\S]{0,3000}?(accept\s+|consent\s+|privacy\s+policy)/gi,
+      " ",
+    );
+
+    stripped = normalizeText(stripped);
+
+    // If after stripping we still have meaningful text, keep it.
+    if (stripped.length >= 80) {
+      cleanedBlocks.push(stripped);
+      removedCount += 1;
+      continue;
+    }
+
+    // Otherwise, drop the whole block.
+    removedCount += 1;
+  }
+
+  if (!cleanedBlocks.length) {
+    return raw;
+  }
+
+  return cleanedBlocks.join("\n\n");
+}
+
 export interface BrowseResult {
   url: string;
   title: string;
@@ -148,7 +218,8 @@ function normalizeBrowseResult(
   const extractedContent = contentWasHtml
     ? extractBrowserReadableContent(rawContent).content
     : rawContent;
-  const normalizedContent = extractedContent.slice(0, MAX_CONTENT_LENGTH).trim();
+  const cookieStripped = stripCookieBannerText(extractedContent);
+  const normalizedContent = cookieStripped.slice(0, MAX_CONTENT_LENGTH).trim();
   const fallbackContent =
     source === "browser"
       ? "Nie udało się wyodrębnić treści ze strony w trybie przeglądarki."
@@ -168,6 +239,15 @@ function normalizeBrowseResult(
       source,
       url: safeUrl,
       title,
+    });
+  }
+
+  if (cookieStripped.length !== extractedContent.length) {
+    browseLogger.info("Cookie banner-like content stripped from browse payload", {
+      source,
+      url: safeUrl,
+      originalLength: extractedContent.length,
+      strippedLength: cookieStripped.length,
     });
   }
 
