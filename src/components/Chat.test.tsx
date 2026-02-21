@@ -3,6 +3,11 @@ import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/re
 import { invoke } from "@tauri-apps/api/core";
 import Chat from "./Chat";
 
+// Mock invoke
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
+
 const defaultSettings = {
   tts_enabled: false,
   tts_rate: 1.0,
@@ -16,7 +21,20 @@ const defaultSettings = {
   auto_listen: false,
 };
 
+// Mock Tauri environment
+const mockTauriEnvironment = () => {
+  Object.defineProperty(window, '__TAURI__', {
+    value: {},
+    writable: true,
+    configurable: true,
+  });
+};
+
 describe("Chat — renderowanie", () => {
+  beforeEach(() => {
+    mockTauriEnvironment();
+    vi.clearAllMocks();
+  });
   it("pokazuje wiadomość powitalną", () => {
     render(<Chat settings={defaultSettings} />);
     expect(screen.getByText(/Witaj w Broxeen/i)).toBeInTheDocument();
@@ -88,6 +106,7 @@ describe("Chat — wpisywanie i wysyłanie", () => {
 
 describe("Chat — browse flow", () => {
   beforeEach(() => {
+    mockTauriEnvironment();
     vi.clearAllMocks();
   });
 
@@ -185,6 +204,24 @@ describe("Chat — browse flow", () => {
 });
 
 describe("Chat — TTS auto-play", () => {
+  beforeEach(() => {
+    mockTauriEnvironment();
+    // Mock speech synthesis - delete first if it exists
+    delete (window as any).speechSynthesis;
+    Object.defineProperty(window, 'speechSynthesis', {
+      value: {
+        speak: vi.fn(),
+        cancel: vi.fn(),
+        pause: vi.fn(),
+        resume: vi.fn(),
+        getVoices: vi.fn(() => []),
+        onvoiceschanged: null,
+      },
+      writable: true,
+      configurable: true,
+    });
+  });
+
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
