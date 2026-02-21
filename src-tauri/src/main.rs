@@ -45,6 +45,7 @@ pub struct BrowseResult {
 }
 
 const MIN_READABLE_CONTENT_LENGTH: usize = 120;
+const MAX_BACKEND_CONTENT_CHARS: usize = 20_000;
 
 fn backend_info(message: impl AsRef<str>) {
     println!("[backend][INFO] {}", message.as_ref());
@@ -56,6 +57,18 @@ fn backend_warn(message: impl AsRef<str>) {
 
 fn backend_error(message: impl AsRef<str>) {
     eprintln!("[backend][ERROR] {}", message.as_ref());
+}
+
+fn truncate_to_chars(text: &str, max_chars: usize) -> String {
+    let mut iter = text.chars();
+    let truncated: String = iter.by_ref().take(max_chars).collect();
+    if iter.next().is_some() {
+        backend_warn(format!(
+            "Extracted content exceeded {} chars and was truncated",
+            max_chars
+        ));
+    }
+    truncated
 }
 
 fn settings_path() -> PathBuf {
@@ -148,7 +161,27 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
         e.to_string()
     })?;
     let status = response.status();
-    backend_info(format!("HTTP response received for {}: {}", url, status));
+    let final_url = response.url().to_string();
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("unknown")
+        .to_string();
+
+    backend_info(format!(
+        "HTTP response received for {}: {} (final_url={}, content_type={})",
+        url, status, final_url, content_type
+    ));
+
+    if !status.is_success() {
+        let message = format!(
+            "HTTP {} while fetching {} (requested: {})",
+            status, final_url, url
+        );
+        backend_warn(message.as_str());
+        return Err(message);
+    }
 
     let html = response.text().await.map_err(|e| {
         backend_error(format!("Failed to decode response body for {}: {}", url, e));
@@ -156,7 +189,17 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
     })?;
     backend_info(format!("Fetched {} bytes for {}", html.len(), url));
 
-    let parsed_url = url::Url::parse(&url).unwrap_or_else(|_| url::Url::parse("https://example.com").unwrap());
+    let parsed_url = match url::Url::parse(&url) {
+        Ok(parsed) => parsed,
+        Err(err) => {
+            backend_warn(format!(
+                "Failed to parse requested URL {} for readability context: {}. Using final URL {}.",
+                url, err, final_url
+            ));
+            url::Url::parse(&final_url)
+                .unwrap_or_else(|_| url::Url::parse("https://example.com").unwrap())
+        }
+    };
     let mut cursor = std::io::Cursor::new(html.clone());
 
     let (title, content) = match readability::extractor::extract(&mut cursor, &parsed_url) {
@@ -179,7 +222,7 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
                     "Readability returned short content ({} chars). Falling back to scraper.",
                     readable_content.len()
                 ));
-                extract_with_scraper(&html, &url)
+                extract_with_scraper(&html, &final_url)
             }
         }
         Err(e) => {
@@ -187,21 +230,28 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
                 "Readability extraction failed: {}. Falling back to scraper.",
                 e
             ));
-            extract_with_scraper(&html, &url)
+            extract_with_scraper(&html, &final_url)
         }
     };
 
+    let final_title = if title.trim().is_empty() {
+        final_url.clone()
+    } else {
+        title
+    };
+    let final_content = truncate_to_chars(&content, MAX_BACKEND_CONTENT_CHARS);
+
     backend_info(format!(
         "Content extracted for {} (title_len={}, content_len={})",
-        url,
-        title.len(),
-        content.len()
+        final_url,
+        final_title.len(),
+        final_content.len()
     ));
 
     Ok(BrowseResult {
-        url,
-        title,
-        content,
+        url: final_url,
+        title: final_title,
+        content: final_content,
         resolve_type: "exact".to_string(),
         suggestions: vec![],
     })

@@ -402,6 +402,24 @@ describe("Chat — mikrofon", () => {
     expect(screen.queryByRole("button", { name: /mikrofon/i })).not.toBeInTheDocument();
   });
 
+  it("pokazuje komunikat o braku STT w Tauri i ukrywa mikrofon", () => {
+    Object.defineProperty(window, "SpeechRecognition", {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+    Object.defineProperty(window, "webkitSpeechRecognition", {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+
+    render(<Chat settings={defaultSettings} />);
+
+    expect(screen.queryByRole("button", { name: /mikrofon/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/desktop tauri/i)).toBeInTheDocument();
+  });
+
   it("kliknięcie mikrofonu uruchamia nasłuchiwanie", async () => {
     render(<Chat settings={defaultSettings} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
