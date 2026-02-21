@@ -169,23 +169,27 @@ export async function askAboutContent(
   pageContent: string,
   question: string
 ): Promise<string> {
-  const messages: LlmMessage[] = [
-    {
-      role: "system",
-      content:
-        "Jesteś asystentem przeglądania internetu Broxeen. " +
-        "Odpowiadaj po polsku, zwięźle i na temat. " +
-        "Użytkownik przegląda stronę i zadaje pytanie o jej treść.",
-    },
-    {
-      role: "user",
-      content:
-        `Treść strony:\n\n${pageContent.slice(0, CONTENT_TRIM)}\n\n` +
-        `---\nPytanie: ${question}`,
-    },
-  ];
-  const resp = await chat(messages);
-  return resp.text;
+  const runAsk = logAsyncDecorator("llm:client", "askAboutContent", async () => {
+    llmClientLogger.debug("Building Q&A prompt", { questionLength: question.length });
+    const messages: LlmMessage[] = [
+      {
+        role: "system",
+        content:
+          "Jesteś asystentem przeglądania internetu Broxeen. " +
+          "Odpowiadaj po polsku, zwięźle i na temat. " +
+          "Użytkownik przegląda stronę i zadaje pytanie o jej treść.",
+      },
+      {
+        role: "user",
+        content:
+          `Treść strony:\n\n${pageContent.slice(0, CONTENT_TRIM)}\n\n` +
+          `---\nPytanie: ${question}`,
+      },
+    ];
+    const resp = await chat(messages);
+    return resp.text;
+  });
+  return runAsk();
 }
 
 /** Describe an image (screenshot or inline image) — Gemini multimodal */
@@ -194,26 +198,30 @@ export async function describeImage(
   mimeType = "image/png",
   prompt = "Opisz dokładnie co widzisz na tym obrazku. Odpowiedz po polsku."
 ): Promise<string> {
-  const messages: LlmMessage[] = [
-    {
-      role: "system",
-      content:
-        "Jesteś asystentem wizualnym aplikacji Broxeen. " +
-        "Opisujesz obrazki i screenshoty stron po polsku, zwięźle.",
-    },
-    {
-      role: "user",
-      content: [
-        { type: "text", text: prompt },
-        {
-          type: "image_url",
-          image_url: { url: `data:${mimeType};base64,${base64Image}` },
-        },
-      ],
-    },
-  ];
-  const resp = await chat(messages);
-  return resp.text;
+  const runDescribe = logAsyncDecorator("llm:client", "describeImage", async () => {
+    llmClientLogger.debug("Building image description prompt", { mimeType });
+    const messages: LlmMessage[] = [
+      {
+        role: "system",
+        content:
+          "Jesteś asystentem wizualnym aplikacji Broxeen. " +
+          "Opisujesz obrazki i screenshoty stron po polsku, zwięźle.",
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: { url: `data:${mimeType};base64,${base64Image}` },
+          },
+        ],
+      },
+    ];
+    const resp = await chat(messages);
+    return resp.text;
+  });
+  return runDescribe();
 }
 
 /** Summarize page content for TTS readout */
@@ -221,38 +229,46 @@ export async function summarizeForTts(
   pageContent: string,
   maxSentences = 5
 ): Promise<string> {
-  const messages: LlmMessage[] = [
-    {
-      role: "system",
-      content:
-        `Podsumuj poniższą treść strony w maksymalnie ${maxSentences} zdaniach. ` +
-        "Pisz naturalnym językiem polskim, tak żeby dobrze brzmiało czytane " +
-        "na głos przez syntezator mowy. Nie używaj markdown, linków ani formatowania.",
-    },
-    { role: "user", content: pageContent.slice(0, TTS_TRIM) },
-  ];
-  const resp = await chat(messages);
-  return resp.text;
+  const runSummarize = logAsyncDecorator("llm:client", "summarizeForTts", async () => {
+    llmClientLogger.debug("Building TTS summary prompt", { maxSentences });
+    const messages: LlmMessage[] = [
+      {
+        role: "system",
+        content:
+          `Podsumuj poniższą treść strony w maksymalnie ${maxSentences} zdaniach. ` +
+          "Pisz naturalnym językiem polskim, tak żeby dobrze brzmiało czytane " +
+          "na głos przez syntezator mowy. Nie używaj markdown, linków ani formatowania.",
+      },
+      { role: "user", content: pageContent.slice(0, TTS_TRIM) },
+    ];
+    const resp = await chat(messages);
+    return resp.text;
+  });
+  return runSummarize();
 }
 
 /** Quick intent detection — returns one word */
 export async function detectIntent(
   userText: string
 ): Promise<string> {
-  const messages: LlmMessage[] = [
-    {
-      role: "system",
-      content:
-        "Określ intencję użytkownika. Odpowiedz JEDNYM słowem:\n" +
-        "BROWSE — chce otworzyć stronę\n" +
-        "ASK — pytanie o obecną stronę\n" +
-        "DESCRIBE — chce opis tego co widzi\n" +
-        "SEARCH — szukanie w internecie\n" +
-        "COMMAND — komenda (głośniej, ciszej, stop)\n" +
-        "CHAT — zwykła rozmowa",
-    },
-    { role: "user", content: userText },
-  ];
-  const resp = await chat(messages, { maxTokens: 10, temperature: 0.1 });
-  return resp.text.trim().toUpperCase();
+  const runDetect = logAsyncDecorator("llm:client", "detectIntent", async () => {
+    llmClientLogger.debug("Building intent detection prompt", { textLength: userText.length });
+    const messages: LlmMessage[] = [
+      {
+        role: "system",
+        content:
+          "Określ intencję użytkownika. Odpowiedz JEDNYM słowem:\n" +
+          "BROWSE — chce otworzyć stronę\n" +
+          "ASK — pytanie o obecną stronę\n" +
+          "DESCRIBE — chce opis tego co widzi\n" +
+          "SEARCH — szukanie w internecie\n" +
+          "COMMAND — komenda (głośniej, ciszej, stop)\n" +
+          "CHAT — zwykła rozmowa",
+      },
+      { role: "user", content: userText },
+    ];
+    const resp = await chat(messages, { maxTokens: 10, temperature: 0.1 });
+    return resp.text.trim().toUpperCase();
+  });
+  return runDetect();
 }
