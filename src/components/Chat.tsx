@@ -1376,24 +1376,40 @@ ${analysis}`,
                         {msg.role === "assistant" && !msg.loading && (() => {
                           // Only parse hints from an explicit section to avoid false-positives
                           // from normal markdown bullet lists.
-                          const marker = '💡 **Sugerowane akcje:**';
-                          const markerIdx = msg.text.indexOf(marker);
+                          const markers = [
+                            '💡 **Sugerowane akcje:**',
+                            '💡 **Komendy:**',
+                            '💡 Komendy:',
+                            '💡 Komendy'
+                          ];
+
+                          let markerIdx = -1;
+                          let markerText = '';
+                          for (const candidate of markers) {
+                            const idx = msg.text.indexOf(candidate);
+                            if (idx !== -1) {
+                              markerIdx = idx;
+                              markerText = candidate;
+                              break;
+                            }
+                          }
+
                           if (markerIdx === -1) return null;
 
-                          const afterMarker = msg.text.slice(markerIdx + marker.length);
+                          const afterMarker = msg.text.slice(markerIdx + markerText.length);
                           const section = afterMarker
                             .split('\n')
                             .map((l) => l.trimEnd())
                             .join('\n');
 
-                          const hintPattern = /^-\s*"([^"]+)"\s*[—–-]\s*(.+)$/gm;
+                          const hintPattern = /^-\s*"([^"]+)"(?:\s*[—–-]\s*(.+))?$/gm;
                           const hints: Array<{ query: string; label: string }> = [];
                           const seen = new Set<string>();
                           let m: RegExpExecArray | null;
 
                           while ((m = hintPattern.exec(section)) !== null) {
                             const query = m[1].trim();
-                            const label = m[2].trim();
+                            const label = (m[2]?.trim() || query).trim();
                             if (!query || !label) continue;
                             // Basic hardening: prevent absurdly long / pasted content queries
                             if (query.length > 200) continue;

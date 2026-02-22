@@ -122,7 +122,12 @@ export class MonitorPlugin implements Plugin {
             `Interwał: ${existing.intervalMs / 1000}s\n` +
             `Próg zmian: ${(existing.threshold * 100).toFixed(0)}%\n` +
             `Wykrytych zmian: ${existing.changeCount}\n\n` +
-            `💡 Użyj "stop monitoring ${parsed.name}" aby zatrzymać.`,
+            `💡 Użyj "stop monitoring ${parsed.name}" aby zatrzymać.\n\n` +
+            `---\n` +
+            `💡 **Sugerowane akcje:**\n` +
+            `- "stop monitoring ${parsed.name}" — Zatrzymaj monitoring\n` +
+            `- "pokaż logi monitoringu ${parsed.name}" — Zobacz ostatnie zdarzenia\n` +
+            `- "aktywne monitoringi" — Lista aktywnych monitoringów`,
         }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };

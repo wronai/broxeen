@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Command, Zap, Globe, Wifi, Camera, Search, Clock, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Command, Zap, Globe, Wifi, Camera, Search, Clock, TrendingUp, Filter, Star, History } from 'lucide-react';
 
 interface QuickCommand {
   id: string;
@@ -10,6 +10,15 @@ interface QuickCommand {
   category: 'browse' | 'network' | 'camera' | 'search';
   usageCount?: number;
   isFavorite?: boolean;
+}
+
+interface SavedCommandHistoryItem {
+  id: string;
+  command: string;
+  timestamp: number;
+  result?: string;
+  category?: QuickCommand['category'] | 'other';
+  success?: boolean;
 }
 
 interface QuickCommandsProps {
@@ -26,6 +35,22 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
   const [commands, setCommands] = useState<QuickCommand[]>([]);
   const [filter, setFilter] = useState<'all' | 'browse' | 'network' | 'camera' | 'search'>('all');
   const [showFavorites, setShowFavorites] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [historyRecords, setHistoryRecords] = useState<SavedCommandHistoryItem[]>([]);
+
+  // Load command history for intelligent suggestions
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const saved = localStorage.getItem('broxeen_command_history');
+      if (saved) {
+        const parsed = JSON.parse(saved) as SavedCommandHistoryItem[];
+        setHistoryRecords(parsed);
+      }
+    } catch (error) {
+      console.warn('[QuickCommands] Failed to parse command history', error);
+    }
+  }, []);
 
   const quickCommands: QuickCommand[] = [
     // Browse commands
@@ -161,10 +186,57 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
     setCommands(sortedCommands);
   }, []);
 
-  const filteredCommands = commands.filter(cmd => {
+  const historySuggestions: QuickCommand[] = useMemo(() => {
+    if (!historyRecords.length) return [];
+
+    const aggregation = new Map<string, { count: number; lastUsed: number; category: QuickCommand['category'] }>();
+
+    historyRecords.forEach((record) => {
+      const command = record.command?.trim();
+      if (!command) return;
+      const category = inferCategory(record.category, command);
+      const existing = aggregation.get(command) || { count: 0, lastUsed: 0, category };
+      aggregation.set(command, {
+        count: existing.count + 1,
+        lastUsed: Math.max(existing.lastUsed, record.timestamp || 0),
+        category,
+      });
+    });
+
+    return Array.from(aggregation.entries())
+      .sort((a, b) => {
+        if (b[1].count !== a[1].count) return b[1].count - a[1].count;
+        return b[1].lastUsed - a[1].lastUsed;
+      })
+      .slice(0, 5)
+      .map(([command, meta], index) => ({
+        id: `history-${index}`,
+        title: formatCommandTitle(command),
+        description: 'Najczęściej używane',
+        icon: getCategoryIcon(meta.category),
+        query: command,
+        category: meta.category,
+        usageCount: meta.count,
+      }));
+  }, [historyRecords]);
+
+  const mergedCommands = useMemo(() => {
+    const combined = [...historySuggestions, ...commands];
+    const seen = new Set<string>();
+    return combined.filter((cmd) => {
+      if (seen.has(cmd.query)) return false;
+      seen.add(cmd.query);
+      return true;
+    });
+  }, [commands, historySuggestions]);
+
+  const filteredCommands = mergedCommands.filter(cmd => {
     const categoryMatch = filter === 'all' || cmd.category === filter;
     const favoriteMatch = !showFavorites || cmd.isFavorite;
-    return categoryMatch && favoriteMatch;
+    const searchMatch = searchTerm
+      ? `${cmd.title} ${cmd.description} ${cmd.query}`.toLowerCase().includes(searchTerm.toLowerCase())
+      : true;
+    return categoryMatch && favoriteMatch && searchMatch;
   });
 
   const getCategoryColor = (category: QuickCommand['category']) => {
@@ -189,6 +261,10 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
 
   const handleCommandClick = (command: QuickCommand) => {
     onCommandSelect(command.query);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
   };
 
   const toggleFavorite = (commandId: string, e: React.MouseEvent) => {
@@ -221,6 +297,34 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
           </button>
         </div>
         
+        {/* Search + Filters */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 bg-gray-900/60 rounded-lg px-3 py-2 border border-gray-700">
+            <Search className="w-4 h-4 text-gray-500" />
+            <input
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Szukaj komendy lub wpisz zapytanie..."
+              className="bg-transparent text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none flex-1"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="text-xs text-gray-400 hover:text-gray-200"
+              >
+                Wyczyść
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <Filter className="w-3 h-3" />
+            <span>
+              {filter === 'all' ? 'Wszystkie kategorie' : `Filtr: ${filter}`}
+            </span>
+          </div>
+        </div>
+        
         {/* Category filters */}
         <div className="flex flex-wrap gap-1">
           {['all', 'browse', 'network', 'camera', 'search'].map((cat) => (
@@ -246,6 +350,36 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
 
       {/* Commands grid */}
       <div className="p-4">
+        {historySuggestions.length > 0 && !searchTerm && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <History className="w-3 h-3 text-broxeen-400" />
+              <span className="text-xs text-gray-400">Najczęściej używane</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {historySuggestions.map((command) => (
+                <button
+                  key={command.id}
+                  onClick={() => handleCommandClick(command)}
+                  className="px-3 py-2 rounded-lg bg-gray-800/80 border border-gray-700 text-left text-sm text-gray-200 hover:border-broxeen-500 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    {command.icon}
+                    <div className="flex flex-col">
+                      <span className="font-medium">{command.title}</span>
+                      <span className="text-xs text-gray-400">{command.query}</span>
+                    </div>
+                    <div className="ml-auto flex items-center text-xs text-gray-400 gap-1">
+                      <TrendingUp className="w-3 h-3" />
+                      {command.usageCount}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
           {filteredCommands.slice(0, 12).map((command) => (
             <button
@@ -276,7 +410,7 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
                     ? 'text-yellow-400 fill-current' 
                     : 'text-gray-500'
                 }`}>
-                  ⭐
+                  <Star className="w-3 h-3" fill={command.isFavorite ? 'currentColor' : 'none'} />
                 </div>
               </div>
 

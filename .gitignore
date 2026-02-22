@@ -1,4 +1,5 @@
 .idea
+pnpm-lock.yaml
 screenshots/
 fixPI/.env
 fixPI/.venv/
