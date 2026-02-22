@@ -71,7 +71,7 @@ export default function Chat({ settings }: ChatProps) {
   const { ask } = usePlugins();
 
   const [input, setInput] = useState("");
-  const [expandedImage, setExpandedImage] = useState<string | null>(null);
+  const [expandedImage, setExpandedImage] = useState<{ data: string; mimeType?: string } | null>(null);
   const [pageContent, setPageContent] = useState<string>("");
   const [showNetworkSelector, setShowNetworkSelector] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkConfig | null>(null);
@@ -1463,7 +1463,8 @@ ${analysis}`,
                           <img
                             src={`data:${msg.mimeType || 'image/jpeg'};base64,${msg.text}`}
                             alt={msg.title || "Podgląd kamery"}
-                            className="w-full h-auto object-contain max-h-64"
+                            className="w-full h-auto object-contain max-h-64 cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => setExpandedImage({ data: msg.text, mimeType: msg.mimeType })}
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = 'none';
                             }}
