@@ -1285,6 +1285,18 @@ ${analysis}`,
     await commands.copyContext.execute(msg.id);
   };
 
+  // Handle ESC key to close expanded image
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && expandedImage) {
+        setExpandedImage(null);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [expandedImage]);
+
   return (
     <>
       {expandedImage && (
@@ -1300,8 +1312,8 @@ ${analysis}`,
               Zamknij (ESC)
             </button>
             <img
-              src={`data:image/png;base64,${expandedImage}`}
-              alt="Screenshot strony"
+              src={`data:${expandedImage.mimeType || 'image/jpeg'};base64,${expandedImage.data}`}
+              alt="Powiększony obraz"
               className="max-h-[90vh] max-w-full rounded-lg object-contain"
               onClick={(e) => e.stopPropagation()}
             />
@@ -1449,7 +1461,8 @@ ${analysis}`,
                           <img
                             src={`data:image/png;base64,${msg.screenshotBase64}`}
                             alt="Screenshot strony"
-                            className="w-full h-auto object-cover"
+                            className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={() => msg.screenshotBase64 && setExpandedImage({ data: msg.screenshotBase64, mimeType: 'image/png' })}
                           />
                         </div>
                       )}
@@ -1464,7 +1477,7 @@ ${analysis}`,
                             src={`data:${msg.mimeType || 'image/jpeg'};base64,${msg.text}`}
                             alt={msg.title || "Podgląd kamery"}
                             className="w-full h-auto object-contain max-h-64 cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => setExpandedImage({ data: msg.text, mimeType: msg.mimeType })}
+                            onClick={() => setExpandedImage({ data: msg.text, mimeType: msg.mimeType || 'image/jpeg' })}
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = 'none';
                             }}
