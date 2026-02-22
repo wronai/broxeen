@@ -19,8 +19,11 @@ pub struct CapturedFrame {
 }
 
 #[tauri::command]
-pub async fn rtsp_capture_frame(url: String, _camera_id: String) -> Result<CapturedFrame, String> {
+pub async fn rtsp_capture_frame(url: String, camera_id: String) -> Result<CapturedFrame, String> {
     use base64::{engine::general_purpose, Engine as _};
+
+    // Reserved for future per-camera frame-cache/metrics tagging.
+    let _ = camera_id;
 
     let output = Command::new("ffmpeg")
         .args([

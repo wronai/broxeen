@@ -99,9 +99,7 @@ export class PortScanPlugin implements Plugin {
   }
 
   private extractPorts(input: string): number[] {
-    // Avoid treating IP octets as ports (e.g. "192.168.1.10")
-    const withoutIps = input.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, ' ');
-    const portMatches = withoutIps.match(/\b(\d{1,5})\b/g);
+    const portMatches = input.match(/\b(\d{1,5})\b/g);
     if (!portMatches) return [];
     return portMatches
       .map(Number)

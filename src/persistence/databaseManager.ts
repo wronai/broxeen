@@ -169,8 +169,17 @@ export class DatabaseManager {
       if (!appliedSet.has(migration.version)) {
         dbLogger.info(`Running migration ${migration.version} for ${dbName}: ${migration.description}`);
         try {
-          // Migrations use exec() which maps to execute()
-          migration.up({ exec: (sql: string) => { db.execute(sql); } });
+          // Migrations declare SQL synchronously; collect and execute sequentially.
+          const statements: string[] = [];
+          migration.up({
+            exec: (sql: string) => {
+              statements.push(sql);
+            },
+          });
+
+          for (const statement of statements) {
+            await db.execute(statement);
+          }
 
           await db.execute(
             'INSERT INTO schema_migrations (version, description, applied_at) VALUES (?, ?, ?)',
