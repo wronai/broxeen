@@ -200,7 +200,7 @@ describe('NetworkScanPlugin', () => {
     const result = await plugin.execute('pokaż kamery', browserCtx);
     expect(result.pluginId).toBe('network-scan');
     expect(result.status).toBe('success');
-    expect(result.content[0].data).toMatch(/tryb HTTP|Tryb demonstracyjny|demonstracyjny/i);
+    expect(result.content[0].data).toMatch(/tryb HTTP|tryb przeglądarkowy|Tryb demonstracyjny|demonstracyjny/i);
     vi.unstubAllGlobals();
   });
 
@@ -382,7 +382,7 @@ describe('OnvifPlugin', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(null));
     const result = await plugin.execute('pokaż kamery', browserCtx);
     expect(result.status).toBe('success');
-    expect(result.content[0].data).toMatch(/tryb HTTP|ONVIF|Wykrywanie kamer/i);
+    expect(result.content[0].data).toMatch(/tryb HTTP|tryb przeglądarkowy|ONVIF|Wykrywanie kamer/i);
     vi.unstubAllGlobals();
   });
 });

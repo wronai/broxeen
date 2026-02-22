@@ -130,11 +130,23 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 | HttpBrowsePlugin | `browse:url` | `https://example.com` |
 | ChatLlmPlugin | `chat:ask` | dowolny tekst (fallback) |
 
-### 🔑 Scopes
+### 👁️ Monitoring (`src/plugins/monitor/`)
 
-- **local** — tylko LAN: sieć, kamery, IoT
-- **network** — LAN + internet: wszystko
-- **internet** — tylko internet: browse, LLM
+| Plugin | Intent | Przykład użycia |
+|--------|--------|-----------------|
+| MonitorPlugin | `monitor:start` | `monitoruj kamerę wejściową` |
+| MonitorPlugin | `monitor:stop` | `stop monitoring kamery` |
+| MonitorPlugin | `monitor:list` | `aktywne monitoringi` |
+| MonitorPlugin | `monitor:logs` | `pokaż logi monitoringu` |
+| MonitorPlugin | `monitor:config` | `ustaw próg zmian 20%` |
+
+### 🔑 Scopes (6)
+
+- **local** — tylko LAN: sieć, kamery, IoT, monitoring
+- **network** — LAN + internet: wszystko + marketplace
+- **internet** — tylko internet: browse, LLM, marketplace
+- **vpn** — VPN: pełny dostęp LAN + internet przez tunel
+- **tor** — Tor: anonimowe przeglądanie .onion + monitoring
 - **remote** — pluginy z marketplace
 
 ### 📋 Przykłady pełnych przepływów
@@ -164,6 +176,29 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 > szukaj plugin bandwidth
 > zainstaluj plugin UPnP
 > odinstaluj plugin UPnP
+```
+
+**Monitoring kamer (MONITOR flag):**
+```
+> monitoruj kamerę wejściową
+> monitoruj kamerę ogrodową co 15s próg 10%
+> monitoruj 192.168.1.100 co 60s
+> aktywne monitoringi
+> pokaż logi monitoringu
+> ustaw próg zmian 20%
+> ustaw interwał 5m
+> stop monitoring kamery wejściowej
+```
+
+**Pełny przepływ: odkrycie → monitoring → alerty:**
+```
+> skanuj sieć                           # znajdź urządzenia
+> odkryj kamery onvif                   # wykryj kamery
+> status kamery wejściowej              # sprawdź stan
+> monitoruj kamerę wejściową co 30s     # włącz monitoring
+> aktywne monitoringi                   # lista aktywnych
+> pokaż logi monitoringu               # historia zmian
+> stop monitoring kamery wejściowej     # wyłącz monitoring
 ```
 
 ---

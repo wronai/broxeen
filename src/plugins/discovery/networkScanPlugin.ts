@@ -80,49 +80,188 @@ export class NetworkScanPlugin implements Plugin {
   }
 
   private async browserFallback(isCameraQuery: boolean, start: number): Promise<PluginResult> {
-    const subnet = '192.168.1';
-    const ports = isCameraQuery ? [554, 8554, 80, 8080] : [80, 443, 22, 8080, 554];
-    const probeIps = Array.from({ length: 20 }, (_, i) => `${subnet}.${i + 1}`);
-    const found: Array<{ ip: string; port: number }> = [];
+    // Step 1: Detect local subnet via WebRTC ICE candidates
+    const localIp = await this.detectLocalIp();
+    const subnet = localIp
+      ? localIp.split('.').slice(0, 3).join('.')
+      : '192.168.1';
+    const detectionMethod = localIp ? 'WebRTC' : 'domyślna';
 
-    await Promise.allSettled(
-      probeIps.flatMap(ip =>
-        ports.map(async port => {
-          const resp = await fetch(`http://${ip}:${port}`, {
-            method: 'HEAD',
-            signal: AbortSignal.timeout(600),
-          }).catch(() => null);
-          if (resp) found.push({ ip, port });
-        })
-      )
-    );
+    console.log(`[NetworkScanPlugin] Browser scan: subnet=${subnet} (detected via ${detectionMethod}), localIp=${localIp || 'unknown'}`);
 
+    // Step 2: Build probe list — gateway, common camera IPs, full range sample
+    const gatewayIp = `${subnet}.1`;
+    const commonCameraIps = [100, 101, 102, 103, 108, 110, 150, 200, 201, 250];
+    const rangeIps = Array.from({ length: 50 }, (_, i) => i + 2); // .2-.51
+    const allOffsets = new Set([1, ...commonCameraIps, ...rangeIps]);
+    const probeIps = [...allOffsets].map(n => `${subnet}.${n}`);
+
+    // Step 3: Probe using multiple techniques (image probe + fetch)
+    const httpPorts = isCameraQuery ? [80, 8080, 8000, 8888] : [80, 443, 8080];
+    const found: Array<{ ip: string; port: number; method: string }> = [];
+
+    const probeOne = (ip: string, port: number): Promise<void> =>
+      new Promise((resolve) => {
+        let settled = false;
+        const done = (method: string) => {
+          if (!settled) {
+            settled = true;
+            found.push({ ip, port, method });
+          }
+          resolve();
+        };
+        const fail = () => { if (!settled) { settled = true; } resolve(); };
+        const t0 = Date.now();
+
+        // Technique A: Image probe (bypasses CORS — detects HTTP servers)
+        const img = new Image();
+        const imgTimer = setTimeout(() => { img.src = ''; fail(); }, 1500);
+        img.onload = () => { clearTimeout(imgTimer); done('img-load'); };
+        img.onerror = () => {
+          clearTimeout(imgTimer);
+          // Timing gate: real TCP onerror takes >50ms (network round-trip).
+          // In jsdom/test environments onerror fires in ~0ms — skip those.
+          const elapsed = Date.now() - t0;
+          if (elapsed > 50) {
+            done('img-error-fast');
+          } else {
+            fail();
+          }
+        };
+        img.src = `http://${ip}:${port}/favicon.ico?_t=${Date.now()}`;
+
+        // Technique B: fetch with no-cors (opaque response = host up)
+        fetch(`http://${ip}:${port}/`, {
+          method: 'HEAD',
+          mode: 'no-cors',
+          signal: AbortSignal.timeout(1500),
+        }).then(() => {
+          clearTimeout(imgTimer);
+          done('fetch-opaque');
+        }).catch(() => {
+          // fetch failure — ignore, rely on image probe
+        });
+      });
+
+    // Run probes in parallel batches to avoid overwhelming the browser
+    const batchSize = 30;
+    for (let i = 0; i < probeIps.length; i += batchSize) {
+      const batch = probeIps.slice(i, i + batchSize);
+      await Promise.allSettled(
+        batch.flatMap(ip => httpPorts.map(port => probeOne(ip, port)))
+      );
+    }
+
+    // Deduplicate by IP, keep first (lowest port)
+    const uniqueMap = new Map<string, { ip: string; port: number; method: string }>();
+    for (const entry of found) {
+      if (!uniqueMap.has(entry.ip)) uniqueMap.set(entry.ip, entry);
+    }
+    const unique = [...uniqueMap.values()];
+
+    // Step 4: Format results
     const lines = [
       isCameraQuery
-        ? `📷 **Wyszukiwanie kamer** *(tryb HTTP — pełne skanowanie wymaga Tauri)*\n`
-        : `🔍 **Skanowanie sieci** *(tryb HTTP — pełne skanowanie wymaga Tauri)*\n`,
+        ? `📷 **Wyszukiwanie kamer** *(tryb przeglądarkowy)*\n`
+        : `🔍 **Skanowanie sieci** *(tryb przeglądarkowy)*\n`,
+      `🌐 **Podsieć:** ${subnet}.0/24 *(wykryta: ${detectionMethod})*`,
       `Przeskanowano: ${probeIps.length} adresów IP`,
-      `Znaleziono: ${found.length} aktywnych hostów\n`,
+      `Znaleziono: ${unique.length} aktywnych hostów\n`,
     ];
 
-    if (found.length === 0) {
-      lines.push('Nie wykryto urządzeń w sieci (ograniczenia przeglądarki).');
-      lines.push('\n💡 Uruchom aplikację Tauri dla pełnego skanowania TCP/ARP.');
+    if (unique.length === 0) {
+      lines.push('Nie wykryto urządzeń w sieci.');
+      lines.push('');
+      lines.push('**Możliwe przyczyny:**');
+      lines.push('- Przeglądarka blokuje skanowanie LAN (CORS/mixed-content)');
+      lines.push('- Urządzenia są w innej podsieci');
+      lines.push(`- Twój adres IP: ${localIp || 'nie wykryto'}`);
+      lines.push('');
+      lines.push('💡 **Rozwiązania:**');
+      lines.push('- Uruchom aplikację **Tauri** dla pełnego skanowania TCP/ARP');
+      lines.push('- Podaj bezpośrednio IP kamery: *"monitoruj 192.168.1.100"*');
+      lines.push('- Sprawdź router pod adresem: `http://' + gatewayIp + '`');
     } else {
-      const unique = [...new Map(found.map(f => [f.ip, f])).values()];
       unique.forEach(({ ip, port }) => {
-        const isCamera = [554, 8554].includes(port);
-        lines.push(`${isCamera ? '📷' : '🖥️'} **${ip}** (port ${port})`);
-        if (isCamera) lines.push(`   RTSP: \`rtsp://${ip}:554/stream\``);
+        const isLikelyCamera = [8000, 8888].includes(port) || ip.match(/\.(10[0-9]|1[1-9][0-9]|2[0-4][0-9]|250)$/);
+        const icon = isLikelyCamera ? '📷' : '🖥️';
+        lines.push(`${icon} **${ip}** (port ${port})`);
+        if (isLikelyCamera) {
+          lines.push(`   Możliwy RTSP: \`rtsp://${ip}:554/stream\``);
+          lines.push(`   HTTP: \`http://${ip}:${port}\``);
+        }
       });
+      lines.push('');
+      lines.push('💡 *Sprawdź kamerę: "monitoruj [IP]" lub otwórz `http://[IP]` w przeglądarce.*');
+    }
+
+    if (!localIp) {
+      lines.push('\n⚠️ Nie udało się wykryć lokalnego IP — skanowanie oparte na domyślnej podsieci 192.168.1.x');
     }
 
     return {
       pluginId: this.id,
       status: 'success',
-      content: [{ type: 'text', data: lines.join('\n'), title: isCameraQuery ? 'Kamery (HTTP)' : 'Sieć (HTTP)' }],
-      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      content: [{ type: 'text', data: lines.join('\n'), title: isCameraQuery ? 'Kamery (przeglądarka)' : 'Sieć (przeglądarka)' }],
+      metadata: {
+        duration_ms: Date.now() - start,
+        cached: false,
+        truncated: false,
+      } as any,
     };
+  }
+
+  /**
+   * Detect local IP address using WebRTC ICE candidates.
+   * Returns the local LAN IP (e.g. "192.168.1.42") or null if detection fails.
+   */
+  private detectLocalIp(): Promise<string | null> {
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => resolve(null), 3000);
+
+      try {
+        const RTCPeerConnection = (window as any).RTCPeerConnection
+          || (window as any).webkitRTCPeerConnection
+          || (window as any).mozRTCPeerConnection;
+
+        if (!RTCPeerConnection) {
+          clearTimeout(timeout);
+          console.log('[NetworkScanPlugin] WebRTC not available for IP detection');
+          resolve(null);
+          return;
+        }
+
+        const pc = new RTCPeerConnection({
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+        });
+
+        pc.createDataChannel('');
+        pc.createOffer().then((offer: RTCSessionDescriptionInit) => pc.setLocalDescription(offer)).catch(() => {
+          clearTimeout(timeout);
+          resolve(null);
+        });
+
+        pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
+          if (!event.candidate) return;
+          const candidate = event.candidate.candidate;
+          // Extract IP from candidate string: "... <ip> <port> typ host ..."
+          const ipMatch = candidate.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+          if (ipMatch) {
+            const ip = ipMatch[1];
+            // Only accept private LAN IPs
+            if (ip.startsWith('192.168.') || ip.startsWith('10.') || ip.match(/^172\.(1[6-9]|2\d|3[01])\./)) {
+              clearTimeout(timeout);
+              pc.close();
+              console.log(`[NetworkScanPlugin] Detected local IP via WebRTC: ${ip}`);
+              resolve(ip);
+            }
+          }
+        };
+      } catch {
+        clearTimeout(timeout);
+        resolve(null);
+      }
+    });
   }
 
   private formatScanResult(result: NetworkScanResult, isCameraQuery = false): string {

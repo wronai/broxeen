@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { MonitorPlugin } from './monitorPlugin';
+import { BUILTIN_SCOPES, ScopeRegistry } from '../scope/scopeRegistry';
 import type { PluginContext } from '../../core/types';
 
 const browserCtx: PluginContext = { isTauri: false };
@@ -151,8 +152,18 @@ describe('MonitorPlugin', () => {
 });
 
 describe('Scope: VPN + Tor', () => {
-  it('VPN scope exists in BUILTIN_SCOPES with correct permissions', async () => {
-    const { BUILTIN_SCOPES } = await import('../scope/scopeRegistry');
+  it('BUILTIN_SCOPES has all 6 scopes including vpn and tor', () => {
+    const ids = Object.keys(BUILTIN_SCOPES);
+    expect(ids).toContain('local');
+    expect(ids).toContain('network');
+    expect(ids).toContain('internet');
+    expect(ids).toContain('vpn');
+    expect(ids).toContain('tor');
+    expect(ids).toContain('remote');
+    expect(ids).toHaveLength(6);
+  });
+
+  it('VPN scope allows LAN + internet + monitor', () => {
     const vpn = BUILTIN_SCOPES['vpn'];
     expect(vpn).toBeDefined();
     expect(vpn.allowInternet).toBe(true);
@@ -162,8 +173,7 @@ describe('Scope: VPN + Tor', () => {
     expect(vpn.allowedPlugins).toContain('http-browse');
   });
 
-  it('Tor scope exists in BUILTIN_SCOPES and restricts LAN', async () => {
-    const { BUILTIN_SCOPES } = await import('../scope/scopeRegistry');
+  it('Tor scope restricts LAN but allows internet + monitor', () => {
     const tor = BUILTIN_SCOPES['tor'];
     expect(tor).toBeDefined();
     expect(tor.allowInternet).toBe(true);
@@ -173,24 +183,10 @@ describe('Scope: VPN + Tor', () => {
     expect(tor.allowedPlugins).not.toContain('network-scan');
   });
 
-  it('BUILTIN_SCOPES has all 6 scopes', async () => {
-    const { BUILTIN_SCOPES } = await import('../scope/scopeRegistry');
-    const ids = Object.keys(BUILTIN_SCOPES);
-    expect(ids).toContain('local');
-    expect(ids).toContain('network');
-    expect(ids).toContain('internet');
-    expect(ids).toContain('vpn');
-    expect(ids).toContain('tor');
-    expect(ids).toContain('remote');
-  });
-
-  it('fresh ScopeRegistry loads VPN and Tor from BUILTIN_SCOPES', async () => {
-    const { ScopeRegistry } = await import('../scope/scopeRegistry');
+  it('fresh ScopeRegistry loads all 6 scopes', () => {
     const registry = new ScopeRegistry();
+    expect(registry.getAllScopes()).toHaveLength(6);
     expect(registry.getScope('vpn')).toBeDefined();
     expect(registry.getScope('tor')).toBeDefined();
-    expect(registry.getScope('vpn')!.allowLan).toBe(true);
-    expect(registry.getScope('tor')!.allowLan).toBe(false);
-    expect(registry.getAllScopes()).toHaveLength(6);
   });
 });

@@ -1,3 +1,29 @@
+## [2.1.0] - 2026-02-22
+
+### Summary
+
+feat(monitor): Chat-based monitoring system with VPN/Tor scopes
+
+### New — MonitorPlugin (`src/plugins/monitor/`)
+
+- **Chat-based monitoring** — `monitoruj kamerę wejściową`, `obserwuj 192.168.1.100 co 30s`
+- **Stop/List/Logs** — `stop monitoring kamery`, `aktywne monitoringi`, `pokaż logi`
+- **Chat-based config** — `ustaw próg zmian 20%`, `ustaw interwał 60s` (no config files)
+- **Auto-polling** — periodic checks with configurable interval and change threshold
+- **Change detection** — Jaccard-based diff scoring with alert on threshold breach
+- **Monitoring logs** — full history of checks, changes, errors accessible in chat context
+
+### New Scopes
+
+- **VPN** — full LAN + internet access through VPN tunnel, all plugins including monitor
+- **Tor** — anonymous browsing through Tor network (.onion), internet-only + monitor
+- Total: **6 scopes** (local, network, internet, vpn, tor, remote)
+
+### Tests
+
+- `monitor.test.ts` — 15 tests: start/stop/list/logs, chat config, polling, VPN/Tor scope validation
+
+
 ## [2.0.0] - 2026-02-22
 
 ### Summary
