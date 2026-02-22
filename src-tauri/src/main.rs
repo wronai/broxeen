@@ -16,13 +16,13 @@ use audio_capture::SharedRecordingState;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
-use crate::logging::{backend_info, backend_warn, backend_error};
+use crate::logging::{backend_info, backend_warn, backend_error, init_logging};
 use crate::content_cleaning::{
     strip_cookie_banner_text, truncate_to_chars, normalize_whitespace,
     MIN_READABLE_CONTENT_LENGTH, MAX_BACKEND_CONTENT_CHARS,
 };
 use crate::content_extraction::{
-    extract_search_results, extract_content, extract_with_scraper, try_extract_search,
+    extract_search_results, extract_with_scraper,
 };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -370,6 +370,7 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
 
 
 fn main() {
+    init_logging();
     backend_info("Booting Broxeen Tauri backend...");
 
     let tts_engine = tts_backend::detect_tts_engine();
