@@ -3,7 +3,7 @@
  * Replaces browseGateway.ts functionality with plugin architecture
  */
 
-import type { Plugin, PluginResult, PluginContext, PluginContentBlock } from '../../core/types';
+import type { Plugin, PluginResult, PluginContext } from '../../core/types';
 
 export class HttpBrowsePlugin implements Plugin {
   readonly id = 'http-browse';
@@ -13,6 +13,28 @@ export class HttpBrowsePlugin implements Plugin {
 
   private isLanUrl(url: string): boolean {
     return /https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|localhost|127\.0\.)/.test(url);
+  }
+
+  private extractUrlFromInput(input: string): string | null {
+    const match = input.match(/https?:\/\/[^\s]+/i);
+    if (!match) return null;
+    return this.sanitizeExtractedUrl(match[0]);
+  }
+
+  private sanitizeExtractedUrl(url: string): string {
+    let clean = url.trim();
+
+    // Drop common trailing punctuation from chat commands (e.g. "...146:", "...146).")
+    while (/["'`\)\],;.!?]$/.test(clean)) {
+      clean = clean.slice(0, -1);
+    }
+
+    // Trim dangling host separator with no port
+    while (clean.endsWith(':')) {
+      clean = clean.slice(0, -1);
+    }
+
+    return clean;
   }
 
   async canHandle(input: string, context: PluginContext): Promise<boolean> {
@@ -32,10 +54,11 @@ export class HttpBrowsePlugin implements Plugin {
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const startTime = Date.now();
+    const explicitUrl = this.extractUrlFromInput(input);
 
     try {
       // In local scope block public internet URLs (LAN is allowed by canHandle)
-      if (context.scope === 'local' && !this.isLanUrl(input)) {
+      if (context.scope === 'local' && !this.isLanUrl(explicitUrl ?? input)) {
         return {
           pluginId: this.id,
           status: 'error',
@@ -58,18 +81,27 @@ export class HttpBrowsePlugin implements Plugin {
 
       // Use existing browseGateway logic
       const { executeBrowseCommand } = await import('../../lib/browseGateway');
-      
-      // Resolve URL using existing resolver
-      const { resolve } = await import('../../lib/resolver');
-      const resolved = resolve(input);
-      
+
       let url: string;
-      if (resolved.resolveType === 'exact' || resolved.resolveType === 'fuzzy') {
-        url = resolved.url || 'https://example.com';
+      let resolveType = 'exact';
+
+      if (explicitUrl) {
+        // Direct URL command: bypass generic resolver/search fallback.
+        url = explicitUrl;
       } else {
-        // For search queries, use DuckDuckGo
-        const query = encodeURIComponent(input);
-        url = `https://duckduckgo.com/html/?q=${query}`;
+        // Resolve non-URL input using existing resolver
+        const { resolve } = await import('../../lib/resolver');
+        const resolved = resolve(input);
+        resolveType = resolved.resolveType;
+
+        if (resolved.resolveType === 'exact' || resolved.resolveType === 'fuzzy') {
+          url = resolved.url || 'https://example.com';
+        } else {
+          // For search queries, use DuckDuckGo
+          const query = encodeURIComponent(input);
+          url = `https://duckduckgo.com/html/?q=${query}`;
+          resolveType = 'search';
+        }
       }
 
       // Execute browse using existing gateway
@@ -90,7 +122,7 @@ export class HttpBrowsePlugin implements Plugin {
           cached: false,
           truncated: false,
           url: result.url,
-          resolveType: resolved.resolveType,
+          resolveType,
           executionTime: Date.now() - startTime,
           scope: context.scope,
         },

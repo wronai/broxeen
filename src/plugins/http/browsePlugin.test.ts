@@ -105,6 +105,25 @@ describe('HttpBrowsePlugin', () => {
     expect(result.metadata?.resolveType).toBe('search');
   });
 
+  it('should sanitize trailing punctuation in command-style URL input', async () => {
+    const { executeBrowseCommand } = await import('../../lib/browseGateway');
+    const { resolve } = await import('../../lib/resolver');
+
+    vi.mocked(executeBrowseCommand).mockResolvedValue({
+      url: 'http://192.168.188.146',
+      title: 'Camera panel',
+      content: 'Camera content',
+      resolve_type: 'exact',
+    });
+
+    const result = await plugin.execute('przeglądaj http://192.168.188.146:', mockContext);
+
+    expect(result.status).toBe('success');
+    expect(vi.mocked(executeBrowseCommand)).toHaveBeenCalledWith('http://192.168.188.146');
+    expect(vi.mocked(resolve)).not.toHaveBeenCalled();
+    expect(result.metadata?.resolveType).toBe('exact');
+  });
+
   it('should handle execution errors gracefully', async () => {
     const { executeBrowseCommand } = await import('../../lib/browseGateway');
     const { resolve } = await import('../../lib/resolver');
