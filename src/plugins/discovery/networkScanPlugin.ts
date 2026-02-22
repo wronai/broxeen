@@ -17,27 +17,38 @@ export class NetworkScanPlugin implements Plugin {
   private networkScanner: NetworkScanner | null = null;
 
   async initialize(context: PluginContext): Promise<void> {
-    // Initialize database manager (this would be injected in real implementation)
-    const dbManager = new DatabaseManager({
-      devicesDbPath: 'devices.db',
-      chatDbPath: 'chat.db',
-      walMode: true,
-      connectionPoolSize: 5
-    });
+    // Only initialize in Tauri environment (requires Node.js APIs)
+    if (!context.isTauri) {
+      console.warn('NetworkScanPlugin: Database operations not available in browser environment');
+      return;
+    }
 
-    await dbManager.initialize();
+    try {
+      // Initialize database manager (this would be injected in real implementation)
+      const dbManager = new DatabaseManager({
+        devicesDbPath: 'devices.db',
+        chatDbPath: 'chat.db',
+        walMode: true,
+        connectionPoolSize: 5
+      });
 
-    // Configure network scanner
-    const config: NetworkScannerConfig = {
-      scanMethods: ['ping', 'mdns'],
-      timeout: 5000,
-      maxConcurrent: 10,
-      excludeRanges: ['127.0.0.0/8']
-    };
+      await dbManager.initialize();
 
-    this.networkScanner = new NetworkScanner(config, dbManager);
-    
-    console.log('Network Scan Plugin initialized');
+      // Configure network scanner
+      const config: NetworkScannerConfig = {
+        scanMethods: ['ping', 'mdns'],
+        timeout: 5000,
+        maxConcurrent: 10,
+        excludeRanges: ['127.0.0.0/8']
+      };
+
+      this.networkScanner = new NetworkScanner(config, dbManager);
+      
+      console.log('Network Scan Plugin initialized successfully');
+    } catch (error) {
+      console.error('NetworkScanPlugin initialization failed:', error);
+      this.networkScanner = null;
+    }
   }
 
   async canHandle(input: string, context: PluginContext): Promise<boolean> {
@@ -58,11 +69,31 @@ export class NetworkScanPlugin implements Plugin {
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
-    if (!this.networkScanner) {
-      throw new Error('Network Scanner not initialized');
-    }
-
     const isCameraQuery = input.toLowerCase().includes('kamer') || input.toLowerCase().includes('camera');
+
+    // Check if scanner is available
+    if (!this.networkScanner) {
+      const message = context.isTauri 
+        ? `Skanowanie sieci nie jest dostępne. Sprawdź konfigurację uprawnień sieciowych.`
+        : `Skanowanie sieci nie jest dostępne w trybie przeglądarki. Uruchom aplikację Tauri, aby uzyskać pełne funkcjonalności skanowania sieci.`;
+
+      return {
+        pluginId: this.id,
+        status: 'error',
+        content: [{
+          type: 'text',
+          data: message,
+          title: 'Ograniczenie funkcjonalności'
+        }],
+        metadata: {
+          duration_ms: 0,
+          cached: false,
+          truncated: false,
+          queryType: isCameraQuery ? 'camera_discovery' : 'network_scan',
+          environment: context.isTauri ? 'tauri' : 'browser'
+        },
+      };
+    }
 
     try {
       console.log(`Starting network scan for ${isCameraQuery ? 'cameras' : 'devices'}...`);

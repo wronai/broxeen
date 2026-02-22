@@ -71,12 +71,13 @@ export class IntentRouter implements IIntentRouter {
       /sensor/i,
     ]);
 
-    // Search intents
+    // Search intents (less specific, check after network/camera intents)
     this.intentPatterns.set('search:web', [
-      /wyszukaj/i,
-      /znajdź/i,
-      /szukaj/i,
-      /poszukaj/i,
+      /wyszukaj.*stronę/i,
+      /wyszukaj.*w.*internecie/i,
+      /znajdź.*w.*internecie/i,
+      /szukaj.*w.*google/i,
+      /poszukaj.*w.*internecie/i,
     ]);
 
     // Chat/LLM intents (fallback)

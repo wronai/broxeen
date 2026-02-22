@@ -12,6 +12,14 @@ export class HttpBrowsePlugin implements Plugin {
   readonly supportedIntents = ['browse:url', 'search:web'];
 
   async canHandle(input: string, context: PluginContext): Promise<boolean> {
+    // If scope is local, only handle explicit URLs, not search queries
+    if (context.scope === 'local') {
+      // For local scope, only handle if it's an explicit URL
+      // Don't handle search queries like "wyszukaj" or "znajdź"
+      return input.match(/^(https?:\/\/[^\s]+|www\.[a-z0-9-]+\.[a-z]{2,})/i) !== null;
+    }
+
+    // For internet scope, handle general web browsing and search queries
     return this.supportedIntents.some(intent => 
       input.match(/https?:\/\/[^\s]+/) || 
       input.match(/^(www\.)?[a-z0-9-]+\.[a-z]{2,}/i) ||

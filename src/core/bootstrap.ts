@@ -66,23 +66,26 @@ async function registerCorePlugins(
   const { HttpBrowsePlugin } = await import('../plugins/http/browsePlugin');
   const { ChatLlmPlugin } = await import('../plugins/chat/chatPlugin');
   
-  // Only register discovery plugins in Tauri environment
+  // Register Network Scan plugin first (higher priority for local operations)
+  try {
+    const { NetworkScanPlugin } = await import('../plugins/discovery/networkScanPlugin');
+    const networkScanInstance = new NetworkScanPlugin();
+    registry.register(networkScanInstance);
+    router.registerPlugin(networkScanInstance);
+    console.log('NetworkScanPlugin registered successfully');
+  } catch (error) {
+    console.warn('⚠️ NetworkScanPlugin not available:', error);
+  }
+
+  // Register Service Probe plugin only in Tauri (requires Node.js APIs)
   if (isTauri) {
     try {
-      const { NetworkScanPlugin } = await import('../plugins/discovery/networkScanPlugin');
       const { ServiceProbePlugin } = await import('../plugins/discovery/serviceProbePlugin');
-
-      // Register Network Scan plugin
-      const networkScanInstance = new NetworkScanPlugin();
-      registry.register(networkScanInstance);
-      router.registerPlugin(networkScanInstance);
-
-      // Register Service Probe plugin
       const serviceProbeInstance = new ServiceProbePlugin();
       registry.register(serviceProbeInstance);
       router.registerPlugin(serviceProbeInstance);
     } catch (error) {
-      console.warn('⚠️ Discovery plugins not available in browser environment:', error);
+      console.warn('⚠️ ServiceProbePlugin not available:', error);
     }
   }
 
@@ -91,7 +94,7 @@ async function registerCorePlugins(
   registry.register(httpBrowsePlugin);
   router.registerPlugin(httpBrowsePlugin);
 
-  // Register Chat LLM plugin
+  // Register Chat LLM plugin (fallback, lowest priority)
   const chatLlmPlugin = new ChatLlmPlugin();
   registry.register(chatLlmPlugin);
   router.registerPlugin(chatLlmPlugin);

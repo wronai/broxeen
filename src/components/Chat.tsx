@@ -61,7 +61,7 @@ export default function Chat({ settings }: ChatProps) {
   // State managed by CQRS Event Store
   const { commands, eventStore } = useCqrs();
   const messages = useChatMessages();
-  const { ask, detectIntent } = usePlugins();
+  const { ask } = usePlugins();
 
   const [input, setInput] = useState("");
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -324,7 +324,8 @@ export default function Chat({ settings }: ChatProps) {
     
     // Execute the pending query with network context
     if (pendingNetworkQuery) {
-      executeNetworkQuery(pendingNetworkQuery, networkConfig);
+      setInput(pendingNetworkQuery);
+      handleSubmit(pendingNetworkQuery);
       setPendingNetworkQuery("");
     }
   };
@@ -351,7 +352,8 @@ export default function Chat({ settings }: ChatProps) {
     // Execute the pending query with history context
     if (pendingNetworkQuery) {
       const enhancedQuery = `${pendingNetworkQuery} (adres: ${historyItem.address})`;
-      executeNetworkQuery(enhancedQuery, networkConfig);
+      setInput(enhancedQuery);
+      handleSubmit(enhancedQuery);
       setPendingNetworkQuery("");
     }
   };
@@ -670,25 +672,12 @@ Skanowanie urządzeń w sieci, takich jak kamery IP, jest standardową procedur�
     } as NetworkConfig;
     
     setSelectedNetwork(networkConfig);
+    setShowNetworkSelector(false);
     
-    // Add confirmation message
-    eventStore.append({
-      type: "message_added",
-      payload: {
-        id: Date.now(),
-        role: "assistant",
-        text: `✅ Wybrano: **${name}**
-
-Rozpoczynam skanowanie sieci w trybie: ${name.toLowerCase()}
-
-${getNetworkScopeDescription(scope)}`,
-        type: "content"
-      },
-    });
-    
-    // Execute the pending query with network context
+    // Execute the pending query directly with plugin system
     if (pendingNetworkQuery) {
-      executeNetworkQuery(pendingNetworkQuery, networkConfig);
+      setInput(pendingNetworkQuery);
+      handleSubmit(pendingNetworkQuery);
       setPendingNetworkQuery("");
     }
   };
@@ -851,161 +840,6 @@ ${analysis}`,
     return 'other';
   };
 
-  const executeNetworkQuery = async (query: string, networkConfig: NetworkConfig) => {
-    chatLogger.info('Executing network query with plugin system', { 
-      query, 
-      networkScope: networkConfig.scope 
-    });
-
-    // Add network context to the query and use standard plugin system
-    const enhancedQuery = `${query} (sieć: ${networkConfig.scope})`;
-    
-    // Add user message to chat
-    eventStore.append({
-      type: "message_added",
-      payload: { 
-        id: Date.now(), 
-        role: "user", 
-        text: query 
-      },
-    });
-
-    // Use standard plugin system (which includes LLM orchestration)
-    try {
-      const result = await ask(enhancedQuery, "text");
-      
-      chatLogger.info("Plugin system result for network query", {
-        status: result.status,
-        contentBlocks: result.content.length,
-        executionTime: result.metadata.duration_ms,
-      });
-      
-      if (result.status === 'success') {
-        // Convert plugin content blocks to chat messages
-        let fullResult = '';
-        for (const block of result.content) {
-          let messageText = '';
-          let messageType: 'content' | 'image' = 'content';
-          
-          if (block.type === 'text') {
-            messageText = block.data as string;
-          } else if (block.type === 'image') {
-            messageText = block.data as string;
-            messageType = 'image';
-          } else {
-            messageText = String(block.data);
-          }
-
-          fullResult += messageText + ' ';
-          eventStore.append({
-            type: "message_added",
-            payload: {
-              id: Date.now() + Math.random(),
-              role: "assistant",
-              text: messageText,
-              type: messageType,
-              title: block.title,
-            },
-          });
-        }
-        
-        // Add to command history
-        addToCommandHistory(query, fullResult.trim(), categorizeCommand(query), true);
-        
-        // Parse and store discovered cameras
-        const cameras = parseCameraResults(fullResult);
-        if (cameras.length > 0) {
-          setDiscoveredCameras(cameras);
-          chatLogger.info('Cameras discovered', { count: cameras.length });
-          
-          // Add camera list message
-          const cameraListText = `📷 **Znalezione kamery (${cameras.length}):**
-
-${cameras.map((camera, index) => 
-  `${index + 1}. **${camera.name}**
-   🌐 ${camera.ip}
-   📡 ${camera.status}
-   🎥 ${camera.type}`
-).join('\n\n')}
-
-Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
-
-          eventStore.append({
-            type: "message_added",
-            payload: {
-              id: Date.now() + 1,
-              role: "assistant",
-              text: cameraListText,
-              type: "camera_list",
-              cameras: cameras.map(cam => ({
-              id: cam.id,
-              name: cam.name,
-              address: cam.ip,
-              status: cam.status
-            }))
-            },
-          });
-        }
-      } else {
-        const errorMessage = (result.content[0]?.data as string) ?? "Nie udało się przetworzyć zapytania sieciowego.";
-        
-        // Report plugin error
-        capturePluginError('network-scan', `Network query failed: ${query}`, {
-          query,
-          networkConfig,
-          error: errorMessage,
-          result,
-        });
-        
-        eventStore.append({
-          type: "message_added",
-          payload: {
-            id: Date.now(),
-            role: "assistant",
-            text: errorMessage,
-            type: "error",
-          },
-        });
-        
-        // Add to command history
-        addToCommandHistory(query, errorMessage, categorizeCommand(query), false);
-      }
-    } catch (error) {
-      chatLogger.error("Plugin system execution failed", error);
-      
-      // Capture system error
-      errorReporting.captureError({
-        type: 'plugin',
-        severity: 'high',
-        message: `Plugin system execution failed for query: ${query}`,
-        stack: error instanceof Error ? error.stack : undefined,
-        context: {
-          url: window.location.href,
-          userAgent: navigator.userAgent,
-          userId: undefined,
-          sessionId: 'chat-session',
-          component: 'Chat',
-          action: 'executeNetworkQuery',
-        },
-        details: {
-          query,
-          networkConfig,
-          error: error instanceof Error ? error.message : String(error),
-        },
-      });
-      
-      eventStore.append({
-        type: "message_added",
-        payload: {
-          id: Date.now(),
-          role: "assistant",
-          text: "Wystąpił błąd podczas przetwarzania zapytania przez system pluginów.",
-          type: "error",
-        },
-      });
-    }
-  };
-
   const checkIfAmbiguousQuery = (query: string): boolean => {
     const lowerQuery = query.toLowerCase();
     
@@ -1073,47 +907,8 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
       return;
     }
 
-    let detectedIntent: string | null = null;
-    try {
-      const intentDetection = await detectIntent(query);
-      detectedIntent = intentDetection.intent;
-    } catch (error) {
-      chatLogger.warn("Intent detection failed, continuing with fallback flow", error);
-    }
-
-    if (detectedIntent === "network:scan") {
-      if (!selectedNetwork) {
-        chatLogger.info("Network scan intent detected without selected network, prompting user");
-        setPendingNetworkQuery(query);
-        await sendNetworkSelectionMessage(query);
-        return;
-      }
-
-      await executeNetworkQuery(query, selectedNetwork);
-      return;
-    }
-
     // Hide command history when user submits
     setShowCommandHistory(false);
-
-    // Check if this is an ambiguous query and suggest options
-    if ((!detectedIntent || detectedIntent === "chat:ask") && checkIfAmbiguousQuery(query)) {
-      chatLogger.info('Ambiguous query detected, sending suggestions', { query });
-      await sendAmbiguousQuerySuggestions(query);
-      return;
-    }
-
-    // Check if this is the first message and we should suggest features
-    if (
-      (!detectedIntent || detectedIntent === "chat:ask") &&
-      messages.length === 0 &&
-      !containsUrl(query) &&
-      query.length < 20
-    ) {
-      chatLogger.info('First message detected, showing welcome suggestions');
-      await sendAmbiguousQuerySuggestions(query);
-      return;
-    }
 
     // Save to history
     if (inputHistoryRef.current[inputHistoryRef.current.length - 1] !== query) {
