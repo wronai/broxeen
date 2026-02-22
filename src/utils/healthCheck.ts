@@ -29,8 +29,18 @@ class HealthChecker {
   }
 
   private registerDefaultChecks() {
-    // Runtime checks
+    // Runtime checks - only in Node.js environment
     this.addCheck('runtime', 'node-version', async () => {
+      if (typeof window !== 'undefined') {
+        return {
+          status: 'warning',
+          category: 'runtime',
+          name: 'node-version',
+          message: 'Running in browser environment - Node.js unavailable',
+          details: { environment: 'browser' }
+        };
+      }
+
       const version = process.version;
       const major = parseInt(version.slice(1).split('.')[0]);
       
@@ -44,6 +54,16 @@ class HealthChecker {
     });
 
     this.addCheck('runtime', 'platform', async () => {
+      if (typeof window !== 'undefined') {
+        return {
+          status: 'healthy',
+          category: 'runtime',
+          name: 'platform',
+          message: `Platform: ${navigator.platform}`,
+          details: { platform: navigator.platform, environment: 'browser' }
+        };
+      }
+
       const platform = process.platform;
       const arch = process.arch;
       
@@ -88,8 +108,8 @@ class HealthChecker {
           details: { 
             speechRecognition, 
             speechSynthesis,
-            platform: process.platform,
-            note: process.platform === 'linux' ? 'Tauri Linux does not support Web Speech API' : undefined
+            platform: typeof window !== 'undefined' ? navigator.platform : 'unknown',
+            note: typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('linux') ? 'Tauri Linux does not support Web Speech API' : undefined
           }
         };
       }

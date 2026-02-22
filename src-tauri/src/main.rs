@@ -141,6 +141,12 @@ pub struct BrowseResult {
 
 
 #[tauri::command]
+async fn get_app_version() -> Result<String, String> {
+    backend_info("Command get_app_version invoked");
+    Ok(env!("CARGO_PKG_VERSION").to_string())
+}
+
+#[tauri::command]
 async fn browse(url: String) -> Result<BrowseResult, String> {
     backend_info(format!("Command browse invoked for URL: {}", url));
     let client = reqwest::Client::builder()
@@ -382,7 +388,7 @@ fn main() {
     }
 
     backend_info(
-        "Registering command handlers: get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop",
+        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop",
     );
 
     let recording_state: SharedRecordingState = Arc::new(Mutex::new(audio_capture::RecordingState::new()));
@@ -395,6 +401,7 @@ fn main() {
         .manage(active_tts)
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
+            get_app_version,
             settings::get_settings,
             settings::save_settings,
             browse,
