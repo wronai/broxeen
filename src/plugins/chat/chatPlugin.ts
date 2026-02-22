@@ -33,7 +33,12 @@ export class ChatLlmPlugin implements Plugin {
               data: 'LLM nie jest dostępny. Sprawdź konfigurację klucza API.',
             }
           ],
-          executionTime: Date.now() - startTime,
+          metadata: {
+            duration_ms: Date.now() - startTime,
+            cached: false,
+            truncated: false,
+          },
+          executionTime: Date.now() - startTime, // Legacy compatibility
         };
       }
 
@@ -50,7 +55,12 @@ export class ChatLlmPlugin implements Plugin {
             data: response.text,
           }
         ],
-        executionTime: Date.now() - startTime,
+        metadata: {
+          duration_ms: Date.now() - startTime,
+          cached: false,
+          truncated: false,
+        },
+        executionTime: Date.now() - startTime, // Legacy compatibility
       };
 
     } catch (error) {
@@ -64,7 +74,12 @@ export class ChatLlmPlugin implements Plugin {
             data: `Błąd podczas generowania odpowiedzi: ${error instanceof Error ? error.message : String(error)}`,
           }
         ],
-        executionTime: Date.now() - startTime,
+        metadata: {
+          duration_ms: Date.now() - startTime,
+          cached: false,
+          truncated: false,
+        },
+        executionTime: Date.now() - startTime, // Legacy compatibility
       };
     }
   }

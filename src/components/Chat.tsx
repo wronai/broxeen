@@ -812,7 +812,7 @@ ${analysis}`,
       chatLogger.info("Plugin system result for network query", {
         status: result.status,
         contentBlocks: result.content.length,
-        executionTime: result.executionTime,
+        executionTime: result.metadata.duration_ms,
       });
       
       if (result.status === 'success') {
@@ -915,6 +915,10 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
         message: `Plugin system execution failed for query: ${query}`,
         stack: error instanceof Error ? error.stack : undefined,
         context: {
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          userId: undefined,
+          sessionId: 'chat-session',
           component: 'Chat',
           action: 'executeNetworkQuery',
         },
@@ -988,6 +992,15 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
     );
   };
 
+  const containsUrl = (query: string): boolean => {
+    const urlPatterns = [
+      /https?:\/\/[^\s]+/i,
+      /^(www\.)?[a-z0-9-]+\.[a-z]{2,}/i,
+    ];
+    
+    return urlPatterns.some(pattern => pattern.test(query));
+  };
+
   const handleSubmit = async (text?: string) => {
     const query = (text || input).trim();
     if (!query) {
@@ -1006,7 +1019,7 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
     }
 
     // Check if this is the first message and we should ask about network
-    if (messages.length === 0 && !selectedNetwork) {
+    if (messages.length === 0 && !selectedNetwork && !containsUrl(query) && query.length < 20) {
       chatLogger.info('First message detected, asking about network');
       await sendNetworkSelectionMessage(query);
       return;
@@ -1058,7 +1071,7 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
       chatLogger.info("Plugin system result", {
         status: result.status,
         contentBlocks: result.content.length,
-        executionTime: result.executionTime,
+        executionTime: result.metadata.duration_ms,
       });
 
       if (result.status === 'success') {

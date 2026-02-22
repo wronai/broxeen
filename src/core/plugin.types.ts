@@ -56,6 +56,10 @@ export interface ResultMetadata {
   readonly source_url?: string;
   readonly cached: boolean;
   readonly truncated: boolean;
+  // Legacy compatibility
+  readonly executionTime?: number;
+  readonly deviceCount?: number;
+  readonly target?: string;
 }
 
 // ─── Plugin Capabilities ────────────────────────────────────

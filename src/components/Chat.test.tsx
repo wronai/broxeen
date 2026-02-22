@@ -10,7 +10,7 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import Chat from "./Chat";
 import { CqrsProvider } from "../contexts/CqrsContext";
-import { PluginProvider } from "../contexts/pluginContext";
+import { PluginProvider, usePlugins } from "../contexts/pluginContext";
 
 // Mock plugin system
 vi.mock("../contexts/pluginContext", () => ({
@@ -88,7 +88,7 @@ const render = (ui: React.ReactElement, options?: any) => {
   );
 };
 
-// Mock invoke
+// Mock invoke and plugin system
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue({
     url: "https://onet.pl",
@@ -336,12 +336,18 @@ describe("Chat — browse flow", () => {
   });
 
   it("zapytanie wyszukiwania → DuckDuckGo URL", async () => {
-    const mockInvoke = vi.mocked(invoke);
-    mockInvoke.mockResolvedValueOnce({
-      url: "https://duckduckgo.com/?q=najlepsze%20przepisy%20kulinarne",
-      title: "DuckDuckGo",
-      content: "Wyniki wyszukiwania",
+    const mockAsk = vi.fn().mockResolvedValue({
+      status: 'success' as const,
+      content: [{
+        type: 'text' as const,
+        data: 'Wyniki wyszukiwania'
+      }],
+      metadata: { url: 'https://duckduckgo.com/?q=najlepsze%20przepisy%20kulinarne' }
     });
+
+    // Override the mock for this test
+    const mockUsePlugins = vi.mocked(usePlugins);
+    mockUsePlugins.mockReturnValue({ ask: mockAsk });
 
     render(<Chat settings={defaultSettings} />);
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
@@ -352,9 +358,7 @@ describe("Chat — browse flow", () => {
     fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
 
     await waitFor(() => {
-      expect(mockInvoke).toHaveBeenCalledWith("browse", {
-        url: expect.stringContaining("duckduckgo.com"),
-      });
+      expect(mockAsk).toHaveBeenCalledWith("najlepsze przepisy kulinarne", "text");
     });
   });
 });

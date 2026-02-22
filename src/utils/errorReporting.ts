@@ -117,7 +117,7 @@ class ErrorReporting {
 
     // Log the error
     const scopedLogger = logger.scope('error-reporting');
-    scopedLogger.error(`[${error.severity.toUpperCase()}] ${error.type}: ${error.message}`, {
+    scopedLogger.error(`[${error.severity?.toUpperCase() || 'MEDIUM'}] ${error.type}: ${error.message}`, {
       errorId: errorReport.id,
       stack: error.stack,
       context: errorReport.context,

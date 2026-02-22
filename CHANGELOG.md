@@ -1,3 +1,18 @@
+## [1.0.34] - 2026-02-22
+
+### Summary
+
+fix(tests): CLI interface with 2 supporting modules
+
+### Other
+
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/core/plugin.types.ts
+- update src/plugins/chat/chatPlugin.ts
+- update src/utils/errorReporting.ts
+
+
 ## [1.0.33] - 2026-02-22
 
 ### Summary
