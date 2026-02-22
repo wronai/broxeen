@@ -27,6 +27,7 @@ import type { NetworkHistoryItem } from "./NetworkHistorySelector";
 import { CommandHistory, type CommandHistoryItem } from "./CommandHistory";
 import { QuickCommandHistory } from "./QuickCommandHistory";
 import { CameraPreview, type CameraPreviewProps } from "./CameraPreview";
+import { ActionSuggestions } from "./ActionSuggestions";
 import type { AudioSettings } from "../domain/audioSettings";
 import { type ChatMessage } from "../domain/chatEvents";
 import { logger } from "../lib/logger";
@@ -64,6 +65,14 @@ export default function Chat({ settings }: ChatProps) {
   const [selectedCamera, setSelectedCamera] = useState<CameraPreviewProps['camera'] | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatLogger = logger.scope("chat:ui");
+
+  // Get recent user queries for suggestions
+  const getRecentQueries = () => {
+    return messages
+      .filter(msg => msg.role === 'user')
+      .map(msg => msg.text)
+      .slice(-5);
+  };
 
   // Auto-watch integration
   useEffect(() => {
@@ -1371,21 +1380,33 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
               )}
 
               {messages.length === 0 && !showCommandHistory && (
-                <div className="flex mt-20 flex-col items-center justify-center text-center fade-in">
-                  <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-broxeen-400 to-emerald-400 sm:text-5xl">
-                    Witaj w Broxeen
-                  </h1>
-                  <p className="max-w-xl text-lg text-gray-400">
-                    Wpisz adres URL, zapytaj o coś lub kliknij ikonę mikrofonu,
-                    aby zacząć.
-                  </p>
-                  <button
-                    onClick={() => setShowCommandHistory(true)}
-                    className="mt-4 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
-                  >
-                    Pokaż historię komend
-                  </button>
-                </div>
+                <>
+                  <div className="flex mt-20 flex-col items-center justify-center text-center fade-in">
+                    <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-broxeen-400 to-emerald-400 sm:text-5xl">
+                      Witaj w Broxeen
+                    </h1>
+                    <p className="max-w-xl text-lg text-gray-400">
+                      Wpisz adres URL, zapytaj o coś lub kliknij ikonę mikrofonu,
+                      aby zacząć.
+                    </p>
+                    <button
+                      onClick={() => setShowCommandHistory(true)}
+                      className="mt-4 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
+                    >
+                      Pokaż historię komend
+                    </button>
+                  </div>
+                  
+                  {/* Action Suggestions */}
+                  <ActionSuggestions
+                    onActionSelect={(query) => {
+                      setInput(query);
+                      handleSubmit(query);
+                    }}
+                    recentQueries={getRecentQueries()}
+                    isVisible={true}
+                  />
+                </>
               )}
               {messages.map((msg) => (
                 <div

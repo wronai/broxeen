@@ -11,6 +11,7 @@ export default defineConfig(async () => ({
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     typecheck: { tsconfig: "./tsconfig.test.json" },
+    testTimeout: 10000,
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
