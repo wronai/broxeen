@@ -55,7 +55,7 @@ describe('ScopeRegistry', () => {
     expect(local.allowInternet).toBe(false);
     expect(local.allowedPlugins).toContain('network-scan');
     expect(local.allowedPlugins).toContain('rtsp-camera');
-    expect(local.allowedPlugins).not.toContain('http-browse');
+    expect(local.allowedPlugins).toContain('http-browse'); // LAN IP browsing allowed in local scope
   });
 
   it('internet scope allows internet but not LAN', () => {
@@ -92,7 +92,7 @@ describe('ScopeRegistry', () => {
 
   it('isPluginAllowed respects scope boundaries', () => {
     expect(scopeRegistry.isPluginAllowed('network-scan', 'local')).toBe(true);
-    expect(scopeRegistry.isPluginAllowed('http-browse', 'local')).toBe(false);
+    expect(scopeRegistry.isPluginAllowed('http-browse', 'local')).toBe(true); // LAN IP browsing allowed
     expect(scopeRegistry.isPluginAllowed('http-browse', 'internet')).toBe(true);
     expect(scopeRegistry.isPluginAllowed('network-scan', 'internet')).toBe(false);
   });

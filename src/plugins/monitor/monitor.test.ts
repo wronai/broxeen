@@ -37,29 +37,29 @@ describe('MonitorPlugin', () => {
 
   describe('start monitoring', () => {
     it('starts monitoring a camera by name', async () => {
-      const result = await plugin.execute('monitoruj kamerę wejściową', browserCtx);
+      const result = await plugin.execute('monitoruj kamerę wejściową user: :', browserCtx);
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('Monitoring uruchomiony');
       expect(result.content[0].data).toContain('Kamera wejściowa');
     });
 
     it('starts monitoring an IP address', async () => {
-      const result = await plugin.execute('monitoruj 192.168.1.100 co 60s', browserCtx);
+      const result = await plugin.execute('monitoruj 192.168.1.100 co 60s user: :', browserCtx);
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('192.168.1.100');
       expect(result.content[0].data).toContain('60s');
     });
 
     it('parses custom interval and threshold', async () => {
-      const result = await plugin.execute('monitoruj kamerę ogrodową co 15s próg 10%', browserCtx);
+      const result = await plugin.execute('monitoruj kamerę ogrodową co 15s próg 10% user: :', browserCtx);
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('15s');
       expect(result.content[0].data).toContain('10%');
     });
 
     it('detects duplicate monitoring', async () => {
-      await plugin.execute('monitoruj kamerę wejściową', browserCtx);
-      const result = await plugin.execute('monitoruj kamerę wejściową', browserCtx);
+      await plugin.execute('monitoruj kamerę wejściową user: :', browserCtx);
+      const result = await plugin.execute('monitoruj kamerę wejściową user: :', browserCtx);
       expect(result.content[0].data).toContain('już monitorowane');
     });
 
@@ -72,7 +72,7 @@ describe('MonitorPlugin', () => {
 
   describe('stop monitoring', () => {
     it('stops a running monitor', async () => {
-      await plugin.execute('monitoruj kamerę salonową', browserCtx);
+      await plugin.execute('monitoruj kamerę salonową user: :', browserCtx);
       const result = await plugin.execute('stop monitoring salon', browserCtx);
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('zatrzymany');
@@ -92,8 +92,8 @@ describe('MonitorPlugin', () => {
     });
 
     it('shows active monitors', async () => {
-      await plugin.execute('monitoruj kamerę wejściową', browserCtx);
-      await plugin.execute('monitoruj 192.168.1.1', browserCtx);
+      await plugin.execute('monitoruj kamerę wejściową user: :', browserCtx);
+      await plugin.execute('monitoruj 192.168.1.1 user: :', browserCtx);
       const result = await plugin.execute('aktywne monitoringi', browserCtx);
       expect(result.content[0].data).toContain('Kamera wejściowa');
       expect(result.content[0].data).toContain('192.168.1.1');
@@ -103,7 +103,7 @@ describe('MonitorPlugin', () => {
 
   describe('logs', () => {
     it('shows logs after monitoring starts', async () => {
-      await plugin.execute('monitoruj kamerę wejściową', browserCtx);
+      await plugin.execute('monitoruj kamerę wejściową user: :', browserCtx);
       const result = await plugin.execute('pokaż logi monitoringu', browserCtx);
       expect(result.content[0].data).toContain('Rozpoczęto monitoring');
     });
@@ -116,21 +116,21 @@ describe('MonitorPlugin', () => {
 
   describe('chat-based config', () => {
     it('sets threshold via chat', async () => {
-      await plugin.execute('monitoruj kamerę wejściową', browserCtx);
+      await plugin.execute('monitoruj kamerę wejściową user: :', browserCtx);
       const result = await plugin.execute('ustaw próg zmian 25%', browserCtx);
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('25%');
     });
 
     it('sets interval via chat', async () => {
-      await plugin.execute('monitoruj kamerę wejściową', browserCtx);
+      await plugin.execute('monitoruj kamerę wejściową user: :', browserCtx);
       const result = await plugin.execute('ustaw interwał 45s', browserCtx);
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('45s');
     });
 
     it('sets interval in minutes', async () => {
-      await plugin.execute('monitoruj kamerę wejściową', browserCtx);
+      await plugin.execute('monitoruj kamerę wejściową user: :', browserCtx);
       const result = await plugin.execute('ustaw interwał 5m', browserCtx);
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('300s');
@@ -139,7 +139,7 @@ describe('MonitorPlugin', () => {
 
   describe('polling', () => {
     it('polls at configured interval and logs checks', async () => {
-      await plugin.execute('monitoruj kamerę wejściową co 10s', browserCtx);
+      await plugin.execute('monitoruj kamerę wejściową co 10s user: :', browserCtx);
       
       // Advance time past one interval
       vi.advanceTimersByTime(11000);

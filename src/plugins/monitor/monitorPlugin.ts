@@ -15,6 +15,7 @@
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
 import { processRegistry } from '../../core/processRegistry';
+import { configStore } from '../../config/configStore';
 
 export interface MonitorTarget {
   id: string;
@@ -29,14 +30,22 @@ export interface MonitorTarget {
   lastChange?: number;
   changeCount: number;
   logs: MonitorLogEntry[];
+  // Camera-specific fields
+  rtspUrl?: string;
+  rtspUsername?: string;
+  rtspPassword?: string;
+  lastSnapshot?: string; // base64 image data
+  snapshotUrl?: string; // HTTP snapshot URL
+  needsCredentials?: boolean;
 }
 
 export interface MonitorLogEntry {
   timestamp: number;
-  type: 'start' | 'stop' | 'change' | 'error' | 'check';
+  type: 'start' | 'stop' | 'change' | 'error' | 'check' | 'snapshot';
   message: string;
   changeScore?: number;
   details?: string;
+  snapshot?: string; // base64 image for visual changes
 }
 
 export class MonitorPlugin implements Plugin {
@@ -134,6 +143,15 @@ export class MonitorPlugin implements Plugin {
       };
     }
 
+    // Generate RTSP URL for camera
+    let rtspUrl: string | undefined;
+    if (parsed.type === 'camera' && parsed.address) {
+      const auth = parsed.rtspUsername && parsed.rtspPassword 
+        ? `${parsed.rtspUsername}:${parsed.rtspPassword}@` 
+        : '';
+      rtspUrl = `rtsp://${auth}${parsed.address}:554/stream`;
+    }
+
     const target: MonitorTarget = {
       id: parsed.id,
       type: parsed.type,
@@ -149,6 +167,11 @@ export class MonitorPlugin implements Plugin {
         type: 'start',
         message: `Rozpoczęto monitoring: ${parsed.name}`,
       }],
+      // Camera-specific
+      rtspUrl,
+      rtspUsername: parsed.rtspUsername,
+      rtspPassword: parsed.rtspPassword,
+      needsCredentials: !parsed.rtspUsername && parsed.type === 'camera',
     };
 
     this.targets.set(parsed.id, target);
@@ -167,24 +190,100 @@ export class MonitorPlugin implements Plugin {
     }, target.intervalMs);
     this.timers.set(parsed.id, timer);
 
-    const data = `✅ **Monitoring uruchomiony**\n\n` +
+    let data = `✅ **Monitoring uruchomiony**\n\n` +
       `📌 **Cel:** ${target.name}\n` +
       `📍 **Typ:** ${target.type}\n` +
       (target.address ? `🌐 **Adres:** ${target.address}\n` : '') +
       `⏱️ **Interwał:** co ${target.intervalMs / 1000}s\n` +
-      `📊 **Próg zmian:** ${(target.threshold * 100).toFixed(0)}%\n\n` +
-      `Zmiany będą automatycznie zgłaszane w tym czacie.\n\n` +
-      `💡 Komendy:\n` +
+      `📊 **Próg zmian:** ${(target.threshold * 100).toFixed(0)}%\n`;
+    
+    // Add credentials warning for cameras
+    if (target.type === 'camera' && target.needsCredentials) {
+      data += `\n⚠️ **Brak danych logowania**\n` +
+        `Monitoring uruchomiony bez autoryzacji RTSP.\n` +
+        `Live preview i snapshoty mogą nie działać.\n\n` +
+        `💡 Dodaj dane logowania do kamery:`;
+    } else {
+      data += `\nZmiany będą automatycznie zgłaszane w tym czacie.`;
+    }
+    
+    data += `\n\n💡 **Komendy:**\n` +
       `- "pokaż logi monitoringu ${target.name}"\n` +
       `- "stop monitoring ${target.name}"\n` +
       `- "aktywne monitoringi"`;
 
-    return {
+    const result: PluginResult = {
       pluginId: this.id,
       status: 'success',
       content: [{ type: 'text', data, title: `Monitor: ${target.name}` }],
       metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
     };
+
+    // Add credentials prompt for cameras without auth
+    if (target.type === 'camera' && target.needsCredentials && target.address) {
+      (result.metadata as any).configPrompt = {
+        title: 'Dodaj dane logowania do kamery',
+        actions: [
+          {
+            id: 'add-credentials',
+            label: 'Zaloguj do kamery',
+            icon: '🔐',
+            type: 'execute' as const,
+            executeQuery: `stop monitoring ${target.name}; monitoruj ${target.address} user:{username} admin:{password}`,
+            variant: 'primary' as const,
+            description: 'Wprowadź username i hasło',
+            fields: [
+              {
+                id: 'username',
+                label: 'Username',
+                type: 'text' as const,
+                defaultValue: 'admin',
+                placeholder: 'admin',
+                required: true,
+              },
+              {
+                id: 'password',
+                label: 'Password',
+                type: 'password' as const,
+                defaultValue: '',
+                placeholder: 'Hasło do kamery',
+                required: true,
+              },
+            ],
+          },
+          {
+            id: 'try-hikvision',
+            label: 'Spróbuj domyślne Hikvision',
+            icon: '📹',
+            type: 'execute' as const,
+            executeQuery: `stop monitoring ${target.name}; monitoruj ${target.address} user:admin admin:12345`,
+            variant: 'secondary' as const,
+            description: 'admin:12345',
+          },
+          {
+            id: 'try-dahua',
+            label: 'Spróbuj domyślne Dahua',
+            icon: '📹',
+            type: 'execute' as const,
+            executeQuery: `stop monitoring ${target.name}; monitoruj ${target.address} user:admin admin:admin`,
+            variant: 'secondary' as const,
+            description: 'admin:admin',
+          },
+          {
+            id: 'try-empty',
+            label: 'Spróbuj bez hasła',
+            icon: '🔓',
+            type: 'execute' as const,
+            executeQuery: `stop monitoring ${target.name}; monitoruj ${target.address} user:admin admin:`,
+            variant: 'secondary' as const,
+            description: 'Dla kamer bez hasła',
+          },
+        ],
+        layout: 'cards' as const,
+      };
+    }
+
+    return result;
   }
 
   // ── Stop Monitoring ─────────────────────────────────────
@@ -466,6 +565,7 @@ export class MonitorPlugin implements Plugin {
   private parseTarget(input: string): {
     id: string; type: MonitorTarget['type']; name: string;
     address?: string; intervalMs: number; threshold: number;
+    rtspUsername?: string; rtspPassword?: string;
   } | null {
     const lower = input.toLowerCase();
 
@@ -482,15 +582,27 @@ export class MonitorPlugin implements Plugin {
     const thresholdMatch = lower.match(/(?:próg|prog)\s*(\d+)\s*%/);
     if (thresholdMatch) threshold = parseInt(thresholdMatch[1]) / 100;
 
+    // Extract credentials: "user:admin admin:password" or "admin:password"
+    let rtspUsername: string | undefined;
+    let rtspPassword: string | undefined;
+    
+    const userMatch = input.match(/user:(\S+)/);
+    const passMatch = input.match(/(?:admin|pass|password):(\S+)/);
+    
+    if (userMatch) rtspUsername = userMatch[1];
+    if (passMatch) rtspPassword = passMatch[1];
+
     // Extract IP
     const ipMatch = input.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
     if (ipMatch) {
       return {
         id: `device-${ipMatch[0]}`,
-        type: 'device',
-        name: `Urządzenie ${ipMatch[0]}`,
+        type: 'camera', // Assume camera if IP provided
+        name: `Kamera ${ipMatch[0]}`,
         address: ipMatch[0],
         intervalMs, threshold,
+        rtspUsername,
+        rtspPassword,
       };
     }
 

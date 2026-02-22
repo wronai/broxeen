@@ -342,9 +342,9 @@ describe('IntentRouter', () => {
     expect(router.route('network:scan')?.id).toBe('network-scan');
     expect(router.route('browse:url')?.id).toBe('http-browse');
 
-    // local: LAN-only
+    // local: LAN-only (http-browse allowed for LAN IPs, canHandle filters non-LAN)
     expect(router.route('network:scan', 'local')?.id).toBe('network-scan');
-    expect(router.route('browse:url', 'local')).toBeNull();
+    expect(router.route('browse:url', 'local')?.id).toBe('http-browse');
 
     // internet: internet-only
     expect(router.route('browse:url', 'internet')?.id).toBe('http-browse');
