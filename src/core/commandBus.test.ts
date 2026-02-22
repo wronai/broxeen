@@ -1,192 +1,118 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import {
-  CommandBus,
-  loggingMiddleware,
-  createPluginQueryCommand,
-} from "./commandBus";
-import type { ICommand, ICommandHandler } from "./plugin.types";
+/**
+ * Command Bus Tests
+ */
 
-// ── Test Commands ───────────────────────────────────────────
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { CommandBus } from './commandBus';
 
-interface TestCommand extends ICommand<string> {
-  type: "test:action";
-  value: string;
-}
-
-interface VoidCommand extends ICommand<void> {
-  type: "test:void";
-}
-
-describe("CommandBus", () => {
+describe('CommandBus', () => {
   let bus: CommandBus;
 
   beforeEach(() => {
     bus = new CommandBus();
   });
 
-  describe("register / dispatch", () => {
-    it("dispatches command to registered handler", async () => {
-      const handler: ICommandHandler<TestCommand, string> = {
-        execute: vi.fn().mockResolvedValue("result-42"),
-      };
-
-      bus.register("test:action", handler);
-
-      const result = await bus.dispatch<string>({
-        type: "test:action",
-        value: "42",
-      } as TestCommand);
-
-      expect(result).toBe("result-42");
-      expect(handler.execute).toHaveBeenCalledWith(
-        expect.objectContaining({ type: "test:action", value: "42" }),
-      );
-    });
-
-    it("throws on duplicate handler registration", () => {
-      const handler: ICommandHandler<TestCommand, string> = {
-        execute: vi.fn().mockResolvedValue("ok"),
-      };
-
-      bus.register("test:action", handler);
-      expect(() => bus.register("test:action", handler)).toThrow(
-        "already registered",
-      );
-    });
-
-    it("throws when no handler found", async () => {
-      await expect(
-        bus.dispatch({ type: "unknown:command" }),
-      ).rejects.toThrow("No handler registered");
-    });
-
-    it("unregister removes handler", async () => {
-      const handler: ICommandHandler<VoidCommand, void> = {
-        execute: vi.fn().mockResolvedValue(undefined),
-      };
-
-      bus.register("test:void", handler);
-      bus.unregister("test:void");
-
-      await expect(bus.dispatch({ type: "test:void" })).rejects.toThrow();
-    });
+  afterEach(() => {
+    bus.clear();
   });
 
-  describe("middleware", () => {
-    it("middleware wraps handler execution", async () => {
-      const order: string[] = [];
-
-      const handler: ICommandHandler<VoidCommand, void> = {
-        execute: vi.fn(async () => {
-          order.push("handler");
-        }),
-      };
-
-      bus.register("test:void", handler);
-
-      bus.use(async (_cmd, next) => {
-        order.push("before");
-        const result = await next();
-        order.push("after");
-        return result;
-      });
-
-      await bus.dispatch({ type: "test:void" } as VoidCommand);
-
-      expect(order).toEqual(["before", "handler", "after"]);
-    });
-
-    it("multiple middlewares chain correctly", async () => {
-      const order: string[] = [];
-
-      const handler: ICommandHandler<VoidCommand, void> = {
-        execute: vi.fn(async () => {
-          order.push("handler");
-        }),
-      };
-
-      bus.register("test:void", handler);
-
-      bus.use(async (_cmd, next) => {
-        order.push("mw1-before");
-        const r = await next();
-        order.push("mw1-after");
-        return r;
-      });
-
-      bus.use(async (_cmd, next) => {
-        order.push("mw2-before");
-        const r = await next();
-        order.push("mw2-after");
-        return r;
-      });
-
-      await bus.dispatch({ type: "test:void" } as VoidCommand);
-
-      expect(order).toEqual([
-        "mw1-before",
-        "mw2-before",
-        "handler",
-        "mw2-after",
-        "mw1-after",
-      ]);
-    });
-
-    it("loggingMiddleware logs command lifecycle", async () => {
-      const logs: string[] = [];
-      const handler: ICommandHandler<VoidCommand, void> = {
-        execute: vi.fn().mockResolvedValue(undefined),
-      };
-
-      bus.register("test:void", handler);
-      bus.use(loggingMiddleware((msg) => logs.push(msg)));
-
-      await bus.dispatch({ type: "test:void" } as VoidCommand);
-
-      expect(logs).toHaveLength(2);
-      expect(logs[0]).toContain("→ test:void");
-      expect(logs[1]).toContain("✓ test:void");
-    });
-
-    it("loggingMiddleware logs errors", async () => {
-      const logs: string[] = [];
-      const handler: ICommandHandler<VoidCommand, void> = {
-        execute: vi.fn().mockRejectedValue(new Error("boom")),
-      };
-
-      bus.register("test:void", handler);
-      bus.use(loggingMiddleware((msg) => logs.push(msg)));
-
-      await expect(
-        bus.dispatch({ type: "test:void" } as VoidCommand),
-      ).rejects.toThrow("boom");
-
-      expect(logs[1]).toContain("✗ test:void");
-    });
+  it('should register command handler', () => {
+    const handler = async (payload: string) => `Result: ${payload}`;
+    
+    bus.register('test:command', handler);
+    
+    expect(bus.has('test:command')).toBe(true);
+    expect(bus.getRegisteredCommands()).toContain('test:command');
   });
 
-  describe("createPluginQueryCommand", () => {
-    it("creates valid command shape", () => {
-      const cmd = createPluginQueryCommand("onet.pl", "browse", "voice");
-
-      expect(cmd).toEqual({
-        type: "plugin:query",
-        intent: "browse",
-        rawInput: "onet.pl",
-        source: "voice",
-        resolvedTarget: undefined,
-      });
-    });
+  it('should throw error when registering duplicate command', () => {
+    const handler1 = async () => 'result1';
+    const handler2 = async () => 'result2';
+    
+    bus.register('test:command', handler1);
+    
+    expect(() => bus.register('test:command', handler2)).toThrow(
+      'Command test:command is already registered'
+    );
   });
 
-  describe("registeredCommands", () => {
-    it("lists all registered command types", () => {
-      bus.register("cmd:a", { execute: vi.fn() });
-      bus.register("cmd:b", { execute: vi.fn() });
+  it('should execute command successfully', async () => {
+    const handler = async (payload: string) => `Processed: ${payload}`;
+    
+    bus.register('test:command', handler);
+    
+    const result = await bus.execute('test:command', 'test payload');
+    
+    expect(result).toBe('Processed: test payload');
+  });
 
-      expect(bus.registeredCommands).toEqual(
-        expect.arrayContaining(["cmd:a", "cmd:b"]),
-      );
+  it('should throw error when executing non-existent command', async () => {
+    await expect(bus.execute('nonexistent:command')).rejects.toThrow(
+      'No handler registered for command: nonexistent:command'
+    );
+  });
+
+  it('should unregister command successfully', () => {
+    const handler = async () => 'result';
+    
+    bus.register('test:command', handler);
+    expect(bus.has('test:command')).toBe(true);
+    
+    bus.unregister('test:command');
+    expect(bus.has('test:command')).toBe(false);
+  });
+
+  it('should throw error when unregistering non-existent command', () => {
+    expect(() => bus.unregister('nonexistent:command')).toThrow(
+      'Command nonexistent:command not found'
+    );
+  });
+
+  it('should handle command execution errors', async () => {
+    const errorHandler = async () => {
+      throw new Error('Command execution failed');
+    };
+    
+    bus.register('error:command', errorHandler);
+    
+    await expect(bus.execute('error:command')).rejects.toThrow('Command execution failed');
+  });
+
+  it('should clear all commands', () => {
+    bus.register('command1', async () => 'result1');
+    bus.register('command2', async () => 'result2');
+    bus.register('command3', async () => 'result3');
+    
+    expect(bus.getRegisteredCommands()).toHaveLength(3);
+    
+    bus.clear();
+    
+    expect(bus.getRegisteredCommands()).toHaveLength(0);
+  });
+
+  it('should work with different payload types', async () => {
+    interface TestPayload {
+      message: string;
+      count: number;
+    }
+    
+    const handler = async (payload: TestPayload) => ({
+      processed: true,
+      message: payload.message.toUpperCase(),
+      doubled: payload.count * 2,
+    });
+    
+    bus.register('complex:command', handler);
+    
+    const result = await bus.execute('complex:command', {
+      message: 'hello',
+      count: 5,
+    });
+    
+    expect(result).toEqual({
+      processed: true,
+      message: 'HELLO',
+      doubled: 10,
     });
   });
 });

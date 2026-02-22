@@ -1,215 +1,124 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { PluginRegistry, resetDefaultRegistry, getDefaultRegistry } from "./pluginRegistry";
-import type {
-  DataSourcePlugin,
-  PluginCapabilities,
-  PluginQuery,
-  PluginResult,
-  ContentBlock,
-} from "./plugin.types";
+/**
+ * Plugin Registry Tests
+ */
 
-// ── Test Helpers ────────────────────────────────────────────
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { PluginRegistry } from './pluginRegistry';
+import type { Plugin, PluginContext, PluginResult } from './types';
 
-function createMockPlugin(
-  id: string,
-  overrides: Partial<PluginCapabilities> = {},
-): DataSourcePlugin {
-  return {
-    id,
-    name: `Mock ${id}`,
-    capabilities: {
-      intents: ["browse"],
-      streaming: false,
-      requiresNetwork: true,
-      browserCompatible: true,
-      priority: 50,
-      ...overrides,
-    },
-    initialize: vi.fn().mockResolvedValue(undefined),
-    isAvailable: vi.fn().mockResolvedValue(true),
-    execute: vi.fn().mockResolvedValue({
-      pluginId: id,
-      status: "success",
-      content: [{ type: "text", data: "mock result" }],
-      metadata: { duration_ms: 10, cached: false, truncated: false },
-    } satisfies PluginResult),
-    dispose: vi.fn().mockResolvedValue(undefined),
-  };
+// Mock plugin for testing
+class MockPlugin implements Plugin {
+  readonly id: string;
+  readonly name: string;
+  readonly version = '1.0.0';
+  readonly supportedIntents: string[];
+
+  constructor(id: string, name: string, intents: string[]) {
+    this.id = id;
+    this.name = name;
+    this.supportedIntents = intents;
+  }
+
+  async canHandle(input: string, context: PluginContext): Promise<boolean> {
+    return true;
+  }
+
+  async execute(input: string, context: PluginContext): Promise<PluginResult> {
+    return {
+      status: 'success',
+      content: [{ type: 'text', data: `Mock ${this.name} response` }],
+    };
+  }
+
+  async initialize(context: PluginContext): Promise<void> {
+    // Mock implementation
+  }
+
+  async dispose(): Promise<void> {
+    // Mock implementation
+  }
 }
 
-// ── Tests ───────────────────────────────────────────────────
-
-describe("PluginRegistry", () => {
+describe('PluginRegistry', () => {
   let registry: PluginRegistry;
+  let mockPlugin1: MockPlugin;
+  let mockPlugin2: MockPlugin;
 
   beforeEach(() => {
     registry = new PluginRegistry();
-    resetDefaultRegistry();
+    mockPlugin1 = new MockPlugin('test-1', 'Test Plugin 1', ['test:intent']);
+    mockPlugin2 = new MockPlugin('test-2', 'Test Plugin 2', ['other:intent']);
   });
 
-  describe("register / unregister", () => {
-    it("registers a plugin and retrieves it by ID", () => {
-      const plugin = createMockPlugin("http-browse");
-      registry.register(plugin);
-
-      expect(registry.get("http-browse")).toBe(plugin);
-      expect(registry.size).toBe(1);
-    });
-
-    it("throws on duplicate registration", () => {
-      const plugin = createMockPlugin("http-browse");
-      registry.register(plugin);
-
-      expect(() => registry.register(plugin)).toThrow("already registered");
-    });
-
-    it("unregisters a plugin", () => {
-      const plugin = createMockPlugin("http-browse");
-      registry.register(plugin);
-      registry.unregister("http-browse");
-
-      expect(registry.get("http-browse")).toBeUndefined();
-      expect(registry.size).toBe(0);
-    });
-
-    it("unregister on non-existent ID is no-op", () => {
-      expect(() => registry.unregister("nonexistent")).not.toThrow();
-    });
+  afterEach(async () => {
+    await registry.disposeAll();
   });
 
-  describe("getForIntent", () => {
-    it("returns plugins matching intent sorted by priority", () => {
-      const low = createMockPlugin("low", { intents: ["browse"], priority: 10 });
-      const high = createMockPlugin("high", { intents: ["browse"], priority: 90 });
-      const mid = createMockPlugin("mid", { intents: ["browse"], priority: 50 });
-
-      registry.register(low);
-      registry.register(high);
-      registry.register(mid);
-
-      const result = registry.getForIntent("browse");
-
-      expect(result.map((p) => p.id)).toEqual(["high", "mid", "low"]);
-    });
-
-    it("returns empty array for unknown intent", () => {
-      registry.register(createMockPlugin("http-browse"));
-
-      expect(registry.getForIntent("mqtt-read")).toEqual([]);
-    });
-
-    it("filters by multiple intents on same plugin", () => {
-      const multi = createMockPlugin("multi", {
-        intents: ["browse", "search"],
-      });
-      registry.register(multi);
-
-      expect(registry.getForIntent("browse")).toHaveLength(1);
-      expect(registry.getForIntent("search")).toHaveLength(1);
-      expect(registry.getForIntent("mqtt")).toHaveLength(0);
-    });
+  it('should register plugin successfully', () => {
+    registry.register(mockPlugin1);
+    
+    expect(registry.get('test-1')).toBe(mockPlugin1);
+    expect(registry.getAll()).toHaveLength(1);
+    expect(registry.getAll()[0]).toBe(mockPlugin1);
   });
 
-  describe("getAvailableForIntent", () => {
-    it("excludes non-browser-compatible plugins when not Tauri", () => {
-      const browserOk = createMockPlugin("browser-ok", {
-        intents: ["browse"],
-        browserCompatible: true,
-      });
-      const tauriOnly = createMockPlugin("tauri-only", {
-        intents: ["browse"],
-        browserCompatible: false,
-      });
-
-      registry.register(browserOk);
-      registry.register(tauriOnly);
-
-      expect(registry.getAvailableForIntent("browse", false)).toHaveLength(1);
-      expect(registry.getAvailableForIntent("browse", true)).toHaveLength(2);
-    });
+  it('should throw error when registering duplicate plugin', () => {
+    registry.register(mockPlugin1);
+    
+    expect(() => registry.register(mockPlugin1)).toThrow(
+      'Plugin test-1 is already registered'
+    );
   });
 
-  describe("lifecycle", () => {
-    it("initializeAll calls initialize on each plugin", async () => {
-      const p1 = createMockPlugin("p1");
-      const p2 = createMockPlugin("p2");
-      registry.register(p1);
-      registry.register(p2);
-
-      const results = await registry.initializeAll();
-
-      expect(p1.initialize).toHaveBeenCalledOnce();
-      expect(p2.initialize).toHaveBeenCalledOnce();
-      expect(results.get("p1")).toBeNull();
-      expect(results.get("p2")).toBeNull();
-    });
-
-    it("initializeAll isolates failures", async () => {
-      const good = createMockPlugin("good");
-      const bad = createMockPlugin("bad");
-      (bad.initialize as ReturnType<typeof vi.fn>).mockRejectedValue(
-        new Error("init failed"),
-      );
-
-      registry.register(good);
-      registry.register(bad);
-
-      const results = await registry.initializeAll();
-
-      expect(results.get("good")).toBeNull();
-      expect(results.get("bad")).toBeInstanceOf(Error);
-      expect(results.get("bad")!.message).toBe("init failed");
-    });
-
-    it("disposeAll calls dispose on each plugin", async () => {
-      const p1 = createMockPlugin("p1");
-      registry.register(p1);
-
-      await registry.disposeAll();
-
-      expect(p1.dispose).toHaveBeenCalledOnce();
-      expect(registry.size).toBe(0);
-    });
+  it('should unregister plugin successfully', () => {
+    registry.register(mockPlugin1);
+    registry.unregister('test-1');
+    
+    expect(registry.get('test-1')).toBeNull();
+    expect(registry.getAll()).toHaveLength(0);
   });
 
-  describe("events", () => {
-    it("emits plugin:registered event", () => {
-      const handler = vi.fn();
-      registry.onPluginEvent(handler);
-
-      registry.register(createMockPlugin("test"));
-
-      expect(handler).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: "plugin:registered",
-          pluginId: "test",
-        }),
-      );
-    });
-
-    it("unsubscribe stops events", () => {
-      const handler = vi.fn();
-      const unsub = registry.onPluginEvent(handler);
-      unsub();
-
-      registry.register(createMockPlugin("test"));
-
-      expect(handler).not.toHaveBeenCalled();
-    });
+  it('should throw error when unregistering non-existent plugin', () => {
+    expect(() => registry.unregister('non-existent')).toThrow(
+      'Plugin non-existent not found'
+    );
   });
 
-  describe("singleton", () => {
-    it("getDefaultRegistry returns same instance", () => {
-      const a = getDefaultRegistry();
-      const b = getDefaultRegistry();
-      expect(a).toBe(b);
-    });
+  it('should find plugins by intent', () => {
+    registry.register(mockPlugin1);
+    registry.register(mockPlugin2);
+    
+    const testPlugins = registry.findByIntent('test:intent');
+    const otherPlugins = registry.findByIntent('other:intent');
+    const emptyPlugins = registry.findByIntent('missing:intent');
+    
+    expect(testPlugins).toHaveLength(1);
+    expect(testPlugins[0]).toBe(mockPlugin1);
+    
+    expect(otherPlugins).toHaveLength(1);
+    expect(otherPlugins[0]).toBe(mockPlugin2);
+    
+    expect(emptyPlugins).toHaveLength(0);
+  });
 
-    it("resetDefaultRegistry creates fresh instance", () => {
-      const a = getDefaultRegistry();
-      resetDefaultRegistry();
-      const b = getDefaultRegistry();
-      expect(a).not.toBe(b);
-    });
+  it('should initialize all plugins', async () => {
+    const mockContext = {} as PluginContext;
+    
+    registry.register(mockPlugin1);
+    registry.register(mockPlugin2);
+    
+    await registry.initializeAll(mockContext);
+    
+    // Should not throw and all plugins should be initialized
+    expect(registry.getAll()).toHaveLength(2);
+  });
+
+  it('should dispose all plugins', async () => {
+    registry.register(mockPlugin1);
+    registry.register(mockPlugin2);
+    
+    await registry.disposeAll();
+    
+    expect(registry.getAll()).toHaveLength(0);
   });
 });

@@ -94,7 +94,7 @@ export interface PluginRegistry {
 
 export interface CommandBus {
   execute<T>(command: string, payload?: T): Promise<unknown>;
-  register<T>(command: string, handler: (payload?: T) => Promise<unknown>): void;
+  register<T>(command: string, handler: (payload: T) => Promise<unknown>): void;
   unregister(command: string): void;
 }
 
@@ -102,5 +102,5 @@ export interface AppContext {
   pluginRegistry: PluginRegistry;
   intentRouter: IntentRouter;
   commandBus: CommandBus;
-  dispose(): void;
+  dispose(): Promise<void>;
 }

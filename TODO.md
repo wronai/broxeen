@@ -15,3 +15,21 @@ aby nie trzeba było na nowo skanowac calej sieci i inicjiowac konfiguracji, ewe
 
 dlatego lista stron, urzadzen powinna byc zapisywana do bazy sqlite
 wszystkie wiadomosci chat w osobnej bazie danych
+
+
+
+wyszukaj kamere w sieci lokalnej:
+Oto najważniejsze sposoby i narzędzia, które pomogą Ci odnaleźć kamerę w sieci lokalnej:
+
+Strona Dipol poleca darmową aplikację SADP. Jest to proste narzędzie służące do wyszukiwania w sieci lokalnej kamer i rejestratorów marki Hikvision. Pozwala ono także na zmianę hasła czy edycję parametrów sieciowych.
+
+Serwis Kompletny Przewodnik wyjaśnia, że podstawą jest poznanie adresu IP kamery. Można to zrobić za pomocą wiersza poleceń w systemie Windows, wpisując komendę arp -a. Wyświetli ona listę wszystkich urządzeń podłączonych do sieci wraz z ich adresami fizycznymi.
+
+Portal Overmax opisuje narzędzie SearchPro Tool. Po podłączeniu kamery do routera i uruchomieniu tego programu wystarczy kliknąć przycisk wyszukiwania, aby na ekranie pojawił się dokładny adres IP urządzenia.
+
+Firma Kenik w swojej instrukcji wskazuje na program Device Manager. Przypomina również, że wiele kamer ma ustawiony domyślny adres, na przykład 192.168.1.100, który warto sprawdzić w pierwszej kolejności.
+
+Eksperci ze strony Digitaldep zaznaczają, że samo znalezienie kamery w sieci lokalnej to pierwszy krok. Jeśli chcesz mieć do niej dostęp spoza domu, konieczna będzie dodatkowa konfiguracja przekierowania portów na routerze.
+
+Witryna IPOX podkreśla, że producenci często dostarczają dedykowane oprogramowanie wspierające użytkownika, które automatyzuje proces wykrywania sprzętu i pomaga uniknąć konfliktów adresów w sieci.
+URL: https://html.duckduckgo.com/html/?q=wyszukaj%20kamere%20w%20sieci%20lokalnej

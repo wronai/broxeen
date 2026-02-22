@@ -10,9 +10,29 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import Chat from "./Chat";
 import { CqrsProvider } from "../contexts/CqrsContext";
+import { PluginProvider } from "../contexts/pluginContext";
+
+// Mock plugin system
+vi.mock("../contexts/pluginContext", () => ({
+  PluginProvider: ({ children }: { children: React.ReactNode }) => children,
+  usePlugins: () => ({
+    ask: vi.fn().mockResolvedValue({
+      status: 'success',
+      content: [{ type: 'text', data: 'Mock plugin response' }],
+      executionTime: 100,
+    }),
+  }),
+}));
 
 const render = (ui: React.ReactElement, options?: any) => {
-  return rtlRender(<CqrsProvider>{ui}</CqrsProvider>, options);
+  return rtlRender(
+    <CqrsProvider>
+      <PluginProvider context={null}>
+        {ui}
+      </PluginProvider>
+    </CqrsProvider>, 
+    options
+  );
 };
 
 // Mock invoke

@@ -1,3 +1,32 @@
+## [1.0.19] - 2026-02-22
+
+### Summary
+
+refactor(tests): configuration management system
+
+### Docs
+
+- docs: update TODO.md
+
+### Config
+
+- config: update goal.yaml
+
+### Other
+
+- update src/App.tsx
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/contexts/PluginContext.tsx
+- update src/contexts/pluginContext.tsx
+- update src/core/bootstrap.ts
+- update src/core/commandBus.test.ts
+- update src/core/commandBus.ts
+- update src/core/intentRouter.test.ts
+- update src/core/intentRouter.ts
+- ... and 6 more
+
+
 ## [1.0.18] - 2026-02-22
 
 ### Summary

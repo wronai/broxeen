@@ -11,6 +11,8 @@ import {
 } from "./domain/audioSettings";
 import { logger, logAsyncDecorator, logSyncDecorator } from "./lib/logger";
 import { isTauriRuntime } from "./lib/runtime";
+import { bootstrapApp, type AppContext } from "./core/bootstrap";
+import { PluginProvider } from "./contexts/pluginContext";
 
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -18,6 +20,7 @@ export default function App() {
     DEFAULT_AUDIO_SETTINGS,
   );
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [appCtx, setAppCtx] = useState<AppContext | null>(null);
   const startupLogger = logger.scope("startup:app");
 
   useEffect(() => {
@@ -26,6 +29,24 @@ export default function App() {
 
     startupLogger.info("Runtime detected", {
       runtime: runtimeIsTauri ? "tauri" : "browser",
+    });
+
+    // Initialize plugin system
+    const initializePlugins = logAsyncDecorator(
+      "startup:app",
+      "initializePlugins",
+      async () => {
+        const context = await bootstrapApp({
+          isTauri: runtimeIsTauri,
+          tauriInvoke: (window as any).__TAURI__?.core?.invoke,
+        });
+        setAppCtx(context);
+        startupLogger.info("Plugin system initialized successfully");
+      },
+    );
+
+    void initializePlugins().catch((error) => {
+      startupLogger.error("Plugin system initialization failed", error);
     });
 
     const loadSettings = logAsyncDecorator(
@@ -96,8 +117,15 @@ export default function App() {
         );
         window.speechSynthesis.onvoiceschanged = null;
       }
+      
+      // Cleanup plugin system
+      if (appCtx) {
+        void appCtx.dispose().catch((error: unknown) => {
+          startupLogger.warn("Plugin system cleanup failed", error);
+        });
+      }
     };
-  }, []);
+  }, [appCtx]);
 
   return (
     <div className="flex h-screen flex-col bg-gray-950 text-white">
@@ -123,9 +151,20 @@ export default function App() {
 
       {/* Chat area */}
       <CqrsProvider>
-        <main className="flex-1 overflow-hidden">
-          <Chat settings={settings} />
-        </main>
+        {appCtx ? (
+          <PluginProvider context={appCtx}>
+            <main className="flex-1 overflow-hidden">
+              <Chat settings={settings} />
+            </main>
+          </PluginProvider>
+        ) : (
+          <main className="flex-1 overflow-hidden flex items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-broxeen-600 mx-auto mb-4"></div>
+              <p className="text-gray-400">Initializing plugin system...</p>
+            </div>
+          </main>
+        )}
       </CqrsProvider>
 
       {/* Settings modal */}

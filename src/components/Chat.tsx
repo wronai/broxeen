@@ -18,6 +18,7 @@ import { useTts } from "../hooks/useTts";
 import { useLlm } from "../hooks/useLlm";
 import { useCqrs } from "../contexts/CqrsContext";
 import { useChatMessages } from "../hooks/useChatMessages";
+import { usePlugins } from "../contexts/pluginContext";
 import TtsControls from "./TtsControls";
 import type { AudioSettings } from "../domain/audioSettings";
 import { type ChatMessage } from "../domain/chatEvents";
@@ -40,6 +41,7 @@ export default function Chat({ settings }: ChatProps) {
   // State managed by CQRS Event Store
   const { commands, eventStore } = useCqrs();
   const messages = useChatMessages();
+  const { ask } = usePlugins();
 
   const [input, setInput] = useState("");
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -204,56 +206,108 @@ export default function Chat({ settings }: ChatProps) {
     setInput("");
     chatLogger.info("Handling submit", { queryLength: query.length });
 
-    // Emit user message directly to store since commands assume loading state
-    // In a pure CQRS world this might be a SendUserMessageCommand, but direct event is fine for UI interaction
+    // Emit user message directly to store
     eventStore.append({
       type: "message_added",
       payload: { id: Date.now(), role: "user", text: query },
     });
 
-    const result = resolve(query);
-    chatLogger.info("Query resolved", {
-      resolveType: result.resolveType,
-      needsClarification: result.needsClarification,
-      hasUrl: !!result.url,
-      suggestionsCount: result.suggestions.length,
-    });
-
-    if (result.needsClarification) {
-      eventStore.append({
-        type: "message_added",
-        payload: {
-          id: Date.now(),
-          role: "assistant",
-          text: "Czy chodziło Ci o jedną z tych stron?",
-          suggestions: result.suggestions,
-          resolveType: result.resolveType,
-        },
+    try {
+      // Use plugin system to handle the query
+      const result = await ask(query, isListening || stt.isRecording ? "voice" : "text");
+      
+      chatLogger.info("Plugin system result", {
+        status: result.status,
+        contentBlocks: result.content.length,
+        executionTime: result.executionTime,
       });
-      return;
-    }
 
-    if (!result.url) {
-      // If LLM is available and we have page content or it's a general question, route to LLM
-      if (llmAvailable && !looksLikeUrl(query)) {
-        chatLogger.info("No URL resolved, routing to LLM Q&A", {
-          hasPageContent: !!pageContent,
+      if (result.status === 'success') {
+        // Convert plugin content blocks to chat messages
+        for (const block of result.content) {
+          let messageText = '';
+          let messageType: 'content' | 'image' = 'content';
+          
+          if (block.type === 'text') {
+            messageText = block.data as string;
+          } else if (block.type === 'image') {
+            messageText = block.data as string;
+            messageType = 'image';
+          } else {
+            messageText = String(block.data);
+          }
+
+          eventStore.append({
+            type: "message_added",
+            payload: {
+              id: Date.now() + Math.random(), // Ensure unique IDs for multiple blocks
+              role: "assistant",
+              text: messageText,
+              type: messageType,
+              title: block.title,
+            },
+          });
+        }
+      } else {
+        // Handle error case
+        eventStore.append({
+          type: "message_added",
+          payload: {
+            id: Date.now(),
+            role: "assistant",
+            text: result.content[0]?.data ?? "Wystąpił błąd podczas przetwarzania zapytania.",
+            type: "error",
+          },
         });
-        await handleLlmQuestion(query);
+      }
+    } catch (error) {
+      chatLogger.error("Plugin system execution failed", error);
+      
+      // Fallback to original logic if plugin system fails
+      const result = resolve(query);
+      chatLogger.info("Fallback to resolver", {
+        resolveType: result.resolveType,
+        needsClarification: result.needsClarification,
+        hasUrl: !!result.url,
+        suggestionsCount: result.suggestions.length,
+      });
+
+      if (result.needsClarification) {
+        eventStore.append({
+          type: "message_added",
+          payload: {
+            id: Date.now(),
+            role: "assistant",
+            text: "Czy chodziło Ci o jedną z tych stron?",
+            suggestions: result.suggestions,
+            resolveType: result.resolveType,
+          },
+        });
         return;
       }
-      chatLogger.warn(
-        "Resolution returned no URL and no clarification request",
-      );
-      return;
-    }
 
-    // Execute CQRS Browse Command
-    await commands.browse.execute({
-      query: query,
-      resolvedUrl: result.url,
-      resolveType: result.resolveType,
-    });
+      if (!result.url) {
+        // If LLM is available and we have page content or it's a general question, route to LLM
+        if (llmAvailable && !looksLikeUrl(query)) {
+          chatLogger.info("No URL resolved, routing to LLM Q&A", {
+            hasPageContent: !!pageContent,
+          });
+          await handleLlmQuestion(query);
+          return;
+        }
+        chatLogger.warn(
+          "Resolution returned no URL and no clarification request",
+        );
+        return;
+      }
+
+      // Execute CQRS Browse Command
+      await commands.browse.execute({
+        query: query,
+        resolvedUrl: result.url,
+        resolveType: result.resolveType,
+      });
+    }
   };
 
   const handleLlmQuestion = async (question: string) => {
