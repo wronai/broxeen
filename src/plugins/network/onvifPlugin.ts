@@ -126,16 +126,21 @@ export class OnvifPlugin implements Plugin {
       lines.push('• Protokół ONVIF jest włączony w kamerach');
       lines.push('• Firewall nie blokuje portów 80, 8080, 554');
     } else {
-      cameras.forEach((cam, i) => {
+      cameras.forEach((cam: any, i: number) => {
+        // Support both camelCase (TS) and snake_case (Rust) field names
+        const rtspUrl = cam.rtspUrl ?? cam.rtsp_url;
+        const snapshotUrl = cam.snapshotUrl ?? cam.snapshot_url;
+        const requiresAuth = cam.requiresAuth ?? cam.requires_auth;
+        const profiles = cam.profiles ?? [];
         lines.push(`**${i + 1}. ${cam.name ?? cam.ip}**`);
         lines.push(`   IP: \`${cam.ip}:${cam.port}\``);
         if (cam.manufacturer) lines.push(`   Producent: ${cam.manufacturer}`);
         if (cam.model) lines.push(`   Model: ${cam.model}`);
         if (cam.firmware) lines.push(`   Firmware: ${cam.firmware}`);
-        if (cam.rtspUrl) lines.push(`   RTSP: \`${cam.rtspUrl}\``);
-        if (cam.snapshotUrl) lines.push(`   Snapshot: \`${cam.snapshotUrl}\``);
-        if (cam.requiresAuth) lines.push(`   🔐 Wymaga hasła`);
-        if (cam.profiles?.length) lines.push(`   Profile: ${cam.profiles.join(', ')}`);
+        if (rtspUrl) lines.push(`   RTSP: \`${rtspUrl}\``);
+        if (snapshotUrl) lines.push(`   Snapshot: \`${snapshotUrl}\``);
+        if (requiresAuth) lines.push(`   🔐 Wymaga hasła`);
+        if (profiles.length) lines.push(`   Profile: ${profiles.join(', ')}`);
         lines.push('');
       });
       lines.push('💡 Użyj "pokaż kamerę [IP]" aby zobaczyć obraz z kamery.');

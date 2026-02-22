@@ -2,11 +2,12 @@
  * Intent Router - detects user intent and routes to appropriate plugin
  */
 
-import type { IntentDetection, IntentRouter as IIntentRouter, Plugin, PluginContext } from './types';
+import type { IntentDetection, IntentRouter as IIntentRouter, Plugin, PluginContext, DataSourcePlugin } from './types';
 
 export class IntentRouter implements IIntentRouter {
   private intentPatterns = new Map<string, RegExp[]>();
   private plugins = new Map<string, Plugin>();
+  private dataSourcePlugins = new Map<string, DataSourcePlugin>();
 
   constructor() {
     this.initializeDefaultPatterns();
@@ -19,32 +20,28 @@ export class IntentRouter implements IIntentRouter {
       /^(www\.)?[a-z0-9-]+\.[a-z]{2,}/i,
     ]);
 
-    // Network discovery intents
+    // Network discovery intents (checked before camera:describe)
     this.intentPatterns.set('network:scan', [
       /skanuj.*sieć/i,
+      /skanuj.*siec/i,
       /odkryj.*urządzenia/i,
+      /odkryj.*urzadzenia/i,
       /znajdź.*urządzenia/i,
+      /znajdz.*urzadzenia/i,
       /scan.*network/i,
-      /znajdź.*kamerę.*w.*sieci/i,
-      /znajdź.*kamere.*w.*sieci/i,
-      /znajdź.*kamerę.*lokalnej/i,
-      /znajdź.*kamere.*lokalnej/i,
-      /wyszukaj.*kamerę.*w.*sieci/i,
-      /wyszukaj.*kamere.*lokalnej/i,
-      /skanuj.*siec.*w.*poszukiwaniu.*kamer/i,
-      /odkryj.*kamery.*w.*sieci/i,
-      /odkryj.*kamery.*lokalnej/i,
-      /wyszukaj.*kamery.*w.*sieci/i,
-      /znajdz.*kamery.*w.*sieci/i,
-      /znajdz.*kamery.*lokalnej/i,
-      /skanuj.*siec.*kamer/i,
-      /odkryj.*kamery.*sieci/i,
-      /skanuj.*siec.*kamerami/i,
-      /poszukaj.*kamer.*w.*sieci/i,
-      /znajdz.*kamery.*lokalnej/i,
+      /pokaż.*kamery/i,
+      /pokaz.*kamery/i,
+      /znajdź.*kamery/i,
+      /znajdz.*kamery/i,
+      /wyszukaj.*kamery/i,
+      /wykryj.*kamery/i,
+      /kamery.*w.*sieci/i,
+      /kamery.*lan/i,
+      /discover.*cameras/i,
+      /find.*cameras/i,
     ]);
 
-    // Camera intents
+    // Camera describe intents (specific camera view, not discovery)
     this.intentPatterns.set('camera:describe', [
       /co.*wida.*na.*kamerze/i,
       /co.*widocz.*na.*kamerze/i,
@@ -52,24 +49,27 @@ export class IntentRouter implements IIntentRouter {
       /co.*się.*dzieje.*na.*kamerze/i,
       /co.*sie.*dzieje.*na.*kamerze/i,
       /pokaż.*kamerę/i,
-      /pokaż.*kamery/i,
       /pokaz.*kamera/i,
-      /pokaz.*kamery/i,
       /kamera.*wejściow/i,
       /kamera.*ogrod/i,
       /co.*dzieje.*się.*na.*kamerze/i,
-      /co.*dzieje.*się.*na.*kamerze.*ogrodow/i,
-      /co.*dzieje.*się.*na.*kamerze.*salonow/i,
     ]);
 
     // Network ping intents
     this.intentPatterns.set('network:ping', [
       /ping\s/i,
+      /^ping$/i,
       /sprawdź.*host/i,
       /sprawdz.*host/i,
+      /sprawdź.*dostępność/i,
+      /sprawdz.*dostepnosc/i,
       /czy.*odpowiada/i,
       /czy.*działa.*host/i,
+      /czy.*dziala.*host/i,
+      /czy.*jest.*dostępny/i,
+      /czy.*jest.*dostepny/i,
       /check.*host/i,
+      /reachable/i,
     ]);
 
     // Port scan intents
@@ -86,9 +86,20 @@ export class IntentRouter implements IIntentRouter {
     // ARP intents
     this.intentPatterns.set('network:arp', [
       /tablica.*arp/i,
+      /arp.*tablica/i,
       /arp.*table/i,
+      /arp.*scan/i,
+      /skanuj.*lan/i,
+      /scan.*lan/i,
       /adresy.*mac/i,
       /mac.*address/i,
+      /kto.*jest.*w.*sieci/i,
+      /kto.*w.*sieci/i,
+      /lista.*urządzeń/i,
+      /lista.*urzadzen/i,
+      /wszystkie.*urządzenia/i,
+      /wszystkie.*urzadzenia/i,
+      /hosty.*w.*sieci/i,
       /pokaż.*urządzenia.*mac/i,
       /pokaz.*urzadzenia.*mac/i,
     ]);
@@ -109,19 +120,30 @@ export class IntentRouter implements IIntentRouter {
     this.intentPatterns.set('network:mdns', [
       /mdns/i,
       /bonjour/i,
+      /zeroconf/i,
       /avahi/i,
       /odkryj.*usługi/i,
       /odkryj.*uslugi/i,
       /discover.*services/i,
       /znajdź.*usługi/i,
       /znajdz.*uslugi/i,
+      /usługi.*lokalne/i,
+      /uslugi.*lokalne/i,
+      /local.*services/i,
+      /urządzenia.*w.*sieci/i,
+      /urzadzenia.*w.*sieci/i,
     ]);
 
     // ONVIF camera discovery intents
     this.intentPatterns.set('camera:onvif', [
       /onvif/i,
-      /odkryj.*kamer.*onvif/i,
+      /odkryj.*kamer/i,
+      /wykryj.*kamer/i,
       /wyszukaj.*kamer.*ip/i,
+      /kamery.*ip/i,
+      /ip.*camera/i,
+      /discover.*camera/i,
+      /find.*camera/i,
     ]);
 
     // Camera health/status intents
@@ -193,9 +215,12 @@ export class IntentRouter implements IIntentRouter {
     this.intentPatterns.set('search:web', [
       /wyszukaj.*stronę/i,
       /wyszukaj.*w.*internecie/i,
+      /wyszukaj\s+informacje/i,
+      /wyszukaj\s+o\s/i,
       /znajdź.*w.*internecie/i,
       /szukaj.*w.*google/i,
       /poszukaj.*w.*internecie/i,
+      /search.*for/i,
     ]);
 
     // Chat/LLM intents (fallback)
@@ -206,6 +231,10 @@ export class IntentRouter implements IIntentRouter {
 
   registerPlugin(plugin: Plugin): void {
     this.plugins.set(plugin.id, plugin);
+  }
+
+  registerDataSourcePlugin(plugin: DataSourcePlugin): void {
+    this.dataSourcePlugins.set(plugin.id, plugin);
   }
 
   async detect(input: string): Promise<IntentDetection> {
@@ -237,21 +266,19 @@ export class IntentRouter implements IIntentRouter {
     };
   }
 
-  route(intent: string): Plugin | null {
-    console.log(`🔍 Routing intent: ${intent}`);
-    console.log(`📦 Available plugins: ${Array.from(this.plugins.keys()).join(', ')}`);
-    console.log(`🔍 Plugin intents:`, Array.from(this.plugins.entries()).map(([id, plugin]) => ({
-      id,
-      intents: plugin.supportedIntents
-    })));
-    
+  route(intent: string): Plugin | DataSourcePlugin | null {
+    // Check legacy plugins first
     for (const plugin of this.plugins.values()) {
       if (plugin.supportedIntents.includes(intent)) {
-        console.log(`✅ Found plugin for intent ${intent}: ${plugin.id}`);
         return plugin;
       }
     }
-    
+    // Check DataSourcePlugins
+    for (const plugin of this.dataSourcePlugins.values()) {
+      if (plugin.capabilities.intents.includes(intent as any)) {
+        return plugin;
+      }
+    }
     console.log(`❌ No plugin found for intent: ${intent}`);
     return null;
   }

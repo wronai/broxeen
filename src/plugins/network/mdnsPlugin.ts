@@ -104,7 +104,8 @@ export class MdnsPlugin implements Plugin {
 
   private groupByType(services: MdnsService[]): Record<string, MdnsService[]> {
     return services.reduce((acc, svc) => {
-      const key = svc.type;
+      // Support both camelCase (TS) and snake_case (Rust) field names
+      const key = (svc as any).service_type ?? svc.type;
       if (!acc[key]) acc[key] = [];
       acc[key].push(svc);
       return acc;

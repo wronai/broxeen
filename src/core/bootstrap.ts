@@ -3,6 +3,7 @@
  */
 
 import type { PluginContext, AppContext } from './types';
+import { scopeRegistry } from '../plugins/scope/scopeRegistry';
 
 export type { AppContext };
 import { PluginRegistry } from './pluginRegistry';
@@ -18,27 +19,25 @@ export async function bootstrapApp(config: {
 }): Promise<AppContext> {
   console.log('🚀 Bootstrapping Broxeen v2 Plugin System...');
 
-  // Initialize core components
+  scopeRegistry.restore();
+
   const pluginRegistry = new PluginRegistry();
   const intentRouter = new IntentRouter();
   const commandBus = new CommandBus();
 
-  // Create plugin context
   const pluginContext: PluginContext = {
     isTauri: config.isTauri,
     tauriInvoke: config.tauriInvoke,
     cameras: config.cameras || [],
     mqtt: config.mqtt,
     describeImage: config.describeImage,
+    scope: scopeRegistry.getActiveScope().id,
   };
 
-  // Auto-register plugins (will be implemented in subsequent steps)
-  await registerCorePlugins(pluginRegistry, intentRouter, commandBus, config.isTauri);
-
-  // Initialize all plugins
+  await registerCorePlugins(pluginRegistry, intentRouter, commandBus, config.isTauri, config.tauriInvoke);
   await pluginRegistry.initializeAll(pluginContext);
 
-  console.log('✅ Plugin system initialized successfully');
+  console.log(`✅ Plugin system initialized — ${pluginRegistry.getAll().length} plugins, scope: ${scopeRegistry.getActiveScope().id}`);
 
   return {
     pluginRegistry,
@@ -48,129 +47,109 @@ export async function bootstrapApp(config: {
       console.log('🧹 Disposing plugin system...');
       await pluginRegistry.disposeAll();
       commandBus.clear();
+      scopeRegistry.persist();
     },
   };
 }
 
-/**
- * Auto-register core plugins
- * This will be expanded as we add more plugins
- */
+function safeRegister(registry: PluginRegistry, router: IntentRouter, plugin: any, label: string): void {
+  try {
+    registry.register(plugin);
+    if ('capabilities' in plugin) {
+      router.registerDataSourcePlugin(plugin);
+    } else {
+      router.registerPlugin(plugin);
+    }
+    console.log(`✅ ${label} registered`);
+  } catch (err) {
+    console.warn(`⚠️ ${label} registration failed:`, err);
+  }
+}
+
 async function registerCorePlugins(
   registry: PluginRegistry,
   router: IntentRouter,
   bus: CommandBus,
-  isTauri: boolean
+  isTauri: boolean,
+  tauriInvoke?: (command: string, args?: unknown) => Promise<unknown>,
 ): Promise<void> {
-  // Import plugins dynamically to avoid circular dependencies
-  const { HttpBrowsePlugin } = await import('../plugins/http/browsePlugin');
-  const { ChatLlmPlugin } = await import('../plugins/chat/chatPlugin');
-  
-  // Register Network Scan plugin first (higher priority for local operations)
-  try {
-    console.log('🔄 Attempting to import NetworkScanPlugin...');
-    const { NetworkScanPlugin } = await import('../plugins/discovery/networkScanPlugin');
-    console.log('✅ NetworkScanPlugin imported successfully');
-    
-    const networkScanInstance = new NetworkScanPlugin();
-    console.log('✅ NetworkScanPlugin instantiated');
-    console.log('📋 NetworkScanPlugin supported intents:', networkScanInstance.supportedIntents);
-    
-    registry.register(networkScanInstance);
-    console.log('✅ NetworkScanPlugin registered in registry');
-    
-    router.registerPlugin(networkScanInstance);
-    console.log('✅ NetworkScanPlugin registered in router');
-    
-    console.log('📦 All registered plugins:', Array.from(router['plugins'].keys()));
-    console.log('📦 All registry plugins:', registry.getAll().map(p => p.id));
-  } catch (error) {
-    console.warn('⚠️ NetworkScanPlugin not available:', error);
-  }
 
-  // Register Service Probe plugin only in Tauri (requires Node.js APIs)
+  // ── Local/Network scope plugins ─────────────────────────────
+
+  try {
+    const { NetworkScanPlugin } = await import('../plugins/discovery/networkScanPlugin');
+    safeRegister(registry, router, new NetworkScanPlugin(), 'NetworkScanPlugin');
+  } catch (e) { console.warn('NetworkScanPlugin unavailable:', e); }
+
+  try {
+    const { PingPlugin } = await import('../plugins/network/pingPlugin');
+    safeRegister(registry, router, new PingPlugin(), 'PingPlugin');
+  } catch (e) { console.warn('PingPlugin unavailable:', e); }
+
+  try {
+    const { PortScanPlugin } = await import('../plugins/network/portScanPlugin');
+    safeRegister(registry, router, new PortScanPlugin(), 'PortScanPlugin');
+  } catch (e) { console.warn('PortScanPlugin unavailable:', e); }
+
+  try {
+    const { OnvifPlugin } = await import('../plugins/network/onvifPlugin');
+    safeRegister(registry, router, new OnvifPlugin(), 'OnvifPlugin');
+  } catch (e) { console.warn('OnvifPlugin unavailable:', e); }
+
+  try {
+    const { MdnsPlugin } = await import('../plugins/network/mdnsPlugin');
+    safeRegister(registry, router, new MdnsPlugin(), 'MdnsPlugin');
+  } catch (e) { console.warn('MdnsPlugin unavailable:', e); }
+
+  try {
+    const { ArpPlugin } = await import('../plugins/network/arpPlugin');
+    safeRegister(registry, router, new ArpPlugin(), 'ArpPlugin');
+  } catch (e) { console.warn('ArpPlugin unavailable:', e); }
+
+  // RTSP Camera plugin
+  try {
+    const { RtspCameraPlugin, HttpSnapshotGrabber, TauriRtspGrabber } = await import('../plugins/rtsp-camera/rtspCameraPlugin');
+    const grabbers = isTauri && tauriInvoke
+      ? [new TauriRtspGrabber(tauriInvoke as any), new HttpSnapshotGrabber()]
+      : [new HttpSnapshotGrabber()];
+    const rtspPlugin = new RtspCameraPlugin({ cameras: [], grabbers });
+    safeRegister(registry, router, rtspPlugin, 'RtspCameraPlugin');
+  } catch (e) { console.warn('RtspCameraPlugin unavailable:', e); }
+
+  // Service probe (Tauri only)
   if (isTauri) {
     try {
       const { ServiceProbePlugin } = await import('../plugins/discovery/serviceProbePlugin');
-      const serviceProbeInstance = new ServiceProbePlugin();
-      registry.register(serviceProbeInstance);
-      router.registerPlugin(serviceProbeInstance);
-    } catch (error) {
-      console.warn('⚠️ ServiceProbePlugin not available:', error);
-    }
+      safeRegister(registry, router, new ServiceProbePlugin(), 'ServiceProbePlugin');
+    } catch (e) { console.warn('ServiceProbePlugin unavailable:', e); }
   }
 
-  // ── Local Network Plugins ──────────────────────────────────
-  const localNetworkPlugins = [
-    () => import('../plugins/local-network/pingPlugin').then(m => new m.PingPlugin()),
-    () => import('../plugins/local-network/portScanPlugin').then(m => new m.PortScanPlugin()),
-    () => import('../plugins/local-network/arpPlugin').then(m => new m.ArpPlugin()),
-    () => import('../plugins/local-network/wakeOnLanPlugin').then(m => new m.WakeOnLanPlugin()),
-    () => import('../plugins/local-network/mdnsPlugin').then(m => new m.MdnsPlugin()),
-    () => import('../plugins/local-network/onvifPlugin').then(m => new m.OnvifPlugin()),
-  ];
+  // ── Internet scope plugins ───────────────────────────────────
 
-  for (const loader of localNetworkPlugins) {
-    try {
-      const plugin = await loader();
-      registry.register(plugin);
-      router.registerPlugin(plugin);
-    } catch (error) {
-      console.warn(`⚠️ Local network plugin not available:`, error);
-    }
-  }
-
-  // ── Camera Plugins ─────────────────────────────────────────
-  const cameraPlugins = [
-    () => import('../plugins/cameras/cameraHealthPlugin').then(m => new m.CameraHealthPlugin()),
-    () => import('../plugins/cameras/cameraPtzPlugin').then(m => new m.CameraPtzPlugin()),
-    () => import('../plugins/cameras/cameraSnapshotPlugin').then(m => new m.CameraSnapshotPlugin()),
-  ];
-
-  for (const loader of cameraPlugins) {
-    try {
-      const plugin = await loader();
-      registry.register(plugin);
-      router.registerPlugin(plugin);
-    } catch (error) {
-      console.warn(`⚠️ Camera plugin not available:`, error);
-    }
-  }
-
-  // ── Marketplace Plugin ─────────────────────────────────────
   try {
-    const { MarketplacePlugin } = await import('../plugins/marketplace/marketplaceLoader');
-    const marketplacePlugin = new MarketplacePlugin();
-    registry.register(marketplacePlugin);
-    router.registerPlugin(marketplacePlugin);
-  } catch (error) {
-    console.warn('⚠️ MarketplacePlugin not available:', error);
-  }
+    const { HttpBrowsePlugin } = await import('../plugins/http/browsePlugin');
+    safeRegister(registry, router, new HttpBrowsePlugin(), 'HttpBrowsePlugin');
+  } catch (e) { console.warn('HttpBrowsePlugin unavailable:', e); }
 
-  // Register HTTP Browse plugin
-  const httpBrowsePlugin = new HttpBrowsePlugin();
-  registry.register(httpBrowsePlugin);
-  router.registerPlugin(httpBrowsePlugin);
+  // ── Fallback ─────────────────────────────────────────────────
 
-  // Register Chat LLM plugin (fallback, lowest priority)
-  const chatLlmPlugin = new ChatLlmPlugin();
-  registry.register(chatLlmPlugin);
-  router.registerPlugin(chatLlmPlugin);
+  try {
+    const { ChatLlmPlugin } = await import('../plugins/chat/chatPlugin');
+    safeRegister(registry, router, new ChatLlmPlugin(), 'ChatLlmPlugin');
+  } catch (e) { console.warn('ChatLlmPlugin unavailable:', e); }
 
-  // Register command handlers
+  // ── Command bus ──────────────────────────────────────────────
+
   bus.register('plugins:ask', async (payload: string) => {
     const intent = await router.detect(payload);
     const plugin = router.route(intent.intent);
-    
-    if (!plugin) {
-      throw new Error(`No plugin found for intent: ${intent.intent}`);
-    }
-
+    if (!plugin) throw new Error(`No plugin found for intent: ${intent.intent}`);
     return await plugin.execute(payload, {
       isTauri: typeof window !== 'undefined' && !!(window as any).__TAURI__,
       tauriInvoke: (window as any).__TAURI__?.core?.invoke,
+      scope: scopeRegistry.getActiveScope().id,
     } as PluginContext);
   });
 
-  console.log(`📦 Registered ${registry.getAll().length} core plugins`);
+  console.log(`📦 Registered ${registry.getAll().length} plugins`);
 }

@@ -91,8 +91,8 @@ export class PortScanPlugin implements Plugin {
   private extractTarget(input: string): string | null {
     const ipMatch = input.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
     if (ipMatch) return ipMatch[0];
-    const hostMatch = input.match(/(?:skanuj|scan|sprawdź|check)\s+(?:porty?\s+)?(\S+)/i);
-    if (hostMatch) return hostMatch[1];
+    const hostMatch = input.match(/\b([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}\b/);
+    if (hostMatch) return hostMatch[0];
     return null;
   }
 

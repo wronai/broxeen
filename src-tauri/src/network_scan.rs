@@ -9,7 +9,7 @@ use std::str::FromStr;
 use std::time::{Duration, Instant};
 use std::process::Command;
 
-use crate::logging::{backend_info, backend_warn, backend_error};
+use crate::logging::{backend_info, backend_warn};
 
 // ─── Ping ────────────────────────────────────────────────────
 
@@ -553,6 +553,7 @@ fn parse_avahi_output(output: &str) -> Vec<MdnsService> {
     services
 }
 
+#[cfg(target_os = "macos")]
 fn parse_dns_sd_output(output: &str) -> Vec<MdnsService> {
     output.lines()
         .filter(|l| l.contains("Add"))
