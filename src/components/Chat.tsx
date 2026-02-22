@@ -965,6 +965,11 @@ ${analysis}`,
           });
         }
         
+        // Auto-play TTS for plugin responses (bypass loading-wait mechanism)
+        if (settings.tts_enabled && tts.isSupported && fullResult.trim().length > 0) {
+          tts.speak(fullResult.trim().slice(0, 3000));
+        }
+
         // Add to command history
         addToCommandHistory(query, fullResult.trim(), categorizeCommand(query), true);
       } else {
