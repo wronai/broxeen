@@ -34,6 +34,8 @@ export class IntentRouter implements IIntentRouter {
       /pokaz.*kamer/i,
       /znajdź.*kamer/i,
       /znajdz.*kamer/i,
+      /odnajdź.*kamer/i,
+      /odnajdz.*kamer/i,
       /wyszukaj.*kamer/i,
       /wykryj.*kamer/i,
       /kamer.*w.*sieci/i,

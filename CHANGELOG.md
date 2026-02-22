@@ -1,3 +1,29 @@
+## [1.0.36] - 2026-02-22
+
+### Summary
+
+feat(tests): deep code analysis engine with 4 supporting modules
+
+### Docs
+
+- docs: update ADVANCED_CAMERA_DETECTION.md
+- docs: update INLINE_ACTION_HINTS_CAMERA.md
+
+### Other
+
+- update src/App.tsx
+- update src/contexts/pluginContext.tsx
+- update src/core/intentRouter.test.ts
+- update src/core/intentRouter.ts
+- update src/plugins/__tests__/plugins.e2e.test.ts
+- update src/plugins/discovery/advancedPortScanPlugin.ts
+- update src/plugins/discovery/networkScanPlugin.ts
+- update src/plugins/http/browsePlugin.ts
+- update src/plugins/network/portScanPlugin.test.ts
+- update src/plugins/network/portScanPlugin.ts
+- ... and 1 more
+
+
 ## [2.1.0] - 2026-02-22
 
 ### Summary

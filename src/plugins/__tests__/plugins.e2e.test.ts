@@ -616,7 +616,7 @@ describe('Bootstrap integration', () => {
 // ─── Scope-aware routing ─────────────────────────────────────
 
 describe('Scope-aware routing — end to end', () => {
-  it('local scope blocks http-browse but allows network-scan', async () => {
+  it('local scope allows http-browse for LAN IPs, blocks internet URLs via canHandle', async () => {
     const router = new IntentRouter();
     const registry = new PluginRegistry();
 
@@ -631,9 +631,16 @@ describe('Scope-aware routing — end to end', () => {
     expect(scanPlugin).not.toBeNull();
     expect(scanPlugin!.id).toBe('network-scan');
 
-    // browse:url should be blocked in local scope
+    // browse:url is now routable in local scope (for LAN IP browsing)
     const browsePlugin = router.route('browse:url', 'local');
-    expect(browsePlugin).toBeNull();
+    expect(browsePlugin).not.toBeNull();
+    expect(browsePlugin!.id).toBe('http-browse');
+
+    // canHandle blocks non-LAN URLs in local scope
+    const ctx = { isTauri: false, tauriInvoke: undefined, scope: 'local' };
+    expect(await (browsePlugin as HttpBrowsePlugin).canHandle('http://google.com', ctx)).toBe(false);
+    // canHandle allows LAN IP URLs in local scope
+    expect(await (browsePlugin as HttpBrowsePlugin).canHandle('http://192.168.188.146:80', ctx)).toBe(true);
   });
 
   it('internet scope blocks network-scan but allows http-browse', () => {

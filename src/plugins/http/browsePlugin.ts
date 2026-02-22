@@ -11,12 +11,14 @@ export class HttpBrowsePlugin implements Plugin {
   readonly version = '1.0.0';
   readonly supportedIntents = ['browse:url', 'search:web'];
 
+  private isLanUrl(url: string): boolean {
+    return /https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|localhost|127\.0\.)/.test(url);
+  }
+
   async canHandle(input: string, context: PluginContext): Promise<boolean> {
-    // If scope is local, only handle explicit URLs, not search queries
     if (context.scope === 'local') {
-      // For local scope, only handle if it's an explicit URL
-      // Don't handle search queries like "wyszukaj" or "znajdź"
-      return input.match(/^(https?:\/\/[^\s]+|www\.[a-z0-9-]+\.[a-z]{2,})/i) !== null;
+      // In local scope only allow LAN IP / localhost URLs
+      return this.isLanUrl(input);
     }
 
     // For internet scope, handle general web browsing and search queries
@@ -32,15 +34,15 @@ export class HttpBrowsePlugin implements Plugin {
     const startTime = Date.now();
 
     try {
-      // Check if scope is local - if so, don't browse the internet
-      if (context.scope === 'local') {
+      // In local scope block public internet URLs (LAN is allowed by canHandle)
+      if (context.scope === 'local' && !this.isLanUrl(input)) {
         return {
           pluginId: this.id,
           status: 'error',
           content: [
             {
               type: 'text',
-              data: 'Przeszukiwanie internetu nie jest dostępne w zakresie "Sieć lokalna". Zmień zakres na "Internet", aby wyszukać w sieci.',
+              data: 'Publiczne adresy internetowe są zablokowane w zakresie "Sieć lokalna". Zmień zakres na "Internet", aby przeglądać sieć.',
               title: 'Ograniczenie zakresu'
             }
           ],
@@ -54,7 +56,7 @@ export class HttpBrowsePlugin implements Plugin {
         };
       }
 
-      // Use existing browseGateway logic for non-local scopes
+      // Use existing browseGateway logic
       const { executeBrowseCommand } = await import('../../lib/browseGateway');
       
       // Resolve URL using existing resolver

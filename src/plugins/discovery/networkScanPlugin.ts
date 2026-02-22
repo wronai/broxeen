@@ -63,7 +63,7 @@ export class NetworkScanPlugin implements Plugin {
         try {
           console.log(`[NetworkScanPlugin] Starting real network scan via Tauri...`);
           const result = await context.tauriInvoke('scan_network', {
-            subnet: null,
+            subnet: userSpecifiedSubnet,
             timeout: 5000,
           }) as NetworkScanResult;
 
@@ -103,8 +103,9 @@ export class NetworkScanPlugin implements Plugin {
       }
 
       console.log(`[NetworkScanPlugin] Using browser fallback - isTauri: ${context.isTauri}, hasInvoke: !!${context.tauriInvoke}`);
-      const fallbackResult = await this.browserFallback(isCameraQuery, start, userSpecifiedSubnet);
+      const fallbackResult = await this.browserFallback(isCameraQuery, start, userSpecifiedSubnet, context);
       processRegistry.complete(scanId);
+      processRegistry.remove(scanId);
       return fallbackResult;
     } catch (err) {
       processRegistry.fail(scanId, String(err));
@@ -113,7 +114,12 @@ export class NetworkScanPlugin implements Plugin {
     }
   }
 
-  private async browserFallback(isCameraQuery: boolean, start: number, userSpecifiedSubnet: string | null = null): Promise<PluginResult> {
+  private async browserFallback(
+    isCameraQuery: boolean,
+    start: number,
+    userSpecifiedSubnet: string | null = null,
+    context?: PluginContext,
+  ): Promise<PluginResult> {
     // Step 1: Detect local subnet (or use user-specified one)
     let localIp: string | null = null;
     let subnet: string;
@@ -126,7 +132,7 @@ export class NetworkScanPlugin implements Plugin {
       console.log(`[NetworkScanPlugin] Using user-specified subnet: ${subnet}`);
     } else {
       // Auto-detect subnet
-      const detection = await this.detectSubnet();
+      const detection = await this.detectSubnet(context);
       localIp = detection.localIp;
       subnet = detection.subnet;
       detectionMethod = detection.detectionMethod;
@@ -316,17 +322,16 @@ export class NetworkScanPlugin implements Plugin {
    * 2. Gateway probe — try common gateway IPs to infer subnet
    * 3. Default fallback
    */
-  private async detectSubnet(): Promise<{ localIp: string | null; subnet: string; detectionMethod: string }> {
+  private async detectSubnet(context?: PluginContext): Promise<{ localIp: string | null; subnet: string; detectionMethod: string }> {
     console.log(`[NetworkScanPlugin] Starting subnet detection...`);
     
-    // Strategy 0: Tauri backend - 100% reliable, reads from OS
-    if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+    // Strategy 0: Tauri backend via PluginContext invoke bridge
+    if (context?.isTauri && context.tauriInvoke) {
       try {
-        const { invoke } = (window as any).__TAURI__.core;
         console.log(`[NetworkScanPlugin] Trying Tauri backend network detection...`);
         
         // Get all network interfaces
-        const interfaces = await invoke('list_network_interfaces') as Array<[string, string]>;
+        const interfaces = await context.tauriInvoke('list_network_interfaces', {}) as Array<[string, string]>;
         console.log(`[NetworkScanPlugin] Found ${interfaces.length} network interfaces:`, interfaces);
         
         if (interfaces.length === 0) {
@@ -359,6 +364,8 @@ export class NetworkScanPlugin implements Plugin {
       } catch (err) {
         console.warn(`[NetworkScanPlugin] ⚠️ Tauri network detection failed:`, err);
       }
+    } else if (context?.isTauri) {
+      console.warn('[NetworkScanPlugin] ⚠️ Tauri mode without tauriInvoke bridge, skipping backend subnet detection');
     }
     
     // Strategy 1: WebRTC - most reliable for browser, gets actual local IP from OS
@@ -578,9 +585,26 @@ export class NetworkScanPlugin implements Plugin {
         }
         content += '\n';
       });
+      
+      // Add inline action hints for cameras
+      if (isCameraQuery && devicesToShow.length > 0) {
+        content += `\n💡 **Sugerowane akcje:**\n`;
+        devicesToShow.forEach(device => {
+          const hasRtsp = device.open_ports.includes(554) || device.open_ports.includes(8554);
+          const hasHttp = device.open_ports.includes(80) || device.open_ports.includes(8000);
+          
+          if (hasRtsp) {
+            content += `- "monitoruj ${device.ip}" — Rozpocznij monitoring kamery\n`;
+          }
+          if (hasHttp) {
+            const httpPort = device.open_ports.includes(80) ? 80 : 8000;
+            content += `- "przeglądaj http://${device.ip}:${httpPort}" — Otwórz interfejs web\n`;
+          }
+          content += `- "skanuj porty ${device.ip}" — Zaawansowana analiza portów i producenta\n`;
+        });
+      }
     }
 
-    content += `💡 *Zapytaj "pokaż kamerę [IP]" aby zobaczyć obraz lub "skanuj porty [IP]" dla szczegółów.*`;
     return content;
   }
 

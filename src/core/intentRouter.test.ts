@@ -230,6 +230,34 @@ describe('IntentRouter', () => {
     expect(r4.intent).toBe('system:processes');
   });
 
+  it('should detect disk:info intent and extract entities', async () => {
+    const r1 = await router.detect('pokaż dyski');
+    expect(r1.intent).toBe('disk:info');
+
+    const r2 = await router.detect('disk usage na 192.168.1.50');
+    expect(r2.intent).toBe('disk:info');
+    expect(r2.entities.remoteHost).toBe('192.168.1.50');
+
+    const r3 = await router.detect('sprawdź dysk path /var/log');
+    expect(r3.intent).toBe('disk:info');
+    expect(r3.entities.path).toBe('/var/log');
+  });
+
+  it('should detect ssh intents and extract host/user entities', async () => {
+    const r1 = await router.detect('ssh 192.168.1.100 uptime');
+    expect(r1.intent).toBe('ssh:execute');
+    expect(r1.entities.host).toBe('192.168.1.100');
+
+    const r2 = await router.detect('text2ssh 10.0.0.1 user admin ile pamięci');
+    expect(r2.intent).toBe('ssh:execute');
+    expect(r2.entities.host).toBe('10.0.0.1');
+    expect(r2.entities.user).toBe('admin');
+
+    const r3 = await router.detect('test ssh 192.168.1.100');
+    expect(r3.intent).toBe('ssh:hosts');
+    expect(r3.entities.host).toBe('192.168.1.100');
+  });
+
   // ── Marketplace intent ──────────────────────────────────
 
   it('should detect marketplace:browse intent', async () => {
@@ -254,6 +282,12 @@ describe('IntentRouter', () => {
 
     const r2 = await router.detect('znajdź kamery');
     expect(r2.intent).toBe('network:scan');
+
+    const r2b = await router.detect('odnajdz kamery');
+    expect(r2b.intent).toBe('network:scan');
+
+    const r2c = await router.detect('odnajdź kamery');
+    expect(r2c.intent).toBe('network:scan');
 
     const r3 = await router.detect('pokaż kamery w sieci');
     expect(r3.intent).toBe('network:scan');

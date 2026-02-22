@@ -17,6 +17,8 @@ import type {
 } from "../core/types";
 import type { DataSourcePlugin, PluginQuery, PluginResult as NewPluginResult } from "../core/plugin.types";
 import type { IntentDetection } from "../core/types";
+import { invoke } from "@tauri-apps/api/core";
+import { isTauriRuntime } from "../lib/runtime";
 
 // ─── Context Value ──────────────────────────────────────────
 
@@ -67,9 +69,10 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
         }
 
         // Handle both Plugin and DataSourcePlugin
+        const runtimeIsTauri = isTauriRuntime();
         const pluginContext = {
-          isTauri: typeof window !== 'undefined' && !!(window as any).__TAURI__,
-          tauriInvoke: (window as any).__TAURI__?.core?.invoke,
+          isTauri: runtimeIsTauri,
+          tauriInvoke: runtimeIsTauri ? invoke : undefined,
           scope, // Pass scope to plugin context
         };
 

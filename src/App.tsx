@@ -65,7 +65,7 @@ export default function App() {
       async () => {
         const context = await bootstrapApp({
           isTauri: runtimeIsTauri,
-          tauriInvoke: (window as any).__TAURI__?.core?.invoke,
+          tauriInvoke: runtimeIsTauri ? invoke : undefined,
         });
         setAppCtx(context);
         startupLogger.info("Plugin system initialized successfully");
