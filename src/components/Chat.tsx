@@ -20,6 +20,7 @@ import { useCqrs } from "../contexts/CqrsContext";
 import { useChatMessages } from "../hooks/useChatMessages";
 import { usePlugins } from "../contexts/pluginContext";
 import TtsControls from "./TtsControls";
+import { WatchBadge } from "./WatchBadge";
 import type { AudioSettings } from "../domain/audioSettings";
 import { type ChatMessage } from "../domain/chatEvents";
 import { logger } from "../lib/logger";
@@ -48,6 +49,28 @@ export default function Chat({ settings }: ChatProps) {
   const [pageContent, setPageContent] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatLogger = logger.scope("chat:ui");
+
+  // Auto-watch integration
+  useEffect(() => {
+    // Listen for new messages and trigger auto-watch logic
+    const unsub = eventStore.on("message_added", async (event) => {
+      const message = event.payload;
+      
+      // In a real implementation, you would integrate with AutoWatchIntegration here
+      // For now, we'll just log the message for demonstration
+      if (message.role === 'user') {
+        chatLogger.info('User message for auto-watch analysis:', { 
+          text: message.text,
+          timestamp: new Date().toISOString()
+        });
+        
+        // TODO: Integrate with AutoWatchIntegration
+        // await autoWatchIntegration.processMessage(message);
+      }
+    });
+    
+    return unsub;
+  }, [eventStore, chatLogger]);
 
   // Keep track of extracted text for LLM context.
   // We can listen to content_fetched events to update this state.
@@ -464,17 +487,28 @@ export default function Chat({ settings }: ChatProps) {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
           <div className="mx-auto max-w-3xl">
-            {/* Header with copy button */}
+            {/* Header with copy button and watch badge */}
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-200">Czat</h2>
-              <button
-                onClick={copyChatContent}
-                className="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-2 text-sm text-gray-300 transition hover:bg-gray-700 hover:text-white"
-                title="Kopiuj zawartość czatu"
-              >
-                <Copy size={16} />
-                <span>Kopiuj</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <WatchBadge 
+                  onWatchEvent={(event) => {
+                    chatLogger.info('Watch event received:', { 
+                      type: event.type, 
+                      timestamp: event.timestamp 
+                    });
+                  }}
+                  className="mr-2"
+                />
+                <button
+                  onClick={copyChatContent}
+                  className="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-2 text-sm text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                  title="Kopiuj zawartość czatu"
+                >
+                  <Copy size={16} />
+                  <span>Kopiuj</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">

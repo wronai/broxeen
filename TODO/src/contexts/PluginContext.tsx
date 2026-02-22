@@ -12,28 +12,31 @@
 import React, { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { AppContext } from "../core/bootstrap";
 import type {
-  Plugin,
+  DataSourcePlugin,
+  IntentName,
+  PluginQuery,
   PluginResult,
-} from "../core/types";
-import type { IntentDetection } from "../core/types";
+} from "../core/plugin.types";
+import { buildQuery } from "../core/intentRouter";
 
 // ─── Context Value ──────────────────────────────────────────
 
 interface PluginContextValue {
   /** Detect intent from user input */
-  detectIntent: (rawInput: string) => Promise<IntentDetection>;
+  detectIntent: (rawInput: string) => Promise<IntentName>;
 
   /** Route a query through the plugin system */
-  executeCommand: <T>(command: string, payload?: T) => Promise<unknown>;
+  routeQuery: (query: PluginQuery) => Promise<PluginResult>;
 
-  /** Shorthand: detect intent + route to plugin */
+  /** Shorthand: detect intent + build query + route */
   ask: (
     rawInput: string,
     source?: "voice" | "text" | "api",
+    resolvedTarget?: string,
   ) => Promise<PluginResult>;
 
   /** List all registered plugins */
-  plugins: Plugin[];
+  plugins: readonly DataSourcePlugin[];
 
   /** Check if a specific plugin is registered */
   hasPlugin: (pluginId: string) => boolean;
@@ -51,28 +54,26 @@ interface PluginProviderProps {
 export function PluginProvider({ context, children }: PluginProviderProps) {
   const value = useMemo<PluginContextValue>(
     () => ({
-      detectIntent: (rawInput) => context.intentRouter.detect(rawInput),
+      detectIntent: (rawInput) => context.router.detectIntent(rawInput),
 
-      executeCommand: <T,>(command: string, payload?: T) => 
-        context.commandBus.execute(command, payload),
+      routeQuery: (query) => context.router.route(query),
 
-      ask: async (rawInput, source = "text") => {
-        const intent = await context.intentRouter.detect(rawInput);
-        const plugin = context.intentRouter.route(intent.intent);
-        
-        if (!plugin) {
-          throw new Error(`No plugin found for intent: ${intent.intent}`);
-        }
-
-        return await plugin.execute(rawInput, {
-          isTauri: typeof window !== 'undefined' && !!(window as any).__TAURI__,
-          tauriInvoke: (window as any).__TAURI__?.core?.invoke,
+      ask: async (rawInput, source = "text", resolvedTarget) => {
+        const intent = await context.router.detectIntent(rawInput);
+        const query = buildQuery(intent, rawInput, {
+          resolvedTarget,
+          metadata: {
+            timestamp: Date.now(),
+            source,
+            locale: "pl-PL",
+          },
         });
+        return context.router.route(query);
       },
 
-      plugins: context.pluginRegistry.getAll(),
+      plugins: context.registry.listAll(),
 
-      hasPlugin: (pluginId) => !!context.pluginRegistry.get(pluginId),
+      hasPlugin: (pluginId) => !!context.registry.get(pluginId),
     }),
     [context],
   );

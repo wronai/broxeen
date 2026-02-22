@@ -24,6 +24,29 @@ vi.mock("../contexts/pluginContext", () => ({
   }),
 }));
 
+// Mock bootstrap to avoid plugin system initialization in tests
+vi.mock("../core/bootstrap", () => ({
+  bootstrapApp: vi.fn().mockResolvedValue({
+    pluginRegistry: {
+      register: vi.fn(),
+      unregister: vi.fn(),
+      get: vi.fn(),
+      getAll: vi.fn(),
+      findByIntent: vi.fn(),
+    },
+    intentRouter: {
+      detect: vi.fn(),
+      route: vi.fn(),
+    },
+    commandBus: {
+      execute: vi.fn(),
+      register: vi.fn(),
+      unregister: vi.fn(),
+    },
+    dispose: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 const render = (ui: React.ReactElement, options?: any) => {
   return rtlRender(
     <CqrsProvider>
