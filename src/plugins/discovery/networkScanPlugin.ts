@@ -88,11 +88,15 @@ export class NetworkScanPlugin implements Plugin {
 
     console.log(`[NetworkScanPlugin] Browser scan: subnet=${subnet} (via ${detectionMethod}), localIp=${localIp || 'unknown'}`);
 
-    // Step 2: Build probe list — gateway, common camera IPs, full range sample
+    // Step 2: Build probe list — gateway, common camera IPs, and strategic range sample
     const gatewayIp = `${subnet}.1`;
+    
+    // Focus on common camera/device IP ranges instead of full subnet scan
     const commonCameraIps = [100, 101, 102, 103, 108, 110, 150, 200, 201, 250];
-    const rangeIps = Array.from({ length: 50 }, (_, i) => i + 2); // .2-.51
-    const allOffsets = new Set([1, ...commonCameraIps, ...rangeIps]);
+    const commonDeviceIps = [2, 10, 20, 30, 50, 60, 70, 80, 90, 120, 130, 140, 160, 170, 180, 190, 210, 220, 240];
+    
+    // Combine all target IPs, removing duplicates
+    const allOffsets = new Set([1, ...commonCameraIps, ...commonDeviceIps]);
     const probeIps = [...allOffsets].map(n => `${subnet}.${n}`);
 
     // Step 3: HTTP probe (image + no-cors fetch) on ports common to cameras and routers
@@ -111,26 +115,50 @@ export class NetworkScanPlugin implements Plugin {
 
         // Image probe: bypasses CORS, onerror with >50ms = real TCP connection
         const img = new Image();
-        const imgTimer = setTimeout(() => { img.src = ''; fail(); }, 1500);
-        img.onload = () => { clearTimeout(imgTimer); done(); };
+        const imgTimer = setTimeout(() => { 
+          img.src = ''; 
+          fail(); 
+        }, 1500);
+        img.onload = () => { 
+          clearTimeout(imgTimer); 
+          done(); 
+        };
         img.onerror = () => {
           clearTimeout(imgTimer);
           // Timing gate: jsdom fires onerror in ~0ms; real TCP takes >50ms
-          if (Date.now() - t0 > 50) { done(); } else { fail(); }
+          // Only log successful probes, not failures to reduce console noise
+          if (Date.now() - t0 > 50) { 
+            done(); 
+          } else { 
+            fail(); 
+          }
         };
-        img.src = `http://${ip}:${port}/favicon.ico?_t=${Date.now()}`;
+        // Use a generic endpoint instead of favicon.ico to reduce 404 errors
+        img.src = `http://${ip}:${port}/?_probe=${Date.now()}`;
 
         // no-cors fetch: opaque response = host reachable
         fetch(`http://${ip}:${port}/`, {
           method: 'HEAD', mode: 'no-cors',
           signal: AbortSignal.timeout(1500),
-        }).then(() => { clearTimeout(imgTimer); done(); }).catch(() => {});
+        }).then(() => { 
+          clearTimeout(imgTimer); 
+          done(); 
+        }).catch(() => {
+          // Silently handle fetch failures - these are expected for most IPs
+        });
       });
 
-    const batchSize = 30;
+    const batchSize = 15; // Reduced from 30 to be more conservative
+    console.log(`[NetworkScanPlugin] Probing ${probeIps.length} IPs in batches of ${batchSize}`);
+    
     for (let i = 0; i < probeIps.length; i += batchSize) {
       const batch = probeIps.slice(i, i + batchSize);
       await Promise.allSettled(batch.flatMap(ip => httpPorts.map(port => probeHttp(ip, port))));
+      
+      // Log progress for larger scans
+      if (probeIps.length > 20 && (i + batchSize) % (batchSize * 2) === 0) {
+        console.log(`[NetworkScanPlugin] Scan progress: ${Math.min(i + batchSize, probeIps.length)}/${probeIps.length} IPs checked`);
+      }
     }
 
     // Deduplicate HTTP results by IP
@@ -148,14 +176,25 @@ export class NetworkScanPlugin implements Plugin {
           new Promise<void>((resolve) => {
             const t0 = Date.now();
             const img = new Image();
-            const timer = setTimeout(() => { img.src = ''; resolve(); }, 1200);
-            img.onload = () => { clearTimeout(timer); rtspHosts.add(ip); resolve(); };
+            const timer = setTimeout(() => { 
+              img.src = ''; 
+              resolve(); 
+            }, 1200);
+            img.onload = () => { 
+              clearTimeout(timer); 
+              rtspHosts.add(ip); 
+              resolve(); 
+            };
             img.onerror = () => {
               clearTimeout(timer);
-              if (Date.now() - t0 > 50) { rtspHosts.add(ip); }
+              // Timing gate: real TCP connection takes >50ms
+              if (Date.now() - t0 > 50) { 
+                rtspHosts.add(ip); 
+              }
               resolve();
             };
-            img.src = `http://${ip}:554/?_t=${Date.now()}`;
+            // Use generic probe endpoint for RTSP port as well
+            img.src = `http://${ip}:554/?_probe=${Date.now()}`;
           })
         )
       );
@@ -319,7 +358,10 @@ export class NetworkScanPlugin implements Plugin {
         const gatewayIp = `${subnet}.1`;
         const t0 = Date.now();
         const img = new Image();
-        const timer = setTimeout(() => { img.src = ''; if (--pending === 0) done(null); }, 1000);
+        const timer = setTimeout(() => { 
+          img.src = ''; 
+          if (--pending === 0) done(null); 
+        }, 1000);
 
         img.onload = () => {
           clearTimeout(timer);
@@ -327,13 +369,15 @@ export class NetworkScanPlugin implements Plugin {
         };
         img.onerror = () => {
           clearTimeout(timer);
+          // Timing gate: real TCP connection takes >50ms
           if (Date.now() - t0 > 50) {
             done(subnet); // Gateway responded (even with error = it's reachable)
           } else {
             if (--pending === 0) done(null);
           }
         };
-        img.src = `http://${gatewayIp}/favicon.ico?_t=${Date.now()}`;
+        // Use generic probe endpoint for gateway as well
+        img.src = `http://${gatewayIp}/?_probe=${Date.now()}`;
       }
     });
   }
