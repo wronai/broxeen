@@ -1,6 +1,6 @@
 project: broxeen
-generated: "2026-02-21T19:16:41.710844"
-modules[54]{path,lang,items}:
+generated: "2026-02-22T11:26:19.892610"
+modules[85]{path,lang,items}:
   phonetic.py,python,2
   vite.config.ts,typescript,0
   tailwind.config.js,javascript,0
@@ -19,40 +19,71 @@ modules[54]{path,lang,items}:
   src/App.tsx,typescript,1
   src/vite-env.d.ts,typescript,0
   e2e/voice-interface.spec.ts,typescript,1
+  e2e/chat-features.spec.ts,typescript,1
   test/broxeen.test.js,javascript,0
+  src/commands/copyContextCommand.ts,typescript,2
+  src/commands/sendMessageCommand.ts,typescript,2
+  src/commands/saveSettingsCommand.ts,typescript,2
+  src/commands/browseCommand.ts,typescript,2
+  src/commands/browseCommand.test.ts,typescript,0
   src/lib/phonetic.test.ts,typescript,0
-  src/lib/browseGateway.ts,typescript,12
+  src/lib/browseGateway.ts,typescript,13
   src/lib/browseGateway.test.ts,typescript,0
   src/lib/sttClient.ts,typescript,2
   src/lib/llmPrompts.ts,typescript,1
   src/lib/logger.ts,typescript,6
   src/lib/resolver.ts,typescript,4
-  src/lib/llmClient.ts,typescript,8
+  src/lib/llmClient.ts,typescript,9
   src/lib/phonetic.ts,typescript,2
   src/lib/runtime.ts,typescript,1
   src/lib/resolver.test.ts,typescript,0
   src/lib/llmClient.test.ts,typescript,2
-  src/hooks/useTts.ts,typescript,3
+  src/hooks/useTts.ts,typescript,4
   src/hooks/useSpeech.test.ts,typescript,1
   src/hooks/useTts.test.ts,typescript,0
   src/hooks/useStt.ts,typescript,6
   src/hooks/useLlm.ts,typescript,1
   src/hooks/useSpeech.ts,typescript,3
+  src/hooks/useChatMessages.ts,typescript,1
   src/components/Chat.test.tsx,typescript,1
   src/components/Settings.test.tsx,typescript,0
   src/components/Settings.tsx,typescript,2
-  src/components/Chat.tsx,typescript,10
+  src/components/Chat.tsx,typescript,8
   src/components/TtsControls.tsx,typescript,4
   src/components/TtsControls.test.tsx,typescript,0
+  src/services/llmService.ts,typescript,0
+  src/services/defaultBrowseAdapter.ts,typescript,1
+  src/services/defaultLlmAdapter.ts,typescript,6
+  src/services/browseService.ts,typescript,0
+  src/contexts/CqrsContext.tsx,typescript,1
+  src/queries/getSettingsQuery.ts,typescript,1
+  src/queries/getMessagesQuery.ts,typescript,4
+  src/domain/chatAggregate.ts,typescript,7
   src/domain/audioSettings.ts,typescript,1
-  src/domain/chatEvents.ts,typescript,1
+  src/domain/chatEvents.ts,typescript,2
+  src/domain/eventStore.test.ts,typescript,0
+  src/domain/chatAggregate.test.ts,typescript,0
   src/domain/chatEvents.test.ts,typescript,0
+  src/domain/eventStore.ts,typescript,7
   src/domain/audioSettings.test.ts,typescript,0
   src/test/setup.ts,typescript,0
+  src-tauri/src/main_changes.rs,rust,1
+  src-tauri/src/tts.rs,rust,11
+  src-tauri/src/useBackendStt.ts,typescript,1
   src-tauri/src/llm.rs,rust,0
-  src-tauri/src/stt.rs,rust,0
-  src-tauri/src/main.rs,rust,11
+  src-tauri/src/stt.rs,rust,1
+  src-tauri/src/browse_rendered.rs,rust,6
+  src-tauri/src/main.rs,rust,13
+  src-tauri/src/logging.rs,rust,3
   src-tauri/src/test_read.rs,rust,1
+  src-tauri/src/useBackendTts.ts,typescript,2
+  src-tauri/src/audio_commands.rs,rust,10
+  src-tauri/src/settings.rs,rust,15
+  src-tauri/src/audio_capture.rs,rust,7
+  src-tauri/src/useAudio.ts,typescript,1
+  src-tauri/src/tts_backend.rs,rust,22
+  src-tauri/src/content_cleaning.rs,rust,3
+  src-tauri/src/content_extraction.rs,rust,5
   src-tauri/tests/placeholder_test.rs,rust,0
   src-tauri/tests/test_read.rs,rust,1
 
@@ -107,55 +138,76 @@ function_details:
       mockFetchError,function,"(status: number, body: string)",31-37,false,7,1,mock fetch error
   src/App.tsx:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      App,function,(),14-128,false,115,1,app
+      App,function,(),15-140,false,126,1,app
   e2e/voice-interface.spec.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       openApp,function,"(page: Page)",5-8,true,4,1,starts app
+  e2e/chat-features.spec.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      openApp,function,"(page: Page)",5-28,true,24,1,starts app
+  src/commands/copyContextCommand.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      CopyContextCommand.constructor,method,"(aggregate: ChatAggregate)",11-11,false,1,1,constructor
+      CopyContextCommand.execute,method,"(messageId: number) -> Promise<void>",13-36,true,24,1,starts
+  src/commands/sendMessageCommand.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      SendMessageCommand.constructor,method,"(eventStore: EventStore, aggregate: ChatAggregate, llmService: LlmService)",13-17,false,5,1,constructor
+      SendMessageCommand.execute,method,"(question: string, pageContent?) -> Promise<void>",19-67,true,49,1,starts
+  src/commands/saveSettingsCommand.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      SaveSettingsCommand.constructor,method,"(eventStore: EventStore)",13-13,false,1,1,constructor
+      SaveSettingsCommand.execute,method,"(settings: AudioSettings) -> Promise<void>",15-46,true,32,1,starts
+  src/commands/browseCommand.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      BrowseCommand.constructor,method,"(eventStore: EventStore, aggregate: ChatAggregate, browseService: BrowseService, llmService: LlmService | null)",26-31,false,6,1,constructor
+      BrowseCommand.execute,method,"(params: BrowseCommandParams) -> Promise<void>",33-170,true,138,1,starts
   src/lib/browseGateway.ts:
-    functions[12]{name,kind,sig,loc,async,lines,cc,does}:
+    functions[13]{name,kind,sig,loc,async,lines,cc,does}:
       stripCookieBannerText,function,"(text: string) -> string",8-76,false,69,1,strip cookie banner text
-      normalizeText,function,"(text: string) -> string",103-105,false,3,1,normalize text
-      withHttpScheme,function,"(url: string) -> string",107-109,false,3,1,with http scheme
-      summarizeUnknownError,function,"(error: unknown) -> string",111-116,false,6,1,summarize unknown error
-      extractBrowserReadableContent,function,"(rawHtml: string) -> { title: string; content: string }",118-191,false,74,1,parses browser readable content
-      looksLikeHtml,function,"(text: string) -> boolean",193-202,false,10,1,looks like html
-      normalizeBrowseResult,function,"(result: BrowseResult, source: \"tauri\" | \"browser\", requestedUrl?) -> BrowseResult",204-260,false,57,1,normalize browse result
-      fetchViaAllOriginsJson,function,"(url: string) -> Promise<BrowserProxyPayload>",262-278,true,17,1,retrieves via all origins json
-      fetchViaAllOriginsRaw,function,"(url: string) -> Promise<BrowserProxyPayload>",280-296,true,17,1,retrieves via all origins raw
-      fetchViaJina,function,"(url: string) -> Promise<BrowserProxyPayload>",298-315,true,18,1,retrieves via jina
-      browseInBrowser,function,"(url: string) -> Promise<BrowseResult>",317-399,true,83,1,browse in browser
-      executeBrowseCommand,function,"(url: string, runtimeIsTauri: boolean) -> Promise<BrowseResult>",401-442,true,42,1,starts browse command
+      normalizeText,function,"(text: string) -> string",108-110,false,3,1,normalize text
+      withHttpScheme,function,"(url: string) -> string",112-114,false,3,1,with http scheme
+      summarizeUnknownError,function,"(error: unknown) -> string",116-121,false,6,1,summarize unknown error
+      extractBrowserReadableContent,function,"(rawHtml: string) -> {\n  title: string;\n  content: string;\n}",123-205,false,83,1,parses browser readable content
+      looksLikeHtml,function,"(text: string) -> boolean",207-216,false,10,1,looks like html
+      normalizeBrowseResult,function,"(result: BrowseResult, source: \"tauri\" | \"browser\", requestedUrl?) -> BrowseResult",218-281,false,64,1,normalize browse result
+      fetchViaAllOriginsJson,function,"(url: string) -> Promise<BrowserProxyPayload>",283-307,true,25,1,retrieves via all origins json
+      fetchViaAllOriginsRaw,function,"(url: string) -> Promise<BrowserProxyPayload>",309-333,true,25,1,retrieves via all origins raw
+      fetchViaCorsProxy,function,"(url: string) -> Promise<BrowserProxyPayload>",335-358,true,24,1,retrieves via cors proxy
+      fetchViaJina,function,"(url: string) -> Promise<BrowserProxyPayload>",360-383,true,24,1,retrieves via jina
+      browseInBrowser,function,"(url: string) -> Promise<BrowseResult>",385-470,true,86,1,browse in browser
+      executeBrowseCommand,function,"(url: string, runtimeIsTauri: boolean) -> Promise<BrowseResult>",472-514,true,43,1,starts browse command
   src/lib/sttClient.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       getSttConfig,function,() -> SttConfig,26-32,false,7,1,retrieves stt config
-      transcribeAudio,function,"(audioBase64: string, format: SttAudioFormat, languageOverride?, configOverride?) -> Promise<string>",34-116,true,83,1,transcribe audio
+      transcribeAudio,function,"(audioBase64: string, format: SttAudioFormat, languageOverride?, configOverride?) -> Promise<string>",34-124,true,91,1,transcribe audio
   src/lib/llmPrompts.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      getPrompt,function,"(mode: PromptMode, override?) -> string",53-55,false,3,1,retrieves prompt
+      getPrompt,function,"(mode: PromptMode, override?) -> string",62-64,false,3,1,retrieves prompt
   src/lib/logger.ts:
     functions[6]{name,kind,sig,loc,async,lines,cc,does}:
       normalizeLogArg,function,"(arg: any)",6-16,false,11,1,normalize log arg
       safeStringify,function,"(value: any) -> string",18-28,false,11,1,safe stringify
-      emit,function,"(level: LogLevel, scope: string | undefined, message: string)",30-56,false,27,1,sends
-      createScopedLogger,function,(scope?),58-69,false,12,1,creates scoped logger
-      logSyncDecorator,function,"(scope: string, operationName: string, fn: (...args: TArgs) => TResult) -> (...args: TArgs) => TResult",78-98,false,21,1,logs sync decorator
-      logAsyncDecorator,function,"(scope: string, operationName: string, fn: (...args: TArgs) => Promise<TResult>) -> (...args: TArgs) => Promise<TResult>",100-120,false,21,1,logs async decorator
+      emit,function,"(level: LogLevel, scope: string | undefined, message: string)",30-63,false,34,1,sends
+      createScopedLogger,function,(scope?),65-78,false,14,1,creates scoped logger
+      logSyncDecorator,function,"(scope: string, operationName: string, fn: (...args: TArgs) => TResult) -> (...args: TArgs) => TResult",87-107,false,21,1,logs sync decorator
+      logAsyncDecorator,function,"(scope: string, operationName: string, fn: (...args: TArgs) => Promise<TResult>) -> (...args: TArgs) => Promise<TResult>",109-129,false,21,1,logs async decorator
   src/lib/resolver.ts:
     functions[4]{name,kind,sig,loc,async,lines,cc,does}:
-      levenshtein,function,"(a: string, b: string) -> number",37-53,false,17,1,levenshtein
-      similarity,function,"(a: string, b: string) -> number",55-62,false,8,1,similarity
-      fuzzyMatchDomain,function,"(input: string, threshold, maxResults) -> Array<[string, number]>",64-87,false,24,1,fuzzy match domain
-      resolve,function,"(rawInput: string, threshold) -> ResolveResult",89-181,false,93,1,resolve
+      levenshtein,function,"(a: string, b: string) -> number",105-121,false,17,1,levenshtein
+      similarity,function,"(a: string, b: string) -> number",123-130,false,8,1,similarity
+      fuzzyMatchDomain,function,"(input: string, threshold, maxResults) -> Array<[string, number]>",132-155,false,24,1,fuzzy match domain
+      resolve,function,"(rawInput: string, threshold) -> ResolveResult",157-264,false,108,1,resolve
   src/lib/llmClient.ts:
-    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
+    functions[9]{name,kind,sig,loc,async,lines,cc,does}:
       getConfig,function,() -> LlmConfig,40-47,false,8,1,retrieves config
       chat,function,"(messages: LlmMessage[], configOverride?) -> Promise<LlmResponse>",55-81,true,27,1,chat
-      chatDirect,function,"(messages: LlmMessage[], cfg: LlmConfig) -> Promise<LlmResponse>",83-134,true,52,1,chat direct
-      chatViaTauri,function,"(messages: LlmMessage[], cfg: LlmConfig) -> Promise<LlmResponse>",136-160,true,25,1,chat via tauri
-      askAboutContent,function,"(pageContent: string, question: string) -> Promise<string>",168-193,true,26,1,ask about content
-      describeImage,function,"(base64Image: string, mimeType, prompt) -> Promise<string>",196-225,true,30,1,describe image
-      summarizeForTts,function,"(pageContent: string, maxSentences) -> Promise<string>",228-248,true,21,1,summarize for tts
-      detectIntent,function,"(userText: string) -> Promise<string>",251-274,true,24,1,detect intent
+      chatDirect,function,"(messages: LlmMessage[], cfg: LlmConfig) -> Promise<LlmResponse>",83-138,true,56,1,chat direct
+      chatViaTauri,function,"(messages: LlmMessage[], cfg: LlmConfig) -> Promise<LlmResponse>",140-168,true,29,1,chat via tauri
+      askAboutContent,function,"(pageContent: string, question: string) -> Promise<string>",176-207,true,32,1,ask about content
+      describeImage,function,"(base64Image: string, mimeType, prompt) -> Promise<string>",210-243,true,34,1,describe image
+      summarizeForTts,function,"(pageContent: string, maxSentences) -> Promise<string>",246-275,true,30,1,summarize for tts
+      detectIntent,function,"(userText: string) -> Promise<string>",278-305,true,28,1,detect intent
+      summarizeSearchResults,function,"(searchContent: string, userQuery: string) -> Promise<string>",308-343,true,36,1,summarize search results
   src/lib/phonetic.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       normalize,function,"(text: string) -> string",48-74,false,27,1,normalize
@@ -165,79 +217,241 @@ function_details:
       isTauriRuntime,function,() -> boolean,1-12,false,12,1,checks tauri runtime
   src/lib/llmClient.test.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      mockFetchSuccess,function,"(responseText: string, model)",29-39,false,11,1,mock fetch success
-      mockFetchError,function,"(status: number, body: string)",41-47,false,7,1,mock fetch error
+      mockFetchSuccess,function,"(responseText: string, model)",29-42,false,14,1,mock fetch success
+      mockFetchError,function,"(status: number, body: string)",44-50,false,7,1,mock fetch error
   src/hooks/useTts.ts:
-    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
-      getSpeechSynthesisApi,function,() -> SpeechSynthesis | undefined,25-31,false,7,1,retrieves speech synthesis api
-      preprocessForTts,function,"(text: string) -> string",33-45,false,13,1,preprocess for tts
-      useTts,function,"(options: Partial<TtsOptions>)",47-226,false,180,1,use tts
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      getSpeechSynthesisApi,function,() -> SpeechSynthesis | undefined,42-48,false,7,1,retrieves speech synthesis api
+      preprocessForTts,function,"(text: string) -> string",50-62,false,13,1,preprocess for tts
+      estimateBackendSpeechDurationMs,function,"(text: string, rate: number) -> number",64-69,false,6,1,estimate backend speech duration ms
+      useTts,function,"(options: Partial<TtsOptions>)",71-517,false,447,1,use tts
   src/hooks/useSpeech.test.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       makeMockRecognition,function,(),20-31,false,12,1,creates mock recognition
   src/hooks/useStt.ts:
     functions[6]{name,kind,sig,loc,async,lines,cc,does}:
-      arrayBufferToBase64,function,"(buf: ArrayBuffer) -> string",23-31,false,9,1,array buffer to base64
-      writeWavPcm16,function,"(audioBuffer: AudioBuffer) -> ArrayBuffer",33-76,false,44,1,logs wav pcm16
-      blobToWavBase64,function,"(blob: Blob) -> Promise<{ base64: string; format: SttAudioFormat }>",78-93,true,16,1,blob to wav base64
-      getUnsupportedReason,function,() -> string | null,95-109,false,15,1,retrieves unsupported reason
-      toErrorDetails,function,"(e: unknown)",111-119,false,9,1,converts error details
-      useStt,function,"(options: UseSttOptions) -> UseSttReturn",121-264,false,144,1,use stt
+      arrayBufferToBase64,function,"(buf: ArrayBuffer) -> string",28-36,false,9,1,array buffer to base64
+      writeWavPcm16,function,"(audioBuffer: AudioBuffer) -> ArrayBuffer",38-81,false,44,1,logs wav pcm16
+      blobToWavBase64,function,"(blob: Blob) -> Promise<{ base64: string; format: SttAudioFormat }>",83-100,true,18,1,blob to wav base64
+      getUnsupportedReason,function,() -> string | null,102-116,false,15,1,retrieves unsupported reason
+      toErrorDetails,function,"(e: unknown)",118-127,false,10,1,converts error details
+      useStt,function,"(options: UseSttOptions) -> UseSttReturn",129-406,false,278,1,use stt
   src/hooks/useLlm.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      useLlm,function,"(options: UseLlmOptions) -> UseLlmReturn",53-175,false,123,1,use llm
+      useLlm,function,"(options: UseLlmOptions) -> UseLlmReturn",56-250,false,195,1,use llm
   src/hooks/useSpeech.ts:
     functions[3]{name,kind,sig,loc,async,lines,cc,does}:
-      getSpeechRecognitionCtor,function,() -> (new () => SpeechRecognitionInstance) | undefined,41-47,false,7,1,retrieves speech recognition ctor
-      getUnsupportedReason,function,"(supported: boolean, runtimeIsTauri: boolean) -> string | null",49-55,false,7,1,retrieves unsupported reason
-      useSpeech,function,"(lang: string)",57-234,false,178,1,use speech
+      getSpeechRecognitionCtor,function,"() -> | (new () => SpeechRecognitionInstance)\n  | undefined",41-49,false,9,1,retrieves speech recognition ctor
+      getUnsupportedReason,function,"(supported: boolean, runtimeIsTauri: boolean) -> string | null",51-62,false,12,1,retrieves unsupported reason
+      useSpeech,function,"(lang: string)",64-247,false,184,1,use speech
+  src/hooks/useChatMessages.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      useChatMessages,function,(),9-25,false,17,1,use chat messages
   src/components/Chat.test.tsx:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      mockTauriEnvironment,function,(),52-58,false,7,1,mock tauri environment
+      mockTauriEnvironment,function,(),87-93,false,7,1,mock tauri environment
   src/components/Settings.tsx:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      update,function,"(partial: Partial<AudioSettings>)",66-70,false,5,1,updates
-      handleSave,function,(),72-83,true,12,1,handles save
+      update,function,"(partial: Partial<AudioSettings>)",93-97,false,5,1,updates
+      handleSave,function,(),99-114,true,16,1,handles save
   src/components/Chat.tsx:
-    functions[10]{name,kind,sig,loc,async,lines,cc,does}:
-      applyEvent,function,"(event: ChatEvent)",115-119,false,5,1,apply event
-      addMessage,function,"(msg: Omit<ChatMessage, \"id\">)",121-128,false,8,1,creates message
-      updateMessage,function,"(id: number, updates: Partial<ChatMessage>)",130-135,false,6,1,updates message
-      handleSubmit,function,(text?),137-252,true,116,1,handles submit
-      handleLlmQuestion,function,"(question: string)",254-272,true,19,1,handles llm question
-      handleSuggestionClick,function,"(url: string)",274-278,false,5,1,handles suggestion click
-      handleKeyDown,function,"(e: React.KeyboardEvent)",280-285,false,6,1,handles key down
-      toggleMic,function,(),287-314,false,28,1,toggle mic
-      resolveIcon,function,(type?),316-327,false,12,1,resolve icon
-      copyChatContent,function,(),329-350,false,22,1,copy chat content
+    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
+      handleSubmit,function,(text?),191-257,true,67,1,handles submit
+      handleLlmQuestion,function,"(question: string)",259-261,true,3,1,handles llm question
+      handleSuggestionClick,function,"(url: string)",263-266,false,4,1,handles suggestion click
+      handleKeyDown,function,"(e: React.KeyboardEvent)",271-311,false,41,1,handles key down
+      toggleMic,function,(),313-340,false,28,1,toggle mic
+      resolveIcon,function,(type?),342-353,false,12,1,resolve icon
+      copyChatContent,function,(),355-379,false,25,1,copy chat content
+      copyMessageContext,function,"(msg: ChatMessage)",381-383,true,3,1,copy message context
   src/components/TtsControls.tsx:
     functions[4]{name,kind,sig,loc,async,lines,cc,does}:
       handleSpeak,function,(),23-26,false,4,1,handles speak
       handlePause,function,(),28-31,false,4,1,handles pause
       handleResume,function,(),33-36,false,4,1,handles resume
       handleStop,function,(),38-41,false,4,1,handles stop
+  src/services/defaultBrowseAdapter.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      DefaultBrowseAdapter.fetch,method,"(url: string) -> Promise<BrowseResult>",9-11,true,3,1,retrieves
+  src/services/defaultLlmAdapter.ts:
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      DefaultLlmAdapter.chat,method,"(messages: LlmMessage[]) -> Promise<string>",17-20,true,4,1,chat
+      DefaultLlmAdapter.ask,method,"(question: string, context: string) -> Promise<string>",22-24,true,3,1,ask
+      DefaultLlmAdapter.summarize,method,"(content: string, maxSentences?) -> Promise<string>",26-28,true,3,1,summarize
+      DefaultLlmAdapter.summarizeSearch,method,"(content: string, query: string) -> Promise<string>",30-32,true,3,1,summarize search
+      DefaultLlmAdapter.detectIntent,method,"(text: string) -> Promise<string>",34-36,true,3,1,detect intent
+      DefaultLlmAdapter.describeImage,method,"(base64: string, mime?) -> Promise<string>",38-40,true,3,1,describe image
+  src/contexts/CqrsContext.tsx:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      CqrsProvider,function,(),26-79,false,54,1,cqrs provider
+  src/queries/getSettingsQuery.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      GetSettingsQuery.execute,method,() -> Promise<AudioSettings>,16-32,true,17,1,starts
+  src/queries/getMessagesQuery.ts:
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      GetMessagesQuery.constructor,method,"(aggregate: ChatAggregate)",9-9,false,1,1,constructor
+      GetMessagesQuery.execute,method,"() -> readonly ChatMessage[]",11-13,false,3,1,starts
+      GetMessagesQuery.getById,method,"(id: number) -> ChatMessage | undefined",15-17,false,3,1,retrieves by id
+      GetMessagesQuery.getLastUserQuery,method,"(beforeId: number) -> string | null",19-21,false,3,1,retrieves last user query
+  src/domain/chatAggregate.ts:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      ChatAggregate.apply,method,"(event: DomainEvent) -> void",16-26,false,11,1,apply
+      ChatAggregate.replayAll,method,"(events: DomainEvent[]) -> void",29-35,false,7,1,replay all
+      ChatAggregate.getMessages,method,"() -> readonly ChatMessage[]",38-40,false,3,1,retrieves messages
+      ChatAggregate.getNextId,method,() -> number,43-45,false,3,1,retrieves next id
+      ChatAggregate.getMessage,method,"(id: number) -> ChatMessage | undefined",48-50,false,3,1,retrieves message
+      ChatAggregate.getLastUserQuery,method,"(beforeId: number) -> string | null",56-66,false,11,1,retrieves last user query
+      ChatAggregate.messageCount,method,() -> number,69-71,false,3,1,message count
   src/domain/audioSettings.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      withAudioSettingsDefaults,function,"(partial: Partial<AudioSettings>) -> AudioSettings",27-31,false,5,1,with audio settings defaults
+      withAudioSettingsDefaults,function,"(partial: Partial<AudioSettings>) -> AudioSettings",35-39,false,5,1,with audio settings defaults
   src/domain/chatEvents.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      createEvent,function,"(type: T, payload?) -> DomainEvent",91-102,false,12,1,creates event
+      projectChatMessages,function,"(current: ChatMessage[], event: ChatEvent | DomainEvent) -> ChatMessage[]",106-124,false,19,1,project chat messages
+  src/domain/eventStore.ts:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      EventStore.append,method,"(event: DomainEvent) -> void",21-54,false,34,1,append
+      EventStore.on,method,"(type: T, handler: (event: Extract<DomainEvent, { type: T }>) => void) -> () => void",60-74,false,15,1,handles
+      EventStore.onAll,method,"(handler: EventHandler) -> () => void",80-85,false,6,1,handles all
+      EventStore.getEvents,method,"(filter?) -> DomainEvent[]",88-106,false,19,1,retrieves events
+      EventStore.project,method,"(projector: (events: DomainEvent[]) => T) -> T",109-111,false,3,1,project
+      EventStore.size,method,() -> number,114-116,false,3,1,size
+      EventStore.clear,method,() -> void,119-122,false,4,1,deletes
+  src-tauri/src/main_changes.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      projectChatMessages,function,"(current: ChatMessage[], event: ChatEvent) -> ChatMessage[]",29-47,false,19,1,project chat messages
-  src-tauri/src/main.rs:
+      main,function,(),"-",false,1,1,main
+  src-tauri/src/tts.rs:
     functions[11]{name,kind,sig,loc,async,lines,cc,does}:
+      load_settings,function,"() -> crate::AudioSettings","-",false,1,1,retrieves settings
+      active_tts_child,function,() -> &'static,"-",false,1,1,active tts child
+      detect_backend,function,() -> Option<&'static,"-",false,1,1,detect backend
+      normalize_lang,function,"(lang: &str) -> String","-",false,1,1,normalize lang
+      map_rate,function,"(rate: f32) -> i32","-",false,1,1,converts rate
+      map_pitch,function,"(pitch: f32) -> i32","-",false,1,1,converts pitch
+      map_volume,function,"(volume: f32) -> i32","-",false,1,1,converts volume
+      stop_active_tts_child,function,"() -> Result<(),","-",false,1,1,stops active tts child
+      tts_is_available,function,() -> TtsAvailability,"-",false,1,1,tts is available
+      tts_speak,function,"(text: String, lang: String, rate: f32, pitch: f32, volume: f32, voice: Option<String>) -> Result<(),","-",false,1,1,tts speak
+      tts_stop,function,"() -> Result<(),","-",false,1,1,tts stop
+  src-tauri/src/useBackendStt.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      useBackendStt,function,"(options: UseBackendSttOptions) -> UseBackendSttReturn",47-182,false,136,1,use backend stt
+  src-tauri/src/stt.rs:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      base64_decode,function,"(input: &str) -> Result<Vec<u8>,","-",false,1,1,base64 decode
+  src-tauri/src/browse_rendered.rs:
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      detect_chrome_binary,function,() -> Option<String>,"-",false,1,1,detect chrome binary
+      is_available,function,() -> bool,"-",false,1,1,checks available
+      render_and_extract,function,"(url: &str, timeout_secs: u64) -> Result<(String,","-",false,1,1,formats and extract
+      extract_visible_text,function,"(document: &scraper::Html) -> String","-",false,1,1,parses visible text
+      capture_screenshot,function,"(url: &str, timeout_secs: u64) -> Result<String,","-",false,1,1,capture screenshot
+      normalize_text,function,"(text: &str) -> String","-",false,1,1,normalize text
+  src-tauri/src/main.rs:
+    functions[13]{name,kind,sig,loc,async,lines,cc,does}:
+      default_tts_enabled,function,() -> bool,"-",false,1,1,default tts enabled
+      default_tts_rate,function,() -> f32,"-",false,1,1,default tts rate
+      default_tts_pitch,function,() -> f32,"-",false,1,1,default tts pitch
+      default_tts_volume,function,() -> f32,"-",false,1,1,default tts volume
+      default_tts_lang,function,() -> String,"-",false,1,1,default tts lang
+      default_tts_engine,function,() -> String,"-",false,1,1,default tts engine
+      default_stt_enabled,function,() -> bool,"-",false,1,1,default stt enabled
+      default_stt_engine,function,() -> String,"-",false,1,1,default stt engine
+      default_stt_model,function,() -> String,"-",false,1,1,default stt model
+      default_mic_enabled,function,() -> bool,"-",false,1,1,default mic enabled
+      default_device_id,function,() -> String,"-",false,1,1,default device id
+      default_auto_listen,function,() -> bool,"-",false,1,1,default auto listen
+      main,function,(),"-",false,1,1,main
+  src-tauri/src/logging.rs:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
       backend_info,function,"(message: impl AsRef<str>)","-",false,1,1,backend info
       backend_warn,function,"(message: impl AsRef<str>)","-",false,1,1,backend warn
       backend_error,function,"(message: impl AsRef<str>)","-",false,1,1,backend error
-      truncate_to_chars,function,"(text: &str, max_chars: usize) -> String","-",false,1,1,truncate to chars
-      settings_path,function,() -> PathBuf,"-",false,1,1,settings path
-      get_settings,function,() -> AudioSettings,"-",false,1,1,retrieves settings
-      save_settings,function,"(settings: AudioSettings) -> Result<(),","-",false,1,1,caches settings
-      extract_content,function,"(document: &scraper::Html) -> String","-",false,1,1,parses content
-      extract_with_scraper,function,"(html: &str, url: &str) -> (String,","-",false,1,1,parses with scraper
-      normalize_whitespace,function,"(text: &str) -> String","-",false,1,1,normalize whitespace
-      main,function,(),"-",false,1,1,main
   src-tauri/src/test_read.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       main,function,(),"-",false,1,1,main
+  src-tauri/src/useBackendTts.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      useBackendTts,function,"(options: UseBackendTtsOptions) -> UseBackendTtsReturn",54-157,false,104,1,use backend tts
+      playBase64Audio,function,"(base64: string, volume: number, audioRef: React.MutableRefObject<HTMLAudioElement | null>) -> Promise<void>",162-184,true,23,1,play base64 audio
+  src-tauri/src/audio_commands.rs:
+    functions[10]{name,kind,sig,loc,async,lines,cc,does}:
+      load_settings,function,"() -> crate::AudioSettings","-",false,1,1,retrieves settings
+      stt_start,function,"(recording_state: tauri::State<SharedRecordingState>, active_stream: tauri::State<ActiveStream>) -> Result<String,","-",false,1,1,stt start
+      stt_status,function,"(recording_state: tauri::State<SharedRecordingState>) -> Result<SttStatus,","-",false,1,1,stt status
+      backend_tts_stop,function,"(active_tts: tauri::State<ActiveTts>)","-",false,1,1,backend tts stop
+      backend_tts_pause,function,"(active_tts: tauri::State<ActiveTts>)","-",false,1,1,backend tts pause
+      backend_tts_resume,function,"(active_tts: tauri::State<ActiveTts>)","-",false,1,1,backend tts resume
+      backend_tts_speak_base64,function,"(text: String, rate: Option<f32>, lang: Option<String>) -> Result<String,","-",false,1,1,backend tts speak base64
+      backend_tts_info,function,() -> TtsInfo,"-",false,1,1,backend tts info
+      backend_audio_devices,function,"() -> Result<AudioDevices,","-",false,1,1,backend audio devices
+      piper_is_installed,function,() -> bool,"-",false,1,1,piper is installed
+  src-tauri/src/settings.rs:
+    functions[15]{name,kind,sig,loc,async,lines,cc,does}:
+      default_tts_enabled,function,() -> bool,"-",false,1,1,default tts enabled
+      default_tts_rate,function,() -> f32,"-",false,1,1,default tts rate
+      default_tts_pitch,function,() -> f32,"-",false,1,1,default tts pitch
+      default_tts_volume,function,() -> f32,"-",false,1,1,default tts volume
+      default_tts_lang,function,() -> String,"-",false,1,1,default tts lang
+      default_tts_engine,function,() -> String,"-",false,1,1,default tts engine
+      default_stt_enabled,function,() -> bool,"-",false,1,1,default stt enabled
+      default_stt_engine,function,() -> String,"-",false,1,1,default stt engine
+      default_stt_model,function,() -> String,"-",false,1,1,default stt model
+      default_mic_enabled,function,() -> bool,"-",false,1,1,default mic enabled
+      default_device_id,function,() -> String,"-",false,1,1,default device id
+      default_auto_listen,function,() -> bool,"-",false,1,1,default auto listen
+      settings_path,function,() -> PathBuf,"-",false,1,1,settings path
+      get_settings,function,() -> AudioSettings,"-",false,1,1,retrieves settings
+      save_settings,function,"(settings: AudioSettings) -> Result<(),","-",false,1,1,caches settings
+  src-tauri/src/audio_capture.rs:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      list_input_devices,function,"() -> Result<Vec<String>,","-",false,1,1,list input devices
+      start_recording,function,"(state: &SharedRecordingState) -> Result<cpal::Stream,","-",false,1,1,starts recording
+      stop_and_encode_wav,function,"(state: &SharedRecordingState) -> Result<(String,","-",false,1,1,stops and encode wav
+      resample_linear,function,"(samples: &[i16], from_rate: u32, to_rate: u32) -> Vec<i16>","-",false,1,1,resample linear
+      preferred_input_config,function,"(device: &cpal::Device) -> Result<StreamConfig,","-",false,1,1,preferred input config
+      base64_encode,function,"(data: &[u8]) -> String","-",false,1,1,base64 encode
+      is_silence,function,"(state: &SharedRecordingState, threshold_seconds: f32, rms_threshold: f32) -> bool","-",false,1,1,checks silence
+  src-tauri/src/useAudio.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      useAudio,function,"(options: UseAudioOptions) -> UseAudioReturn",71-212,false,142,1,use audio
+  src-tauri/src/tts_backend.rs:
+    functions[22]{name,kind,sig,loc,async,lines,cc,does}:
+      piper_dir,function,() -> PathBuf,"-",false,1,1,piper dir
+      piper_binary,function,() -> PathBuf,"-",false,1,1,piper binary
+      piper_model,function,() -> PathBuf,"-",false,1,1,piper model
+      detect_tts_engine,function,() -> TtsEngine,"-",false,1,1,detect tts engine
+      tts_engine_info,function,() -> String,"-",false,1,1,tts engine info
+      select_tts_engine,function,"(preferred: &str) -> TtsEngine","-",false,1,1,retrieves tts engine
+      synthesize_to_wav,function,"(text: &str, rate: f32, lang: &str) -> Result<Vec<u8>,","-",false,1,1,synthesize to wav
+      synthesize_to_wav_with_engine,function,"(text: &str, rate: f32, lang: &str, preferred_engine: &str) -> Result<Vec<u8>,","-",false,1,1,synthesize to wav with engine
+      synthesize_piper,function,"(text: &str, rate: f32) -> Result<Vec<u8>,","-",false,1,1,synthesize piper
+      synthesize_espeak,function,"(text: &str, rate: f32, lang: &str) -> Result<Vec<u8>,","-",false,1,1,synthesize espeak
+      play_wav_blocking,function,"(wav_data: &[u8], volume: f32) -> Result<(),","-",false,1,1,play wav blocking
+      play_wav_async,function,"(wav_data: Vec<u8>, volume: f32) -> Result<(),","-",true,1,1,play wav async
+      play_wav_stoppable,function,"(wav_data: &[u8], volume: f32) -> Result<(OutputStream,","-",false,1,1,play wav stoppable
+      speak,function,"(text: &str, rate: f32, volume: f32, lang: &str) -> Result<(),","-",false,1,1,speak
+      speak_with_engine,function,"(text: &str, rate: f32, volume: f32, lang: &str, preferred_engine: &str) -> Result<(),","-",false,1,1,speak with engine
+      speak_to_base64,function,"(text: &str, rate: f32, lang: &str) -> Result<String,","-",false,1,1,speak to base64
+      speak_to_base64_with_engine,function,"(text: &str, rate: f32, lang: &str, preferred_engine: &str) -> Result<String,","-",false,1,1,speak to base64 with engine
+      wrap_raw_pcm_as_wav,function,"(raw: &[u8], sample_rate: u32, channels: u16, bits: u16) -> Vec<u8>","-",false,1,1,wrap raw pcm as wav
+      base64_encode,function,"(data: &[u8]) -> String","-",false,1,1,base64 encode
+      truncate,function,"(s: &str, max: usize) -> String","-",false,1,1,truncate
+      piper_setup_instructions,function,() -> Option<String>,"-",false,1,1,piper setup instructions
+      piper_is_installed,function,() -> bool,"-",false,1,1,piper is installed
+  src-tauri/src/content_cleaning.rs:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      strip_cookie_banner_text,function,"(text: &str) -> String","-",false,1,1,strip cookie banner text
+      truncate_to_chars,function,"(text: &str, max_chars: usize) -> String","-",false,1,1,truncate to chars
+      normalize_whitespace,function,"(text: &str) -> String","-",false,1,1,normalize whitespace
+  src-tauri/src/content_extraction.rs:
+    functions[5]{name,kind,sig,loc,async,lines,cc,does}:
+      extract_search_results,function,"(html: &str, url: &str) -> Option<String>","-",false,1,1,parses search results
+      extract_content,function,"(document: &scraper::Html) -> String","-",false,1,1,parses content
+      extract_with_scraper,function,"(html: &str, url: &str) -> (String,","-",false,1,1,parses with scraper
+      try_extract_search,function,"(html: &str, url: &str, final_url: &str) -> Option<(String,","-",false,1,1,try extract search
+      extract_action_links,function,"(document: &scraper::Html) -> ActionLinks","-",false,1,1,parses action links
   src-tauri/tests/test_read.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       test_extractor,function,(),"-",false,1,1,checks extractor

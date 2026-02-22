@@ -8,6 +8,10 @@ import {
 } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import Settings from "./Settings";
+import { isTauriRuntime } from "../lib/runtime";
+
+// Mock the runtime module
+vi.mock("../lib/runtime");
 
 const defaultVoices: SpeechSynthesisVoice[] = [
   {
@@ -36,6 +40,7 @@ const baseProps = {
 describe("Settings — widoczność", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isTauriRuntime).mockReturnValue(true);
     (invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       tts_enabled: true,
       tts_rate: 1.0,
@@ -89,6 +94,7 @@ describe("Settings — widoczność", () => {
 describe("Settings — ładowanie ustawień", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isTauriRuntime).mockReturnValue(true);
   });
 
   it("ładuje ustawienia przez invoke przy otwarciu", async () => {
@@ -126,6 +132,7 @@ describe("Settings — ładowanie ustawień", () => {
 describe("Settings — kontrolki TTS", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isTauriRuntime).mockReturnValue(true);
     (invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
       tts_enabled: true,
       tts_rate: 1.0,

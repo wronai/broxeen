@@ -1,3 +1,29 @@
+## [1.0.18] - 2026-02-22
+
+### Summary
+
+feat(tests): deep code analysis engine with 7 supporting modules
+
+### Docs
+
+- docs: update TODO.md
+- docs: update mobile-development-suggestions.md
+
+### Other
+
+- update project.functions.toon
+- scripts: update project.sh
+- update src/components/Settings.test.tsx
+- update src/contexts/PluginContext.tsx
+- update src/core/bootstrap.ts
+- update src/core/commandBus.test.ts
+- update src/core/commandBus.ts
+- update src/core/intentRouter.test.ts
+- update src/core/intentRouter.ts
+- update src/core/plugin.types.ts
+- ... and 11 more
+
+
 ## [1.0.17] - 2026-02-22
 
 ### Summary
