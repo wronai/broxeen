@@ -16,6 +16,71 @@ aby nie trzeba było na nowo skanowac calej sieci i inicjiowac konfiguracji, ewe
 dlatego lista stron, urzadzen powinna byc zapisywana do bazy sqlite
 wszystkie wiadomosci chat w osobnej bazie danych
 
+---
+
+## 🚀 NOWE ULEPSZENIA SYSTEMU (v2.0+)
+
+### 🤖 Inteligentny Asystent z Propozycjami
+- [ ] **System proponowania akcji** - gdy użytkownik nie jest pewien, system proponuje dostępne opcje
+- [ ] **Kontekstowe sugestie** - na podstawie historii i aktualnego stanu
+- [ ] **Interaktywne wybieranie** - klikalne opcje zamiast tylko tekst
+- [ ] **Uczenie się preferencji** - system zapamiętuje wybory użytkownika
+
+### 📺 Podgląd Kamier i Urządzeń
+- [ ] **Live preview kamer** - podgląd wideo (1 FPS dla oszczędności)
+- [ ] **Status urządzeń** - online/offline, ostatnia aktywność
+- [ ] **Szybkie akcje** - kliknij aby zobaczyć szczegóły
+- [ ] **Galeria znalezionych** - przeglądaj wszystkie odkryte urządzenia
+
+### 🔍 Inteligentne Skanowanie
+- [ ] **Skanowanie przyrostowe** - tylko nowe urządzenia
+- [ ] **Historia skanowań** - zapamiętaj co znaleziono
+- [ ] **Automatyczne ponawianie** - periodiczne sprawdzanie statusu
+- [ ] **Filtrowanie wyników** - tylko kamery, tylko konkretne typy
+
+### 💬 Ulepszenia Chat UI
+- [ ] **Sugerowane komendy** - popularne akcje dostępne jednym kliknięciem
+- [ ] **Historia z kategoriami** - sieciowe, przeglądanie, chat
+- [ ] **Szybkie odpowiedzi** - predefiniowane odpowiedzi
+- [ ] **Wizualizacja wyników** - karty, ikony, statusy
+
+### 🌐 Wieloplatformowość
+- [ ] **Android tablet/smartphone** - responsywny UI
+- [ ] **PWA (Progressive Web App)** - instalowalna aplikacja
+- [ ] **Offline mode** - podstawowe funkcje bez internetu
+- [ ] **Synchronizacja** - między urządzeniami
+
+### 📊 Analiza i Monitorowanie
+- [ ] **Dashboard urządzeń** - podsumowanie stanu sieci
+- [ ] **Alerty o zmianach** - automatyczne powiadomienia
+- [ ] **Statystyki użycia** - najczęściej używane funkcje
+- [ ] **Export danych** - CSV, JSON raporty
+
+### 🔧 Techniczne Ulepszenia
+- [ ] **Plugin system v2** - dynamiczne ładowanie pluginów
+- [ ] **Real-time updates** - WebSocket dla natychmiastowych zmian
+- [ ] **Cache system** - przyspieszenie powtarzających się zapytań
+- [ ] **Error recovery** - automatyczne ponawianie błędnych operacji
+
+---
+
+## 🎯 PRIORYTETY NA NAJBLIŻSZY CZAS
+
+### Wysoki Priorytet (Teraz)
+1. **System proponowania akcji** - interaktywne wybieranie opcji
+2. **Podgląd kamer** - wizualizacja znalezionych urządzeń
+3. **Popularne komendy** - szybki dostęp do najczęstszych akcji
+
+### Średni Priorytet (Wkrótce)
+1. **Historia urządzeń** - zapamiętywanie stanu sieci
+2. **Dashboard** - przegląd wszystkich urządzeń
+3. **PWA support** - instalowalna aplikacja
+
+### Niski Priorytet (Później)
+1. **Android natywny** - dedykowana aplikacja
+2. **Zaawansowane analizy** - statystyki i raporty
+3. **Multi-user** - wiele profili użytkowników
+
 
 
 wyszukaj kamere w sieci lokalnej:

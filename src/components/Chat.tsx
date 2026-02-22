@@ -420,6 +420,133 @@ export default function Chat({ settings }: ChatProps) {
     }, 200);
   };
 
+  const sendAmbiguousQuerySuggestions = async (userQuery: string) => {
+    chatLogger.info('Sending suggestions for ambiguous query', { userQuery });
+    
+    // Add user message to chat
+    eventStore.append({
+      type: "message_added",
+      payload: { 
+        id: Date.now(), 
+        role: "user", 
+        text: userQuery 
+      },
+    });
+
+    // Add suggestions message from assistant
+    const suggestionsId = Date.now() + 1;
+    eventStore.append({
+      type: "message_added",
+      payload: {
+        id: suggestionsId,
+        role: "assistant",
+        text: getAmbiguousQueryText(userQuery),
+        type: "suggestions",
+        suggestions: getSuggestionsForQuery(userQuery)
+      },
+    });
+
+    // Store the suggestions message ID for handling clicks
+    (window as any).broxeenSuggestionsId = suggestionsId;
+  };
+
+  const getAmbiguousQueryText = (query: string) => {
+    return `Nie jestem pewien, co dokładnie chcesz zrobić z zapytaniem: **"${query}"**
+
+Oto kilka możliwości, które mogą Cię interesować:
+
+Wybierz jedną z poniższych opcji, aby kontynuować:`;
+  };
+
+  const getSuggestionsForQuery = (query: string) => {
+    const lowerQuery = query.toLowerCase();
+    const suggestions = [];
+
+    // Network-related suggestions
+    if (lowerQuery.includes('sieci') || lowerQuery.includes('kamer') || lowerQuery.includes('urządzen')) {
+      suggestions.push(
+        { 
+          action: 'network_scan', 
+          text: '🔍 Skanuj sieć w poszukiwaniu kamer', 
+          description: 'Znajdź wszystkie kamery IP w Twojej sieci lokalnej',
+          query: 'znajdź kamere w sieci'
+        },
+        { 
+          action: 'network_global', 
+          text: '🌐 Przeszukaj internet globalny', 
+          description: 'Wyszukaj publiczne urządzenia w sieci',
+          query: 'skanuj siec globalnie'
+        },
+        { 
+          action: 'camera_status', 
+          text: '📷 Sprawdź status kamer', 
+          description: 'Zobacz które kamery są online',
+          query: 'sprawdz status kamer'
+        }
+      );
+    }
+
+    // Browse-related suggestions
+    if (lowerQuery.includes('stron') || lowerQuery.includes('www') || lowerQuery.includes('http')) {
+      suggestions.push(
+        { 
+          action: 'browse_url', 
+          text: '🌍 Przeglądaj stronę internetową', 
+          description: 'Otwórz i przeczytaj zawartość strony',
+          query: 'przeglądaj stronę'
+        },
+        { 
+          action: 'search_web', 
+          text: '🔎 Wyszukaj w internecie', 
+          description: 'Znajdź informacje w wyszukiwarce',
+          query: 'wyszukaj w internecie'
+        }
+      );
+    }
+
+    // General help suggestions
+    suggestions.push(
+      { 
+        action: 'help', 
+        text: '❓ Pokaż pomoc', 
+        description: 'Zobacz dostępne komendy i funkcje',
+        query: 'pomoc'
+      },
+      { 
+        action: 'chat', 
+        text: '💬 Porozmawiaj ze mną', 
+        description: 'Zadaj pytanie i porozmawiaj z asystentem',
+        query: 'jak mogę Ci pomóc?'
+      }
+    );
+
+    return suggestions.slice(0, 5); // Limit to 5 suggestions
+  };
+
+  const handleSuggestionClick = (suggestion: any) => {
+    chatLogger.info('Suggestion clicked', { action: suggestion.action, query: suggestion.query });
+    
+    // Add confirmation message
+    eventStore.append({
+      type: "message_added",
+      payload: {
+        id: Date.now(),
+        role: "assistant",
+        text: `✅ Wybrano: **${suggestion.text}**
+
+${suggestion.description}
+
+Wykonuję akcję: ${suggestion.query}`,
+        type: "content"
+      },
+    });
+    
+    // Execute the suggested query
+    setTimeout(() => {
+      handleSubmit(suggestion.query);
+    }, 500);
+  };
+
   const sendNetworkSelectionMessage = async (userQuery: string) => {
     chatLogger.info('Sending network selection message', { userQuery });
     
@@ -754,6 +881,28 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
     }
   };
 
+  const checkIfAmbiguousQuery = (query: string): boolean => {
+    const lowerQuery = query.toLowerCase();
+    
+    // Check for ambiguous patterns
+    const ambiguousPatterns = [
+      // Very short queries
+      lowerQuery.length < 5,
+      // Generic words without context
+      /^(pomoc|help|co|jak|dlaczego|test|sprawdz|pokaz|zrob|zrób|wejdź|otwórz|znajdź|szukaj)$/,
+      // Questions that could mean multiple things
+      /^(co masz|jak działa|pokaż mi|wejdź na|otwórz|sprawdź)/,
+      // Single words that are unclear
+      /^(sieć|kamera|strona|urządzenie|system|aplikacja|program)$/,
+    ];
+    
+    return ambiguousPatterns.some(pattern => {
+      if (typeof pattern === 'boolean') return pattern;
+      if (pattern instanceof RegExp) return pattern.test(lowerQuery);
+      return false;
+    });
+  };
+
   const checkIfNetworkQuery = (query: string): boolean => {
     const networkKeywords = [
       'znajdź kamere w sieci',
@@ -779,6 +928,13 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
 
     // Hide command history when user submits
     setShowCommandHistory(false);
+
+    // Check if this is an ambiguous query and suggest options
+    if (checkIfAmbiguousQuery(query)) {
+      chatLogger.info('Ambiguous query detected, sending suggestions', { query });
+      await sendAmbiguousQuerySuggestions(query);
+      return;
+    }
 
     // Check if this is the first message and we should ask about network
     if (messages.length === 0 && !selectedNetwork) {
@@ -935,11 +1091,6 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
 
   const handleLlmQuestion = async (question: string) => {
     await commands.sendMessage.execute(question, pageContent);
-  };
-
-  const handleSuggestionClick = (url: string) => {
-    setInput("");
-    handleSubmit(url);
   };
 
   const inputHistoryRef = useRef<string[]>([]);
@@ -1225,6 +1376,34 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
                                     </div>
                                     <div className="text-sm text-gray-400 mt-1">
                                       {option.description}
+                                    </div>
+                                  </div>
+                                  <div className="text-gray-400 group-hover:text-broxeen-400">
+                                    →
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Suggestions */}
+                        {msg.type === "suggestions" && msg.suggestions && (
+                          <div className="mt-4 space-y-2" data-testid="suggestions">
+                            {msg.suggestions.map((suggestion: any, index: number) => (
+                              <button
+                                key={index}
+                                onClick={() => handleSuggestionClick(suggestion)}
+                                className="w-full text-left p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
+                                data-testid={`suggestion-${suggestion.action}`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <div className="font-medium text-gray-200 group-hover:text-broxeen-400">
+                                      {suggestion.text}
+                                    </div>
+                                    <div className="text-sm text-gray-400 mt-1">
+                                      {suggestion.description}
                                     </div>
                                   </div>
                                   <div className="text-gray-400 group-hover:text-broxeen-400">

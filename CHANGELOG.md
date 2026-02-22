@@ -1,3 +1,27 @@
+## [1.0.26] - 2026-02-22
+
+### Summary
+
+refactor(tests): configuration management system
+
+### Docs
+
+- docs: update TODO.md
+
+### Test
+
+- update test-results/.last-run.json
+- docs: update error-context.md
+
+### Other
+
+- update e2e/network-scanning-flow.spec.ts
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update "test-results/network-scanning-flow-Netw-ba7a2-camera-list-\342\206\222-video-preview-chromium/error-context.md"
+- update vite.config.ts
+
+
 ## [1.0.25] - 2026-02-22
 
 ### Summary

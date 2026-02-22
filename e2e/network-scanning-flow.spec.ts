@@ -10,8 +10,8 @@ test.describe('Network Scanning Flow', () => {
     // Navigate to the app
     await page.goto('http://localhost:5173');
     
-    // Wait for the app to load
-    await page.waitForSelector('text=Witaj w Broxeen', { timeout: 10000 });
+    // Wait for the app to load - look for input field instead of welcome text
+    await page.waitForSelector('input[placeholder*="Wpisz adres, zapytanie"]', { timeout: 10000 });
     
     // Clear any existing messages if needed
     await page.evaluate(() => {
@@ -21,7 +21,7 @@ test.describe('Network Scanning Flow', () => {
     
     // Wait for reload
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('input[placeholder*="Wpisz adres"]', { timeout: 10000 });
+    await page.waitForSelector('input[placeholder*="Wpisz adres, zapytanie"]', { timeout: 10000 });
   });
 
   test('complete flow: text message → network selection → camera list → video preview', async ({ page }) => {
@@ -29,8 +29,8 @@ test.describe('Network Scanning Flow', () => {
 
     // Step 1: Send network scanning message
     console.log('📝 Step 1: Sending network scanning message');
-    await page.fill('input[placeholder*="Wpisz adres"]', 'znajdź kamere w sieci lokalnej');
-    await page.press('input[placeholder*="Wpisz adres"]', 'Enter');
+    await page.fill('input[placeholder*="Wpisz adres, zapytanie"]', 'znajdź kamere w sieci lokalnej');
+    await page.press('input[placeholder*="Wpisz adres, zapytanie"]', 'Enter');
     
     // Wait for network selection message
     await page.waitForSelector('text=Wybierz zakres sieci, który chcesz przeskanować', { timeout: 10000 });
@@ -206,8 +206,8 @@ test.describe('Network Scanning Flow', () => {
     console.log('🧪 Testing network selection functionality');
 
     // Send network scanning message
-    await page.fill('input[placeholder*="Wpisz adres"]', 'skanuj siec');
-    await page.press('input[placeholder*="Wpisz adres"]', 'Enter');
+    await page.fill('input[placeholder*="Wpisz adres, zapytanie"]', 'skanuj siec');
+    await page.press('input[placeholder*="Wpisz adres, zapytanie"]', 'Enter');
     
     // Wait for network selection
     await page.waitForSelector('text=Wybierz zakres sieci', { timeout: 10000 });
@@ -251,7 +251,7 @@ test.describe('Network Scanning Flow', () => {
     console.log('🧪 Testing quick command history');
 
     // Focus on input field
-    await page.click('input[placeholder*="Wpisz adres"]');
+    await page.click('input[placeholder*="Wpisz adres, zapytanie"]');
     
     // Wait for quick history to appear
     try {
@@ -279,8 +279,8 @@ test.describe('Network Scanning Flow', () => {
     ];
 
     for (const command of testCommands) {
-      await page.fill('input[placeholder*="Wpisz adres"]', command);
-      await page.press('input[placeholder*="Wpisz adres"]', 'Enter');
+      await page.fill('input[placeholder*="Wpisz adres, zapytanie"]', command);
+      await page.press('input[placeholder*="Wpisz adres, zapytanie"]', 'Enter');
       await page.waitForTimeout(1000); // Wait for processing
     }
 

@@ -16,10 +16,40 @@ import { PluginProvider } from "../contexts/pluginContext";
 vi.mock("../contexts/pluginContext", () => ({
   PluginProvider: ({ children }: { children: React.ReactNode }) => children,
   usePlugins: () => ({
-    ask: vi.fn().mockResolvedValue({
-      status: 'success',
-      content: [{ type: 'text', data: 'Mock plugin response' }],
-      executionTime: 100,
+    ask: vi.fn().mockImplementation((query: string) => {
+      console.log('Mock plugin ask called with query:', query);
+      
+      // Return different content based on the query
+      if (query.includes('znajdź kamere w sieci')) {
+        console.log('Returning Krótka for network query');
+        return Promise.resolve({
+          status: 'success',
+          content: [{ type: 'text', data: 'Krótka' }],
+          executionTime: 100,
+        });
+      }
+      if (query.includes('first.com')) {
+        console.log('Returning Pierwsza treść for first.com');
+        return Promise.resolve({
+          status: 'success',
+          content: [{ type: 'text', data: 'Pierwsza treść' }],
+          executionTime: 100,
+        });
+      }
+      if (query.includes('second.com')) {
+        console.log('Returning Druga treść for second.com');
+        return Promise.resolve({
+          status: 'success',
+          content: [{ type: 'text', data: 'Druga treść' }],
+          executionTime: 100,
+        });
+      }
+      console.log('Returning default mock response');
+      return Promise.resolve({
+        status: 'success',
+        content: [{ type: 'text', data: 'Mock plugin response' }],
+        executionTime: 100,
+      });
     }),
   }),
 }));
@@ -339,7 +369,8 @@ describe("Chat — TTS auto-play", () => {
     (window as any).speechSynthesis.resume = vi.fn();
     (window as any).speechSynthesis.getVoices = vi.fn(() => []);
     vi.clearAllMocks();
-    vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
+    // Set API key so LlmAdapter is created and mocks work
+    vi.stubEnv("VITE_OPENROUTER_API_KEY", "test-key");
   });
 
   afterEach(() => {
@@ -425,7 +456,7 @@ describe("Chat — TTS auto-play", () => {
 
   it("TTS nie jest wywoływane dla krótkiej treści", async () => {
     const { executeBrowseCommand } = await import("../lib/browseGateway");
-    vi.mocked(executeBrowseCommand).mockResolvedValueOnce({
+    executeBrowseCommand.mockResolvedValueOnce({
       url: "https://example.com",
       title: "Test",
       content: "Krótka",
@@ -434,9 +465,20 @@ describe("Chat — TTS auto-play", () => {
 
     render(<Chat settings={{ ...defaultSettings, tts_enabled: true }} />);
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
-    fireEvent.change(input, { target: { value: "example.com" } });
+    fireEvent.change(input, { target: { value: "znajdź kamere w sieci" } });
     fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
 
+    // First, handle the network selection that appears
+    await waitFor(() => {
+      const networkOptions = screen.getAllByText(/Sieć lokalna/i);
+      expect(networkOptions.length).toBeGreaterThan(0);
+    });
+    
+    // Click on the first network option to select it
+    const networkOption = screen.getByText(/Sieć lokalna/i);
+    fireEvent.click(networkOption);
+
+    // Now wait for the browse result
     await waitFor(() => {
       const els = screen.getAllByText(/Krótka/i);
       expect(els.length).toBeGreaterThan(0);
