@@ -188,10 +188,6 @@ async function registerCorePlugins(
 
   // ── Command bus ──────────────────────────────────────────────
 
-  // Store the tauriInvoke for use in command bus
-  const sharedTauriInvoke = config.tauriInvoke;
-
-  // Register command bus with access to tauriInvoke
   bus.register('plugins:ask', async (payload: string) => {
     const intent = await router.detect(payload);
     const activeScope = scopeRegistry.getActiveScope().id;
@@ -214,10 +210,10 @@ async function registerCorePlugins(
       return await plugin.execute(query);
     }
     
-    // Legacy Plugin API - use the stored tauriInvoke
+    // Legacy Plugin API
     return await plugin.execute(payload, {
-      isTauri: config.isTauri,
-      tauriInvoke: sharedTauriInvoke,
+      isTauri,
+      tauriInvoke,
       scope: activeScope,
     } as PluginContext);
   });

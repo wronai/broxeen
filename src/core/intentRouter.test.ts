@@ -259,4 +259,38 @@ describe('IntentRouter', () => {
     expect(router.route('camera:snapshot')?.id).toBe('cam-snap');
     expect(router.route('marketplace:browse')?.id).toBe('marketplace');
   });
+
+  it('should enforce scope-aware routing when scope is provided', () => {
+    const networkScan = new MockPlugin('network-scan', 'Network Scan', ['network:scan']);
+    const browse = new MockPlugin('http-browse', 'HTTP Browse', ['browse:url']);
+    const marketplace = new MockPlugin('marketplace', 'Marketplace', ['marketplace:browse']);
+
+    router.registerPlugin(networkScan);
+    router.registerPlugin(browse);
+    router.registerPlugin(marketplace);
+
+    // Legacy behavior stays intact when scope is omitted
+    expect(router.route('network:scan')?.id).toBe('network-scan');
+    expect(router.route('browse:url')?.id).toBe('http-browse');
+
+    // local: LAN-only
+    expect(router.route('network:scan', 'local')?.id).toBe('network-scan');
+    expect(router.route('browse:url', 'local')).toBeNull();
+
+    // internet: internet-only
+    expect(router.route('browse:url', 'internet')?.id).toBe('http-browse');
+    expect(router.route('network:scan', 'internet')).toBeNull();
+
+    // tor: internet-only, stricter than vpn/network
+    expect(router.route('browse:url', 'tor')?.id).toBe('http-browse');
+    expect(router.route('network:scan', 'tor')).toBeNull();
+
+    // vpn: LAN + internet
+    expect(router.route('network:scan', 'vpn')?.id).toBe('network-scan');
+    expect(router.route('browse:url', 'vpn')?.id).toBe('http-browse');
+
+    // remote: marketplace-focused
+    expect(router.route('marketplace:browse', 'remote')?.id).toBe('marketplace');
+    expect(router.route('network:scan', 'remote')).toBeNull();
+  });
 });
