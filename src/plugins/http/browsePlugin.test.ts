@@ -8,9 +8,7 @@ import type { PluginContext } from '../../core/types';
 
 // Mock dependencies
 vi.mock('../../lib/browseGateway', () => ({
-  browseGateway: {
-    executeBrowseCommand: vi.fn(),
-  },
+  executeBrowseCommand: vi.fn(),
 }));
 
 vi.mock('../../lib/resolver', () => ({
@@ -52,7 +50,7 @@ describe('HttpBrowsePlugin', () => {
   });
 
   it('should execute browse command for URLs', async () => {
-    const { browseGateway } = await import('../../lib/browseGateway');
+    const { executeBrowseCommand } = await import('../../lib/browseGateway');
     const { resolve } = await import('../../lib/resolver');
     
     vi.mocked(resolve).mockReturnValue({
@@ -63,7 +61,7 @@ describe('HttpBrowsePlugin', () => {
       normalizedInput: 'https://example.com',
     });
     
-    vi.mocked(browseGateway.executeBrowseCommand).mockResolvedValue({
+    vi.mocked(executeBrowseCommand).mockResolvedValue({
       url: 'https://example.com',
       title: 'Example Page',
       content: 'Example content',
@@ -82,7 +80,7 @@ describe('HttpBrowsePlugin', () => {
   });
 
   it('should execute search command for queries', async () => {
-    const { browseGateway } = await import('../../lib/browseGateway');
+    const { executeBrowseCommand } = await import('../../lib/browseGateway');
     const { resolve } = await import('../../lib/resolver');
     
     vi.mocked(resolve).mockReturnValue({
@@ -93,7 +91,7 @@ describe('HttpBrowsePlugin', () => {
       normalizedInput: 'wyszukaj React tutorial',
     });
     
-    vi.mocked(browseGateway.executeBrowseCommand).mockResolvedValue({
+    vi.mocked(executeBrowseCommand).mockResolvedValue({
       url: 'https://duckduckgo.com/html/?q=React+tutorial',
       title: 'React tutorial - DuckDuckGo search',
       content: 'Search results for React tutorial',
@@ -108,7 +106,7 @@ describe('HttpBrowsePlugin', () => {
   });
 
   it('should handle execution errors gracefully', async () => {
-    const { browseGateway } = await import('../../lib/browseGateway');
+    const { executeBrowseCommand } = await import('../../lib/browseGateway');
     const { resolve } = await import('../../lib/resolver');
     
     vi.mocked(resolve).mockReturnValue({
@@ -119,7 +117,7 @@ describe('HttpBrowsePlugin', () => {
       normalizedInput: 'https://example.com',
     });
     
-    vi.mocked(browseGateway.executeBrowseCommand).mockRejectedValue(
+    vi.mocked(executeBrowseCommand).mockRejectedValue(
       new Error('Network error')
     );
 

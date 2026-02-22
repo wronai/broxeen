@@ -1,3 +1,15 @@
+## [1.0.29] - 2026-02-22
+
+### Summary
+
+feat(tests): code relationship mapping
+
+### Other
+
+- update src/components/Chat.tsx
+- update src/plugins/http/browsePlugin.test.ts
+
+
 ## [1.0.28] - 2026-02-22
 
 ### Summary

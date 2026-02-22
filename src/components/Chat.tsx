@@ -912,23 +912,36 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
   const checkIfAmbiguousQuery = (query: string): boolean => {
     const lowerQuery = query.toLowerCase();
     
+    chatLogger.info('Checking ambiguous query', { query, length: query.length });
+    
     // Check for ambiguous patterns
     const ambiguousPatterns = [
       // Very short queries
       lowerQuery.length < 5,
       // Generic words without context
-      /^(pomoc|help|co|jak|dlaczego|test|sprawdz|pokaz|zrob|zrób|wejdź|otwórz|znajdź|szukaj)$/,
+      /^(pomoc|help|co|jak|dlaczego|test|sprawdz|pokaz|zrob|zrób|wejdź|otwórz|znajdź|szukaj|start|startuj|uruchom|włącz|wyłącz|stop|koniec)$/,
       // Questions that could mean multiple things
-      /^(co masz|jak działa|pokaż mi|wejdź na|otwórz|sprawdź)/,
+      /^(co masz|jak działa|pokaż mi|wejdź na|otwórz|sprawdź|czy możesz|możesz|jaka jest|ile jest|gdzie jest)$/,
       // Single words that are unclear
-      /^(sieć|kamera|strona|urządzenie|system|aplikacja|program)$/,
+      /^(sieć|kamera|strona|urządzenie|system|aplikacja|program|komputer|internet|wifi|poczta|google|youtube|facebook)$/,
+      // Very general requests
+      /^(pokaż|zobacz|wejdź|otwórz|uruchom|włącz|sprawdź|znajdź|szukaj|testuj|odśwież|reload|refresh)$/,
     ];
     
-    return ambiguousPatterns.some(pattern => {
+    const isAmbiguous = ambiguousPatterns.some(pattern => {
       if (typeof pattern === 'boolean') return pattern;
-      if (pattern instanceof RegExp) return pattern.test(lowerQuery);
+      if (pattern instanceof RegExp) {
+        const matches = pattern.test(lowerQuery);
+        if (matches) {
+          chatLogger.info('Query matched ambiguous pattern', { pattern: pattern.source, query });
+        }
+        return matches;
+      }
       return false;
     });
+    
+    chatLogger.info('Ambiguous query result', { query, isAmbiguous });
+    return isAmbiguous;
   };
 
   const checkIfNetworkQuery = (query: string): boolean => {
