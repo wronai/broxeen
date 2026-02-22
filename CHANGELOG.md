@@ -1,3 +1,16 @@
+## [1.0.24] - 2026-02-22
+
+### Summary
+
+feat(tests): core module improvements
+
+### Other
+
+- update src/core/bootstrap.ts
+- update src/plugins/http/browsePlugin.test.ts
+- update src/plugins/http/browsePlugin.ts
+
+
 ## [1.0.23] - 2026-02-22
 
 ### Summary

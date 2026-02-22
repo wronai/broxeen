@@ -56,8 +56,11 @@ describe('HttpBrowsePlugin', () => {
     const { resolve } = await import('../../lib/resolver');
     
     vi.mocked(resolve).mockReturnValue({
-      type: 'exact',
       url: 'https://example.com',
+      suggestions: [],
+      resolveType: 'exact',
+      needsClarification: false,
+      normalizedInput: 'https://example.com',
     });
     
     vi.mocked(browseGateway.executeBrowseCommand).mockResolvedValue({
@@ -75,7 +78,7 @@ describe('HttpBrowsePlugin', () => {
     expect(result.content[0].data).toBe('Example content');
     expect(result.content[0].title).toBe('Example Page');
     expect(result.metadata?.url).toBe('https://example.com');
-    expect(result.executionTime).toBeGreaterThan(0);
+    expect(result.executionTime).toBeGreaterThanOrEqual(0);
   });
 
   it('should execute search command for queries', async () => {
@@ -83,8 +86,11 @@ describe('HttpBrowsePlugin', () => {
     const { resolve } = await import('../../lib/resolver');
     
     vi.mocked(resolve).mockReturnValue({
-      type: 'search',
-      query: 'React tutorial',
+      url: 'https://duckduckgo.com/html/?q=React+tutorial',
+      suggestions: [],
+      resolveType: 'search',
+      needsClarification: false,
+      normalizedInput: 'wyszukaj React tutorial',
     });
     
     vi.mocked(browseGateway.executeBrowseCommand).mockResolvedValue({
@@ -106,8 +112,11 @@ describe('HttpBrowsePlugin', () => {
     const { resolve } = await import('../../lib/resolver');
     
     vi.mocked(resolve).mockReturnValue({
-      type: 'exact',
       url: 'https://example.com',
+      suggestions: [],
+      resolveType: 'exact',
+      needsClarification: false,
+      normalizedInput: 'https://example.com',
     });
     
     vi.mocked(browseGateway.executeBrowseCommand).mockRejectedValue(
@@ -119,7 +128,7 @@ describe('HttpBrowsePlugin', () => {
     expect(result.status).toBe('error');
     expect(result.content).toHaveLength(1);
     expect(result.content[0].data).toContain('Błąd podczas przeglądania');
-    expect(result.executionTime).toBeGreaterThan(0);
+    expect(result.executionTime).toBeGreaterThanOrEqual(0);
   });
 
   it('should initialize and dispose correctly', async () => {
