@@ -259,9 +259,9 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
               `}
             >
               {/* Favorite indicator */}
-              <button
+              <div
                 onClick={(e) => toggleFavorite(command.id, e)}
-                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
               >
                 <div className={`w-3 h-3 ${
                   command.isFavorite 
@@ -270,7 +270,7 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
                 }`}>
                   ⭐
                 </div>
-              </button>
+              </div>
 
               <div className="flex items-start gap-2">
                 <div className="flex-shrink-0 mt-0.5">
