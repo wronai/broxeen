@@ -99,74 +99,91 @@ export class NetworkScanPlugin implements Plugin {
     const allOffsets = new Set([1, ...commonCameraIps, ...commonDeviceIps]);
     const probeIps = [...allOffsets].map(n => `${subnet}.${n}`);
 
-    // Step 3: HTTP probe (image + no-cors fetch) on ports common to cameras and routers
-    const httpPorts = isCameraQuery ? [80, 8080, 8000, 8888] : [80, 443, 8080];
-    const httpFound: Array<{ ip: string; port: number }> = [];
+    // Step 3: Multi-strategy probe on common ports
+    const httpPorts = isCameraQuery ? [80, 8080, 8000, 8888, 8554, 81] : [80, 443, 8080];
+    const httpFound: Array<{ ip: string; port: number; method: string }> = [];
+
+    // Timing threshold: real TCP handshake takes >15ms even on fast LAN
+    // jsdom/blocked requests fire onerror in <5ms
+    const TIMING_THRESHOLD_MS = 15;
 
     const probeHttp = (ip: string, port: number): Promise<void> =>
       new Promise((resolve) => {
         let settled = false;
-        const done = () => {
-          if (!settled) { settled = true; httpFound.push({ ip, port }); }
+        const done = (method: string) => {
+          if (!settled) { settled = true; httpFound.push({ ip, port, method }); }
           resolve();
         };
         const fail = () => { if (!settled) { settled = true; } resolve(); };
         const t0 = Date.now();
 
-        // Image probe: bypasses CORS, onerror with >50ms = real TCP connection
+        const probeTimeout = setTimeout(() => {
+          fail();
+        }, 2500);
+
+        // Strategy A: Image probe — bypasses CORS, timing-gated
         const img = new Image();
-        const imgTimer = setTimeout(() => { 
-          img.src = ''; 
-          fail(); 
-        }, 1500);
-        img.onload = () => { 
-          clearTimeout(imgTimer); 
-          done(); 
-        };
+        img.onload = () => { clearTimeout(probeTimeout); done('img-load'); };
         img.onerror = () => {
-          clearTimeout(imgTimer);
-          // Timing gate: jsdom fires onerror in ~0ms; real TCP takes >50ms
-          // Only log successful probes, not failures to reduce console noise
-          if (Date.now() - t0 > 50) { 
-            done(); 
-          } else { 
-            fail(); 
+          if (Date.now() - t0 > TIMING_THRESHOLD_MS) {
+            clearTimeout(probeTimeout);
+            done('img-timing');
           }
         };
-        // Use a generic endpoint instead of favicon.ico to reduce 404 errors
         img.src = `http://${ip}:${port}/?_probe=${Date.now()}`;
 
-        // no-cors fetch: opaque response = host reachable
+        // Strategy B: no-cors fetch — opaque response = host reachable
         fetch(`http://${ip}:${port}/`, {
           method: 'HEAD', mode: 'no-cors',
-          signal: AbortSignal.timeout(1500),
-        }).then(() => { 
-          clearTimeout(imgTimer); 
-          done(); 
+          signal: AbortSignal.timeout(2000),
+        }).then(() => {
+          clearTimeout(probeTimeout);
+          done('fetch-ok');
         }).catch(() => {
-          // Silently handle fetch failures - these are expected for most IPs
+          // Expected for most IPs
         });
+
+        // Strategy C: WebSocket probe — connection attempt reveals host
+        try {
+          const ws = new WebSocket(`ws://${ip}:${port}/`);
+          const wsTimer = setTimeout(() => { try { ws.close(); } catch {} }, 2000);
+          ws.onopen = () => {
+            clearTimeout(wsTimer); clearTimeout(probeTimeout);
+            try { ws.close(); } catch {}
+            done('ws-open');
+          };
+          ws.onerror = () => {
+            clearTimeout(wsTimer);
+            // WebSocket onerror with timing gate — real host triggers TCP handshake
+            if (Date.now() - t0 > TIMING_THRESHOLD_MS) {
+              clearTimeout(probeTimeout);
+              done('ws-timing');
+            }
+          };
+        } catch {
+          // WebSocket constructor may throw in some environments
+        }
       });
 
-    const batchSize = 15; // Reduced from 30 to be more conservative
-    console.log(`[NetworkScanPlugin] Probing ${probeIps.length} IPs in batches of ${batchSize}`);
+    const batchSize = 10;
+    console.log(`[NetworkScanPlugin] Probing ${probeIps.length} IPs × ${httpPorts.length} ports (batch=${batchSize})`);
     
     for (let i = 0; i < probeIps.length; i += batchSize) {
       const batch = probeIps.slice(i, i + batchSize);
       await Promise.allSettled(batch.flatMap(ip => httpPorts.map(port => probeHttp(ip, port))));
       
-      // Log progress for larger scans
       if (probeIps.length > 20 && (i + batchSize) % (batchSize * 2) === 0) {
-        console.log(`[NetworkScanPlugin] Scan progress: ${Math.min(i + batchSize, probeIps.length)}/${probeIps.length} IPs checked`);
+        console.log(`[NetworkScanPlugin] Scan progress: ${Math.min(i + batchSize, probeIps.length)}/${probeIps.length} IPs, found: ${httpFound.length}`);
       }
     }
 
-    // Deduplicate HTTP results by IP
-    const httpByIp = new Map<string, number>();
-    for (const { ip, port } of httpFound) {
-      if (!httpByIp.has(ip)) httpByIp.set(ip, port);
+    // Deduplicate HTTP results by IP (keep first port found)
+    const httpByIp = new Map<string, { port: number; method: string }>();
+    for (const { ip, port, method } of httpFound) {
+      if (!httpByIp.has(ip)) httpByIp.set(ip, { port, method });
     }
-    const httpHosts = [...httpByIp.entries()].map(([ip, port]) => ({ ip, port }));
+    const httpHosts = [...httpByIp.entries()].map(([ip, { port, method }]) => ({ ip, port, method }));
+    console.log(`[NetworkScanPlugin] Scan complete: ${httpHosts.length} hosts found`, httpHosts.map(h => `${h.ip}:${h.port}(${h.method})`));
 
     // Step 4: Secondary RTSP probe on found HTTP hosts (port 8554 also, 554 is TCP-only but img timing works)
     const rtspHosts = new Set<string>();
@@ -218,10 +235,25 @@ export class NetworkScanPlugin implements Plugin {
       lines.push('- Urządzenia są w innej podsieci');
       lines.push(`- Twój adres IP: ${localIp || 'nie wykryto'}`);
       lines.push('');
-      lines.push('💡 **Rozwiązania:**');
-      lines.push('- Uruchom aplikację **Tauri** dla pełnego skanowania TCP/ARP');
-      lines.push('- Podaj bezpośrednio IP kamery: *"monitoruj 192.168.1.100"*');
-      lines.push('- Sprawdź router pod adresem: `http://' + gatewayIp + '`');
+      lines.push('💡 **Co możesz zrobić:**');
+      lines.push('');
+      lines.push('**1. Podaj IP kamery bezpośrednio:**');
+      lines.push(`- "monitoruj ${subnet}.100" — sprawdź konkretny adres`);
+      lines.push(`- "ping ${subnet}.1" — sprawdź gateway`);
+      lines.push('');
+      lines.push('**2. Sprawdź router:**');
+      lines.push(`- Otwórz panel routera: \`http://${gatewayIp}\``);
+      lines.push('- Lista DHCP pokaże wszystkie urządzenia w sieci');
+      lines.push('');
+      lines.push('**3. Uruchom Tauri:**');
+      lines.push('- Pełne skanowanie TCP/ARP/ONVIF bez ograniczeń przeglądarki');
+      lines.push('');
+      lines.push('---');
+      lines.push('💡 **Sugerowane akcje:**');
+      lines.push(`- "monitoruj ${subnet}.100" — Sprawdź typowy IP kamery`);
+      lines.push(`- "ping ${subnet}.1" — Sprawdź gateway`);
+      lines.push(`- "skanuj porty ${subnet}.1" — Porty routera`);
+      lines.push(`- "bridge rest GET http://${gatewayIp}" — Pobierz stronę routera`);
     } else {
       const cameras: string[] = [];
       const others: string[] = [];
@@ -269,25 +301,37 @@ export class NetworkScanPlugin implements Plugin {
    * 3. Default fallback
    */
   private async detectSubnet(): Promise<{ localIp: string | null; subnet: string; detectionMethod: string }> {
+    console.log(`[NetworkScanPlugin] Starting subnet detection...`);
+    
     // Strategy 1: WebRTC
     const webrtcIp = await this.detectLocalIpViaWebRTC();
     if (webrtcIp) {
+      const subnet = webrtcIp.split('.').slice(0, 3).join('.');
+      console.log(`[NetworkScanPlugin] WebRTC detected: IP=${webrtcIp}, subnet=${subnet}`);
       return {
         localIp: webrtcIp,
-        subnet: webrtcIp.split('.').slice(0, 3).join('.'),
+        subnet,
         detectionMethod: 'WebRTC',
       };
     }
+    console.log(`[NetworkScanPlugin] WebRTC failed, trying gateway probe...`);
 
     // Strategy 2: Probe common gateway IPs — first to respond wins
-    const candidateSubnets = ['192.168.1', '192.168.0', '10.0.0', '10.0.1', '172.16.0'];
+    const candidateSubnets = [
+      '192.168.1', '192.168.0', '192.168.188', '192.168.2', '192.168.10',
+      '10.0.0', '10.0.1', '10.1.1',
+      '172.16.0', '172.16.1'
+    ];
+    console.log(`[NetworkScanPlugin] Probing gateways for subnets: ${candidateSubnets.join(', ')}`);
+    
     const gatewayResult = await this.probeGateways(candidateSubnets);
     if (gatewayResult) {
       console.log(`[NetworkScanPlugin] Subnet detected via gateway probe: ${gatewayResult}`);
       return { localIp: null, subnet: gatewayResult, detectionMethod: 'gateway-probe' };
     }
+    console.log(`[NetworkScanPlugin] Gateway probe failed, using default subnet...`);
 
-    // Strategy 3: Default
+    // Strategy 3: Default - use more common subnet
     return { localIp: null, subnet: '192.168.1', detectionMethod: 'domyślna' };
   }
 

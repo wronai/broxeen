@@ -1372,6 +1372,58 @@ ${analysis}`,
                           </div>
                         )}
 
+                        {/* Inline Action Hints — parsed from plugin response text */}
+                        {msg.role === "assistant" && !msg.loading && (() => {
+                          // Only parse hints from an explicit section to avoid false-positives
+                          // from normal markdown bullet lists.
+                          const marker = '💡 **Sugerowane akcje:**';
+                          const markerIdx = msg.text.indexOf(marker);
+                          if (markerIdx === -1) return null;
+
+                          const afterMarker = msg.text.slice(markerIdx + marker.length);
+                          const section = afterMarker
+                            .split('\n')
+                            .map((l) => l.trimEnd())
+                            .join('\n');
+
+                          const hintPattern = /^-\s*"([^"]+)"\s*[—–-]\s*(.+)$/gm;
+                          const hints: Array<{ query: string; label: string }> = [];
+                          const seen = new Set<string>();
+                          let m: RegExpExecArray | null;
+
+                          while ((m = hintPattern.exec(section)) !== null) {
+                            const query = m[1].trim();
+                            const label = m[2].trim();
+                            if (!query || !label) continue;
+                            // Basic hardening: prevent absurdly long / pasted content queries
+                            if (query.length > 200) continue;
+                            if (seen.has(query)) continue;
+                            seen.add(query);
+                            hints.push({ query, label });
+                            if (hints.length >= 6) break;
+                          }
+
+                          if (hints.length === 0) return null;
+                          return (
+                            <div className="mt-3 flex flex-wrap gap-2" data-testid="action-hints">
+                              {hints.map((hint) => (
+                                <button
+                                  key={hint.query}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSubmit(hint.query);
+                                  }}
+                                  className="flex items-center gap-1.5 rounded-lg bg-broxeen-600/20 border border-broxeen-600/30 px-3 py-1.5 text-xs font-medium text-broxeen-300 hover:bg-broxeen-600/30 transition"
+                                  title={hint.query}
+                                >
+                                  <Zap size={12} />
+                                  <span>{hint.label}</span>
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
+
                         {/* Network Selection Options */}
                         {msg.type === "network_selection" && msg.networkOptions && (
                           <div className="mt-4 space-y-2" data-testid="network-selection">
