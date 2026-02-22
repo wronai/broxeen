@@ -8,6 +8,7 @@ mod content_extraction;
 mod disk_info;
 mod llm;
 mod logging;
+mod network;
 mod network_info;
 mod network_scan;
 mod settings;
@@ -439,11 +440,13 @@ fn main() {
             ssh::ssh_execute,
             ssh::ssh_test_connection,
             ssh::ssh_list_known_hosts,
+            network::rtsp_capture_frame,
+            network::http_fetch_base64,
         ])
         .run(tauri::generate_context!())
     {
         backend_error(format!("Error while running Broxeen: {}", err));
-        panic!("error while running Broxeen");
+        panic!("error while running broxeen");
     }
 
     backend_info("Broxeen backend stopped gracefully");

@@ -35,6 +35,30 @@ export class CameraLivePlugin implements Plugin {
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
+
+    // Explicit stream test command (Tauri best-effort)
+    if (/^test\s+streams\b/i.test(input) || /testuj\s+streamy\b/i.test(input)) {
+      const ipMatch = input.match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/);
+      const userMatch = input.match(/user:(\S+)/i);
+      const passMatch = input.match(/(?:admin|pass|password):(\S*)/i);
+      const ip = ipMatch?.[1];
+      const username = userMatch?.[1] ?? 'admin';
+      const password = passMatch?.[1] ?? '';
+
+      if (!ip) {
+        return {
+          pluginId: this.id,
+          status: 'error',
+          content: [{
+            type: 'text',
+            data: '❌ Podaj IP kamery, np. `test streams 192.168.1.100 user:admin admin:HASŁO`',
+          }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+        };
+      }
+
+      return this.handleTestStreams(ip, username, password, context, start);
+    }
     
     // Extract IP address or RTSP URL
     let ip: string | null = null;
@@ -49,6 +73,14 @@ export class CameraLivePlugin implements Plugin {
       password = rtspMatch[2] || '';
       ip = rtspMatch[3];
       rtspUrl = input.trim();
+
+      // Persist RTSP path so MonitorPlugin can reuse the correct vendor path
+      if (ip) {
+        const { configStore } = await import('../../config/configStore');
+        configStore.set(`camera.rtspPath.${ip}`, rtspUrl);
+        if (username) configStore.set(`camera.credentials.${ip}.username`, username);
+        if (password) configStore.set(`camera.credentials.${ip}.password`, password);
+      }
     } else if (/^[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]*$/.test(input.trim())) {
       // Handle credential testing like "admin:123456"
       const credMatch = input.trim().match(/^([^:]+):(.*)$/);
@@ -70,7 +102,7 @@ export class CameraLivePlugin implements Plugin {
         username = userMatch ? userMatch[1] : 'admin';
         password = passMatch ? passMatch[1] : '';
         
-        return this.handleTestStreams(ip, username, password, start);
+        return this.handleTestStreams(ip, username, password, context, start);
       }
     } else {
       // Extract IP from "pokaż live IP" command
@@ -79,12 +111,13 @@ export class CameraLivePlugin implements Plugin {
         ip = ipMatch[1];
         
         // Try to get credentials from config store
-        const storedUsername = context.configStore?.get(`camera.credentials.${ip}.username`);
-        const storedPassword = context.configStore?.get(`camera.credentials.${ip}.password`);
+        const { configStore } = await import('../../config/configStore');
+        const storedUsername = configStore.get(`camera.credentials.${ip}.username`) as string | undefined;
+        const storedPassword = configStore.get(`camera.credentials.${ip}.password`) as string | undefined;
         
         if (storedUsername) {
-          username = storedUsername as string;
-          password = (storedPassword as string) || '';
+          username = storedUsername;
+          password = storedPassword || '';
         }
         
         // Build RTSP URL
@@ -340,7 +373,13 @@ export class CameraLivePlugin implements Plugin {
     return result;
   }
 
-  private async handleTestStreams(ip: string, username: string, password: string, start: number): Promise<PluginResult> {
+  private async handleTestStreams(
+    ip: string,
+    username: string,
+    password: string,
+    context: PluginContext,
+    start: number,
+  ): Promise<PluginResult> {
     const vendorId = detectCameraVendor({ hostname: ip });
     const vendor = getVendorInfo(vendorId);
     const auth = username && password ? `${username}:${password}@` : username ? `${username}@` : '';
@@ -354,6 +393,7 @@ export class CameraLivePlugin implements Plugin {
     data += `🎥 **Testowanie ścieżek RTSP:**\n\n`;
     
     const testResults: Array<{path: string; status: string; working: boolean}> = [];
+    let firstWorkingBase64: string | null = null;
     
     for (const [index, path] of vendor.rtspPaths.entries()) {
       const rtspUrl = `rtsp://${auth}${ip}:554${path.path}`;
@@ -370,6 +410,7 @@ export class CameraLivePlugin implements Plugin {
           if (result?.base64) {
             status = '✅ Działa';
             working = true;
+            if (!firstWorkingBase64) firstWorkingBase64 = result.base64;
           } else {
             status = '❌ Brak obrazu';
           }
@@ -414,11 +455,21 @@ export class CameraLivePlugin implements Plugin {
     const result: PluginResult = {
       pluginId: this.id,
       status: 'success',
-      content: [{
-        type: 'text',
-        data,
-        title: `Test Streams: ${ip}`,
-      }],
+      content: [
+        ...(firstWorkingBase64
+          ? [{
+              type: 'image' as const,
+              data: firstWorkingBase64,
+              mimeType: 'image/jpeg',
+              title: `Podgląd (działający stream): ${ip}`,
+            }]
+          : []),
+        {
+          type: 'text',
+          data,
+          title: `Test Streams: ${ip}`,
+        },
+      ],
       metadata: { 
         duration_ms: Date.now() - start, 
         cached: false, 
@@ -433,8 +484,8 @@ export class CameraLivePlugin implements Plugin {
           id: 'use-working-stream',
           label: 'Użyj działającego streamu',
           icon: '✅',
-          type: 'execute' as const,
-          executeQuery: `rtsp://${auth}${ip}:554${workingStreams[0].path}`,
+          type: 'prefill' as const,
+          prefillText: `rtsp://${auth}${ip}:554${workingStreams[0].path}`,
           variant: 'success' as const,
           description: 'Użyj pierwszego działającego streamu',
         }] : []),
@@ -442,8 +493,8 @@ export class CameraLivePlugin implements Plugin {
           id: 'test-credentials',
           label: 'Testuj inne credentials',
           icon: '🔐',
-          type: 'execute' as const,
-          executeQuery: `${username}:HASŁO`,
+          type: 'prefill' as const,
+          prefillText: `test streams ${ip} user:${username} admin:HASŁO`,
           variant: 'secondary' as const,
           description: 'Sprawdź domyślne hasła',
         },
@@ -451,8 +502,8 @@ export class CameraLivePlugin implements Plugin {
           id: 'start-monitor',
           label: 'Uruchom monitoring',
           icon: '🟢',
-          type: 'execute' as const,
-          executeQuery: `monitoruj ${ip} user:${username} admin:${password}`,
+          type: 'prefill' as const,
+          prefillText: `monitoruj ${ip} user:${username} admin:${password || 'HASŁO'}`,
           variant: 'primary' as const,
           description: 'Uruchom monitoring kamery',
         },

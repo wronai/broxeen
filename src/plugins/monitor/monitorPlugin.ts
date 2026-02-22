@@ -157,15 +157,23 @@ export class MonitorPlugin implements Plugin {
       const auth = parsed.rtspUsername && parsed.rtspPassword
         ? `${parsed.rtspUsername}:${parsed.rtspPassword}@`
         : parsed.rtspUsername ? `${parsed.rtspUsername}@` : '';
-      
-      // Detect vendor from any existing RTSP path hint in the input
-      const vendorId = detectCameraVendor({ hostname: parsed.address });
+
+      // Check if user stored a working RTSP path from a previous 'pokaż live' session
+      const storedRtspPath = configStore.get(`camera.rtspPath.${parsed.address}`) as string | undefined;
+
+      // Detect vendor — prefer stored RTSP path, then hostname
+      const vendorId = detectCameraVendor({
+        hostname: parsed.address,
+        rtspPath: storedRtspPath,
+      });
       const vendor = getVendorInfo(vendorId);
-      
-      // Use vendor-specific main stream path
-      const mainPath = vendor.rtspPaths.find(p => p.quality === 'main')?.path || '/stream';
+
+      // Use stored path if available, otherwise vendor-specific main stream path
+      const mainPath = storedRtspPath
+        ? storedRtspPath.replace(/^rtsp:\/\/[^/]+/, '')   // strip host from full URL if stored
+        : vendor.rtspPaths.find(p => p.quality === 'main')?.path || '/stream';
       rtspUrl = `rtsp://${auth}${parsed.address}:554${mainPath}`;
-      
+
       // Use vendor-specific snapshot URL
       if (parsed.rtspUsername) {
         const snapshotPath = vendor.httpSnapshotPaths[0]?.path || '/snapshot.jpg';
