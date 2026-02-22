@@ -1,3 +1,25 @@
+## [1.0.30] - 2026-02-22
+
+### Summary
+
+fix(build): code quality metrics with 5 supporting modules
+
+### Build
+
+- deps: update package.json
+
+### Other
+
+- build: update Makefile
+- update src/App.tsx
+- update src/components/HealthDiagnostic.tsx
+- update src/core/pluginRegistry.ts
+- update src/core/types.ts
+- update src/utils/healthCheck.test.ts
+- update src/utils/healthCheck.ts
+- update vite.config.ts
+
+
 ## [1.0.29] - 2026-02-22
 
 ### Summary

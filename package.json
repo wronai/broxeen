@@ -1,7 +1,7 @@
 {
   "name": "broxeen",
   "private": true,
-  "version": "1.0.29",
+  "version": "1.0.30",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "health:check": "node -e \"import('./src/utils/healthCheck.js').then(m => m.runHealthCheck().then(console.log))\"",
+    "health:quick": "node -e \"import('./src/utils/healthCheck.js').then(m => m.runQuickHealthCheck().then(console.log))\"",
+    "diagnose": "npm run health:check"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",

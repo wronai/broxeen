@@ -3,6 +3,8 @@
  * Provides extensible architecture for multiple data sources
  */
 
+import type { DataSourcePlugin } from './plugin.types';
+
 export interface PluginResult {
   status: 'success' | 'error' | 'partial';
   content: PluginContentBlock[];
@@ -86,12 +88,14 @@ export interface IntentRouter {
   route(intent: string): Plugin | null;
 }
 
+import type { DataSourcePlugin } from './plugin.types';
+
 export interface PluginRegistry {
-  register(plugin: Plugin): void;
+  register(plugin: Plugin | DataSourcePlugin): void;
   unregister(pluginId: string): void;
-  get(pluginId: string): Plugin | null;
-  getAll(): Plugin[];
-  findByIntent(intent: string): Plugin[];
+  get(pluginId: string): Plugin | DataSourcePlugin | null;
+  getAll(): (Plugin | DataSourcePlugin)[];
+  findByIntent(intent: string): (Plugin | DataSourcePlugin)[];
 }
 
 export interface CommandBus {

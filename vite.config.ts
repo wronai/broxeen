@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import type { UserConfig as VitestUserConfig } from "vitest/config";
 
-const host = process.env.TAURI_DEV_HOST || 'nvidia';
+const host = process.env.TAURI_DEV_HOST || 'localhost';
 
 export default defineConfig(async () => ({
   test: {

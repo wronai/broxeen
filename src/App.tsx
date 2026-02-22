@@ -4,6 +4,7 @@ import { Settings as SettingsIcon } from "lucide-react";
 import { CqrsProvider } from "./contexts/CqrsContext";
 import Chat from "./components/Chat";
 import Settings from "./components/Settings";
+import { HealthDiagnostic } from "./components/HealthDiagnostic";
 import {
   DEFAULT_AUDIO_SETTINGS,
   withAudioSettingsDefaults,
@@ -13,6 +14,7 @@ import { logger, logAsyncDecorator, logSyncDecorator } from "./lib/logger";
 import { isTauriRuntime } from "./lib/runtime";
 import { bootstrapApp, type AppContext } from "./core/bootstrap";
 import { PluginProvider } from "./contexts/pluginContext";
+import { runQuickHealthCheck } from "./utils/healthCheck";
 
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -31,6 +33,28 @@ export default function App() {
       runtime: runtimeIsTauri ? "tauri" : "browser",
     });
 
+    // Run health check first
+    const runHealthCheck = logAsyncDecorator(
+      "startup:app",
+      "healthCheck",
+      async () => {
+        try {
+          const healthStatus = await runQuickHealthCheck();
+          startupLogger.info("Health check completed", { status: healthStatus });
+          
+          if (healthStatus === 'unhealthy') {
+            startupLogger.warn("Application has critical health issues - some features may not work");
+          } else if (healthStatus === 'degraded') {
+            startupLogger.info("Application health check passed with warnings");
+          } else {
+            startupLogger.info("Application health check passed");
+          }
+        } catch (error) {
+          startupLogger.error("Health check failed", error);
+        }
+      }
+    );
+
     // Initialize plugin system
     const initializePlugins = logAsyncDecorator(
       "startup:app",
@@ -45,8 +69,12 @@ export default function App() {
       },
     );
 
-    void initializePlugins().catch((error) => {
-      startupLogger.error("Plugin system initialization failed", error);
+    // Run startup sequence
+    Promise.all([
+      runHealthCheck(),
+      initializePlugins()
+    ]).catch((error) => {
+      startupLogger.error("Startup initialization failed", error);
     });
 
     const loadSettings = logAsyncDecorator(
@@ -174,6 +202,9 @@ export default function App() {
         onSettingsChange={setSettings}
         voices={voices}
       />
+
+      {/* Health diagnostic */}
+      <HealthDiagnostic showOnStartup={false} autoRefresh={false} />
     </div>
   );
 }
