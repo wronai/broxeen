@@ -1,7 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
+import {
+  render as rtlRender,
+  screen,
+  fireEvent,
+  waitFor,
+  cleanup,
+  act,
+} from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import Chat from "./Chat";
+import { CqrsProvider } from "../contexts/CqrsContext";
+
+const render = (ui: React.ReactElement, options?: any) => {
+  return rtlRender(<CqrsProvider>{ui}</CqrsProvider>, options);
+};
 
 // Mock invoke
 vi.mock("@tauri-apps/api/core", () => ({
@@ -11,6 +23,25 @@ vi.mock("@tauri-apps/api/core", () => ({
     content: "Test content",
   }),
 }));
+
+vi.mock("../lib/llmClient", () => {
+  return {
+    getConfig: vi
+      .fn()
+      .mockReturnValue({
+        apiKey: "dummy_key",
+        model: "test",
+        maxTokens: 2048,
+        temperature: 0.7,
+      }),
+    chat: vi.fn().mockResolvedValue({ text: "Mocked LLM chat response" }),
+    askAboutContent: vi.fn().mockResolvedValue("Mocked LLM ask response"),
+    summarizeForTts: vi.fn().mockResolvedValue("Pierwsza treść (LLM)"),
+    summarizeSearchResults: vi.fn().mockResolvedValue("Search results..."),
+    detectIntent: vi.fn().mockResolvedValue("BROWSE"),
+    describeImage: vi.fn().mockResolvedValue("Mocked Image Description"),
+  };
+});
 
 vi.mock("../lib/logger", () => ({
   logger: {
@@ -42,15 +73,19 @@ const defaultSettings = {
   tts_volume: 1.0,
   tts_voice: "",
   tts_lang: "pl-PL",
+  tts_engine: "browser",
   mic_enabled: true,
   mic_device_id: "default",
   speaker_device_id: "default",
   auto_listen: false,
+  stt_enabled: true,
+  stt_engine: "whisper",
+  stt_model: "base",
 };
 
 // Mock Tauri environment
 const mockTauriEnvironment = () => {
-  Object.defineProperty(window, '__TAURI__', {
+  Object.defineProperty(window, "__TAURI__", {
     value: {},
     writable: true,
     configurable: true,
@@ -75,9 +110,7 @@ describe("Chat — renderowanie", () => {
 
   it("pokazuje pole input", () => {
     render(<Chat settings={defaultSettings} />);
-    expect(
-      screen.getByPlaceholderText(/Wpisz adres/i),
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Wpisz adres/i)).toBeInTheDocument();
   });
 
   it("pokazuje przycisk Send", () => {
@@ -233,7 +266,9 @@ describe("Chat — browse flow", () => {
     render(<Chat settings={defaultSettings} />);
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
     // Use a query that clearly falls through to search (no domain match)
-    fireEvent.change(input, { target: { value: "najlepsze przepisy kulinarne" } });
+    fireEvent.change(input, {
+      target: { value: "najlepsze przepisy kulinarne" },
+    });
     fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
 
     await waitFor(() => {
@@ -301,7 +336,7 @@ describe("Chat — TTS auto-play", () => {
       const els = screen.getAllByText(/Tresc przez TTS/i);
       expect(els.length).toBeGreaterThan(0);
     });
-    
+
     // Then check if TTS was called
     expect(window.speechSynthesis.speak).toHaveBeenCalled();
   });
@@ -361,7 +396,7 @@ describe("Chat — TTS auto-play", () => {
 
   it("TTS jest wywoływane ponownie dla nowej wiadomości", async () => {
     const mockInvoke = vi.mocked(invoke);
-    
+
     // First message
     mockInvoke.mockResolvedValueOnce({
       url: "https://first.com",
@@ -371,7 +406,7 @@ describe("Chat — TTS auto-play", () => {
 
     render(<Chat settings={{ ...defaultSettings, tts_enabled: true }} />);
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
-    
+
     fireEvent.change(input, { target: { value: "first.com" } });
     fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
 
@@ -385,7 +420,7 @@ describe("Chat — TTS auto-play", () => {
     // Second message
     mockInvoke.mockResolvedValueOnce({
       url: "https://second.com",
-      title: "Second", 
+      title: "Second",
       content: "Druga treść",
     });
 
@@ -408,7 +443,7 @@ describe("Chat — mikrofon", () => {
     mockTauriEnvironment();
     vi.clearAllMocks();
     vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
-    
+
     // Mock SpeechRecognition
     mockRecognition = {
       continuous: false,
@@ -422,7 +457,7 @@ describe("Chat — mikrofon", () => {
       onerror: null,
       onresult: null,
     };
-    
+
     const MockSpeechRecognition = vi.fn(() => mockRecognition);
     Object.defineProperty(window, "SpeechRecognition", {
       value: MockSpeechRecognition,
@@ -437,12 +472,16 @@ describe("Chat — mikrofon", () => {
 
   it("pokazuje przycisk mikrofonu gdy mic_enabled=true", () => {
     render(<Chat settings={defaultSettings} />);
-    expect(screen.getByRole("button", { name: /mikrofon/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /mikrofon/i }),
+    ).toBeInTheDocument();
   });
 
   it("nie pokazuje przycisku mikrofonu gdy mic_enabled=false", () => {
     render(<Chat settings={{ ...defaultSettings, mic_enabled: false }} />);
-    expect(screen.queryByRole("button", { name: /mikrofon/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /mikrofon/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("pokazuje fallback STT w Tauri i pozostawia przycisk mikrofonu", async () => {
@@ -470,9 +509,9 @@ describe("Chat — mikrofon", () => {
   it("kliknięcie mikrofonu uruchamia nasłuchiwanie", async () => {
     render(<Chat settings={defaultSettings} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
-    
+
     fireEvent.click(micButton);
-    
+
     expect(mockRecognition.start).toHaveBeenCalled();
     expect(mockRecognition.lang).toBe("pl-PL");
   });
@@ -488,19 +527,19 @@ describe("Chat — mikrofon", () => {
     render(<Chat settings={defaultSettings} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
-    
+
     // Start listening
     fireEvent.click(micButton);
-    
+
     // Wait for recognition to start and set isListening to true
     await act(async () => {
       mockRecognition.onstart?.();
     });
-    
+
     // Check if input is disabled and shows listening state
     expect(input).toBeDisabled();
     expect(input).toHaveValue("Słucham...");
-    
+
     // Simulate speech recognition result
     act(() => {
       mockRecognition.onresult?.({
@@ -513,17 +552,17 @@ describe("Chat — mikrofon", () => {
         ],
       });
     });
-    
+
     act(() => {
       mockRecognition.onend?.();
     });
-    
+
     // Check if transcript was submitted (input enabled and cleared after submit)
     await waitFor(() => {
       expect(input).not.toBeDisabled();
       expect(input).toHaveValue("");
     });
-    
+
     // Check if message was added - check for user message, not assistant response
     expect(screen.getByText("wpis kropka pl")).toBeInTheDocument();
   });
@@ -539,15 +578,15 @@ describe("Chat — mikrofon", () => {
     render(<Chat settings={defaultSettings} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
-    
+
     // Start listening
     fireEvent.click(micButton);
-    
+
     // Wait for recognition to start
     await act(async () => {
       mockRecognition.onstart?.();
     });
-    
+
     // Simulate interim result
     act(() => {
       mockRecognition.onresult?.({
@@ -560,11 +599,11 @@ describe("Chat — mikrofon", () => {
         ],
       });
     });
-    
+
     // Check if interim transcript appears (input is disabled during listening)
     expect(input).toBeDisabled();
     expect(input).toHaveValue("wpis kro...");
-    
+
     // Simulate final result
     act(() => {
       mockRecognition.onresult?.({
@@ -577,17 +616,17 @@ describe("Chat — mikrofon", () => {
         ],
       });
     });
-    
+
     act(() => {
       mockRecognition.onend?.();
     });
-    
+
     // Check if final result was submitted
     await waitFor(() => {
       expect(input).not.toBeDisabled();
       expect(input).toHaveValue("");
     });
-    
+
     // Check if user message was added
     expect(screen.getByText("wpis kropka pl")).toBeInTheDocument();
   });
@@ -595,18 +634,18 @@ describe("Chat — mikrofon", () => {
   it("zatrzymanie nasłuchiwania przyciskiem stop", async () => {
     render(<Chat settings={defaultSettings} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
-    
+
     // Start listening
     fireEvent.click(micButton);
-    
+
     // Wait for recognition to start
     await act(async () => {
       mockRecognition.onstart?.();
     });
-    
+
     // Stop listening
     fireEvent.click(micButton);
-    
+
     // Stop should be called when clicking again while listening
     expect(mockRecognition.stop).toHaveBeenCalled();
   });
@@ -615,23 +654,23 @@ describe("Chat — mikrofon", () => {
     render(<Chat settings={defaultSettings} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
-    
+
     // Start listening
     fireEvent.click(micButton);
-    
+
     // Wait for recognition to start
     await act(async () => {
       mockRecognition.onstart?.();
     });
-    
+
     // Input should be disabled during listening
     expect(input).toBeDisabled();
-    
+
     // Simulate error
     act(() => {
-      mockRecognition.onerror?.({ error: 'network' });
+      mockRecognition.onerror?.({ error: "network" });
     });
-    
+
     // Input should be enabled after error
     expect(input).not.toBeDisabled();
   });
@@ -641,24 +680,24 @@ describe("Chat — mikrofon", () => {
       ...defaultSettings,
       tts_lang: "en-US", // This should also affect STT language
     };
-    
+
     render(<Chat settings={settingsWithEnglish} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
-    
+
     fireEvent.click(micButton);
-    
+
     expect(mockRecognition.lang).toBe("en-US");
   });
 
   it("wielokrotne kliknięcia mikrofonu nie powodują problemów", async () => {
     render(<Chat settings={defaultSettings} />);
     const micButton = screen.getByRole("button", { name: /mikrofon/i });
-    
+
     // Multiple clicks
     fireEvent.click(micButton);
     fireEvent.click(micButton);
     fireEvent.click(micButton);
-    
+
     // Should call start multiple times (each click starts listening)
     expect(mockRecognition.start).toHaveBeenCalledTimes(3);
   });

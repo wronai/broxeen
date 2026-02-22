@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Settings as SettingsIcon } from "lucide-react";
+import { CqrsProvider } from "./contexts/CqrsContext";
 import Chat from "./components/Chat";
 import Settings from "./components/Settings";
 import {
@@ -13,7 +14,9 @@ import { isTauriRuntime } from "./lib/runtime";
 
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState<AudioSettings>(DEFAULT_AUDIO_SETTINGS);
+  const [settings, setSettings] = useState<AudioSettings>(
+    DEFAULT_AUDIO_SETTINGS,
+  );
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const startupLogger = logger.scope("startup:app");
 
@@ -30,7 +33,8 @@ export default function App() {
       "loadSettings",
       async () => {
         if (runtimeIsTauri) {
-          const backendSettings = await invoke<Partial<AudioSettings>>("get_settings");
+          const backendSettings =
+            await invoke<Partial<AudioSettings>>("get_settings");
           startupLogger.info("Settings loaded from backend", backendSettings);
           setSettings(withAudioSettingsDefaults(backendSettings));
           return;
@@ -54,7 +58,9 @@ export default function App() {
       "startup:app",
       "warmupMicrophone",
       async () => {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
         startupLogger.info("Microphone permission granted during startup");
         stream.getTracks().forEach((track) => track.stop());
       },
@@ -78,12 +84,16 @@ export default function App() {
         startupLogger.warn("Microphone warmup failed", error);
       });
     } else {
-      startupLogger.debug("Skipping microphone warmup – SpeechRecognition not available");
+      startupLogger.debug(
+        "Skipping microphone warmup – SpeechRecognition not available",
+      );
     }
 
     return () => {
       if (window.speechSynthesis) {
-        startupLogger.debug("App unmount cleanup - removing speech voice listener");
+        startupLogger.debug(
+          "App unmount cleanup - removing speech voice listener",
+        );
         window.speechSynthesis.onvoiceschanged = null;
       }
     };
@@ -112,9 +122,11 @@ export default function App() {
       </header>
 
       {/* Chat area */}
-      <main className="flex-1 overflow-hidden">
-        <Chat settings={settings} />
-      </main>
+      <CqrsProvider>
+        <main className="flex-1 overflow-hidden">
+          <Chat settings={settings} />
+        </main>
+      </CqrsProvider>
 
       {/* Settings modal */}
       <Settings

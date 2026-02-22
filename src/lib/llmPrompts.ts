@@ -45,6 +45,15 @@ export const PROMPTS = {
     "Podsumuj treść strony w max 5 zdaniach. " +
     "Pisz naturalnym polskim, tak żeby dobrze brzmiało czytane na głos. " +
     "Nie używaj: markdown, gwiazdek, linków, nawiasów, skrótów.",
+
+  /** Podsumowanie wyników wyszukiwania */
+  search:
+    "Użytkownik szukał informacji w internecie. " +
+    "Poniżej znajdują się wyniki wyszukiwania. " +
+    "Przedstaw je jako zwięzłą listę najważniejszych znalezisk po polsku. " +
+    "Skup się na treści wyników, podaj nazwy firm/stron i ich krótkie opisy. " +
+    "Pisz naturalnym językiem, tak żeby dobrze brzmiało czytane na głos. " +
+    "Nie używaj markdown, gwiazdek ani linków.",
 } as const;
 
 export type PromptMode = keyof typeof PROMPTS;

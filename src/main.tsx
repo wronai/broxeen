@@ -19,7 +19,11 @@ const renderApp = logSyncDecorator(
   (root: HTMLElement) => {
     const app = <App />;
     ReactDOM.createRoot(root).render(
-      disableStrictModeForTauriDev ? app : <React.StrictMode>{app}</React.StrictMode>,
+      disableStrictModeForTauriDev ? (
+        app
+      ) : (
+        <React.StrictMode>{app}</React.StrictMode>
+      ),
     );
   },
 );
@@ -31,4 +35,3 @@ if (!rootElement) {
   startupLogger.info("Root element found. Rendering app...");
   renderApp(rootElement);
 }
-

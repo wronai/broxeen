@@ -232,6 +232,25 @@ pub fn play_wav_async(wav_data: Vec<u8>, volume: f32) -> Result<(), String> {
     Ok(())
 }
 
+/// Play WAV bytes and return stoppable sink and stream.
+pub fn play_wav_stoppable(wav_data: &[u8], volume: f32) -> Result<(OutputStream, Sink), String> {
+    let (stream, handle) = OutputStream::try_default()
+        .map_err(|e| format!("Cannot open audio output: {e}"))?;
+
+    let sink = Sink::try_new(&handle)
+        .map_err(|e| format!("Cannot create audio sink: {e}"))?;
+
+    sink.set_volume(volume.clamp(0.0, 1.0));
+
+    let cursor = Cursor::new(wav_data.to_vec());
+    let source = Decoder::new(BufReader::new(cursor))
+        .map_err(|e| format!("Cannot decode WAV: {e}"))?;
+
+    sink.append(source);
+
+    Ok((stream, sink))
+}
+
 // ── Speak text end-to-end ────────────────────────────
 
 /// Full pipeline: text → synthesize → play.

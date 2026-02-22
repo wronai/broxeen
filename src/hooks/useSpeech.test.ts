@@ -164,7 +164,7 @@ describe("useSpeech", () => {
     });
     act(() => {
       // Mock error event with error property
-      const mockErrorEvent = { error: 'network' };
+      const mockErrorEvent = { error: "network" };
       mockRecognition.onerror?.(mockErrorEvent);
     });
     expect(result.current.isListening).toBe(false);

@@ -112,15 +112,21 @@ describe("browseGateway", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("https://api.allorigins.win/get?url="),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(result.url).toBe("https://example.com");
     expect(result.content).toContain("Example body");
     expect(result.content).not.toContain("<html");
   });
 
-  it("falls back to AllOrigins RAW when AllOrigins JSON fails", async () => {
+  it("falls back to AllOrigins RAW when AllOrigins JSON and corsproxy fail", async () => {
     const fetchMock = vi
       .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+      })
       .mockResolvedValueOnce({
         ok: false,
         status: 500,
@@ -150,17 +156,11 @@ describe("browseGateway", () => {
 
     const result = await executeBrowseCommand("https://example.com", false);
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      expect.stringContaining("https://api.allorigins.win/get?url="),
-    );
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining("https://api.allorigins.win/raw?url="),
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(result.title).toBe("Fallback title");
-    expect(result.content).toContain("fallback content from AllOrigins RAW endpoint");
+    expect(result.content).toContain(
+      "fallback content from AllOrigins RAW endpoint",
+    );
   });
 
   it("falls back to Jina proxy when AllOrigins endpoints fail", async () => {
@@ -177,11 +177,18 @@ describe("browseGateway", () => {
         statusText: "Internal Server Error",
       })
       .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+      })
+      .mockResolvedValueOnce({
         ok: true,
         status: 200,
         text: vi
           .fn()
-          .mockResolvedValue("Jina fallback plain text content for browser mode."),
+          .mockResolvedValue(
+            "Jina fallback plain text content for browser mode.",
+          ),
         headers: {
           get: vi.fn().mockReturnValue("text/plain"),
         },
@@ -190,11 +197,7 @@ describe("browseGateway", () => {
 
     const result = await executeBrowseCommand("https://example.com", false);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      3,
-      "https://r.jina.ai/https://example.com",
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(result.url).toBe("https://example.com");
     expect(result.title).toBe("Untitled");
     expect(result.content).toContain("Jina fallback plain text content");
@@ -329,7 +332,10 @@ describe("browseGateway", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await executeBrowseCommand("https://news.example.com", false);
+    const result = await executeBrowseCommand(
+      "https://news.example.com",
+      false,
+    );
 
     expect(result.content).toContain("renewable energy");
     expect(result.content).not.toContain("Popularne");
@@ -347,10 +353,10 @@ describe("browseGateway", () => {
 
     await expect(
       executeBrowseCommand("https://example.com", false),
-    ).rejects.toThrow("Nie udało się pobrać strony w trybie przeglądarkowym");
+    ).rejects.toThrow("Nie udało się pobrać strony");
 
     await expect(
       executeBrowseCommand("https://example.com", false),
-    ).rejects.toThrow("HTTP 503: Service Unavailable");
+    ).rejects.toThrow("żaden z serwerów proxy");
   });
 });

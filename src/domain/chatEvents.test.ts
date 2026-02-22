@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { projectChatMessages, type ChatEvent, type ChatMessage } from "./chatEvents";
+import {
+  projectChatMessages,
+  type ChatEvent,
+  type ChatMessage,
+} from "./chatEvents";
 
 describe("chatEvents projector", () => {
   it("applies message_added event", () => {

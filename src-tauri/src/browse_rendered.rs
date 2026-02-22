@@ -184,6 +184,57 @@ fn extract_visible_text(document: &scraper::Html) -> String {
 
 // ── Tier 3: Screenshot + Vision LLM ─────────────────
 
+/// Take a screenshot with headless Chrome and return it as a base64 string.
+pub fn capture_screenshot(
+    url: &str,
+    timeout_secs: u64,
+) -> Result<String, String> {
+    let chrome = detect_chrome_binary()
+        .ok_or_else(|| "No Chrome/Chromium browser found for screenshots".to_string())?;
+
+    // Create temp file for screenshot
+    let tmp_dir = std::env::temp_dir();
+    let screenshot_path = tmp_dir.join(format!("broxeen_screenshot_{}.png", std::process::id()));
+
+    crate::backend_info(format!(
+        "[browse:screenshot] Taking screenshot of {} → {}",
+        url,
+        screenshot_path.display()
+    ));
+
+    let output = Command::new(&chrome)
+        .arg("--headless")
+        .arg("--disable-gpu")
+        .arg("--no-sandbox")
+        .arg("--disable-dev-shm-usage")
+        .arg(format!("--screenshot={}", screenshot_path.display()))
+        .arg("--window-size=1280,900")
+        .arg("--hide-scrollbars")
+        .arg(format!("--timeout={}", timeout_secs * 1000))
+        .arg(url)
+        .output()
+        .map_err(|e| format!("Chrome screenshot failed: {e}"))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        std::fs::remove_file(&screenshot_path).ok();
+        return Err(format!("Chrome screenshot failed: {stderr}"));
+    }
+
+    if !screenshot_path.exists() {
+        return Err("Screenshot file not created".into());
+    }
+
+    let img_bytes = std::fs::read(&screenshot_path)
+        .map_err(|e| format!("Cannot read screenshot: {e}"))?;
+
+    // Clean up screenshot file
+    std::fs::remove_file(&screenshot_path).ok();
+
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    Ok(STANDARD.encode(&img_bytes))
+}
+
 /// Take a screenshot with headless Chrome and send to Vision LLM for description.
 /// Returns (title_from_vision, description).
 pub async fn screenshot_and_describe(

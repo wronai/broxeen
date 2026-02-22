@@ -80,7 +80,9 @@ function writeWavPcm16(audioBuffer: AudioBuffer): ArrayBuffer {
   return buffer;
 }
 
-async function blobToWavBase64(blob: Blob): Promise<{ base64: string; format: SttAudioFormat }> {
+async function blobToWavBase64(
+  blob: Blob,
+): Promise<{ base64: string; format: SttAudioFormat }> {
   if (typeof AudioContext === "undefined") {
     const buf = await blob.arrayBuffer();
     return { base64: arrayBufferToBase64(buf), format: "ogg" };
@@ -119,14 +121,17 @@ function toErrorDetails(e: unknown) {
     name: typeof err?.name === "string" ? err.name : undefined,
     message: typeof err?.message === "string" ? err.message : String(e),
     stack: typeof err?.stack === "string" ? err.stack : undefined,
-    constraint: typeof err?.constraint === "string" ? err.constraint : undefined,
+    constraint:
+      typeof err?.constraint === "string" ? err.constraint : undefined,
   };
 }
 
 export function useStt(options: UseSttOptions = {}): UseSttReturn {
   const { lang = "pl-PL" } = options;
   const [isSupported, setIsSupported] = useState(false);
-  const [unsupportedReason, setUnsupportedReason] = useState<string | null>(null);
+  const [unsupportedReason, setUnsupportedReason] = useState<string | null>(
+    null,
+  );
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -162,8 +167,10 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
       runtime,
       mode: modeRef.current,
       hasMediaRecorder: typeof window !== "undefined" && !!window.MediaRecorder,
-      isSecureContext: typeof window !== "undefined" ? window.isSecureContext : undefined,
-      origin: typeof window !== "undefined" ? window.location?.origin : undefined,
+      isSecureContext:
+        typeof window !== "undefined" ? window.isSecureContext : undefined,
+      origin:
+        typeof window !== "undefined" ? window.location?.origin : undefined,
       lang,
     });
     if (reason) {
@@ -194,7 +201,9 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
       const msg = e instanceof Error ? e.message : String(e);
       sttLogger.error("Failed to start Tauri STT recording", { error: msg });
       setIsSupported(false);
-      setUnsupportedReason(`${STT_TAURI_BACKEND_UNAVAILABLE_REASON} ${msg}`.trim());
+      setUnsupportedReason(
+        `${STT_TAURI_BACKEND_UNAVAILABLE_REASON} ${msg}`.trim(),
+      );
       setError(msg);
       setIsRecording(false);
     });
@@ -248,7 +257,9 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
                   const { base64, format } = await blobToWavBase64(blob);
                   const text = await transcribeAudio(base64, format, lang);
                   setTranscript(text);
-                  sttLogger.info("Transcription received", { length: text.length });
+                  sttLogger.info("Transcription received", {
+                    length: text.length,
+                  });
                 } catch (e: unknown) {
                   const msg = e instanceof Error ? e.message : String(e);
                   sttLogger.error("Transcription failed", { error: msg });
@@ -272,13 +283,23 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
           sttLogger.error("Failed to getUserMedia for STT", {
             ...details,
             runtime,
-            isSecureContext: typeof window !== "undefined" ? window.isSecureContext : undefined,
-            origin: typeof window !== "undefined" ? window.location?.origin : undefined,
+            isSecureContext:
+              typeof window !== "undefined"
+                ? window.isSecureContext
+                : undefined,
+            origin:
+              typeof window !== "undefined"
+                ? window.location?.origin
+                : undefined,
           });
 
-          const shouldFallbackToNative = runtime === "tauri" && modeRef.current === "media";
+          const shouldFallbackToNative =
+            runtime === "tauri" && modeRef.current === "media";
           if (shouldFallbackToNative) {
-            sttLogger.warn("Switching to native STT after getUserMedia failure", details);
+            sttLogger.warn(
+              "Switching to native STT after getUserMedia failure",
+              details,
+            );
             modeRef.current = "tauri";
             setUnsupportedReason(STT_TAURI_BACKEND_REASON);
             setIsSupported(true);
@@ -327,7 +348,9 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
               }
             } catch (e: unknown) {
               const msg = e instanceof Error ? e.message : String(e);
-              sttLogger.error("Native STT stop/transcribe failed", { error: msg });
+              sttLogger.error("Native STT stop/transcribe failed", {
+                error: msg,
+              });
               setError(msg);
             } finally {
               setIsTranscribing(false);
@@ -363,7 +386,9 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   useEffect(() => {
     return () => {
       if (modeRef.current === "tauri" && isRecordingRef.current) {
-        invoke("stt_stop", { language: lang.split("-")[0] }).catch(() => undefined);
+        invoke("stt_stop", { language: lang.split("-")[0] }).catch(
+          () => undefined,
+        );
       }
     };
   }, [lang]);

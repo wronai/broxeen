@@ -1,0 +1,59 @@
+
+Running 1 test using 1 worker
+
+[Browser] debug: [vite] connecting...
+[Browser] debug: [vite] connected.
+[Browser] info: %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold
+[Browser] log: [2026-02-22T09:36:17.361Z] [INFO] [startup:frontend] Starting Broxeen frontend {mode: development, debugLogs: false, strictMode: enabled}
+[Browser] log: [2026-02-22T09:36:17.362Z] [INFO] [startup:frontend] Root element found. Rendering app...
+[Browser] log: [2026-02-22T09:36:17.407Z] [INFO] [speech:recognition] Speech recognition capability check {supported: true, lang: pl-PL, runtime: browser, hasSpeechRecognition: true, hasWebkitSpeechRecognition: true}
+[Browser] log: [2026-02-22T09:36:17.408Z] [INFO] [speech:stt:ui] STT(MediaRecorder) capability check {supported: true, runtime: browser, mode: media, hasMediaRecorder: true, isSecureContext: true}
+[Browser] log: [2026-02-22T09:36:17.409Z] [INFO] [speech:tts] Initializing TTS hook {hasSpeechSynthesis: true, runtime: browser}
+[Browser] log: [2026-02-22T09:36:17.409Z] [INFO] [speech:tts] TTS voices snapshot captured {count: 0}
+[Browser] log: [2026-02-22T09:36:17.410Z] [INFO] [startup:app] App mounted. Running startup initialization...
+[Browser] log: [2026-02-22T09:36:17.410Z] [INFO] [startup:app] Runtime detected {runtime: browser}
+[Browser] log: [2026-02-22T09:36:17.410Z] [INFO] [startup:app] Using default settings (browser mode)
+[Browser] log: [2026-02-22T09:36:17.410Z] [INFO] [startup:app] Speech synthesis voices snapshot captured {count: 0}
+[Browser] log: [2026-02-22T09:36:17.411Z] [INFO] [speech:recognition] Speech recognition capability check {supported: true, lang: pl-PL, runtime: browser, hasSpeechRecognition: true, hasWebkitSpeechRecognition: true}
+[Browser] log: [2026-02-22T09:36:17.411Z] [INFO] [speech:stt:ui] STT(MediaRecorder) capability check {supported: true, runtime: browser, mode: media, hasMediaRecorder: true, isSecureContext: true}
+[Browser] log: [2026-02-22T09:36:17.411Z] [INFO] [speech:tts] Initializing TTS hook {hasSpeechSynthesis: true, runtime: browser}
+[Browser] log: [2026-02-22T09:36:17.411Z] [INFO] [speech:tts] TTS voices snapshot captured {count: 0}
+[Browser] log: [2026-02-22T09:36:17.411Z] [INFO] [startup:app] App mounted. Running startup initialization...
+[Browser] log: [2026-02-22T09:36:17.412Z] [INFO] [startup:app] Runtime detected {runtime: browser}
+[Browser] log: [2026-02-22T09:36:17.412Z] [INFO] [startup:app] Using default settings (browser mode)
+[Browser] log: [2026-02-22T09:36:17.412Z] [INFO] [startup:app] Speech synthesis voices snapshot captured {count: 0}
+[Browser] log: [2026-02-22T09:36:17.413Z] [INFO] [startup:app] Speech synthesis voices snapshot captured {count: 0}
+[Browser] log: [2026-02-22T09:36:17.444Z] [INFO] [startup:app] Microphone permission granted during startup
+[Browser] log: [2026-02-22T09:36:17.445Z] [INFO] [startup:app] Microphone permission granted during startup
+[Browser] log: [2026-02-22T09:36:17.458Z] [INFO] [chat:ui] Handling submit {queryLength: 19}
+[Browser] log: [2026-02-22T09:36:17.459Z] [INFO] [chat:ui] Query resolved {resolveType: search, needsClarification: false, hasUrl: true, suggestionsCount: 0}
+[Browser] log: [2026-02-22T09:36:17.459Z] [INFO] [cmd:browse] Executing browse command {query: ? testowe zapytanie, resolvedUrl: https://html.duckduckgo.com/html/?q=testowe%20zapytanie, resolveType: search}
+[Browser] log: [2026-02-22T09:36:17.459Z] [INFO] [browse:gateway] Dispatching browse command {url: https://html.duckduckgo.com/html/?q=testowe%20zapytanie, runtime: browser}
+[Browser] log: [2026-02-22T09:36:17.479Z] [INFO] [browse:gateway] Browser proxy payload received {url: https://html.duckduckgo.com/html/?q=testowe%20zapytanie, proxy: allorigins:get, hasContents: true, sourceHttpCode: undefined, sourceContentType: undefined}
+[Browser] log: [2026-02-22T09:36:17.480Z] [INFO] [browse:gateway] Browser fallback content prepared {url: https://html.duckduckgo.com/html/?q=testowe%20zapytanie, proxy: allorigins:get, titleLength: 8, contentLength: 65, htmlPayload: true}
+[Browser] log: [2026-02-22T09:36:17.480Z] [INFO] [browse:gateway] Browser fallback browse completed {url: https://html.duckduckgo.com/html/?q=testowe%20zapytanie, contentLength: 65}
+[Browser] log: [2026-02-22T09:36:17.481Z] [INFO] [llm:client] Dispatching LLM chat completion request {messagesCount: 2, model: google/gemini-3-flash-preview, runtime: browser}
+  ✘  1 [chromium] › e2e/chat-features.spec.ts:31:5 › Chat Features & Interactions › Search query (? prefix) routes to DuckDuckGo search (311ms)
+
+
+  1) [chromium] › e2e/chat-features.spec.ts:31:5 › Chat Features & Interactions › Search query (? prefix) routes to DuckDuckGo search 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoContain[2m([22m[32mexpected[39m[2m) // indexOf[22m
+
+    Expected substring: [32m"Mocked Search Result"[39m
+    Received string:    [31m"https://html.duckduckgo.com/html/?q=testowe%20zapytanie[39m
+    [31mAnalizuję wyniki wyszukiwania..."[39m
+
+      80 |
+      81 |         const combinedText = await assistantMessages.innerText();
+    > 82 |         expect(combinedText).toContain("Mocked Search Result");
+         |                              ^
+      83 |     });
+      84 |
+      85 |     test("Settings changes are saved", async ({ page }) => {
+        at /home/tom/github/wronai/broxeen/e2e/chat-features.spec.ts:82:30
+
+    Error Context: test-results/chat-features-Chat-Feature-0421d-routes-to-DuckDuckGo-search-chromium/error-context.md
+
+  1 failed
+    [chromium] › e2e/chat-features.spec.ts:31:5 › Chat Features & Interactions › Search query (? prefix) routes to DuckDuckGo search 

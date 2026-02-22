@@ -1,11 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
 import Settings from "./Settings";
 
 const defaultVoices: SpeechSynthesisVoice[] = [
-  { name: "Polish Female", lang: "pl-PL", default: true, localService: true, voiceURI: "pl-PL" } as SpeechSynthesisVoice,
-  { name: "English US", lang: "en-US", default: false, localService: true, voiceURI: "en-US" } as SpeechSynthesisVoice,
+  {
+    name: "Polish Female",
+    lang: "pl-PL",
+    default: true,
+    localService: true,
+    voiceURI: "pl-PL",
+  } as SpeechSynthesisVoice,
+  {
+    name: "English US",
+    lang: "en-US",
+    default: false,
+    localService: true,
+    voiceURI: "en-US",
+  } as SpeechSynthesisVoice,
 ];
 
 const baseProps = {
@@ -19,9 +37,16 @@ describe("Settings — widoczność", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (invoke as ReturnType<typeof vi.fn>).mockResolvedValue({
-      tts_enabled: true, tts_rate: 1.0, tts_pitch: 1.0, tts_volume: 1.0,
-      tts_voice: "", tts_lang: "pl-PL", mic_enabled: true,
-      mic_device_id: "default", speaker_device_id: "default", auto_listen: false,
+      tts_enabled: true,
+      tts_rate: 1.0,
+      tts_pitch: 1.0,
+      tts_volume: 1.0,
+      tts_voice: "",
+      tts_lang: "pl-PL",
+      mic_enabled: true,
+      mic_device_id: "default",
+      speaker_device_id: "default",
+      auto_listen: false,
     });
   });
 

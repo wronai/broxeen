@@ -1,12 +1,19 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Settings as SettingsIcon, X, Mic, Volume2, Download } from "lucide-react";
+import {
+  Settings as SettingsIcon,
+  X,
+  Mic,
+  Volume2,
+  Download,
+} from "lucide-react";
 import {
   DEFAULT_AUDIO_SETTINGS,
   withAudioSettingsDefaults,
   type AudioSettings,
 } from "../domain/audioSettings";
 import { logger } from "../lib/logger";
+import { isTauriRuntime } from "../lib/runtime";
 
 interface SettingsProps {
   isOpen: boolean;
@@ -21,7 +28,9 @@ export default function Settings({
   onSettingsChange,
   voices,
 }: SettingsProps) {
-  const [settings, setSettings] = useState<AudioSettings>(DEFAULT_AUDIO_SETTINGS);
+  const [settings, setSettings] = useState<AudioSettings>(
+    DEFAULT_AUDIO_SETTINGS,
+  );
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [saved, setSaved] = useState(false);
   const [piperInstalled, setPiperInstalled] = useState<boolean | null>(null);
@@ -32,25 +41,30 @@ export default function Settings({
     if (!isOpen) return;
 
     logger.debug("Settings modal opened, loading data...");
-    invoke<Partial<AudioSettings>>("get_settings")
-      .then((s) => {
-        logger.debug("Settings fetched from backend:", s);
-        setSettings(withAudioSettingsDefaults(s));
-      })
-      .catch((e) => {
-        logger.error("Failed to fetch settings:", e);
-        setSettings(DEFAULT_AUDIO_SETTINGS);
-      });
+    if (isTauriRuntime()) {
+      invoke<Partial<AudioSettings>>("get_settings")
+        .then((s) => {
+          logger.debug("Settings fetched from backend:", s);
+          setSettings(withAudioSettingsDefaults(s));
+        })
+        .catch((e) => {
+          logger.error("Failed to fetch settings:", e);
+          setSettings(DEFAULT_AUDIO_SETTINGS);
+        });
 
-    invoke<boolean>("piper_is_installed")
-      .then((installed) => {
-        logger.debug("Piper installed:", installed);
-        setPiperInstalled(installed);
-      })
-      .catch((e) => {
-        logger.warn("Failed to check piper status:", e);
-        setPiperInstalled(false);
-      });
+      invoke<boolean>("piper_is_installed")
+        .then((installed) => {
+          logger.debug("Piper installed:", installed);
+          setPiperInstalled(installed);
+        })
+        .catch((e) => {
+          logger.warn("Failed to check piper status:", e);
+          setPiperInstalled(false);
+        });
+    } else {
+      setSettings(DEFAULT_AUDIO_SETTINGS);
+      setPiperInstalled(false);
+    }
 
     navigator.mediaDevices
       .enumerateDevices()
@@ -85,7 +99,11 @@ export default function Settings({
   const handleSave = async () => {
     try {
       logger.debug("Saving settings to backend...", settings);
-      await invoke("save_settings", { settings });
+      if (isTauriRuntime()) {
+        await invoke("save_settings", { settings });
+      } else {
+        logger.debug("Skipped saving to Tauri backend (browser environment)");
+      }
       onSettingsChange(settings);
       setSaved(true);
       logger.info("Settings saved successfully");
@@ -139,14 +157,17 @@ export default function Settings({
                   <option value="auto">Auto (wykryj)</option>
                   <option value="piper">Piper (wysoka jakość)</option>
                   <option value="espeak">eSpeak-ng (fallback)</option>
-                  <option value="webspeech">Web Speech API (przeglądarka)</option>
+                  <option value="webspeech">
+                    Web Speech API (przeglądarka)
+                  </option>
                 </select>
               </label>
 
               {piperInstalled === false && (
                 <div className="rounded-lg border border-yellow-600/30 bg-yellow-900/20 p-3">
                   <p className="mb-2 text-xs text-yellow-300">
-                    Piper TTS nie jest zainstalowany. Pobierz binarkę + model głosu (~60 MB).
+                    Piper TTS nie jest zainstalowany. Pobierz binarkę + model
+                    głosu (~60 MB).
                   </p>
                   <button
                     onClick={async () => {
@@ -177,7 +198,9 @@ export default function Settings({
                 </div>
               )}
               {piperInstalled === true && (
-                <p className="text-xs text-green-400">✓ Piper TTS zainstalowany</p>
+                <p className="text-xs text-green-400">
+                  ✓ Piper TTS zainstalowany
+                </p>
               )}
 
               <label className="block">
@@ -206,7 +229,9 @@ export default function Settings({
                   max="2"
                   step="0.1"
                   value={settings.tts_rate}
-                  onChange={(e) => update({ tts_rate: parseFloat(e.target.value) })}
+                  onChange={(e) =>
+                    update({ tts_rate: parseFloat(e.target.value) })
+                  }
                   className="mt-1 w-full accent-broxeen-500"
                 />
               </label>
@@ -290,8 +315,12 @@ export default function Settings({
                   onChange={(e) => update({ stt_engine: e.target.value })}
                   className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-white"
                 >
-                  <option value="openrouter">OpenRouter Whisper (chmura)</option>
-                  <option value="webspeech">Web Speech API (przeglądarka)</option>
+                  <option value="openrouter">
+                    OpenRouter Whisper (chmura)
+                  </option>
+                  <option value="webspeech">
+                    Web Speech API (przeglądarka)
+                  </option>
                 </select>
               </label>
 
@@ -303,7 +332,9 @@ export default function Settings({
                   className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-white"
                 >
                   <option value="whisper-1">Whisper-1 (OpenRouter)</option>
-                  <option value="whisper-1-turbo">Whisper-1 Turbo (szybszy)</option>
+                  <option value="whisper-1-turbo">
+                    Whisper-1 Turbo (szybszy)
+                  </option>
                 </select>
               </label>
 
@@ -329,12 +360,12 @@ export default function Settings({
 
               {micDevices.length > 0 && (
                 <label className="block">
-                  <span className="text-sm text-gray-300">Urządzenie wejściowe</span>
+                  <span className="text-sm text-gray-300">
+                    Urządzenie wejściowe
+                  </span>
                   <select
                     value={settings.mic_device_id}
-                    onChange={(e) =>
-                      update({ mic_device_id: e.target.value })
-                    }
+                    onChange={(e) => update({ mic_device_id: e.target.value })}
                     className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-white"
                   >
                     <option value="default">Domyślny mikrofon</option>
@@ -351,9 +382,7 @@ export default function Settings({
         </div>
 
         <div className="mt-6 flex items-center justify-end gap-3">
-          {saved && (
-            <span className="text-sm text-green-400">✓ Zapisano</span>
-          )}
+          {saved && <span className="text-sm text-green-400">✓ Zapisano</span>}
           <button
             onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm text-gray-400 transition hover:text-white"

@@ -1,3 +1,6 @@
+import type { AudioSettings } from "./audioSettings";
+
+// ── Value Objects ──────────────────────────────────
 export type ChatMessageRole = "user" | "assistant" | "system";
 
 export interface ChatMessage {
@@ -8,27 +11,101 @@ export interface ChatMessage {
   resolveType?: string;
   suggestions?: string[];
   loading?: boolean;
+  screenshotBase64?: string;
+  rssUrl?: string;
+  contactUrl?: string;
+  phoneUrl?: string;
+  pageTitle?: string;
 }
 
+// ── Domain Events ──────────────────────────────────
+
+/** Chat-specific events (backward-compatible with existing code) */
 export type ChatEvent =
-  | {
-      type: "message_added";
-      payload: ChatMessage;
-    }
+  | { type: "message_added"; payload: ChatMessage }
   | {
       type: "message_updated";
-      payload: {
-        id: number;
-        updates: Partial<ChatMessage>;
-      };
+      payload: { id: number; updates: Partial<ChatMessage> };
+    }
+  | { type: "chat_cleared" };
+
+/** Full domain events for event sourcing */
+export type DomainEvent =
+  // Chat events
+  | ChatEvent
+  // Browse lifecycle
+  | {
+      type: "browse_requested";
+      payload: { query: string; resolvedUrl: string; resolveType: string };
+      timestamp: number;
     }
   | {
-      type: "chat_cleared";
+      type: "content_fetched";
+      payload: {
+        url: string;
+        title: string;
+        content: string;
+        source: "tauri" | "browser";
+        screenshotBase64?: string;
+        rssUrl?: string;
+        contactUrl?: string;
+        phoneUrl?: string;
+      };
+      timestamp: number;
+    }
+  | {
+      type: "search_executed";
+      payload: { query: string; resultCount: number; url: string };
+      timestamp: number;
+    }
+  | {
+      type: "summary_generated";
+      payload: {
+        messageId: number;
+        summary: string;
+        mode: "browse" | "search";
+      };
+      timestamp: number;
+    }
+  // TTS lifecycle
+  | {
+      type: "tts_started";
+      payload: { messageId: number; textLength: number };
+      timestamp: number;
+    }
+  | { type: "tts_stopped"; timestamp: number }
+  // Error handling
+  | {
+      type: "error_occurred";
+      payload: { context: string; error: string; url?: string };
+      timestamp: number;
+    }
+  // Settings
+  | {
+      type: "settings_changed";
+      payload: Partial<AudioSettings>;
+      timestamp: number;
     };
+
+/** Create a timestamped domain event */
+export function createEvent<T extends DomainEvent["type"]>(
+  type: T,
+  payload?: Extract<DomainEvent, { type: T }> extends { payload: infer P }
+    ? P
+    : never,
+): DomainEvent {
+  const base = { type, timestamp: Date.now() } as Record<string, unknown>;
+  if (payload !== undefined) {
+    base.payload = payload;
+  }
+  return base as DomainEvent;
+}
+
+// ── Projector (backward-compatible) ────────────────
 
 export function projectChatMessages(
   current: ChatMessage[],
-  event: ChatEvent,
+  event: ChatEvent | DomainEvent,
 ): ChatMessage[] {
   switch (event.type) {
     case "message_added":

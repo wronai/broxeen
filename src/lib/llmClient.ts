@@ -54,7 +54,7 @@ export function getConfig(): LlmConfig {
  */
 export async function chat(
   messages: LlmMessage[],
-  configOverride?: Partial<LlmConfig>
+  configOverride?: Partial<LlmConfig>,
 ): Promise<LlmResponse> {
   const runChat = logAsyncDecorator("llm:client", "chat", async () => {
     const cfg = { ...getConfig(), ...configOverride };
@@ -82,80 +82,88 @@ export async function chat(
 
 async function chatDirect(
   messages: LlmMessage[],
-  cfg: LlmConfig
+  cfg: LlmConfig,
 ): Promise<LlmResponse> {
-  const runChatDirect = logAsyncDecorator("llm:client", "chatDirect", async () => {
-    llmClientLogger.debug("Executing HTTP POST to OpenRouter", {
-      url: OPENROUTER_URL,
-    });
-
-    const resp = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${cfg.apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://broxeen.local",
-        "X-Title": "broxeen",
-      },
-      body: JSON.stringify({
-        model: cfg.model,
-        messages,
-        max_tokens: cfg.maxTokens,
-        temperature: cfg.temperature,
-      }),
-    });
-
-    if (!resp.ok) {
-      const body = await resp.text();
-      llmClientLogger.error("OpenRouter HTTP request failed", {
-        status: resp.status,
-        responseBody: body.slice(0, 200),
+  const runChatDirect = logAsyncDecorator(
+    "llm:client",
+    "chatDirect",
+    async () => {
+      llmClientLogger.debug("Executing HTTP POST to OpenRouter", {
+        url: OPENROUTER_URL,
       });
-      throw new Error(`LLM HTTP ${resp.status}: ${body.slice(0, 200)}`);
-    }
 
-    const data = await resp.json();
-    const text = data.choices?.[0]?.message?.content ?? "";
+      const resp = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${cfg.apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://broxeen.local",
+          "X-Title": "broxeen",
+        },
+        body: JSON.stringify({
+          model: cfg.model,
+          messages,
+          max_tokens: cfg.maxTokens,
+          temperature: cfg.temperature,
+        }),
+      });
 
-    llmClientLogger.info("OpenRouter response received", {
-      model: data.model ?? cfg.model,
-      promptTokens: data.usage?.prompt_tokens,
-      completionTokens: data.usage?.completion_tokens,
-      responseLength: text.length,
-    });
+      if (!resp.ok) {
+        const body = await resp.text();
+        llmClientLogger.error("OpenRouter HTTP request failed", {
+          status: resp.status,
+          responseBody: body.slice(0, 200),
+        });
+        throw new Error(`LLM HTTP ${resp.status}: ${body.slice(0, 200)}`);
+      }
 
-    return {
-      text,
-      model: data.model ?? cfg.model,
-      usage: data.usage,
-    };
-  });
+      const data = await resp.json();
+      const text = data.choices?.[0]?.message?.content ?? "";
+
+      llmClientLogger.info("OpenRouter response received", {
+        model: data.model ?? cfg.model,
+        promptTokens: data.usage?.prompt_tokens,
+        completionTokens: data.usage?.completion_tokens,
+        responseLength: text.length,
+      });
+
+      return {
+        text,
+        model: data.model ?? cfg.model,
+        usage: data.usage,
+      };
+    },
+  );
   return runChatDirect();
 }
 
 async function chatViaTauri(
   messages: LlmMessage[],
-  cfg: LlmConfig
+  cfg: LlmConfig,
 ): Promise<LlmResponse> {
-  const runChatViaTauri = logAsyncDecorator("llm:client", "chatViaTauri", async () => {
-    const { invoke } = await import("@tauri-apps/api/core");
-    llmClientLogger.debug("Invoking Tauri command llm_chat");
+  const runChatViaTauri = logAsyncDecorator(
+    "llm:client",
+    "chatViaTauri",
+    async () => {
+      const { invoke } = await import("@tauri-apps/api/core");
+      llmClientLogger.debug("Invoking Tauri command llm_chat");
 
-    const result = await invoke<LlmResponse>("llm_chat", {
-      messages: JSON.stringify(messages),
-      apiKey: cfg.apiKey,
-      model: cfg.model,
-      maxTokens: cfg.maxTokens,
-      temperature: cfg.temperature,
-    });
+      const result = await invoke<LlmResponse>("llm_chat", {
+        messages: JSON.stringify(messages),
+        apiKey: cfg.apiKey,
+        model: cfg.model,
+        maxTokens: cfg.maxTokens,
+        temperature: cfg.temperature,
+      });
 
-    llmClientLogger.info("Tauri LLM command completed", {
-      model: result.model,
-      responseLength: result.text.length,
-    });
+      llmClientLogger.info("Tauri LLM command completed", {
+        model: result.model,
+        responseLength: result.text.length,
+      });
 
-    return result;
-  });
+      return result;
+    },
+  );
   return runChatViaTauri();
 }
 
@@ -167,28 +175,34 @@ const TTS_TRIM = 8000;
 /** Ask LLM a question about current page content */
 export async function askAboutContent(
   pageContent: string,
-  question: string
+  question: string,
 ): Promise<string> {
-  const runAsk = logAsyncDecorator("llm:client", "askAboutContent", async () => {
-    llmClientLogger.debug("Building Q&A prompt", { questionLength: question.length });
-    const messages: LlmMessage[] = [
-      {
-        role: "system",
-        content:
-          "Jesteś asystentem przeglądania internetu Broxeen. " +
-          "Odpowiadaj po polsku, zwięźle i na temat. " +
-          "Użytkownik przegląda stronę i zadaje pytanie o jej treść.",
-      },
-      {
-        role: "user",
-        content:
-          `Treść strony:\n\n${pageContent.slice(0, CONTENT_TRIM)}\n\n` +
-          `---\nPytanie: ${question}`,
-      },
-    ];
-    const resp = await chat(messages);
-    return resp.text;
-  });
+  const runAsk = logAsyncDecorator(
+    "llm:client",
+    "askAboutContent",
+    async () => {
+      llmClientLogger.debug("Building Q&A prompt", {
+        questionLength: question.length,
+      });
+      const messages: LlmMessage[] = [
+        {
+          role: "system",
+          content:
+            "Jesteś asystentem przeglądania internetu Broxeen. " +
+            "Odpowiadaj po polsku, zwięźle i na temat. " +
+            "Użytkownik przegląda stronę i zadaje pytanie o jej treść.",
+        },
+        {
+          role: "user",
+          content:
+            `Treść strony:\n\n${pageContent.slice(0, CONTENT_TRIM)}\n\n` +
+            `---\nPytanie: ${question}`,
+        },
+      ];
+      const resp = await chat(messages);
+      return resp.text;
+    },
+  );
   return runAsk();
 }
 
@@ -196,84 +210,134 @@ export async function askAboutContent(
 export async function describeImage(
   base64Image: string,
   mimeType = "image/png",
-  prompt = "Opisz dokładnie co widzisz na tym obrazku. Odpowiedz po polsku."
+  prompt = "Opisz dokładnie co widzisz na tym obrazku. Odpowiedz po polsku.",
 ): Promise<string> {
-  const runDescribe = logAsyncDecorator("llm:client", "describeImage", async () => {
-    llmClientLogger.debug("Building image description prompt", { mimeType });
-    const messages: LlmMessage[] = [
-      {
-        role: "system",
-        content:
-          "Jesteś asystentem wizualnym aplikacji Broxeen. " +
-          "Opisujesz obrazki i screenshoty stron po polsku, zwięźle.",
-      },
-      {
-        role: "user",
-        content: [
-          { type: "text", text: prompt },
-          {
-            type: "image_url",
-            image_url: { url: `data:${mimeType};base64,${base64Image}` },
-          },
-        ],
-      },
-    ];
-    const resp = await chat(messages);
-    return resp.text;
-  });
+  const runDescribe = logAsyncDecorator(
+    "llm:client",
+    "describeImage",
+    async () => {
+      llmClientLogger.debug("Building image description prompt", { mimeType });
+      const messages: LlmMessage[] = [
+        {
+          role: "system",
+          content:
+            "Jesteś asystentem wizualnym aplikacji Broxeen. " +
+            "Opisujesz obrazki i screenshoty stron po polsku, zwięźle.",
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            {
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${base64Image}` },
+            },
+          ],
+        },
+      ];
+      const resp = await chat(messages);
+      return resp.text;
+    },
+  );
   return runDescribe();
 }
 
 /** Summarize page content for TTS readout */
 export async function summarizeForTts(
   pageContent: string,
-  maxSentences = 5
+  maxSentences = 5,
 ): Promise<string> {
-  const runSummarize = logAsyncDecorator("llm:client", "summarizeForTts", async () => {
-    llmClientLogger.debug("Building TTS summary prompt", { maxSentences });
-    const messages: LlmMessage[] = [
-      {
-        role: "system",
-        content:
-          `Podsumuj poniższą treść strony w maksymalnie ${maxSentences} zdaniach. ` +
-          "Pisz naturalnym językiem polskim, tak żeby dobrze brzmiało czytane " +
-          "na głos przez syntezator mowy. Nie używaj markdown, linków ani formatowania. " +
-          "WAŻNE: Skup się TYLKO na głównej treści artykułu lub strony. " +
-          "Całkowicie ignoruj: elementy nawigacji, przyciski, etykiety menu, " +
-          "linki w stopce, powiadomienia o ciasteczkach, formularze logowania, " +
-          "nazwy kategorii, breadcrumby, sidebary i inne elementy interfejsu. " +
-          "Nie cytuj nazw przycisków ani pozycji menu.",
-      },
-      { role: "user", content: pageContent.slice(0, TTS_TRIM) },
-    ];
-    const resp = await chat(messages);
-    return resp.text;
-  });
+  const runSummarize = logAsyncDecorator(
+    "llm:client",
+    "summarizeForTts",
+    async () => {
+      llmClientLogger.debug("Building TTS summary prompt", { maxSentences });
+      const messages: LlmMessage[] = [
+        {
+          role: "system",
+          content:
+            `Podsumuj poniższą treść strony w maksymalnie ${maxSentences} zdaniach. ` +
+            "Pisz naturalnym językiem polskim, tak żeby dobrze brzmiało czytane " +
+            "na głos przez syntezator mowy. Nie używaj markdown, linków ani formatowania. " +
+            "WAŻNE: Skup się TYLKO na głównej treści artykułu lub strony. " +
+            "Całkowicie ignoruj: elementy nawigacji, przyciski, etykiety menu, " +
+            "linki w stopce, powiadomienia o ciasteczkach, formularze logowania, " +
+            "nazwy kategorii, breadcrumby, sidebary i inne elementy interfejsu. " +
+            "Nie cytuj nazw przycisków ani pozycji menu.",
+        },
+        { role: "user", content: pageContent.slice(0, TTS_TRIM) },
+      ];
+      const resp = await chat(messages);
+      return resp.text;
+    },
+  );
   return runSummarize();
 }
 
 /** Quick intent detection — returns one word */
-export async function detectIntent(
-  userText: string
-): Promise<string> {
-  const runDetect = logAsyncDecorator("llm:client", "detectIntent", async () => {
-    llmClientLogger.debug("Building intent detection prompt", { textLength: userText.length });
-    const messages: LlmMessage[] = [
-      {
-        role: "system",
-        content:
-          "Określ intencję użytkownika. Odpowiedz JEDNYM słowem:\n" +
-          "BROWSE — chce otworzyć stronę\n" +
-          "ASK — pytanie o obecną stronę\n" +
-          "DESCRIBE — chce opis tego co widzi\n" +
-          "SEARCH — szukanie w internecie\n" +
-          "COMMAND — komenda (głośniej, ciszej, stop)\n" +
-          "CHAT — zwykła rozmowa",
-      },
-      { role: "user", content: userText },
-    ];
-    const resp = await chat(messages, { maxTokens: 10, temperature: 0.1 });
-    return resp.text.trim().toUpperCase();
-  });
+export async function detectIntent(userText: string): Promise<string> {
+  const runDetect = logAsyncDecorator(
+    "llm:client",
+    "detectIntent",
+    async () => {
+      llmClientLogger.debug("Building intent detection prompt", {
+        textLength: userText.length,
+      });
+      const messages: LlmMessage[] = [
+        {
+          role: "system",
+          content:
+            "Określ intencję użytkownika. Odpowiedz JEDNYM słowem:\n" +
+            "BROWSE — chce otworzyć stronę\n" +
+            "ASK — pytanie o obecną stronę\n" +
+            "DESCRIBE — chce opis tego co widzi\n" +
+            "SEARCH — szukanie w internecie\n" +
+            "COMMAND — komenda (głośniej, ciszej, stop)\n" +
+            "CHAT — zwykła rozmowa",
+        },
+        { role: "user", content: userText },
+      ];
+      const resp = await chat(messages, { maxTokens: 10, temperature: 0.1 });
+      return resp.text.trim().toUpperCase();
+    },
+  );
   return runDetect();
+}
+
+/** Summarize search results for TTS-friendly readout */
+export async function summarizeSearchResults(
+  searchContent: string,
+  userQuery: string,
+): Promise<string> {
+  const runSummarize = logAsyncDecorator(
+    "llm:client",
+    "summarizeSearchResults",
+    async () => {
+      llmClientLogger.debug("Building search results summary prompt", {
+        queryLength: userQuery.length,
+      });
+      const messages: LlmMessage[] = [
+        {
+          role: "system",
+          content:
+            "Użytkownik szukał informacji w internecie. " +
+            "Poniżej znajdują się wyniki wyszukiwania. " +
+            "Przedstaw je jako zwięzłą listę najważniejszych znalezisk po polsku. " +
+            "Skup się na treści wyników, podaj nazwy firm/stron i ich krótkie opisy. " +
+            "Pisz naturalnym językiem, tak żeby dobrze brzmiało czytane na głos. " +
+            "Nie używaj markdown, gwiazdek ani linków. " +
+            "WAŻNE: Ignoruj elementy interfejsu, menu nawigacji i reklamy.",
+        },
+        {
+          role: "user",
+          content:
+            `Zapytanie użytkownika: ${userQuery}\n\n` +
+            `Wyniki wyszukiwania:\n${searchContent.slice(0, TTS_TRIM)}`,
+        },
+      ];
+      const resp = await chat(messages);
+      return resp.text;
+    },
+  );
+  return runSummarize();
 }

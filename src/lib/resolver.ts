@@ -2,28 +2,96 @@ import { normalize, looksLikeUrl } from "./phonetic";
 import { logger } from "./logger";
 
 const KNOWN_DOMAINS = [
-  "google.com", "youtube.com", "facebook.com", "twitter.com", "instagram.com",
-  "linkedin.com", "reddit.com", "github.com", "stackoverflow.com", "wikipedia.org",
-  "amazon.com", "netflix.com", "spotify.com", "apple.com", "microsoft.com",
-  "onet.pl", "wp.pl", "interia.pl", "gazeta.pl", "allegro.pl",
-  "olx.pl", "tvn24.pl", "bankier.pl", "money.pl", "pudelek.pl",
-  "wykop.pl", "naszemiasto.pl", "o2.pl", "tvp.pl", "polsat.pl",
-  "ceneo.pl", "morele.net", "x-kom.pl", "mediaexpert.pl", "empik.com",
-  "bbc.com", "cnn.com", "nytimes.com", "theguardian.com", "reuters.com",
-  "yahoo.com", "bing.com", "duckduckgo.com", "twitch.tv", "tiktok.com",
-  "pinterest.com", "tumblr.com", "discord.com", "slack.com", "zoom.us",
-  "medium.com", "dev.to", "hackernews.com", "producthunt.com",
-  "gitlab.com", "bitbucket.org", "npmjs.com", "pypi.org",
-  "aws.amazon.com", "azure.microsoft.com", "cloud.google.com",
-  "docs.google.com", "drive.google.com", "maps.google.com",
-  "mail.google.com", "calendar.google.com", "translate.google.com",
-  "ebay.com", "aliexpress.com", "wish.com", "etsy.com",
-  "booking.com", "airbnb.com", "tripadvisor.com",
-  "imdb.com", "rottentomatoes.com", "metacritic.com",
-  "wordpress.com", "blogger.com", "wix.com", "squarespace.com",
-  "dropbox.com", "onedrive.com", "mega.nz",
-  "paypal.com", "stripe.com", "revolut.com",
-  "openai.com", "anthropic.com", "huggingface.co",
+  "google.com",
+  "youtube.com",
+  "facebook.com",
+  "twitter.com",
+  "instagram.com",
+  "linkedin.com",
+  "reddit.com",
+  "github.com",
+  "stackoverflow.com",
+  "wikipedia.org",
+  "amazon.com",
+  "netflix.com",
+  "spotify.com",
+  "apple.com",
+  "microsoft.com",
+  "onet.pl",
+  "wp.pl",
+  "interia.pl",
+  "gazeta.pl",
+  "allegro.pl",
+  "olx.pl",
+  "tvn24.pl",
+  "bankier.pl",
+  "money.pl",
+  "pudelek.pl",
+  "wykop.pl",
+  "naszemiasto.pl",
+  "o2.pl",
+  "tvp.pl",
+  "polsat.pl",
+  "ceneo.pl",
+  "morele.net",
+  "x-kom.pl",
+  "mediaexpert.pl",
+  "empik.com",
+  "bbc.com",
+  "cnn.com",
+  "nytimes.com",
+  "theguardian.com",
+  "reuters.com",
+  "yahoo.com",
+  "bing.com",
+  "duckduckgo.com",
+  "twitch.tv",
+  "tiktok.com",
+  "pinterest.com",
+  "tumblr.com",
+  "discord.com",
+  "slack.com",
+  "zoom.us",
+  "medium.com",
+  "dev.to",
+  "hackernews.com",
+  "producthunt.com",
+  "gitlab.com",
+  "bitbucket.org",
+  "npmjs.com",
+  "pypi.org",
+  "aws.amazon.com",
+  "azure.microsoft.com",
+  "cloud.google.com",
+  "docs.google.com",
+  "drive.google.com",
+  "maps.google.com",
+  "mail.google.com",
+  "calendar.google.com",
+  "translate.google.com",
+  "ebay.com",
+  "aliexpress.com",
+  "wish.com",
+  "etsy.com",
+  "booking.com",
+  "airbnb.com",
+  "tripadvisor.com",
+  "imdb.com",
+  "rottentomatoes.com",
+  "metacritic.com",
+  "wordpress.com",
+  "blogger.com",
+  "wix.com",
+  "squarespace.com",
+  "dropbox.com",
+  "onedrive.com",
+  "mega.nz",
+  "paypal.com",
+  "stripe.com",
+  "revolut.com",
+  "openai.com",
+  "anthropic.com",
+  "huggingface.co",
 ];
 
 export interface ResolveResult {
@@ -99,6 +167,21 @@ export function resolve(rawInput: string, threshold = 0.55): ResolveResult {
     };
   }
 
+  // 0) Explicit search request?
+  if (text.startsWith("?")) {
+    const query = text.slice(1).trim();
+    logger.debug(`Explicit search requested for: "${query}"`);
+    if (query) {
+      return {
+        url: `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
+        suggestions: [],
+        resolveType: "search",
+        needsClarification: false,
+        normalizedInput: query,
+      };
+    }
+  }
+
   // 1) Already a valid URL?
   if (/^https?:\/\//.test(text)) {
     logger.debug("Input is already a full URL");
@@ -170,7 +253,7 @@ export function resolve(rawInput: string, threshold = 0.55): ResolveResult {
 
   // 5) Fallback — search
   logger.debug("No match found, falling back to search");
-  const searchUrl = `https://duckduckgo.com/?q=${encodeURIComponent(text)}`;
+  const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(text)}`;
   return {
     url: searchUrl,
     suggestions: [],

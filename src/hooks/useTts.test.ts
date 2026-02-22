@@ -177,7 +177,9 @@ describe("useTts", () => {
     const mockVoices = [
       { name: "Polish Voice", lang: "pl-PL" } as SpeechSynthesisVoice,
     ];
-    (window.speechSynthesis.getVoices as ReturnType<typeof vi.fn>).mockReturnValue(mockVoices);
+    (
+      window.speechSynthesis.getVoices as ReturnType<typeof vi.fn>
+    ).mockReturnValue(mockVoices);
     const { result } = renderHook(() => useTts());
     expect(result.current.voices).toEqual(mockVoices);
   });

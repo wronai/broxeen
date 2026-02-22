@@ -27,7 +27,12 @@ function safeStringify(value: any): string {
   }
 }
 
-function emit(level: LogLevel, scope: string | undefined, message: string, ...args: any[]) {
+function emit(
+  level: LogLevel,
+  scope: string | undefined,
+  message: string,
+  ...args: any[]
+) {
   if (level === "debug" && !isDebug) {
     return;
   }
@@ -39,7 +44,9 @@ function emit(level: LogLevel, scope: string | undefined, message: string, ...ar
   const normalizedArgs = args.map(normalizeLogArg);
   const printableArgs =
     level === "warn" || level === "error"
-      ? normalizedArgs.map((a) => (typeof a === "object" ? safeStringify(a) : a))
+      ? normalizedArgs.map((a) =>
+          typeof a === "object" ? safeStringify(a) : a,
+        )
       : normalizedArgs;
 
   if (level === "warn") {
@@ -56,9 +63,11 @@ function emit(level: LogLevel, scope: string | undefined, message: string, ...ar
 }
 
 export function createScopedLogger(scope?: string) {
-  const log = (level: LogLevel): LogMethod => (message, ...args) => {
-    emit(level, scope, message, ...args);
-  };
+  const log =
+    (level: LogLevel): LogMethod =>
+    (message, ...args) => {
+      emit(level, scope, message, ...args);
+    };
 
   return {
     info: log("info"),

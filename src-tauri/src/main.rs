@@ -3,16 +3,27 @@
 mod audio_capture;
 mod audio_commands;
 mod browse_rendered;
+mod content_cleaning;
+mod content_extraction;
 mod llm;
+mod logging;
+mod settings;
 mod stt;
 mod tts;
 mod tts_backend;
 
 use audio_capture::SharedRecordingState;
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
+
+use crate::logging::{backend_info, backend_warn, backend_error};
+use crate::content_cleaning::{
+    strip_cookie_banner_text, truncate_to_chars, normalize_whitespace,
+    MIN_READABLE_CONTENT_LENGTH, MAX_BACKEND_CONTENT_CHARS,
+};
+use crate::content_extraction::{
+    extract_search_results, extract_content, extract_with_scraper, try_extract_search,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AudioSettings {
@@ -122,247 +133,12 @@ pub struct BrowseResult {
     pub content: String,
     pub resolve_type: String,
     pub suggestions: Vec<String>,
+    pub screenshot_base64: Option<String>,
+    pub rss_url: Option<String>,
+    pub contact_url: Option<String>,
+    pub phone_url: Option<String>,
 }
 
-const MIN_READABLE_CONTENT_LENGTH: usize = 120;
-const MAX_BACKEND_CONTENT_CHARS: usize = 20_000;
-
-fn backend_info(message: impl AsRef<str>) {
-    println!("[backend][INFO] {}", message.as_ref());
-}
-
-fn backend_warn(message: impl AsRef<str>) {
-    println!("[backend][WARN] {}", message.as_ref());
-}
-
-fn backend_error(message: impl AsRef<str>) {
-    eprintln!("[backend][ERROR] {}", message.as_ref());
-}
-
-fn strip_cookie_banner_text(text: &str) -> String {
-    let raw = text.trim();
-    if raw.is_empty() {
-        return String::new();
-    }
-
-    let lower = raw.to_lowercase();
-    let has_cookie_word = lower.contains("ciasteczk") || lower.contains("cookie") || lower.contains("cookies");
-    if !has_cookie_word {
-        return raw.to_string();
-    }
-
-    let mut score = 0;
-    if lower.contains("polityk") || lower.contains("privacy policy") {
-        score += 1;
-    }
-    if lower.contains("akcept") || lower.contains("zgadzam") || lower.contains("consent") {
-        score += 1;
-    }
-    if lower.contains("przegl") || lower.contains("browser") {
-        score += 1;
-    }
-    if lower.contains("użytkownik") || lower.contains("user") {
-        score += 1;
-    }
-    if lower.contains("zapisywan") || lower.contains("stored") {
-        score += 1;
-    }
-    if lower.contains("najlepsz") || lower.contains("best experience") {
-        score += 1;
-    }
-
-    let looks_like_banner = score >= 2 || lower.contains("strona korzysta z plik");
-    if !looks_like_banner {
-        return raw.to_string();
-    }
-
-    // Try to strip common boilerplate segment while keeping real content.
-    let mut stripped = raw.to_string();
-
-    // Polish: "Strona korzysta ... akceptację tych mechanizmów."
-    let stripped_lower = stripped.to_lowercase();
-    if let Some(start) = stripped_lower.find("strona korzysta") {
-        let end_candidates = [
-            "akceptację tych mechanizm",
-            "akceptacje tych mechanizm",
-            "akceptacją tych mechanizm",
-            "akceptacja tych mechanizm",
-        ];
-
-        let mut end: Option<usize> = None;
-        for needle in end_candidates {
-            if let Some(idx) = stripped_lower[start..].find(needle) {
-                end = Some(start + idx + needle.len());
-                break;
-            }
-        }
-
-        if let Some(mut end_idx) = end {
-            // Extend to next period if possible.
-            if let Some(dot_rel) = stripped_lower[end_idx..].find('.') {
-                end_idx = end_idx + dot_rel + 1;
-            }
-
-            stripped.replace_range(start..end_idx, " ");
-        }
-    }
-
-    // English: "We use cookies ..."
-    let stripped_lower = stripped.to_lowercase();
-    if let Some(start) = stripped_lower.find("we use cookies") {
-        let mut end_idx = stripped_lower.len();
-        for needle in ["privacy policy", "accept", "consent"] {
-            if let Some(idx) = stripped_lower[start..].find(needle) {
-                end_idx = start + idx + needle.len();
-                break;
-            }
-        }
-
-        if end_idx < stripped_lower.len() {
-            if let Some(dot_rel) = stripped_lower[end_idx..].find('.') {
-                end_idx = end_idx + dot_rel + 1;
-            }
-        }
-
-        stripped.replace_range(start..end_idx, " ");
-    }
-
-    let normalized = normalize_whitespace(&stripped);
-    if normalized.len() >= MIN_READABLE_CONTENT_LENGTH {
-        normalized
-    } else {
-        raw.to_string()
-    }
-}
-
-fn truncate_to_chars(text: &str, max_chars: usize) -> String {
-    let mut iter = text.chars();
-    let truncated: String = iter.by_ref().take(max_chars).collect();
-    if iter.next().is_some() {
-        backend_warn(format!(
-            "Extracted content exceeded {} chars and was truncated",
-            max_chars
-        ));
-    }
-    truncated
-}
-
-fn settings_path() -> PathBuf {
-    let config_dir = dirs::config_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join("broxeen");
-    if let Err(err) = fs::create_dir_all(&config_dir) {
-        backend_warn(format!(
-            "Failed to create config directory {}: {}",
-            config_dir.display(),
-            err
-        ));
-    }
-    let path = config_dir.join("settings.json");
-    backend_info(format!("Resolved settings path: {}", path.display()));
-    path
-}
-
-#[tauri::command]
-fn get_settings() -> AudioSettings {
-    backend_info("Command get_settings invoked");
-    let path = settings_path();
-
-    if !path.exists() {
-        backend_warn(format!(
-            "Settings file not found at {}. Using defaults.",
-            path.display()
-        ));
-        return AudioSettings::default();
-    }
-
-    let data = match fs::read_to_string(&path) {
-        Ok(data) => data,
-        Err(err) => {
-            backend_error(format!(
-                "Failed to read settings file {}: {}",
-                path.display(),
-                err
-            ));
-            return AudioSettings::default();
-        }
-    };
-
-    // Try to parse as current AudioSettings, if fails try legacy and migrate
-    match serde_json::from_str::<AudioSettings>(&data) {
-        Ok(settings) => {
-            backend_info("Settings loaded successfully from disk");
-            settings
-        }
-        Err(_) => {
-            // Try legacy format (without new fields)
-            #[derive(Deserialize)]
-            struct LegacyAudioSettings {
-                pub tts_enabled: bool,
-                pub tts_rate: f32,
-                pub tts_pitch: f32,
-                pub tts_volume: f32,
-                pub tts_voice: String,
-                pub tts_lang: String,
-                pub mic_enabled: bool,
-                pub mic_device_id: String,
-                pub speaker_device_id: String,
-                pub auto_listen: bool,
-            }
-
-            match serde_json::from_str::<LegacyAudioSettings>(&data) {
-                Ok(legacy) => {
-                    backend_info("Migrating legacy settings to new format");
-                    let migrated = AudioSettings {
-                        tts_enabled: legacy.tts_enabled,
-                        tts_rate: legacy.tts_rate,
-                        tts_pitch: legacy.tts_pitch,
-                        tts_volume: legacy.tts_volume,
-                        tts_voice: legacy.tts_voice,
-                        tts_lang: legacy.tts_lang,
-                        tts_engine: "auto".to_string(),
-                        stt_enabled: true,
-                        stt_engine: "openrouter".to_string(),
-                        stt_model: "whisper-1".to_string(),
-                        mic_enabled: legacy.mic_enabled,
-                        mic_device_id: legacy.mic_device_id,
-                        speaker_device_id: legacy.speaker_device_id,
-                        auto_listen: legacy.auto_listen,
-                    };
-                    // Save migrated settings immediately
-                    if let Err(e) = save_settings(migrated.clone()) {
-                        backend_error(format!("Failed to save migrated settings: {}", e));
-                    }
-                    migrated
-                }
-                Err(err) => {
-                    backend_error(format!(
-                        "Failed to parse settings JSON from {}: {}",
-                        path.display(),
-                        err
-                    ));
-                    AudioSettings::default()
-                }
-            }
-        }
-    }
-}
-
-#[tauri::command]
-fn save_settings(settings: AudioSettings) -> Result<(), String> {
-    backend_info("Command save_settings invoked");
-    let path = settings_path();
-    let json = serde_json::to_string_pretty(&settings).map_err(|e| {
-        backend_error(format!("Failed to serialize settings: {}", e));
-        e.to_string()
-    })?;
-    fs::write(&path, json).map_err(|e| {
-        backend_error(format!("Failed to write settings file {}: {}", path.display(), e));
-        e.to_string()
-    })?;
-    backend_info(format!("Settings saved to {}", path.display()));
-    Ok(())
-}
 
 #[tauri::command]
 async fn browse(url: String) -> Result<BrowseResult, String> {
@@ -409,6 +185,29 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
     })?;
     backend_info(format!("Fetched {} bytes for {}", html.len(), url));
 
+    // ── Search results detection ─────────────────────
+    if let Some(search_content) = extract_search_results(&html, &url) {
+        backend_info("Detected DuckDuckGo search results page, extracting results directly");
+        let search_title = format!("Wyniki wyszukiwania: {}", 
+            url::Url::parse(&url)
+                .ok()
+                .and_then(|u| u.query_pairs().find(|(k, _)| k == "q").map(|(_, v)| v.to_string()))
+                .unwrap_or_else(|| url.clone())
+        );
+        let final_content = truncate_to_chars(&search_content, MAX_BACKEND_CONTENT_CHARS);
+        return Ok(BrowseResult {
+            url: final_url,
+            title: search_title,
+            content: final_content,
+            resolve_type: "search".to_string(),
+            suggestions: vec![],
+            screenshot_base64: None,
+            rss_url: None,
+            contact_url: None,
+            phone_url: None,
+        });
+    }
+
     let parsed_url = match url::Url::parse(&url) {
         Ok(parsed) => parsed,
         Err(err) => {
@@ -421,6 +220,25 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
         }
     };
     let mut cursor = std::io::Cursor::new(html.clone());
+
+    // Extract action links (RSS, Contact, Phone) from the raw HTML
+    let action_links = {
+        let document = scraper::Html::parse_document(&html);
+        crate::content_extraction::extract_action_links(&document)
+    };
+
+    // Try capturing a screenshot if available
+    let screenshot_base64 = if browse_rendered::is_available() {
+        match browse_rendered::capture_screenshot(&url, 10) {
+            Ok(b64) => Some(b64),
+            Err(e) => {
+                backend_warn(format!("Screenshot capture failed: {}", e));
+                None
+            }
+        }
+    } else {
+        None
+    };
 
     // ── Tier 1: reqwest + readability/scraper ─────────
     let (title, content) = match readability::extractor::extract(&mut cursor, &parsed_url) {
@@ -542,102 +360,14 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
         content: final_content,
         resolve_type,
         suggestions: vec![],
+        screenshot_base64,
+        rss_url: action_links.rss_url,
+        contact_url: action_links.contact_url,
+        phone_url: action_links.phone_url,
     })
 }
 
-fn extract_content(document: &scraper::Html) -> String {
-    // Junk elements to subtract from any matched container
-    let junk_sel = scraper::Selector::parse(
-        "script, style, noscript, nav, footer, header, aside, form, button, select, \
-         [role=\"navigation\"], [role=\"banner\"], [role=\"contentinfo\"], \
-         .cookie-banner, .cookie-consent, .ad, .advertisement, .sidebar, \
-         .menu, .nav, .footer, .header"
-    ).unwrap();
 
-    // Try to find article content first
-    let selectors = [
-        "article",
-        "main",
-        "[role=\"main\"]",
-        ".content",
-        "#content",
-        ".article-body",
-        ".post-content",
-    ];
-
-    for sel_str in &selectors {
-        if let Ok(selector) = scraper::Selector::parse(sel_str) {
-            if let Some(element) = document.select(&selector).next() {
-                // Collect full text, then subtract junk element text
-                let full_text: String = element.text().collect::<Vec<_>>().join(" ");
-                let junk_text: String = element
-                    .select(&junk_sel)
-                    .flat_map(|el| el.text())
-                    .collect::<Vec<_>>()
-                    .join(" ");
-
-                let clean = if junk_text.len() > 30 {
-                    full_text.replace(&junk_text, " ")
-                } else {
-                    full_text
-                };
-
-                let text = normalize_whitespace(&clean);
-                if text.len() >= MIN_READABLE_CONTENT_LENGTH {
-                    return text;
-                }
-            }
-        }
-    }
-
-    // Fallback: collect all paragraph text (skip paragraphs inside junk containers)
-    if let Ok(p_selector) = scraper::Selector::parse("p") {
-        let paragraphs: Vec<String> = document
-            .select(&p_selector)
-            .filter(|el| {
-                // Skip paragraphs that are inside nav/footer/aside/form
-                let mut parent = el.parent();
-                while let Some(p) = parent {
-                    if let Some(p_el) = p.value().as_element() {
-                        let tag = p_el.name();
-                        if matches!(tag, "nav" | "footer" | "header" | "aside" | "form") {
-                            return false;
-                        }
-                    }
-                    parent = p.parent();
-                }
-                true
-            })
-            .map(|el| normalize_whitespace(&el.text().collect::<Vec<_>>().join(" ")))
-            .filter(|t| t.len() > 40)
-            .collect();
-        if !paragraphs.is_empty() {
-            return paragraphs.join("\n\n");
-        }
-    }
-
-    "Nie udało się wyodrębnić treści ze strony.".to_string()
-}
-
-fn extract_with_scraper(html: &str, url: &str) -> (String, String) {
-    let document = scraper::Html::parse_document(html);
-
-    let title_selector = scraper::Selector::parse("title").unwrap();
-    let title = document
-        .select(&title_selector)
-        .next()
-        .map(|el| normalize_whitespace(&el.text().collect::<Vec<_>>().join(" ")))
-        .filter(|t| !t.is_empty())
-        .unwrap_or_else(|| url.to_string());
-
-    let content = extract_content(&document);
-
-    (title, content)
-}
-
-fn normalize_whitespace(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ")
-}
 
 fn main() {
     backend_info("Booting Broxeen Tauri backend...");
@@ -656,14 +386,16 @@ fn main() {
 
     let recording_state: SharedRecordingState = Arc::new(Mutex::new(audio_capture::RecordingState::new()));
     let active_stream = audio_commands::ActiveStream(Arc::new(Mutex::new(None)));
+    let active_tts = audio_commands::ActiveTts(Arc::new(Mutex::new(None)));
 
     if let Err(err) = tauri::Builder::default()
         .manage(recording_state)
         .manage(active_stream)
+        .manage(active_tts)
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
-            get_settings,
-            save_settings,
+            settings::get_settings,
+            settings::save_settings,
             browse,
             llm::llm_chat,
             stt::stt_transcribe,
@@ -671,6 +403,9 @@ fn main() {
             audio_commands::stt_stop,
             audio_commands::stt_status,
             audio_commands::backend_tts_speak,
+            audio_commands::backend_tts_stop,
+            audio_commands::backend_tts_pause,
+            audio_commands::backend_tts_resume,
             audio_commands::backend_tts_speak_base64,
             audio_commands::backend_tts_info,
             audio_commands::backend_audio_devices,

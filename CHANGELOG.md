@@ -1,3 +1,24 @@
+## [1.0.16] - 2026-02-22
+
+### Summary
+
+refactor(tests): CLI interface improvements
+
+### Other
+
+- update e2e/chat-features.spec.ts
+- update src-tauri/src/audio_commands.rs
+- update src-tauri/src/browse_rendered.rs
+- update src-tauri/src/content_cleaning.rs
+- update src-tauri/src/content_extraction.rs
+- update src-tauri/src/logging.rs
+- update src-tauri/src/main.rs
+- update src-tauri/src/settings.rs
+- update src-tauri/src/tts_backend.rs
+- update src/App.tsx
+- ... and 41 more
+
+
 ## [1.0.15] - 2026-02-22
 
 ### Summary

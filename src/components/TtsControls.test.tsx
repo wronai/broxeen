@@ -89,7 +89,9 @@ describe("TtsControls", () => {
   });
 
   it("pasek postępu nie jest widoczny gdy nie mówi", () => {
-    const { container } = render(<TtsControls {...baseProps} isSpeaking={false} />);
+    const { container } = render(
+      <TtsControls {...baseProps} isSpeaking={false} />,
+    );
     expect(container.querySelector(".bg-broxeen-400")).not.toBeInTheDocument();
   });
 });

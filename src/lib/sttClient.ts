@@ -53,13 +53,16 @@ export async function transcribeAudio(
     });
 
     if (isTauri) {
-      const result = await invoke<{ text?: string } | string>("stt_transcribe", {
-        audioBase64,
-        format,
-        language: languageOverride ?? cfg.language,
-        apiKey: cfg.apiKey,
-        model: cfg.model,
-      });
+      const result = await invoke<{ text?: string } | string>(
+        "stt_transcribe",
+        {
+          audioBase64,
+          format,
+          language: languageOverride ?? cfg.language,
+          apiKey: cfg.apiKey,
+          model: cfg.model,
+        },
+      );
 
       if (typeof result === "string") {
         return result.trim();

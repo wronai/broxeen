@@ -79,6 +79,11 @@ export interface BrowseResult {
   url: string;
   title: string;
   content: string;
+  resolve_type?: string;
+  screenshot_base64?: string;
+  rss_url?: string;
+  contact_url?: string;
+  phone_url?: string;
 }
 
 interface AllOriginsResponse {
@@ -115,7 +120,10 @@ function summarizeUnknownError(error: unknown): string {
   return String(error);
 }
 
-function extractBrowserReadableContent(rawHtml: string): { title: string; content: string } {
+function extractBrowserReadableContent(rawHtml: string): {
+  title: string;
+  content: string;
+} {
   const fallbackContent =
     "Nie udało się wyodrębnić treści ze strony w trybie przeglądarki.";
 
@@ -137,10 +145,10 @@ function extractBrowserReadableContent(rawHtml: string): { title: string; conten
   document
     .querySelectorAll(
       "script, style, noscript, template, nav, footer, header, aside, form, " +
-      "button, select, input[type='hidden'], " +
-      "[role='navigation'], [role='banner'], [role='contentinfo'], " +
-      ".cookie-banner, .cookie-consent, .ad, .advertisement, .sidebar, " +
-      ".menu, .nav, .footer, .header"
+        "button, select, input[type='hidden'], " +
+        "[role='navigation'], [role='banner'], [role='contentinfo'], " +
+        ".cookie-banner, .cookie-consent, .ad, .advertisement, .sidebar, " +
+        ".menu, .nav, .footer, .header",
     )
     .forEach((el) => el.remove());
 
@@ -219,7 +227,8 @@ function normalizeBrowseResult(
   const rawTitle = typeof result.title === "string" ? result.title : "";
   const rawContent = typeof result.content === "string" ? result.content : "";
 
-  const title = normalizeText(rawTitle) || (source === "browser" ? "Untitled" : safeUrl);
+  const title =
+    normalizeText(rawTitle) || (source === "browser" ? "Untitled" : safeUrl);
   const contentWasHtml = looksLikeHtml(rawContent);
   const extractedContent = contentWasHtml
     ? extractBrowserReadableContent(rawContent).content
@@ -232,12 +241,15 @@ function normalizeBrowseResult(
       : "Nie udało się wyodrębnić treści ze strony.";
 
   if (contentWasHtml) {
-    browseLogger.warn("Browse payload looked like raw HTML and was normalized", {
-      source,
-      url: safeUrl,
-      originalLength: rawContent.length,
-      normalizedLength: normalizedContent.length,
-    });
+    browseLogger.warn(
+      "Browse payload looked like raw HTML and was normalized",
+      {
+        source,
+        url: safeUrl,
+        originalLength: rawContent.length,
+        normalizedLength: normalizedContent.length,
+      },
+    );
   }
 
   if (!normalizedContent) {
@@ -249,12 +261,15 @@ function normalizeBrowseResult(
   }
 
   if (cookieStripped.length !== extractedContent.length) {
-    browseLogger.info("Cookie banner-like content stripped from browse payload", {
-      source,
-      url: safeUrl,
-      originalLength: extractedContent.length,
-      strippedLength: cookieStripped.length,
-    });
+    browseLogger.info(
+      "Cookie banner-like content stripped from browse payload",
+      {
+        source,
+        url: safeUrl,
+        originalLength: extractedContent.length,
+        strippedLength: cookieStripped.length,
+      },
+    );
   }
 
   return {
@@ -265,59 +280,106 @@ function normalizeBrowseResult(
   };
 }
 
-async function fetchViaAllOriginsJson(url: string): Promise<BrowserProxyPayload> {
+async function fetchViaAllOriginsJson(
+  url: string,
+): Promise<BrowserProxyPayload> {
   const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-  const response = await fetch(proxyUrl);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(proxyUrl, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
 
-  const data = (await response.json()) as AllOriginsResponse;
-  return {
-    proxyName: "allorigins:get",
-    rawContent: typeof data?.contents === "string" ? data.contents : "",
-    sourceHttpCode: data?.status?.http_code,
-    sourceContentType: data?.status?.content_type,
-    sourceContentLength: data?.status?.content_length,
-    sourceUrl: data?.status?.url,
-  };
+    const data = (await response.json()) as AllOriginsResponse;
+    return {
+      proxyName: "allorigins:get",
+      rawContent: typeof data?.contents === "string" ? data.contents : "",
+      sourceHttpCode: data?.status?.http_code,
+      sourceContentType: data?.status?.content_type,
+      sourceContentLength: data?.status?.content_length,
+      sourceUrl: data?.status?.url,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
-async function fetchViaAllOriginsRaw(url: string): Promise<BrowserProxyPayload> {
+async function fetchViaAllOriginsRaw(
+  url: string,
+): Promise<BrowserProxyPayload> {
   const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-  const response = await fetch(proxyUrl);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(proxyUrl, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
 
-  const rawContent = await response.text();
-  return {
-    proxyName: "allorigins:raw",
-    rawContent,
-    sourceHttpCode: response.status,
-    sourceContentType: response.headers.get("content-type") || undefined,
-    sourceContentLength: rawContent.length,
-    sourceUrl: url,
-  };
+    const rawContent = await response.text();
+    return {
+      proxyName: "allorigins:raw",
+      rawContent,
+      sourceHttpCode: response.status,
+      sourceContentType: response.headers.get("content-type") || undefined,
+      sourceContentLength: rawContent.length,
+      sourceUrl: url,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchViaCorsProxy(url: string): Promise<BrowserProxyPayload> {
+  const targetUrl = withHttpScheme(url);
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(proxyUrl, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const rawContent = await response.text();
+    return {
+      proxyName: "corsproxy.io",
+      rawContent,
+      sourceHttpCode: response.status,
+      sourceContentType: response.headers.get("content-type") || undefined,
+      sourceContentLength: rawContent.length,
+      sourceUrl: targetUrl,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function fetchViaJina(url: string): Promise<BrowserProxyPayload> {
   const targetUrl = withHttpScheme(url);
   const proxyUrl = `https://r.jina.ai/${targetUrl}`;
-  const response = await fetch(proxyUrl);
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(proxyUrl, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
 
-  const rawContent = await response.text();
-  return {
-    proxyName: "jina-ai",
-    rawContent,
-    sourceHttpCode: response.status,
-    sourceContentType: response.headers.get("content-type") || undefined,
-    sourceContentLength: rawContent.length,
-    sourceUrl: targetUrl,
-  };
+    const rawContent = await response.text();
+    return {
+      proxyName: "jina-ai",
+      rawContent,
+      sourceHttpCode: response.status,
+      sourceContentType: response.headers.get("content-type") || undefined,
+      sourceContentLength: rawContent.length,
+      sourceUrl: targetUrl,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function browseInBrowser(url: string): Promise<BrowseResult> {
@@ -327,6 +389,7 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
     async () => {
       const fetchers: Array<() => Promise<BrowserProxyPayload>> = [
         () => fetchViaAllOriginsJson(url),
+        () => fetchViaCorsProxy(url),
         () => fetchViaAllOriginsRaw(url),
         () => fetchViaJina(url),
       ];
@@ -362,9 +425,9 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
           const extracted = htmlPayload
             ? extractBrowserReadableContent(rawContent)
             : {
-              title: "Untitled",
-              content: rawContent,
-            };
+                title: "Untitled",
+                content: rawContent,
+              };
 
           const normalized = normalizeBrowseResult(
             {
@@ -396,7 +459,9 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
       }
 
       throw new Error(
-        `Nie udało się pobrać strony w trybie przeglądarkowym (CORS/proxy). Szczegóły: ${failures.join(" | ")}`,
+        `Nie udało się pobrać strony: żaden z serwerów proxy nie odpowiedział. ` +
+          `Strona może być niedostępna lub blokować dostęp. ` +
+          `Spróbuj ponownie lub uruchom aplikację w trybie Tauri dla lepszych wyników.`,
       );
     },
   );
@@ -420,7 +485,8 @@ export async function executeBrowseCommand(
       if (runtimeIsTauri) {
         const result = await invoke<BrowseResult>("browse", { url });
         const rawTitle = typeof result.title === "string" ? result.title : "";
-        const rawContent = typeof result.content === "string" ? result.content : "";
+        const rawContent =
+          typeof result.content === "string" ? result.content : "";
         const normalized = normalizeBrowseResult(result, "tauri", url);
 
         browseLogger.info("Tauri browse command completed", {

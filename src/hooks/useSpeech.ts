@@ -38,7 +38,9 @@ const STT_UNAVAILABLE_TAURI_REASON =
 const STT_UNAVAILABLE_BROWSER_REASON =
   "Analiza mowy (STT) nie jest wspierana w tym środowisku (brak Web Speech API).";
 
-function getSpeechRecognitionCtor(): (new () => SpeechRecognitionInstance) | undefined {
+function getSpeechRecognitionCtor():
+  | (new () => SpeechRecognitionInstance)
+  | undefined {
   if (typeof window === "undefined") {
     return undefined;
   }
@@ -46,12 +48,17 @@ function getSpeechRecognitionCtor(): (new () => SpeechRecognitionInstance) | und
   return window.SpeechRecognition || window.webkitSpeechRecognition;
 }
 
-function getUnsupportedReason(supported: boolean, runtimeIsTauri: boolean): string | null {
+function getUnsupportedReason(
+  supported: boolean,
+  runtimeIsTauri: boolean,
+): string | null {
   if (supported) {
     return null;
   }
 
-  return runtimeIsTauri ? STT_UNAVAILABLE_TAURI_REASON : STT_UNAVAILABLE_BROWSER_REASON;
+  return runtimeIsTauri
+    ? STT_UNAVAILABLE_TAURI_REASON
+    : STT_UNAVAILABLE_BROWSER_REASON;
 }
 
 export function useSpeech(lang: string = "pl-PL") {
@@ -59,7 +66,9 @@ export function useSpeech(lang: string = "pl-PL") {
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [isSupported, setIsSupported] = useState(false);
-  const [unsupportedReason, setUnsupportedReason] = useState<string | null>(null);
+  const [unsupportedReason, setUnsupportedReason] = useState<string | null>(
+    null,
+  );
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   useEffect(() => {
@@ -168,7 +177,9 @@ export function useSpeech(lang: string = "pl-PL") {
             speechLogger.debug("Final transcript captured", {
               finalLength: final_.length,
             });
-            setTranscript((prev) => (prev ? `${prev} ${final_}`.trim() : final_));
+            setTranscript((prev) =>
+              prev ? `${prev} ${final_}`.trim() : final_,
+            );
           }
 
           speechLogger.debug("Interim transcript captured", {
@@ -178,7 +189,9 @@ export function useSpeech(lang: string = "pl-PL") {
         };
 
         recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-          speechLogger.error("Speech recognition error", { error: event.error });
+          speechLogger.error("Speech recognition error", {
+            error: event.error,
+          });
           setIsListening(false);
           recognitionRef.current = null;
         };

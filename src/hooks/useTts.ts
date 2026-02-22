@@ -74,7 +74,9 @@ export function useTts(options: Partial<TtsOptions> = {}) {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [progress, setProgress] = useState(0);
   const [isSupported, setIsSupported] = useState(false);
-  const [unsupportedReason, setUnsupportedReason] = useState<string | null>(null);
+  const [unsupportedReason, setUnsupportedReason] = useState<string | null>(
+    null,
+  );
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const totalLenRef = useRef(0);
   const backendSupportedRef = useRef(false);
@@ -138,11 +140,15 @@ export function useTts(options: Partial<TtsOptions> = {}) {
     const loadVoices = logSyncDecorator("speech:tts", "loadVoices", () => {
       const synthesis = getSpeechSynthesisApi();
       if (!synthesis) {
-        ttsLogger.warn("window.speechSynthesis is not supported in this environment");
+        ttsLogger.warn(
+          "window.speechSynthesis is not supported in this environment",
+        );
         return;
       }
       const available = synthesis.getVoices();
-      ttsLogger.info("TTS voices snapshot captured", { count: available.length });
+      ttsLogger.info("TTS voices snapshot captured", {
+        count: available.length,
+      });
       setVoices(available);
     });
 
@@ -156,7 +162,8 @@ export function useTts(options: Partial<TtsOptions> = {}) {
         "probeTauriBackendTts",
         async () => {
           try {
-            const backendInfo = await invoke<BackendTtsInfo>("backend_tts_info");
+            const backendInfo =
+              await invoke<BackendTtsInfo>("backend_tts_info");
             const engine = (backendInfo?.engine ?? "").trim();
             const backendSupported = engine.length > 0 && engine !== "None";
 
@@ -168,9 +175,7 @@ export function useTts(options: Partial<TtsOptions> = {}) {
             backendModeRef.current = backendSupported ? "native" : "none";
             setIsSupported(backendSupported);
             setUnsupportedReason(
-              backendSupported
-                ? null
-                : TTS_TAURI_FALLBACK_UNAVAILABLE_REASON,
+              backendSupported ? null : TTS_TAURI_FALLBACK_UNAVAILABLE_REASON,
             );
 
             ttsLogger.info("Tauri native backend TTS probe completed", {
@@ -181,17 +186,24 @@ export function useTts(options: Partial<TtsOptions> = {}) {
             });
 
             if (backendInfo?.setup_instructions) {
-              ttsLogger.warn("Piper TTS is not installed; backend may use espeak fallback", {
-                setupHintAvailable: true,
-              });
+              ttsLogger.warn(
+                "Piper TTS is not installed; backend may use espeak fallback",
+                {
+                  setupHintAvailable: true,
+                },
+              );
             }
           } catch (nativeError) {
-            ttsLogger.warn("Failed to probe native backend TTS info, trying legacy tts_is_available", {
-              error: nativeError,
-            });
+            ttsLogger.warn(
+              "Failed to probe native backend TTS info, trying legacy tts_is_available",
+              {
+                error: nativeError,
+              },
+            );
 
             try {
-              const availability = await invoke<TauriTtsAvailability>("tts_is_available");
+              const availability =
+                await invoke<TauriTtsAvailability>("tts_is_available");
               const backendSupported = !!availability?.supported;
 
               if (!isMounted) {
@@ -204,7 +216,8 @@ export function useTts(options: Partial<TtsOptions> = {}) {
               setUnsupportedReason(
                 backendSupported
                   ? null
-                  : availability?.reason || TTS_TAURI_FALLBACK_UNAVAILABLE_REASON,
+                  : availability?.reason ||
+                      TTS_TAURI_FALLBACK_UNAVAILABLE_REASON,
               );
 
               ttsLogger.info("Legacy Tauri backend TTS probe completed", {
@@ -221,7 +234,9 @@ export function useTts(options: Partial<TtsOptions> = {}) {
               backendModeRef.current = "none";
               setIsSupported(false);
               setUnsupportedReason(TTS_TAURI_FALLBACK_UNAVAILABLE_REASON);
-              ttsLogger.warn("Failed to probe Tauri backend TTS support", { error });
+              ttsLogger.warn("Failed to probe Tauri backend TTS support", {
+                error,
+              });
             }
 
             if (!isMounted) {
@@ -267,7 +282,10 @@ export function useTts(options: Partial<TtsOptions> = {}) {
           setIsSpeaking(true);
           setIsPaused(false);
 
-          const estimatedDurationMs = estimateBackendSpeechDurationMs(preparedText, opts.rate);
+          const estimatedDurationMs = estimateBackendSpeechDurationMs(
+            preparedText,
+            opts.rate,
+          );
           startBackendProgress(estimatedDurationMs);
 
           const runSpeakViaBackend = logAsyncDecorator(
@@ -305,9 +323,12 @@ export function useTts(options: Partial<TtsOptions> = {}) {
                 setIsPaused(false);
                 setProgress(0);
 
-                const message = error instanceof Error ? error.message : String(error);
+                const message =
+                  error instanceof Error ? error.message : String(error);
                 ttsLogger.error("Tauri backend TTS failed", { error: message });
-                setUnsupportedReason(message || TTS_TAURI_FALLBACK_UNAVAILABLE_REASON);
+                setUnsupportedReason(
+                  message || TTS_TAURI_FALLBACK_UNAVAILABLE_REASON,
+                );
               }
             },
           );
@@ -395,7 +416,17 @@ export function useTts(options: Partial<TtsOptions> = {}) {
       const synthesis = getSpeechSynthesisApi();
       if (!synthesis) {
         if (isTauriRuntime() && backendSupportedRef.current) {
-          ttsLogger.warn("Pause is not supported for Tauri backend TTS. Use stop instead.");
+          if (backendModeRef.current === "native") {
+            ttsLogger.info("Pausing native Tauri backend TTS");
+            invoke("backend_tts_pause").catch((e) =>
+              ttsLogger.warn("Failed to pause TTS", { error: e }),
+            );
+            setIsPaused(true);
+          } else {
+            ttsLogger.warn(
+              "Pause is not supported for legacy Tauri backend TTS. Use stop instead.",
+            );
+          }
         }
         return;
       }
@@ -412,7 +443,17 @@ export function useTts(options: Partial<TtsOptions> = {}) {
       const synthesis = getSpeechSynthesisApi();
       if (!synthesis) {
         if (isTauriRuntime() && backendSupportedRef.current) {
-          ttsLogger.warn("Resume is not supported for Tauri backend TTS.");
+          if (backendModeRef.current === "native") {
+            ttsLogger.info("Resuming native Tauri backend TTS");
+            invoke("backend_tts_resume").catch((e) =>
+              ttsLogger.warn("Failed to resume TTS", { error: e }),
+            );
+            setIsPaused(false);
+          } else {
+            ttsLogger.warn(
+              "Resume is not supported for legacy Tauri backend TTS.",
+            );
+          }
         }
         return;
       }
@@ -434,16 +475,14 @@ export function useTts(options: Partial<TtsOptions> = {}) {
         ttsLogger.info("Stopping TTS manually");
         synthesis.cancel();
       } else if (isTauriRuntime() && backendSupportedRef.current) {
-        if (backendModeRef.current === "native") {
-          ttsLogger.warn("Stop is not currently supported by native backend_tts_speak playback");
-        }
-
         const runStopViaBackend = logAsyncDecorator(
           "speech:tts",
           "stopViaTauriBackend",
           async () => {
             try {
-              if (backendModeRef.current === "legacy") {
+              if (backendModeRef.current === "native") {
+                await invoke("backend_tts_stop");
+              } else if (backendModeRef.current === "legacy") {
                 await invoke("tts_stop");
               }
             } catch (error) {

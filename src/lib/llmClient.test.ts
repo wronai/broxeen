@@ -26,7 +26,10 @@ const { chat, askAboutContent, describeImage, summarizeForTts, detectIntent } =
 
 // ── Helpers ──────────────────────────────────────────
 
-function mockFetchSuccess(responseText: string, model = "google/gemini-3-flash-preview") {
+function mockFetchSuccess(
+  responseText: string,
+  model = "google/gemini-3-flash-preview",
+) {
   global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: () =>
@@ -62,9 +65,7 @@ describe("llmClient", () => {
     it("sends messages and returns response", async () => {
       mockFetchSuccess("Cześć, jestem asystentem!");
 
-      const resp = await chat([
-        { role: "user", content: "Cześć" },
-      ]);
+      const resp = await chat([{ role: "user", content: "Cześć" }]);
 
       expect(resp.text).toBe("Cześć, jestem asystentem!");
       expect(resp.model).toBe("google/gemini-3-flash-preview");
@@ -79,24 +80,24 @@ describe("llmClient", () => {
 
     it("throws on missing API key", async () => {
       vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
-      await expect(
-        chat([{ role: "user", content: "test" }])
-      ).rejects.toThrow("OPENROUTER_API_KEY not set");
+      await expect(chat([{ role: "user", content: "test" }])).rejects.toThrow(
+        "OPENROUTER_API_KEY not set",
+      );
     });
 
     it("throws on HTTP error", async () => {
       mockFetchError(429, "Rate limited");
-      await expect(
-        chat([{ role: "user", content: "test" }])
-      ).rejects.toThrow("LLM HTTP 429");
+      await expect(chat([{ role: "user", content: "test" }])).rejects.toThrow(
+        "LLM HTTP 429",
+      );
     });
 
     it("uses config overrides", async () => {
       mockFetchSuccess("ok");
-      await chat(
-        [{ role: "user", content: "test" }],
-        { model: "anthropic/claude-sonnet-4", maxTokens: 100 }
-      );
+      await chat([{ role: "user", content: "test" }], {
+        model: "anthropic/claude-sonnet-4",
+        maxTokens: 100,
+      });
 
       const body = JSON.parse((global.fetch as any).mock.calls[0][1].body);
       expect(body.model).toBe("anthropic/claude-sonnet-4");
@@ -110,7 +111,7 @@ describe("llmClient", () => {
 
       const result = await askAboutContent(
         "To jest treść strony o programowaniu w TypeScript...",
-        "O czym jest ta strona?"
+        "O czym jest ta strona?",
       );
 
       expect(result).toContain("programowaniu");
@@ -140,7 +141,9 @@ describe("llmClient", () => {
       const userMsg = body.messages[1];
       expect(Array.isArray(userMsg.content)).toBe(true);
       expect(userMsg.content[1].type).toBe("image_url");
-      expect(userMsg.content[1].image_url.url).toContain("data:image/png;base64,");
+      expect(userMsg.content[1].image_url.url).toContain(
+        "data:image/png;base64,",
+      );
     });
   });
 

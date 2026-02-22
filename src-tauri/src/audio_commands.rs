@@ -53,6 +53,11 @@ pub struct ActiveStream(pub Arc<Mutex<Option<cpal::Stream>>>);
 unsafe impl Send for ActiveStream {}
 unsafe impl Sync for ActiveStream {}
 
+pub struct ActiveTts(pub Arc<Mutex<Option<(rodio::OutputStream, rodio::Sink)>>>);
+
+unsafe impl Send for ActiveTts {}
+unsafe impl Sync for ActiveTts {}
+
 // ── STT Commands ─────────────────────────────────────
 
 /// Start recording from microphone.
@@ -154,7 +159,8 @@ pub struct SttStatus {
 /// Speak text through the system audio output (Piper or espeak-ng).
 /// Non-blocking — audio plays in background.
 #[tauri::command]
-pub fn backend_tts_speak(
+pub async fn backend_tts_speak(
+    active_tts: tauri::State<'_, ActiveTts>,
     text: String,
     rate: Option<f32>,
     volume: Option<f32>,
@@ -174,12 +180,52 @@ pub fn backend_tts_speak(
 
     // Load current settings to get preferred TTS engine
     let settings = load_settings();
-    crate::backend_info(format!(
-        "Using TTS engine from settings: '{}'", 
-        settings.tts_engine
-    ));
+    let engine = settings.tts_engine.clone();
 
-    tts_backend::speak_with_engine(&text, rate, volume, &lang, &settings.tts_engine)
+    // Stop current playback immediately before synthesis begins
+    {
+        *active_tts.0.lock().unwrap() = None;
+    }
+
+    if text.trim().is_empty() {
+        return Ok(());
+    }
+
+    let wav = tokio::task::spawn_blocking(move || {
+        tts_backend::synthesize_to_wav_with_engine(&text, rate, &lang, &engine)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))??;
+
+    // Start playback
+    let (stream, sink) = tts_backend::play_wav_stoppable(&wav, volume)?;
+
+    // Store in state so we can stop/pause it later
+    *active_tts.0.lock().unwrap() = Some((stream, sink));
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn backend_tts_stop(active_tts: tauri::State<ActiveTts>) {
+    crate::backend_info("Command backend_tts_stop invoked");
+    *active_tts.0.lock().unwrap() = None;
+}
+
+#[tauri::command]
+pub fn backend_tts_pause(active_tts: tauri::State<ActiveTts>) {
+    crate::backend_info("Command backend_tts_pause invoked");
+    if let Some((_, sink)) = active_tts.0.lock().unwrap().as_ref() {
+        sink.pause();
+    }
+}
+
+#[tauri::command]
+pub fn backend_tts_resume(active_tts: tauri::State<ActiveTts>) {
+    crate::backend_info("Command backend_tts_resume invoked");
+    if let Some((_, sink)) = active_tts.0.lock().unwrap().as_ref() {
+        sink.play();
+    }
 }
 
 /// Synthesize text to WAV and return as base64.
