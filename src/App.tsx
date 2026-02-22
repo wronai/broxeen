@@ -5,6 +5,7 @@ import { CqrsProvider } from "./contexts/CqrsContext";
 import Chat from "./components/Chat";
 import Settings from "./components/Settings";
 import { HealthDiagnostic } from "./components/HealthDiagnostic";
+import { ErrorReportPanel } from "./components/ErrorReportPanel";
 import {
   DEFAULT_AUDIO_SETTINGS,
   withAudioSettingsDefaults,
@@ -15,9 +16,11 @@ import { isTauriRuntime } from "./lib/runtime";
 import { bootstrapApp, type AppContext } from "./core/bootstrap";
 import { PluginProvider } from "./contexts/pluginContext";
 import { runQuickHealthCheck } from "./utils/healthCheck";
+import { errorReporting } from "./utils/errorReporting";
 
 export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [errorReportOpen, setErrorReportOpen] = useState(false);
   const [settings, setSettings] = useState<AudioSettings>(
     DEFAULT_AUDIO_SETTINGS,
   );

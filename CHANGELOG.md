@@ -1,3 +1,16 @@
+## [1.0.32] - 2026-02-22
+
+### Summary
+
+fix(None): configuration management system
+
+### Other
+
+- update src/App.tsx
+- update src/components/ErrorReportPanel.tsx
+- update src/utils/errorReporting.ts
+
+
 ## [1.0.31] - 2026-02-22
 
 ### Summary
