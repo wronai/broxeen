@@ -152,7 +152,7 @@ async fn get_app_version() -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn browse(url: String) -> Result<BrowseResult, String> {
+async fn browse(url: String, headers: Option<std::collections::HashMap<String, String>>) -> Result<BrowseResult, String> {
     backend_info(format!("Command browse invoked for URL: {}", url));
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
@@ -163,7 +163,17 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
             e.to_string()
         })?;
 
-    let response = client.get(&url).send().await.map_err(|e| {
+    let mut request = client.get(&url);
+    
+    // Add headers if provided
+    if let Some(headers) = headers {
+        for (key, value) in headers {
+            request = request.header(&key, &value);
+            backend_info(format!("Adding header: {}: {}", key, value));
+        }
+    }
+
+    let response = request.send().await.map_err(|e| {
         backend_error(format!("HTTP request failed for {}: {}", url, e));
         e.to_string()
     })?;

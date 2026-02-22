@@ -225,6 +225,11 @@ async function registerCorePlugins(
     safeRegister(registry, router, new HttpBrowsePlugin(), 'HttpBrowsePlugin');
   } catch (e) { console.warn('HttpBrowsePlugin unavailable:', e); }
 
+  try {
+    const { AuthBrowsePlugin } = await import('../plugins/authBrowse/authBrowsePlugin');
+    safeRegister(registry, router, new AuthBrowsePlugin(), 'AuthBrowsePlugin');
+  } catch (e) { console.warn('AuthBrowsePlugin unavailable:', e); }
+
   // ── Fallback ─────────────────────────────────────────────────
 
   try {
