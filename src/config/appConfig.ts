@@ -104,8 +104,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     temperature: 0.0,
   },
   network: {
-    commonCameraIpOffsets: [100, 101, 102, 103, 108, 110, 150, 200, 201, 250],
-    commonDeviceIpOffsets: [2, 10, 20, 30, 50, 60, 70, 80, 90, 120, 130, 140, 160, 170, 180, 190, 210, 220, 240],
+    commonCameraIpOffsets: [100, 101, 102, 103, 108, 110, 146, 150, 200, 201, 250],
+    commonDeviceIpOffsets: [2, 10, 20, 30, 50, 60, 70, 80, 90, 120, 130, 140, 145, 146, 147, 148, 149, 160, 170, 180, 190, 210, 220, 240],
     cameraPorts: [554, 8554, 80, 8080],
     generalPorts: [80, 443, 8080],
     probeTimeoutMs: 1500,

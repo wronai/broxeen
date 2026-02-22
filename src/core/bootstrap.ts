@@ -143,6 +143,12 @@ async function registerCorePlugins(
     safeRegister(registry, router, new CameraSnapshotPlugin(), 'CameraSnapshotPlugin');
   } catch (e) { console.warn('CameraSnapshotPlugin unavailable:', e); }
 
+  // Advanced port scan with camera vendor detection
+  try {
+    const { AdvancedPortScanPlugin } = await import('../plugins/discovery/advancedPortScanPlugin');
+    safeRegister(registry, router, new AdvancedPortScanPlugin(), 'AdvancedPortScanPlugin');
+  } catch (e) { console.warn('AdvancedPortScanPlugin unavailable:', e); }
+
   // Service probe (Tauri only)
   if (isTauri) {
     try {

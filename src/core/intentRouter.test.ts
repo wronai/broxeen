@@ -246,6 +246,25 @@ describe('IntentRouter', () => {
     expect(r4.intent).toBe('marketplace:browse');
   });
 
+  // ── Network scan / camera discovery ─────────────────────
+
+  it('should detect network:scan intent for camera discovery', async () => {
+    const r1 = await router.detect('znajdz kamere');
+    expect(r1.intent).toBe('network:scan');
+
+    const r2 = await router.detect('znajdź kamery');
+    expect(r2.intent).toBe('network:scan');
+
+    const r3 = await router.detect('pokaż kamery w sieci');
+    expect(r3.intent).toBe('network:scan');
+
+    const r4 = await router.detect('discover cameras');
+    expect(r4.intent).toBe('network:scan');
+
+    const r5 = await router.detect('skanuj sieć');
+    expect(r5.intent).toBe('network:scan');
+  });
+
   // ── Scope-aware routing ─────────────────────────────────
 
   it('should route all registered plugins correctly', () => {
