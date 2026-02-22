@@ -368,6 +368,14 @@ export class IntentRouter implements IIntentRouter {
       /search.*for/i,
     ]);
 
+    // Camera live preview intents
+    this.intentPatterns.set('camera:live', [
+      /^rtsp:\/\//i,
+      /pokaż.*live|pokaz.*live/i,
+      /live.*preview/i,
+      /podgląd.*live|podglad.*live/i,
+    ]);
+
     // Chat/LLM intents (fallback)
     this.intentPatterns.set('chat:ask', [
       /.+/, // catch-all (non-empty)
