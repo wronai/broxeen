@@ -23,6 +23,9 @@ import { usePlugins } from "../contexts/pluginContext";
 import TtsControls from "./TtsControls";
 import { WatchBadge } from "./WatchBadge.simple";
 import { NetworkSelector, type NetworkConfig, type NetworkScope } from "./NetworkSelector";
+import type { NetworkHistoryItem } from "./NetworkHistorySelector";
+import { CommandHistory, type CommandHistoryItem } from "./CommandHistory";
+import { QuickCommandHistory } from "./QuickCommandHistory";
 import type { AudioSettings } from "../domain/audioSettings";
 import { type ChatMessage } from "../domain/chatEvents";
 import { logger } from "../lib/logger";
@@ -52,6 +55,9 @@ export default function Chat({ settings }: ChatProps) {
   const [showNetworkSelector, setShowNetworkSelector] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkConfig | null>(null);
   const [pendingNetworkQuery, setPendingNetworkQuery] = useState<string>("");
+  const [showCommandHistory, setShowCommandHistory] = useState(true);
+  const [inputFocused, setInputFocused] = useState(false);
+  const [showQuickHistory, setShowQuickHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatLogger = logger.scope("chat:ui");
 
@@ -218,6 +224,23 @@ export default function Chat({ settings }: ChatProps) {
     };
   }, [eventStore, settings.tts_enabled, tts, chatLogger]);
 
+  // Input focus and quick history logic
+  useEffect(() => {
+    // Show quick history when input is focused and empty
+    if (inputFocused && !input.trim() && messages.length === 0) {
+      setShowQuickHistory(true);
+    } else {
+      setShowQuickHistory(false);
+    }
+  }, [inputFocused, input, messages.length]);
+
+  // Hide quick history when user starts typing
+  useEffect(() => {
+    if (input.trim()) {
+      setShowQuickHistory(false);
+    }
+  }, [input]);
+
   // Network selection handlers
   const handleNetworkSelect = (networkConfig: NetworkConfig) => {
     setSelectedNetwork(networkConfig);
@@ -227,11 +250,190 @@ export default function Chat({ settings }: ChatProps) {
       name: networkConfig.name 
     });
     
+    // Add to history
+    addToNetworkHistory(networkConfig.scope, networkConfig.name, '192.168.1.0/24');
+    
     // Execute the pending query with network context
     if (pendingNetworkQuery) {
       executeNetworkQuery(pendingNetworkQuery, networkConfig);
       setPendingNetworkQuery("");
     }
+  };
+
+  const handleHistorySelect = (historyItem: NetworkHistoryItem) => {
+    chatLogger.info('History network selected', { 
+      address: historyItem.address,
+      name: historyItem.name,
+      scope: historyItem.scope
+    });
+    
+    // Convert to NetworkConfig
+    const networkConfig = {
+      scope: historyItem.scope,
+      name: historyItem.name,
+      description: `Historia: ${historyItem.address}`,
+      icon: null,
+      features: []
+    } as NetworkConfig;
+    
+    setSelectedNetwork(networkConfig);
+    setShowNetworkSelector(false);
+    
+    // Execute the pending query with history context
+    if (pendingNetworkQuery) {
+      const enhancedQuery = `${pendingNetworkQuery} (adres: ${historyItem.address})`;
+      executeNetworkQuery(enhancedQuery, networkConfig);
+      setPendingNetworkQuery("");
+    }
+  };
+
+  const addToNetworkHistory = (scope: NetworkScope, name: string, address: string) => {
+    try {
+      const historyKey = 'broxeen_network_history';
+      const savedHistory = localStorage.getItem(historyKey);
+      let history: NetworkHistoryItem[] = [];
+      
+      if (savedHistory) {
+        history = JSON.parse(savedHistory);
+      }
+      
+      const newItem: NetworkHistoryItem = {
+        id: Date.now().toString(),
+        address,
+        name,
+        scope,
+        lastUsed: Date.now(),
+        usageCount: 1,
+        description: `${scope === 'local' ? 'Sieć lokalna' : scope === 'global' ? 'Internet globalny' : scope === 'tor' ? 'Sieć Tor' : scope === 'vpn' ? 'VPN' : 'Custom'} - ${address}`
+      };
+      
+      // Remove existing entry with same address
+      const existingIndex = history.findIndex(item => item.address === address);
+      let newHistory = [...history];
+      
+      if (existingIndex >= 0) {
+        newHistory[existingIndex] = {
+          ...newHistory[existingIndex],
+          lastUsed: Date.now(),
+          usageCount: newHistory[existingIndex].usageCount + 1
+        };
+      } else {
+        newHistory.unshift(newItem);
+      }
+      
+      // Keep only last 10 entries
+      newHistory = newHistory.slice(0, 10);
+      
+      localStorage.setItem(historyKey, JSON.stringify(newHistory));
+    } catch (error) {
+      chatLogger.error('Failed to save network history', error);
+    }
+  };
+
+  const addToCommandHistory = (command: string, result?: string, category: CommandHistoryItem['category'] = 'other', success: boolean = true) => {
+    try {
+      const historyKey = 'broxeen_command_history';
+      const savedHistory = localStorage.getItem(historyKey);
+      let history: CommandHistoryItem[] = [];
+      
+      if (savedHistory) {
+        history = JSON.parse(savedHistory);
+      }
+      
+      const newItem: CommandHistoryItem = {
+        id: Date.now().toString(),
+        command: command.trim(),
+        timestamp: Date.now(),
+        result,
+        category,
+        success
+      };
+      
+      // Remove existing entry with same command
+      const existingIndex = history.findIndex(item => item.command === newItem.command);
+      let newHistory = [...history];
+      
+      if (existingIndex >= 0) {
+        // Update existing entry
+        newHistory[existingIndex] = {
+          ...newHistory[existingIndex],
+          timestamp: Date.now(),
+          result,
+          category,
+          success
+        };
+      } else {
+        // Add new entry
+        newHistory.unshift(newItem);
+      }
+      
+      // Keep only last 50 entries
+      newHistory = newHistory.slice(0, 50);
+      
+      localStorage.setItem(historyKey, JSON.stringify(newHistory));
+    } catch (error) {
+      chatLogger.error('Failed to save command history', error);
+    }
+  };
+
+  const handleCommandHistorySelect = (command: string) => {
+    chatLogger.info('Command selected from history', { command });
+    setInput(command);
+    setShowCommandHistory(false);
+    setShowQuickHistory(false);
+    
+    // Auto-execute the command
+    setTimeout(() => {
+      handleSubmit(command);
+    }, 100);
+  };
+
+  const handleQuickHistorySelect = (command: string) => {
+    chatLogger.info('Command selected from quick history', { command });
+    setInput(command);
+    setShowQuickHistory(false);
+    setInputFocused(true);
+    
+    // Focus back to input
+    setTimeout(() => {
+      const inputElement = document.querySelector('input[type="text"]') as HTMLInputElement;
+      if (inputElement) {
+        inputElement.focus();
+        // Move cursor to end
+        inputElement.setSelectionRange(command.length, command.length);
+      }
+    }, 100);
+  };
+
+  const handleInputFocus = () => {
+    setInputFocused(true);
+  };
+
+  const handleInputBlur = () => {
+    setInputFocused(false);
+    // Small delay to allow click events to fire
+    setTimeout(() => {
+      setInputFocused(false);
+    }, 200);
+  };
+
+  const categorizeCommand = (command: string): CommandHistoryItem['category'] => {
+    const lowerCommand = command.toLowerCase();
+    
+    if (lowerCommand.includes('znajdź') && lowerCommand.includes('sieci')) {
+      return 'network';
+    }
+    if (lowerCommand.includes('kamere') || lowerCommand.includes('kamer')) {
+      return 'camera';
+    }
+    if (looksLikeUrl(lowerCommand) || lowerCommand.includes('browse') || lowerCommand.includes('przeglądaj')) {
+      return 'browse';
+    }
+    if (lowerCommand.includes('co') || lowerCommand.includes('jak') || lowerCommand.includes('dlaczego')) {
+      return 'chat';
+    }
+    
+    return 'other';
   };
 
   const executeNetworkQuery = async (query: string, networkConfig: NetworkConfig) => {
@@ -319,6 +521,34 @@ export default function Chat({ settings }: ChatProps) {
       return;
     }
 
+    // Hide command history when user submits
+    setShowCommandHistory(false);
+
+    // Check if this is a network-related query
+    if (checkIfNetworkQuery(query)) {
+      chatLogger.info('Network query detected', { query });
+      
+      // Check if user wants to change network scope
+      const wantsGlobalNetwork = query.toLowerCase().includes('global') || 
+                               query.toLowerCase().includes('globalnie') ||
+                               query.toLowerCase().includes('tor') ||
+                               query.toLowerCase().includes('vpn');
+      
+      // If user wants different network or no network selected, show selector
+      if (!selectedNetwork || wantsGlobalNetwork) {
+        setPendingNetworkQuery(query);
+        setShowNetworkSelector(true);
+        setInput("");
+        return;
+      }
+      
+      // If network is selected, proceed with network query
+      setPendingNetworkQuery(query);
+      handleNetworkSelect(selectedNetwork);
+      setInput("");
+      return;
+    }
+
     // Save to history
     if (inputHistoryRef.current[inputHistoryRef.current.length - 1] !== query) {
       inputHistoryRef.current.push(query);
@@ -346,6 +576,7 @@ export default function Chat({ settings }: ChatProps) {
 
       if (result.status === 'success') {
         // Convert plugin content blocks to chat messages
+        let fullResult = '';
         for (const block of result.content) {
           let messageText = '';
           let messageType: 'content' | 'image' = 'content';
@@ -359,6 +590,7 @@ export default function Chat({ settings }: ChatProps) {
             messageText = String(block.data);
           }
 
+          fullResult += messageText + ' ';
           eventStore.append({
             type: "message_added",
             payload: {
@@ -370,17 +602,24 @@ export default function Chat({ settings }: ChatProps) {
             },
           });
         }
+        
+        // Add to command history
+        addToCommandHistory(query, fullResult.trim(), categorizeCommand(query), true);
       } else {
         // Handle error case
+        const errorMessage = result.content[0]?.data ?? "Wystąpił błąd podczas przetwarzania zapytania.";
         eventStore.append({
           type: "message_added",
           payload: {
             id: Date.now(),
             role: "assistant",
-            text: result.content[0]?.data ?? "Wystąpił błąd podczas przetwarzania zapytania.",
+            text: errorMessage,
             type: "error",
           },
         });
+        
+        // Add to command history
+        addToCommandHistory(query, errorMessage, categorizeCommand(query), false);
       }
     } catch (error) {
       chatLogger.error("Plugin system execution failed", error);
@@ -560,6 +799,57 @@ export default function Chat({ settings }: ChatProps) {
 
   return (
     <>
+      {/* Network Selector Modal */}
+      {showNetworkSelector && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+          <div className="bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-gray-200">
+                  Wybierz zakres skanowania sieci
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowNetworkSelector(false);
+                    setPendingNetworkQuery("");
+                  }}
+                  className="text-gray-400 hover:text-gray-200"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="mb-4 p-4 bg-gray-800 rounded-lg">
+                <p className="text-sm text-gray-300">
+                  Wykryto zapytanie o skanowanie sieci: <span className="font-medium text-broxeen-400">"{pendingNetworkQuery}"</span>
+                </p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Wybierz, którą sieć chcesz przeskanować:
+                </p>
+              </div>
+              
+              <NetworkSelector 
+                onNetworkSelect={handleNetworkSelect}
+                onHistorySelect={handleHistorySelect}
+                className="mb-4"
+              />
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowNetworkSelector(false);
+                    setPendingNetworkQuery("");
+                  }}
+                  className="px-4 py-2 bg-gray-700 text-gray-300 rounded hover:bg-gray-600"
+                >
+                  Anuluj
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {expandedImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
@@ -586,9 +876,24 @@ export default function Chat({ settings }: ChatProps) {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-6">
           <div className="mx-auto max-w-3xl">
-            {/* Header with copy button and watch badge */}
+            {/* Header with copy button, watch badge and network indicator */}
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-200">Czat</h2>
+              <div className="flex items-center space-x-3">
+                <h2 className="text-lg font-semibold text-gray-200">Czat</h2>
+                {selectedNetwork && (
+                  <div className="flex items-center space-x-2 px-3 py-1 bg-gray-700 rounded-full">
+                    <Wifi className="w-4 h-4 text-broxeen-400" />
+                    <span className="text-sm text-gray-300">{selectedNetwork.name}</span>
+                    <button
+                      onClick={() => setSelectedNetwork(null)}
+                      className="text-gray-400 hover:text-gray-200"
+                      title="Zmień sieć"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="flex items-center gap-2">
                 <WatchBadge 
                   // TODO: Pass watchManager when reactive system is integrated
@@ -607,7 +912,16 @@ export default function Chat({ settings }: ChatProps) {
             </div>
 
             <div className="space-y-4">
-              {messages.length === 0 && (
+              {/* Command History - show when no messages */}
+              {messages.length === 0 && showCommandHistory && (
+                <CommandHistory 
+                  onSelect={handleCommandHistorySelect}
+                  className="mb-6"
+                  maxItems={10}
+                />
+              )}
+
+              {messages.length === 0 && !showCommandHistory && (
                 <div className="flex mt-20 flex-col items-center justify-center text-center fade-in">
                   <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-broxeen-400 to-emerald-400 sm:text-5xl">
                     Witaj w Broxeen
@@ -616,6 +930,12 @@ export default function Chat({ settings }: ChatProps) {
                     Wpisz adres URL, zapytaj o coś lub kliknij ikonę mikrofonu,
                     aby zacząć.
                   </p>
+                  <button
+                    onClick={() => setShowCommandHistory(true)}
+                    className="mt-4 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    Pokaż historię komend
+                  </button>
                 </div>
               )}
               {messages.map((msg) => (
@@ -823,12 +1143,24 @@ export default function Chat({ settings }: ChatProps) {
                   }
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onFocus={handleInputFocus}
+                  onBlur={handleInputBlur}
                   placeholder="Wpisz adres, zapytanie lub powiedz głosem..."
                   disabled={
                     isListening || stt.isRecording || stt.isTranscribing
                   }
                   className="w-full rounded-xl bg-gray-800 px-4 py-3 pr-12 text-sm text-white placeholder-gray-500 outline-none ring-1 ring-gray-700 transition focus:ring-broxeen-500 disabled:opacity-50"
                 />
+                
+                {/* Quick Command History Dropdown */}
+                {showQuickHistory && (
+                  <div className="absolute bottom-full left-0 right-0 mb-2 z-50">
+                    <QuickCommandHistory 
+                      onSelect={handleQuickHistorySelect}
+                      maxItems={5}
+                    />
+                  </div>
+                )}
                 <button
                   onClick={() => handleSubmit()}
                   disabled={

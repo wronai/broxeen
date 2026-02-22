@@ -1,3 +1,19 @@
+## [1.0.22] - 2026-02-22
+
+### Summary
+
+refactor(None): configuration management system
+
+### Other
+
+- update src/components/Chat.tsx
+- update src/components/CommandHistory.tsx
+- update src/components/NetworkHistorySelector.tsx
+- update src/components/NetworkSelector.tsx
+- update src/components/QuickCommandHistory.tsx
+- update src/core/bootstrap.ts
+
+
 ## [1.0.21] - 2026-02-22
 
 ### Summary

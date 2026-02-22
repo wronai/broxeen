@@ -4,7 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { Globe, Wifi, Shield, Server, Settings } from 'lucide-react';
+import { Globe, Wifi, Shield, Server, Settings, Clock, ArrowLeft } from 'lucide-react';
+import { NetworkHistorySelector, type NetworkHistoryItem } from './NetworkHistorySelector';
 
 export type NetworkScope = 'local' | 'global' | 'tor' | 'vpn' | 'custom';
 
@@ -102,20 +103,67 @@ const networkConfigs: NetworkConfig[] = [
 
 interface NetworkSelectorProps {
   onNetworkSelect: (config: NetworkConfig) => void;
+  onHistorySelect?: (item: NetworkHistoryItem) => void;
   className?: string;
+  showHistory?: boolean;
 }
 
 export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
   onNetworkSelect,
-  className = ''
+  onHistorySelect,
+  className = '',
+  showHistory = true
 }) => {
   const [selectedScope, setSelectedScope] = useState<NetworkScope>('local');
   const [showDetails, setShowDetails] = useState<NetworkScope | null>(null);
+  const [showHistoryView, setShowHistoryView] = useState(false);
 
   const handleSelect = (config: NetworkConfig) => {
     setSelectedScope(config.scope);
     onNetworkSelect(config);
   };
+
+  const handleHistorySelect = (item: NetworkHistoryItem) => {
+    // Convert history item to network config
+    const config = networkConfigs.find(c => c.scope === item.scope);
+    if (config) {
+      onHistorySelect?.(item);
+      setShowHistoryView(false);
+    }
+  };
+
+  const handleNewNetwork = () => {
+    setShowHistoryView(false);
+  };
+
+  if (showHistoryView) {
+    return (
+      <div className={`bg-gray-800 rounded-lg p-6 ${className}`}>
+        <div className="mb-6">
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowHistoryView(false)}
+              className="p-2 text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-semibold text-gray-200">
+              Historia sieci
+            </h3>
+          </div>
+          <p className="text-gray-400 text-sm mt-2">
+            Wybierz z ostatnio używanych sieci lub dodaj nową
+          </p>
+        </div>
+
+        <NetworkHistorySelector
+          onSelect={handleHistorySelect}
+          onNewNetwork={handleNewNetwork}
+          onVoiceSelect={handleHistorySelect}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={`bg-gray-800 rounded-lg p-6 ${className}`}>
@@ -127,6 +175,19 @@ export const NetworkSelector: React.FC<NetworkSelectorProps> = ({
           Określ, którą sieć chcesz przeskanować w poszukiwaniu urządzeń
         </p>
       </div>
+
+      {/* History shortcut */}
+      {showHistory && (
+        <div className="mb-6">
+          <button
+            onClick={() => setShowHistoryView(true)}
+            className="w-full flex items-center justify-center space-x-2 p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors"
+          >
+            <Clock className="w-5 h-5 text-broxeen-400" />
+            <span className="text-gray-200">Ostatnio używane sieci</span>
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-4">
         {networkConfigs.map((config) => (
