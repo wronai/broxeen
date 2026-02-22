@@ -9,6 +9,9 @@ install: ## Install dependencies
 dev: ## Start development server with hot reload
 	npm run tauri dev
 
+dev-browser: ## Start frontend-only Vite dev server
+	npm run dev
+
 dev-nvidia: ## Start development server with Nvidia GPU fixes
 	WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITE_OPERATORS_WORKAROUND=1 npm run tauri dev
 
