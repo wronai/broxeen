@@ -9,6 +9,7 @@ import {
   Zap,
   Copy,
   Bot,
+  Wifi,
 } from "lucide-react";
 import { resolve } from "../lib/resolver";
 import { looksLikeUrl } from "../lib/phonetic";
@@ -21,6 +22,7 @@ import { useChatMessages } from "../hooks/useChatMessages";
 import { usePlugins } from "../contexts/pluginContext";
 import TtsControls from "./TtsControls";
 import { WatchBadge } from "./WatchBadge.simple";
+import { NetworkSelector, type NetworkConfig, type NetworkScope } from "./NetworkSelector";
 import type { AudioSettings } from "../domain/audioSettings";
 import { type ChatMessage } from "../domain/chatEvents";
 import { logger } from "../lib/logger";
@@ -47,6 +49,9 @@ export default function Chat({ settings }: ChatProps) {
   const [input, setInput] = useState("");
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
   const [pageContent, setPageContent] = useState<string>("");
+  const [showNetworkSelector, setShowNetworkSelector] = useState(false);
+  const [selectedNetwork, setSelectedNetwork] = useState<NetworkConfig | null>(null);
+  const [pendingNetworkQuery, setPendingNetworkQuery] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatLogger = logger.scope("chat:ui");
 
@@ -212,6 +217,100 @@ export default function Chat({ settings }: ChatProps) {
       unsub2();
     };
   }, [eventStore, settings.tts_enabled, tts, chatLogger]);
+
+  // Network selection handlers
+  const handleNetworkSelect = (networkConfig: NetworkConfig) => {
+    setSelectedNetwork(networkConfig);
+    setShowNetworkSelector(false);
+    chatLogger.info('Network selected', { 
+      scope: networkConfig.scope, 
+      name: networkConfig.name 
+    });
+    
+    // Execute the pending query with network context
+    if (pendingNetworkQuery) {
+      executeNetworkQuery(pendingNetworkQuery, networkConfig);
+      setPendingNetworkQuery("");
+    }
+  };
+
+  const executeNetworkQuery = async (query: string, networkConfig: NetworkConfig) => {
+    chatLogger.info('Executing network query', { 
+      query, 
+      networkScope: networkConfig.scope 
+    });
+
+    // Add network context to the query
+    const enhancedQuery = `${query} (sieć: ${networkConfig.scope})`;
+    
+    try {
+      const result = await ask(enhancedQuery, "text");
+      
+      if (result.status === 'success') {
+        for (const block of result.content) {
+          let messageText = '';
+          let messageType: 'content' | 'image' = 'content';
+          
+          if (block.type === 'text') {
+            messageText = block.data as string;
+          } else if (block.type === 'image') {
+            messageText = block.data as string;
+            messageType = 'image';
+          } else {
+            messageText = String(block.data);
+          }
+
+          eventStore.append({
+            type: "message_added",
+            payload: {
+              id: Date.now() + Math.random(),
+              role: "assistant",
+              text: messageText,
+              type: messageType,
+              title: block.title,
+            },
+          });
+        }
+      } else {
+        eventStore.append({
+          type: "message_added",
+          payload: {
+            id: Date.now(),
+            role: "assistant",
+            text: result.content[0]?.data ?? "Wystąpił błąd podczas skanowania sieci.",
+            type: "error",
+          },
+        });
+      }
+    } catch (error) {
+      chatLogger.error("Network query execution failed", error);
+      eventStore.append({
+        type: "message_added",
+        payload: {
+          id: Date.now(),
+          role: "assistant",
+          text: "Wystąpił błąd podczas wykonywania zapytania sieciowego.",
+          type: "error",
+        },
+      });
+    }
+  };
+
+  const checkIfNetworkQuery = (query: string): boolean => {
+    const networkKeywords = [
+      'znajdź kamere w sieci',
+      'skanuj siec',
+      'odkryj urządz',
+      'wyszukaj kamere',
+      'poszukaj kamery',
+      'sieć lokalna',
+      'network scan'
+    ];
+    
+    return networkKeywords.some(keyword => 
+      query.toLowerCase().includes(keyword)
+    );
+  };
 
   const handleSubmit = async (text?: string) => {
     const query = (text || input).trim();

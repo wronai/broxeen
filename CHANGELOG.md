@@ -1,3 +1,21 @@
+## [1.0.21] - 2026-02-22
+
+### Summary
+
+feat(tests): update project
+
+### Test
+
+- update test_intent_routing.js
+- update test_network_scan.js
+
+### Other
+
+- update src/components/Chat.tsx
+- update src/components/NetworkSelector.tsx
+- update src/core/bootstrap.ts
+
+
 ## [1.0.20] - 2026-02-22
 
 ### Summary

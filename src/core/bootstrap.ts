@@ -64,8 +64,9 @@ async function registerCorePlugins(
   // Import plugins dynamically to avoid circular dependencies
   const { HttpBrowsePlugin } = await import('../plugins/http/browsePlugin');
   const { ChatLlmPlugin } = await import('../plugins/chat/chatPlugin');
-  const { NetworkScanPlugin } = await import('../plugins/discovery/networkScanPlugin');
-  const { ServiceProbePlugin } = await import('../plugins/discovery/serviceProbePlugin');
+  // TODO: Fix discovery plugins initialization issue
+  // const { NetworkScanPlugin } = await import('../plugins/discovery/networkScanPlugin');
+  // const { ServiceProbePlugin } = await import('../plugins/discovery/serviceProbePlugin');
 
   // Register HTTP Browse plugin
   const httpBrowsePlugin = new HttpBrowsePlugin();
@@ -77,15 +78,14 @@ async function registerCorePlugins(
   registry.register(chatLlmPlugin);
   router.registerPlugin(chatLlmPlugin);
 
-  // Register Network Scan plugin
-  const networkScanPlugin = new NetworkScanPlugin();
-  registry.register(networkScanPlugin);
-  router.registerPlugin(networkScanPlugin);
-
-  // Register Service Probe plugin
-  const serviceProbePlugin = new ServiceProbePlugin();
-  registry.register(serviceProbePlugin);
-  router.registerPlugin(serviceProbePlugin);
+  // TODO: Fix discovery plugins initialization issue
+  // const networkScanPlugin = new NetworkScanPlugin();
+  // registry.register(networkScanPlugin);
+  // router.registerPlugin(networkScanPlugin);
+  //
+  // const serviceProbePlugin = new ServiceProbePlugin();
+  // registry.register(serviceProbePlugin);
+  // router.registerPlugin(serviceProbePlugin);
 
   // Register command handlers
   bus.register('plugins:ask', async (payload: string) => {
