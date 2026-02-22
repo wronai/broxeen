@@ -1,3 +1,15 @@
+## [1.0.33] - 2026-02-22
+
+### Summary
+
+feat(None): core module improvements
+
+### Other
+
+- update src/App.tsx
+- update src/components/Chat.tsx
+
+
 ## [1.0.32] - 2026-02-22
 
 ### Summary

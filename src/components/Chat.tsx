@@ -31,6 +31,7 @@ import type { AudioSettings } from "../domain/audioSettings";
 import { type ChatMessage } from "../domain/chatEvents";
 import { logger } from "../lib/logger";
 import { getConfig } from "../lib/llmClient";
+import { errorReporting, capturePluginError, captureNetworkError } from "../utils/errorReporting";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -56,7 +57,7 @@ export default function Chat({ settings }: ChatProps) {
   const [showNetworkSelector, setShowNetworkSelector] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkConfig | null>(null);
   const [pendingNetworkQuery, setPendingNetworkQuery] = useState<string>("");
-  const [showCommandHistory, setShowCommandHistory] = useState(true);
+  const [showCommandHistory, setShowCommandHistory] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
   const [showQuickHistory, setShowQuickHistory] = useState(false);
   const [discoveredCameras, setDiscoveredCameras] = useState<CameraPreviewProps['camera'][]>([]);
@@ -882,6 +883,15 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
         }
       } else {
         const errorMessage = (result.content[0]?.data as string) ?? "Nie udało się przetworzyć zapytania sieciowego.";
+        
+        // Report plugin error
+        capturePluginError('network-scan', `Network query failed: ${query}`, {
+          query,
+          networkConfig,
+          error: errorMessage,
+          result,
+        });
+        
         eventStore.append({
           type: "message_added",
           payload: {
@@ -897,6 +907,24 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
       }
     } catch (error) {
       chatLogger.error("Plugin system execution failed", error);
+      
+      // Capture system error
+      errorReporting.captureError({
+        type: 'plugin',
+        severity: 'high',
+        message: `Plugin system execution failed for query: ${query}`,
+        stack: error instanceof Error ? error.stack : undefined,
+        context: {
+          component: 'Chat',
+          action: 'executeNetworkQuery',
+        },
+        details: {
+          query,
+          networkConfig,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+      
       eventStore.append({
         type: "message_added",
         payload: {

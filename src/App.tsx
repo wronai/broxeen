@@ -208,6 +208,25 @@ export default function App() {
 
       {/* Health diagnostic */}
       <HealthDiagnostic showOnStartup={false} autoRefresh={false} />
+
+      {/* Error report panel */}
+      <ErrorReportPanel 
+        isVisible={errorReportOpen} 
+        onClose={() => setErrorReportOpen(false)} 
+      />
+
+      {/* Debug controls - only in development */}
+      {import.meta.env.DEV && (
+        <div className="fixed bottom-4 left-4 flex gap-2 z-40">
+          <button
+            onClick={() => setErrorReportOpen(true)}
+            className="bg-red-600 text-white px-3 py-2 rounded-lg shadow-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+            title="Pokaż raport błędów"
+          >
+            🚨 Błędy
+          </button>
+        </div>
+      )}
     </div>
   );
 }
