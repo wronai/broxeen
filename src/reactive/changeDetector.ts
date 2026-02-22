@@ -174,8 +174,8 @@ export class ChangeDetector {
 
     return {
       id: snapshotId,
-      deviceId: targetType === 'device' ? targetId : undefined,
-      serviceId: targetType === 'service' ? targetId : undefined,
+      deviceId: targetType === 'device' ? targetId : '',
+      serviceId: targetType === 'service' ? targetId : '',
       content,
       contentType,
       hash,

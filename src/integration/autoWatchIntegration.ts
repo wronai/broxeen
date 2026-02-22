@@ -153,7 +153,7 @@ export class AutoWatchIntegration {
         intentInfo.targetId,
         intentInfo.targetType!,
         intentInfo.intent,
-        message.timestamp
+        message.timestamp || new Date()
       );
 
       if (hasRecentQuery) {

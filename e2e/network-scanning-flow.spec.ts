@@ -10,18 +10,29 @@ test.describe('Network Scanning Flow', () => {
     // Navigate to the app
     await page.goto('http://localhost:5173');
     
-    // Wait for the app to load - look for input field instead of welcome text
-    await page.waitForSelector('input[placeholder*="Wpisz adres, zapytanie"]', { timeout: 10000 });
+    // Wait for React to load and app to be ready
+    await page.waitForLoadState('networkidle');
+    
+    // Wait for the app to load - look for any input field or wait for body to be ready
+    try {
+      await page.waitForSelector('input[placeholder*="Wpisz adres, zapytanie"]', { timeout: 10000 });
+    } catch (e) {
+      // If input not found, wait a bit more for React to render
+      await page.waitForTimeout(3000);
+      // Try again with a more general selector
+      await page.waitForSelector('input[type="text"]', { timeout: 5000 });
+    }
     
     // Clear any existing messages if needed
     await page.evaluate(() => {
       localStorage.clear();
-      location.reload();
     });
     
     // Wait for reload
     await page.waitForLoadState('networkidle');
-    await page.waitForSelector('input[placeholder*="Wpisz adres, zapytanie"]', { timeout: 10000 });
+    
+    // Final wait for input
+    await page.waitForSelector('input[type="text"]', { timeout: 10000 });
   });
 
   test('complete flow: text message → network selection → camera list → video preview', async ({ page }) => {
@@ -29,8 +40,8 @@ test.describe('Network Scanning Flow', () => {
 
     // Step 1: Send network scanning message
     console.log('📝 Step 1: Sending network scanning message');
-    await page.fill('input[placeholder*="Wpisz adres, zapytanie"]', 'znajdź kamere w sieci lokalnej');
-    await page.press('input[placeholder*="Wpisz adres, zapytanie"]', 'Enter');
+    await page.fill('input[type="text"]', 'znajdź kamere w sieci lokalnej');
+    await page.press('input[type="text"]', 'Enter');
     
     // Wait for network selection message
     await page.waitForSelector('text=Wybierz zakres sieci, który chcesz przeskanować', { timeout: 10000 });

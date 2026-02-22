@@ -1,10 +1,11 @@
 /**
  * Camera Preview Component
- * Displays camera preview with video stream
+ * Displays camera preview with video stream and AI-powered change detection
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Play, Pause, Maximize2, Settings, Volume2, VolumeX } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Camera, Play, Pause, Maximize2, Settings, Volume2, VolumeX, Brain, Activity } from 'lucide-react';
+import { usePlugins } from '../contexts/pluginContext';
 
 export interface CameraPreviewProps {
   camera: {
@@ -18,27 +19,198 @@ export interface CameraPreviewProps {
   };
   onSelect?: (camera: any) => void;
   className?: string;
+  onAnalysisComplete?: (cameraId: string, analysis: string) => void;
+}
+
+interface FrameAnalysis {
+  timestamp: number;
+  imageData: string;
+  changes: string[];
+  analysis?: string;
 }
 
 export const CameraPreview: React.FC<CameraPreviewProps> = ({
   camera,
   onSelect,
-  className = ''
+  className = '',
+  onAnalysisComplete
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [lastAnalysis, setLastAnalysis] = useState<string>('');
+  const [frameHistory, setFrameHistory] = useState<FrameAnalysis[]>([]);
+  const [changeDetection, setChangeDetection] = useState(false);
+  
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const analysisIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const { ask } = usePlugins();
 
   useEffect(() => {
     return () => {
-      // Cleanup stream on unmount
+      // Cleanup stream and intervals on unmount
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
+      if (analysisIntervalRef.current) {
+        clearInterval(analysisIntervalRef.current);
+      }
     };
+  }, []);
+
+  const captureFrame = useCallback((): string => {
+    if (!videoRef.current || !canvasRef.current) return '';
+    
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Set canvas size to match video
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    
+    // Draw current frame to canvas
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Get image data as base64
+    return canvas.toDataURL('image/jpeg', 0.8);
+  }, []);
+
+  const compareFrames = useCallback((frame1: string, frame2: string): boolean => {
+    if (!frame1 || !frame2) return false;
+    
+    // Simple pixel comparison for change detection
+    const img1 = new Image();
+    const img2 = new Image();
+    
+    return new Promise((resolve) => {
+      img1.onload = () => {
+        img2.onload = () => {
+          const canvas1 = document.createElement('canvas');
+          const canvas2 = document.createElement('canvas');
+          const ctx1 = canvas1.getContext('2d')!;
+          const ctx2 = canvas2.getContext('2d')!;
+          
+          canvas1.width = canvas2.width = 320; // Smaller size for faster comparison
+          canvas1.height = canvas2.height = 240;
+          
+          ctx1.drawImage(img1, 0, 0, canvas1.width, canvas1.height);
+          ctx2.drawImage(img2, 0, 0, canvas2.width, canvas2.height);
+          
+          const data1 = ctx1.getImageData(0, 0, canvas1.width, canvas1.height).data;
+          const data2 = ctx2.getImageData(0, 0, canvas2.width, canvas2.height).data;
+          
+          let diff = 0;
+          for (let i = 0; i < data1.length; i += 4) {
+            const rDiff = Math.abs(data1[i] - data2[i]);
+            const gDiff = Math.abs(data1[i + 1] - data2[i + 1]);
+            const bDiff = Math.abs(data1[i + 2] - data2[i + 2]);
+            diff += (rDiff + gDiff + bDiff) / 3;
+          }
+          
+          const avgDiff = diff / (canvas1.width * canvas1.height);
+          const hasChanged = avgDiff > 10; // Threshold for change detection
+          
+          resolve(hasChanged);
+        };
+      };
+      
+      img1.src = frame1;
+      img2.src = frame2;
+    }).then(result => result);
+  }, []);
+
+  const analyzeFrameChanges = useCallback(async (currentFrame: string, previousFrame: string) => {
+    if (!currentFrame || !previousFrame || isAnalyzing) return;
+    
+    setIsAnalyzing(true);
+    setChangeDetection(true);
+    
+    try {
+      // Create cropped sections for comparison
+      const sections = [
+        { name: 'lewa część', crop: '0,0,160,240' },
+        { name: 'prawa część', crop: '160,0,160,240' }
+      ];
+      
+      const prompt = `Analizuj dwie klatki z kamery monitoringu i opisz co się wydarzyło.
+
+Kamera: ${camera.name} (${camera.ip})
+Czas: ${new Date().toLocaleString('pl-PL')}
+
+Sekcja 1 (lewa część): [obraz 1]
+Sekcja 2 (prawa część): [obraz 2]
+
+Opisz w jednym zdaniu co konkretnie się wydarzyło na kamerze, skupiając się na różnicach między sekcjami. Jeśli nie ma znaczących zmian, napisz "Brak aktywności".`;
+
+      // Call LLM for analysis
+      const result = await ask(prompt, "text");
+      
+      if (result.status === 'success' && result.content.length > 0) {
+        const analysis = result.content[0].data as string;
+        setLastAnalysis(analysis);
+        
+        // Add to frame history
+        const newFrame: FrameAnalysis = {
+          timestamp: Date.now(),
+          imageData: currentFrame,
+          changes: [],
+          analysis
+        };
+        
+        setFrameHistory(prev => [...prev.slice(-10), newFrame]);
+        
+        // Notify parent component
+        if (onAnalysisComplete) {
+          onAnalysisComplete(camera.id, analysis);
+        }
+      }
+    } catch (error) {
+      console.error('Frame analysis failed:', error);
+      setLastAnalysis('Błąd analizy klatki');
+    } finally {
+      setIsAnalyzing(false);
+      setTimeout(() => setChangeDetection(false), 500);
+    }
+  }, [camera, isAnalyzing, ask, onAnalysisComplete]);
+
+  const startAnalysis = useCallback(() => {
+    if (analysisIntervalRef.current) {
+      clearInterval(analysisIntervalRef.current);
+    }
+    
+    let previousFrame = '';
+    
+    analysisIntervalRef.current = setInterval(async () => {
+      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) {
+        return;
+      }
+      
+      const currentFrame = captureFrame();
+      
+      if (previousFrame) {
+        const hasChanged = await compareFrames(previousFrame, currentFrame);
+        
+        if (hasChanged) {
+          await analyzeFrameChanges(currentFrame, previousFrame);
+        }
+      }
+      
+      previousFrame = currentFrame;
+    }, 1000); // Analyze every second
+  }, [captureFrame, compareFrames, analyzeFrameChanges]);
+
+  const stopAnalysis = useCallback(() => {
+    if (analysisIntervalRef.current) {
+      clearInterval(analysisIntervalRef.current);
+      analysisIntervalRef.current = null;
+    }
+    setIsAnalyzing(false);
+    setChangeDetection(false);
   }, []);
 
   const handlePlay = async () => {
@@ -61,6 +233,9 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
         
         await videoRef.current.play();
         setIsPlaying(true);
+        
+        // Start AI analysis when playing
+        startAnalysis();
       }
     } catch (err) {
       setError('Nie udało się uruchomić strumienia');
@@ -80,6 +255,9 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
+    
+    // Stop AI analysis when paused
+    stopAnalysis();
   };
 
   const handleMuteToggle = () => {
@@ -104,6 +282,8 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
     
     // Create animated content for testing
     let frame = 0;
+    let lastChange = 0;
+    
     const drawFrame = () => {
       // Clear canvas
       ctx.fillStyle = '#000';
@@ -116,12 +296,26 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
       ctx.fillText(`🌐 ${camera.ip}`, 20, 80);
       ctx.fillText(`⏰ ${new Date().toLocaleTimeString()}`, 20, 110);
       
-      // Draw animated elements (simulating 1 FPS)
-      const seconds = Math.floor(frame / 30);
-      ctx.fillStyle = '#0f0';
-      ctx.beginPath();
-      ctx.arc(320 + Math.sin(seconds) * 100, 240 + Math.cos(seconds) * 50, 20, 0, Math.PI * 2);
-      ctx.fill();
+      // Simulate changes every 5 seconds
+      if (frame - lastChange > 5) {
+        lastChange = frame;
+        // Draw a "person" or "object" that appears
+        ctx.fillStyle = `hsl(${frame * 30}, 70%, 50%)`;
+        ctx.beginPath();
+        ctx.arc(320 + Math.sin(frame * 0.1) * 100, 240 + Math.cos(frame * 0.1) * 50, 30, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Add text indicating activity
+        ctx.fillStyle = '#0f0';
+        ctx.font = '16px Arial';
+        ctx.fillText('AKTYWNOŚĆ WYKRYTA!', 250, 350);
+      } else {
+        // Normal animation
+        ctx.fillStyle = '#0f0';
+        ctx.beginPath();
+        ctx.arc(320 + Math.sin(frame * 0.1) * 50, 240 + Math.cos(frame * 0.1) * 25, 15, 0, Math.PI * 2);
+        ctx.fill();
+      }
       
       frame++;
     };
@@ -159,6 +353,12 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
                   <span className="w-2 h-2 rounded-full bg-current"></span>
                   <span>{camera.status}</span>
                 </span>
+                {isPlaying && (
+                  <span className="flex items-center space-x-1 text-blue-400">
+                    <Brain className="w-3 h-3" />
+                    <span>AI Analiza</span>
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -194,6 +394,12 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
           data-testid="video-stream"
         />
         
+        <canvas
+          ref={canvasRef}
+          className="hidden"
+          data-testid="analysis-canvas"
+        />
+        
         {/* Loading overlay */}
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/50">
@@ -210,6 +416,22 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
             <div className="text-white text-center p-4">
               <p className="text-sm text-red-400">{error}</p>
             </div>
+          </div>
+        )}
+        
+        {/* AI Analysis overlay */}
+        {isAnalyzing && (
+          <div className="absolute top-4 right-4 bg-blue-600/80 text-white px-3 py-2 rounded-lg flex items-center space-x-2">
+            <Brain className="w-4 h-4 animate-pulse" />
+            <span className="text-sm">Analizuję zmiany...</span>
+          </div>
+        )}
+        
+        {/* Change detection indicator */}
+        {changeDetection && (
+          <div className="absolute top-4 left-4 bg-green-600/80 text-white px-3 py-2 rounded-lg flex items-center space-x-2">
+            <Activity className="w-4 h-4 animate-pulse" />
+            <span className="text-sm">Wykryto zmianę!</span>
           </div>
         )}
         
@@ -259,6 +481,19 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
         </div>
       </div>
 
+      {/* AI Analysis Results */}
+      {lastAnalysis && (
+        <div className="p-4 border-t border-gray-700 bg-gray-750">
+          <div className="flex items-start space-x-2">
+            <Brain className="w-4 h-4 text-blue-400 mt-1 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="text-sm font-medium text-gray-300 mb-1">Analiza AI:</div>
+              <div className="text-sm text-gray-400">{lastAnalysis}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Camera Info */}
       <div className="p-4 border-t border-gray-700">
         <div className="flex items-center justify-between text-sm">
@@ -271,7 +506,7 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
           {isPlaying && (
             <span className="text-green-400 flex items-center space-x-1">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              <span>1 FPS</span>
+              <span>1 FPS + AI</span>
             </span>
           )}
         </div>

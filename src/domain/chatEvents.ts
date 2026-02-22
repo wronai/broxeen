@@ -7,10 +7,10 @@ export interface ChatMessage {
   id: number;
   role: ChatMessageRole;
   text: string;
-  type?: 'content' | 'image' | 'error' | 'loading';
+  type?: 'content' | 'image' | 'error' | 'loading' | 'suggestions' | 'network_selection' | 'camera_list';
   url?: string;
   resolveType?: string;
-  suggestions?: string[];
+  suggestions?: Array<{ action: string; text: string; description: string; query: string }>;
   loading?: boolean;
   screenshotBase64?: string;
   rssUrl?: string;
@@ -19,6 +19,9 @@ export interface ChatMessage {
   pageTitle?: string;
   title?: string;
   timestamp?: number;
+  // New properties for enhanced message types
+  networkOptions?: Array<{ scope: string; name: string; description: string }>;
+  cameras?: Array<{ id: string; name: string; address: string; status: string }>;
 }
 
 // ── Domain Events ──────────────────────────────────

@@ -12,6 +12,7 @@ export interface DbAdapter {
   execute(sql: string, params?: unknown[]): void;
   query<T = Record<string, unknown>>(sql: string, params?: unknown[]): T[];
   queryOne<T = Record<string, unknown>>(sql: string, params?: unknown[]): T | null;
+  prepare(sql: string): Database.Statement;
   close(): void;
   readonly isOpen: boolean;
 }
@@ -43,6 +44,10 @@ export class SQLiteAdapter implements DbAdapter {
     return this.db.prepare(sql).get(...params) as T | null;
   }
 
+  prepare(sql: string): Database.Statement {
+    return this.db.prepare(sql);
+  }
+
   close(): void {
     this._isOpen = false;
     this.db.close();
@@ -71,6 +76,15 @@ export class InMemoryDbAdapter implements DbAdapter {
   queryOne<T>(sql: string, params: unknown[] = []): T | null {
     const results = this.query<T>(sql, params);
     return results[0] ?? null;
+  }
+
+  prepare(sql: string): Database.Statement {
+    // Mock implementation for in-memory adapter
+    return {
+      run: () => ({ changes: 0, lastInsertRowid: 0 }),
+      all: () => [],
+      get: () => null,
+    } as Database.Statement;
   }
 
   close(): void {
@@ -217,13 +231,15 @@ export class DatabaseManager {
     const getTableStats = (db: DbAdapter) => {
       // Simplified - in production you'd query actual table stats
       return {
-        devices: 0,
-        device_services: 0,
-        content_snapshots: 0,
-        change_history: 0,
-        conversations: 0,
-        messages: 0,
-        watch_rules: 0
+        tables: {
+          devices: 0,
+          device_services: 0,
+          content_snapshots: 0,
+          change_history: 0,
+          conversations: 0,
+          messages: 0,
+          watch_rules: 0
+        }
       };
     };
 

@@ -69,7 +69,7 @@ export function useWatchNotifications(
     setActiveWatchCount(watchManager.getActiveWatchCount());
 
     return () => {
-      if (unsub) {
+      if (unsub !== undefined && unsub !== null) {
         watchManager.removeEventListener(unsub);
       }
     };
