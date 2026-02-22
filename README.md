@@ -122,59 +122,6 @@ broxeen/
 | `browse` | `url: string` | Pobiera stronę i ekstrahuje tekst |
 | `get_settings` | — | Wczytuje ustawienia z `~/.config/broxeen/settings.json` |
 | `save_settings` | `settings: AudioSettings` | Zapisuje ustawienia audio |
-| `scan_network` | `subnet?: string, timeout?: number` | Skanowanie sieci TCP/ARP |
-| `ping_host` | `host: string, count?: number` | Ping hosta |
-| `scan_ports` | `host: string, ports?: number[]` | Skanowanie portów |
-| `arp_scan` | `subnet?: string, timeout?: number` | ARP scan |
-| `discover_onvif_cameras` | `timeout?: number, subnet?: string` | Odkrywanie kamer ONVIF |
-| `discover_mdns` | `timeout?: number, serviceTypes?: string[]` | mDNS discovery |
-| `stt_transcribe` | `audio_base64: string, format?: string` | Transkrypcja mowy |
-| `stt_start` | — | Start nagrywania |
-| `stt_stop` | — | Stop nagrywania |
-| `tts_is_available` | — | Sprawdza dostępność TTS |
-| `tts_speak` | `text: string, options?: TtsOptions` | Synteza mowy |
-| `tts_stop` | — | Stop TTS |
-| `llm_chat` | `messages: ChatMessage[]` | LLM chat integration |
-
-## Plugin System v2.1
-
-Broxeen v2.1 wprowadza modułowy system pluginów z CQRS i intent routing:
-
-### Kategorie pluginów:
-- **Discovery** - Skanowanie sieci, service probe, ONVIF, mDNS, ARP
-- **Cameras** - Zarządzanie kamerami, PTZ, snapshoty, health monitoring
-- **Network** - Ping, port scan, Wake-on-LAN
-- **Protocol Bridge** - MQTT, REST, WebSocket, SSE, GraphQL
-- **Monitor** - Monitoring urządzeń w czasie rzeczywistym
-- **AI/LLM** - Integracja z modelami językowymi
-- **Browse** - Przeglądanie internetu z readability
-
-### Przykładowe komendy:
-```
-pokaż kamery          # AI camera discovery
-skanuj sieć           # Network scan TCP/ARP
-monitoruj 192.168.1.100 # Device monitoring
-przeglądaj onet.pl    # Web browsing
-```
-
-## AI Camera Monitoring
-
-Nowa funkcjonalność monitoringu kamer AI:
-
-- **Automatyczne odkrywanie kamer** - ONVIF, RTSP, HTTP
-- **AI analysis** - Detekcja ruchu, zmian, obiektów
-- **Real-time monitoring** - Live preview i alerting
-- **PTZ control** - Pan/Tilt/Zoom przez komendy głosowe
-- **Health monitoring** - Status kamer, latency, uptime
-
-### Komendy monitoringu:
-```
-pokaż kamery          # Znajdź kamery w sieci
-status kamer          # Sprawdź status kamer
-kamera 1 w lewo       # PTZ control
-snapshot kamery       # Zrób zdjęcie
-monitoruj kamery      # Włącz monitoring
-```
 
 ## Pipeline rozwiązywania URL
 
@@ -223,33 +170,8 @@ Ustawienia zapisywane w `~/.config/broxeen/settings.json`:
 | `npm: command not found` | Użyj pełnej ścieżki: `PATH="/usr/share/nodejs/corepack/shims:$PATH" npm install` |
 | Brak ikon przy `cargo check` | Uruchom `npm run tauri dev` — ikony są w `src-tauri/icons/` |
 | TTS nie działa | Sprawdź czy przeglądarka/WebView obsługuje `speechSynthesis`; na Linux wymagany `espeak` lub głosy systemowe |
-| Mikrofon nie działa | W Tauri Linux Web Speech API nie jest wspierane; użyj STT backend lub cloud API |
+| Mikrofon nie działa | Aplikacja prosi o uprawnienia przy starcie; sprawdź ustawienia systemowe |
 | `libwebkit2gtk` brak | `sudo apt install libwebkit2gtk-4.1-dev` |
-| Network scan używa browser fallback | Upewnij się, że Tauri backend działa i `tauriInvoke` jest dostępny |
-| Pluginy się nie ładują | Sprawdź logi błędów pluginów; może brakować zależności Node.js |
-| Vite dev server crash | Zabij nadmiarowe procesy `pkill -f "vitest"` i zrestartuj serwer |
-
-### Known Limitations (Tauri Linux)
-
-- **Speech Recognition** - Web Speech API (`SpeechRecognition`) nie jest wspierany w WebKitGtk
-- **TTS** - Użyj backendu TTS (Piper/espeak) zamiast `speechSynthesis`
-- **Network scanning** - Użyj Tauri backend dla pełnych możliwości TCP/ARP
-
-### Development Tips
-
-```bash
-# Sprawdź zdrowie aplikacji
-npm run dev
-
-# Testy jednostkowe
-npm test
-
-# E2E tests (Playwright)
-npm run test:e2e
-
-# Build z optymalizacjami
-cargo tauri build --profile dev-release
-```
 
 ## License
 

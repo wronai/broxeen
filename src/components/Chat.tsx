@@ -117,6 +117,38 @@ export default function Chat({ settings }: ChatProps) {
       .slice(-5);
   };
 
+  // Get current context for suggestions
+  const getCurrentContext = () => {
+    const hour = new Date().getHours();
+    let timeOfDay: 'morning' | 'afternoon' | 'evening' | 'night';
+    if (hour >= 5 && hour < 12) timeOfDay = 'morning';
+    else if (hour >= 12 && hour < 17) timeOfDay = 'afternoon';
+    else if (hour >= 17 && hour < 22) timeOfDay = 'evening';
+    else timeOfDay = 'night';
+    
+    // Get last category from recent queries
+    const lastQuery = getRecentQueries()[0] || '';
+    let lastCategory: string | undefined;
+    if (lastQuery.includes('kamer')) lastCategory = 'camera';
+    else if (lastQuery.includes('sieci') || lastQuery.includes('network')) lastCategory = 'network';
+    else if (lastQuery.includes('.pl') || lastQuery.includes('.com')) lastCategory = 'browse';
+    else if (lastQuery.includes('wyszukaj')) lastCategory = 'search';
+    
+    return {
+      timeOfDay,
+      lastCategory,
+      deviceCount: discoveredCameras.length,
+      hasActiveCameras: discoveredCameras.length > 0,
+      isNetworkAvailable: selectedNetwork !== null
+    };
+  };
+
+  // Handle suggestion learning
+  const handleSuggestionLearning = (query: string, category: string, success: boolean) => {
+    chatLogger.info('Suggestion learning', { query, category, success });
+    // This could be extended to send learning data to backend
+  };
+
   // Close scope selector when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -1229,6 +1261,8 @@ ${analysis}`,
                     }}
                     recentQueries={getRecentQueries()}
                     isVisible={true}
+                    currentContext={getCurrentContext()}
+                    onLearn={handleSuggestionLearning}
                   />
                   
                   {/* Quick Commands */}
@@ -1306,40 +1340,34 @@ ${analysis}`,
                                   p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
                                   strong: ({children}) => <strong className="font-bold text-white">{children}</strong>,
                                   em: ({children}) => <em className="italic">{children}</em>,
-                                  code: ({className, children, ...props}: any) => {
+                                  code: ({className, children}) => {
                                     const isInline = !className?.includes('language-');
-                                    return isInline ? (
-                                      <code className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono" {...props}>
-                                        {children}
-                                      </code>
-                                    ) : (
-                                      <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto" {...props}>
-                                        {children}
-                                      </code>
-                                    );
+                                    return isInline ? 
+                                      <code className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code> :
+                                      <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>;
                                   },
                                   ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
                                   ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
                                   li: ({children}) => <li className="text-gray-200">{children}</li>,
-                                  a: ({href, children}) => (
-                                    <a 
-                                      href={href} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-blue-400 hover:text-blue-300 underline"
-                                    >
-                                      {children}
-                                    </a>
-                                  ),
-                                  blockquote: ({children}) => (
-                                    <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-2">
-                                      {children}
-                                    </blockquote>
-                                  ),
-                                }}
-                              >
-                                {msg.text}
-                              </ReactMarkdown>
+                                a: ({href, children}) => (
+                                  <a 
+                                    href={href} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-400 hover:text-blue-300 underline"
+                                  >
+                                    {children}
+                                  </a>
+                                ),
+                                blockquote: ({children}) => (
+                                  <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-2">
+                                    {children}
+                                  </blockquote>
+                                ),
+                              }}
+                            >
+                              {msg.text}
+                            </ReactMarkdown>
                             </div>
                           </div>
                         )}
@@ -1433,24 +1461,18 @@ ${analysis}`,
                                 <div className="text-sm font-medium text-blue-400 mb-2">
                                   AI Analiza Kamery
                                 </div>
-                                <div className="prose prose-invert max-w-none prose-sm">
+                                <div className="text-sm text-gray-300 prose prose-invert max-w-none prose-sm">
                                   <ReactMarkdown 
                                     remarkPlugins={[remarkGfm]}
                                     components={{
                                       p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
                                       strong: ({children}) => <strong className="font-bold text-white">{children}</strong>,
                                       em: ({children}) => <em className="italic">{children}</em>,
-                                      code: ({className, children, ...props}: any) => {
+                                      code: ({className, children}) => {
                                         const isInline = !className?.includes('language-');
-                                        return isInline ? (
-                                          <code className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono" {...props}>
-                                            {children}
-                                          </code>
-                                        ) : (
-                                          <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto" {...props}>
-                                            {children}
-                                          </code>
-                                        );
+                                        return isInline ? 
+                                          <code className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code> :
+                                          <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>;
                                       },
                                       ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
                                       ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
