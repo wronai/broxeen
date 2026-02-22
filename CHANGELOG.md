@@ -1,3 +1,19 @@
+## [1.0.25] - 2026-02-22
+
+### Summary
+
+refactor(tests): configuration management system
+
+### Other
+
+- update e2e/network-scanning-flow.spec.ts
+- update src/components/CameraPreview.tsx
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/components/CommandHistory.tsx
+- update src/components/QuickCommandHistory.tsx
+
+
 ## [1.0.24] - 2026-02-22
 
 ### Summary

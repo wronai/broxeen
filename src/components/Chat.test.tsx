@@ -67,6 +67,11 @@ vi.mock("@tauri-apps/api/core", () => ({
   }),
 }));
 
+// Mock browseGateway
+vi.mock("../lib/browseGateway", () => ({
+  executeBrowseCommand: vi.fn(),
+}));
+
 vi.mock("../lib/llmClient", () => {
   return {
     getConfig: vi
@@ -81,6 +86,8 @@ vi.mock("../lib/llmClient", () => {
     askAboutContent: vi.fn().mockResolvedValue("Mocked LLM ask response"),
     summarizeForTts: vi.fn().mockResolvedValue("Pierwsza treść (LLM)"),
     summarizeSearchResults: vi.fn().mockResolvedValue("Search results..."),
+    summarize: vi.fn().mockImplementation((content) => Promise.resolve(content)),
+    summarizeSearch: vi.fn().mockImplementation((content, query) => Promise.resolve(content)),
     detectIntent: vi.fn().mockResolvedValue("BROWSE"),
     describeImage: vi.fn().mockResolvedValue("Mocked Image Description"),
   };
@@ -385,11 +392,12 @@ describe("Chat — TTS auto-play", () => {
   });
 
   it("TTS używa poprawnych opcji języka i głosu", async () => {
-    const mockInvoke = vi.mocked(invoke);
-    mockInvoke.mockResolvedValueOnce({
+    const { executeBrowseCommand } = await import("../lib/browseGateway");
+    executeBrowseCommand.mockResolvedValueOnce({
       url: "https://example.com",
       title: "Test",
       content: "Test content dla TTS",
+      resolve_type: "exact",
     });
 
     const settingsWithVoice = {
@@ -416,11 +424,12 @@ describe("Chat — TTS auto-play", () => {
   });
 
   it("TTS nie jest wywoływane dla krótkiej treści", async () => {
-    const mockInvoke = vi.mocked(invoke);
-    mockInvoke.mockResolvedValueOnce({
+    const { executeBrowseCommand } = await import("../lib/browseGateway");
+    vi.mocked(executeBrowseCommand).mockResolvedValueOnce({
       url: "https://example.com",
       title: "Test",
       content: "Krótka",
+      resolve_type: "exact",
     });
 
     render(<Chat settings={{ ...defaultSettings, tts_enabled: true }} />);
@@ -438,13 +447,14 @@ describe("Chat — TTS auto-play", () => {
   });
 
   it("TTS jest wywoływane ponownie dla nowej wiadomości", async () => {
-    const mockInvoke = vi.mocked(invoke);
+    const { executeBrowseCommand } = await import("../lib/browseGateway");
 
     // First message
-    mockInvoke.mockResolvedValueOnce({
+    executeBrowseCommand.mockResolvedValueOnce({
       url: "https://first.com",
       title: "First",
       content: "Pierwsza treść",
+      resolve_type: "exact",
     });
 
     render(<Chat settings={{ ...defaultSettings, tts_enabled: true }} />);
@@ -461,10 +471,11 @@ describe("Chat — TTS auto-play", () => {
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
 
     // Second message
-    mockInvoke.mockResolvedValueOnce({
+    executeBrowseCommand.mockResolvedValueOnce({
       url: "https://second.com",
       title: "Second",
       content: "Druga treść",
+      resolve_type: "exact",
     });
 
     fireEvent.change(input, { target: { value: "second.com" } });

@@ -142,7 +142,7 @@ export const QuickCommandHistory: React.FC<QuickCommandHistoryProps> = ({
   }
 
   return (
-    <div className={`bg-gray-800 rounded-lg border border-gray-700 ${className}`}>
+    <div className={`bg-gray-800 rounded-lg border border-gray-700 ${className}`} data-testid="quick-history">
       <div className="p-3 border-b border-gray-700">
         <div className="flex items-center space-x-2 text-sm text-gray-300">
           <Clock className="w-4 h-4" />
@@ -160,6 +160,7 @@ export const QuickCommandHistory: React.FC<QuickCommandHistoryProps> = ({
               key={item.id}
               className="flex items-center space-x-3 p-3 hover:bg-gray-700 cursor-pointer transition-colors border-b border-gray-700 last:border-b-0"
               onClick={() => onSelect(item.command)}
+              data-testid={`quick-history-item-${index}`}
             >
               <div className="flex items-center space-x-2 text-sm">
                 <span className="text-lg">{categoryIcon}</span>
