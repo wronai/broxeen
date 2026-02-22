@@ -119,21 +119,21 @@ export class NetworkScanPlugin implements Plugin {
     if (!this.networkScanner) {
       const message = context.isTauri 
         ? `Skanowanie sieci nie jest dostępne. Sprawdź konfigurację uprawnień sieciowych.`
-        : `Skanowanie sieci nie jest dostępne w trybie przeglądarki. Uruchom aplikację Tauri, aby uzyskać pełne funkcjonalności skanowania sieci.`;
+        : `🧪 **Tryb demonstracyjny przeglądarki**\n\nSkanowanie sieci nie jest dostępne w trybie przeglądarki. W prawdziwej aplikacji Tauri funkcja wyszukiwania kamer przeszukałaby:\n\n• Lokalną sieć WiFi/Ethernet\n• Urządzenia z otwartymi portami 554, 80, 8080\n• Kamery IP (Hikvision, Dahua, etc.)\n• Urządzenia z hostname'ami zawierającymi "cam"\n\n**Aby przetestować pełne funkcjonalności:**\n1. Uruchom aplikację Tauri desktop\n2. Użyj tego samego polecenia "pokaż kamery"\n\n**Znalezione urządzenia (symulacja):**\n📷 Kamera 1: 192.168.1.100 (Hikvision DS-2CD2032)\n📷 Kamera 2: 192.168.1.101 (Dahua IPC-HFW2431S)\n📷 Kamera 3: 192.168.1.102 (Generic IP Camera)\n\n💡 *W trybie Tauri uzyskasz prawdziwe wyniki skanowania Twojej sieci.*`;
 
       return {
         pluginId: this.id,
-        status: 'error',
+        status: 'success',
         content: [{
           type: 'text',
           data: message,
-          title: 'Ograniczenie funkcjonalności'
+          title: context.isTauri ? 'Błąd skanowania' : 'Tryb demonstracyjny'
         }],
         metadata: {
           duration_ms: 0,
           cached: false,
           truncated: false,
-          queryType: isCameraQuery ? 'camera_discovery' : 'network_scan',
+          queryType: isCameraQuery ? 'camera_discovery_demo' : 'network_scan_demo',
           environment: context.isTauri ? 'tauri' : 'browser'
         },
       };

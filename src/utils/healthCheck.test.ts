@@ -31,7 +31,7 @@ describe('Health Check System', () => {
       if (nodeCheck?.status === 'healthy') {
         expect(nodeCheck?.message).toContain('Node.js');
       } else {
-        expect(nodeCheck?.message).toContain('browser environment');
+        expect(nodeCheck?.message).toContain('browser/Tauri environment');
       }
     });
 
@@ -144,7 +144,9 @@ describe('Health Check System', () => {
 
     it('should check Tauri runtime availability', async () => {
       // Mock Tauri environment
-      global.window = {} as any;
+      global.window = {
+        __TAURI__: true
+      } as any;
       vi.doMock('@tauri-apps/api/core', () => ({
         invoke: vi.fn().mockResolvedValue('1.0.0')
       }));

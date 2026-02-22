@@ -92,6 +92,7 @@ export class IntentRouter implements IIntentRouter {
 
   async detect(input: string): Promise<IntentDetection> {
     const normalizedInput = input.toLowerCase().trim();
+    console.log(`🔍 Detecting intent for input: "${input}"`);
     
     // Check specific intents first (in order of priority)
     for (const [intent, patterns] of this.intentPatterns) {
@@ -99,6 +100,7 @@ export class IntentRouter implements IIntentRouter {
       
       for (const pattern of patterns) {
         if (pattern.test(normalizedInput)) {
+          console.log(`✅ Intent detected: ${intent} with pattern: ${pattern}`);
           return {
             intent,
             confidence: this.calculateConfidence(normalizedInput, intent),
@@ -108,6 +110,7 @@ export class IntentRouter implements IIntentRouter {
       }
     }
 
+    console.log(`⚠️ No specific intent matched, falling back to chat:ask`);
     // Fallback to chat
     return {
       intent: 'chat:ask',

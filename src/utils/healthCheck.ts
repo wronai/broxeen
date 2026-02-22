@@ -36,21 +36,32 @@ class HealthChecker {
           status: 'warning',
           category: 'runtime',
           name: 'node-version',
-          message: 'Running in browser environment - Node.js unavailable',
-          details: { environment: 'browser' }
+          message: 'Running in browser/Tauri environment - Node.js unavailable',
+          details: { environment: typeof window !== 'undefined' && (window as any).__TAURI__ ? 'tauri' : 'browser' }
         };
       }
 
-      const version = process.version;
-      const major = parseInt(version.slice(1).split('.')[0]);
-      
-      return {
-        status: major >= 18 ? 'healthy' : 'warning',
-        category: 'runtime',
-        name: 'node-version',
-        message: `Node.js ${version}`,
-        details: { version, major, supported: major >= 18 }
-      };
+      // In Node.js environment, process should be available
+      try {
+        const version = process.version;
+        const major = parseInt(version.slice(1).split('.')[0]);
+        
+        return {
+          status: major >= 18 ? 'healthy' : 'warning',
+          category: 'runtime',
+          name: 'node-version',
+          message: `Node.js ${version}`,
+          details: { version, major, supported: major >= 18 }
+        };
+      } catch (error) {
+        return {
+          status: 'error',
+          category: 'runtime',
+          name: 'node-version',
+          message: 'Process object not available',
+          details: { environment: 'unknown', error: error instanceof Error ? error.message : String(error) }
+        };
+      }
     });
 
     this.addCheck('runtime', 'platform', async () => {
@@ -60,20 +71,31 @@ class HealthChecker {
           category: 'runtime',
           name: 'platform',
           message: `Platform: ${navigator.platform}`,
-          details: { platform: navigator.platform, environment: 'browser' }
+          details: { platform: navigator.platform, environment: typeof window !== 'undefined' && (window as any).__TAURI__ ? 'tauri' : 'browser' }
         };
       }
 
-      const platform = process.platform;
-      const arch = process.arch;
-      
-      return {
-        status: ['linux', 'darwin', 'win32'].includes(platform) ? 'healthy' : 'warning',
-        category: 'runtime',
-        name: 'platform',
-        message: `Platform: ${platform}-${arch}`,
-        details: { platform, arch }
-      };
+      // In Node.js environment, process should be available
+      try {
+        const platform = process.platform;
+        const arch = process.arch;
+        
+        return {
+          status: ['linux', 'darwin', 'win32'].includes(platform) ? 'healthy' : 'warning',
+          category: 'runtime',
+          name: 'platform',
+          message: `Platform: ${platform}-${arch}`,
+          details: { platform, arch }
+        };
+      } catch (error) {
+        return {
+          status: 'error',
+          category: 'runtime',
+          name: 'platform',
+          message: 'Process object not available',
+          details: { environment: 'unknown', error: error instanceof Error ? error.message : String(error) }
+        };
+      }
     });
 
     // Browser API checks
@@ -88,6 +110,9 @@ class HealthChecker {
         };
       }
 
+      // Check if process is available before accessing it (for Tauri compatibility)
+      const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
+      
       const speechRecognition = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
       const speechSynthesis = !!window.speechSynthesis;
 
@@ -97,19 +122,20 @@ class HealthChecker {
           category: 'browser',
           name: 'speech-api',
           message: 'Speech APIs available',
-          details: { speechRecognition, speechSynthesis }
+          details: { speechRecognition, speechSynthesis, environment: isTauri ? 'tauri' : 'browser' }
         };
       } else {
         return {
           status: 'warning',
           category: 'browser',
           name: 'speech-api',
-          message: 'Limited Speech API support',
+          message: isTauri ? 'Speech APIs not available in Tauri Linux' : 'Limited Speech API support',
           details: { 
             speechRecognition, 
             speechSynthesis,
-            platform: typeof window !== 'undefined' ? navigator.platform : 'unknown',
-            note: typeof window !== 'undefined' && navigator.platform.toLowerCase().includes('linux') ? 'Tauri Linux does not support Web Speech API' : undefined
+            platform: navigator.platform,
+            environment: isTauri ? 'tauri' : 'browser',
+            note: isTauri && navigator.platform.toLowerCase().includes('linux') ? 'Tauri Linux does not support Web Speech API natively' : undefined
           }
         };
       }
@@ -153,10 +179,21 @@ class HealthChecker {
         };
       }
 
+      const isTauri = !!(window as any).__TAURI__;
+      if (!isTauri) {
+        return {
+          status: 'warning',
+          category: 'tauri',
+          name: 'runtime',
+          message: 'Running in browser mode - Tauri unavailable',
+          details: { environment: 'browser' }
+        };
+      }
+
       try {
         const { invoke } = await import('@tauri-apps/api/core');
-        // Test basic Tauri functionality
-        await invoke('get_app_version');
+        // Test basic Tauri functionality - use get_settings instead of get_app_version
+        await invoke('get_settings');
         
         return {
           status: 'healthy',
@@ -171,13 +208,54 @@ class HealthChecker {
           category: 'tauri',
           name: 'runtime',
           message: 'Tauri runtime unavailable',
-          details: { error: error instanceof Error ? error.message : String(error) }
+          details: { 
+            error: error instanceof Error ? error.message : String(error),
+            environment: 'tauri'
+          }
         };
       }
     });
 
     // Dependencies
     this.addCheck('dependencies', 'critical-modules', async () => {
+      const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
+      
+      // In Tauri, check modules differently
+      if (isTauri) {
+        try {
+          // Check if React is available globally
+          const reactAvailable = typeof (window as any).React !== 'undefined' || 
+                                await import('react').then(() => true).catch(() => false);
+          
+          const tauriAvailable = await import('@tauri-apps/api/core').then(() => true).catch(() => false);
+          
+          const results = {
+            '@tauri-apps/api/core': tauriAvailable,
+            'react': reactAvailable,
+            'react-dom': reactAvailable // React-dom usually comes with react
+          };
+          
+          const allAvailable = Object.values(results).every(Boolean);
+          
+          return {
+            status: allAvailable ? 'healthy' : 'warning',
+            category: 'dependencies',
+            name: 'critical-modules',
+            message: allAvailable ? 'All critical modules available' : 'Some modules may not be available in Tauri context',
+            details: { modules: results, allAvailable, environment: 'tauri' }
+          };
+        } catch (error) {
+          return {
+            status: 'warning',
+            category: 'dependencies',
+            name: 'critical-modules',
+            message: 'Could not verify modules in Tauri context',
+            details: { error: error instanceof Error ? error.message : String(error), environment: 'tauri' }
+          };
+        }
+      }
+      
+      // Browser/Node.js environment
       const criticalModules = [
         '@tauri-apps/api/core',
         'react',
@@ -202,7 +280,7 @@ class HealthChecker {
         category: 'dependencies',
         name: 'critical-modules',
         message: allAvailable ? 'All critical modules available' : 'Missing critical modules',
-        details: { modules: results, allAvailable }
+        details: { modules: results, allAvailable, environment: 'browser' }
       };
     });
   }
