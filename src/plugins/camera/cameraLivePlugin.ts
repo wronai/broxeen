@@ -1,4 +1,5 @@
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
+import { detectCameraVendor, getVendorInfo, buildRtspUrl, buildSnapshotUrl, CAMERA_VENDORS } from './cameraVendorDatabase';
 
 export class CameraLivePlugin implements Plugin {
   readonly id = 'camera-live';
