@@ -4,6 +4,7 @@
  */
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
+import { processRegistry } from '../../core/processRegistry';
 
 export class NetworkScanPlugin implements Plugin {
   readonly id = 'network-scan';
@@ -35,51 +36,69 @@ export class NetworkScanPlugin implements Plugin {
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
     const isCameraQuery = input.toLowerCase().includes('kamer') || input.toLowerCase().includes('camera');
+    const scanId = `scan:${Date.now()}`;
+    const scanLabel = isCameraQuery ? 'Skanowanie kamer' : 'Skanowanie sieci';
+
+    processRegistry.upsertRunning({
+      id: scanId,
+      type: 'scan',
+      label: scanLabel,
+      pluginId: this.id,
+      details: context.isTauri ? 'Tauri backend' : 'tryb przeglądarkowy',
+    });
 
     console.log(`[NetworkScanPlugin] Execute - isTauri: ${context.isTauri}, hasTauriInvoke: !!${context.tauriInvoke}`);
 
-    if (context.isTauri && context.tauriInvoke) {
-      try {
-        console.log(`[NetworkScanPlugin] Starting real network scan via Tauri...`);
-        const result = await context.tauriInvoke('scan_network', {
-          subnet: null,
-          timeout: 5000,
-        }) as NetworkScanResult;
+    try {
+      if (context.isTauri && context.tauriInvoke) {
+        try {
+          console.log(`[NetworkScanPlugin] Starting real network scan via Tauri...`);
+          const result = await context.tauriInvoke('scan_network', {
+            subnet: null,
+            timeout: 5000,
+          }) as NetworkScanResult;
 
-        return {
-          pluginId: this.id,
-          status: 'success',
-          content: [{
-            type: 'text',
-            data: this.formatScanResult(result, isCameraQuery),
-            title: isCameraQuery ? 'Wyniki wyszukiwania kamer' : 'Wyniki skanowania sieci',
-          }],
-          metadata: {
-            duration_ms: Date.now() - start,
-            cached: false,
-            truncated: false,
-            deviceCount: result.devices.length,
-            scanDuration: result.scan_duration,
-            scanMethod: result.scan_method,
-          },
-        };
-      } catch (error) {
-        console.error('[NetworkScanPlugin] scan_network failed:', error);
-        return {
-          pluginId: this.id,
-          status: 'error',
-          content: [{
-            type: 'text',
-            data: `Błąd skanowania sieci: ${error instanceof Error ? error.message : String(error)}`,
-          }],
-          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
-        };
+          processRegistry.complete(scanId);
+          return {
+            pluginId: this.id,
+            status: 'success',
+            content: [{
+              type: 'text',
+              data: this.formatScanResult(result, isCameraQuery),
+              title: isCameraQuery ? 'Wyniki wyszukiwania kamer' : 'Wyniki skanowania sieci',
+            }],
+            metadata: {
+              duration_ms: Date.now() - start,
+              cached: false,
+              truncated: false,
+              deviceCount: result.devices.length,
+              scanDuration: result.scan_duration,
+              scanMethod: result.scan_method,
+            },
+          };
+        } catch (error) {
+          console.error('[NetworkScanPlugin] scan_network failed:', error);
+          processRegistry.fail(scanId, String(error));
+          return {
+            pluginId: this.id,
+            status: 'error',
+            content: [{
+              type: 'text',
+              data: `Błąd skanowania sieci: ${error instanceof Error ? error.message : String(error)}`,
+            }],
+            metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+          };
+        }
       }
-    }
 
-    console.log(`[NetworkScanPlugin] Using browser fallback - isTauri: ${context.isTauri}, hasInvoke: !!${context.tauriInvoke}`);
-    // Browser fallback: HTTP probe of common LAN addresses
-    return this.browserFallback(isCameraQuery, start);
+      console.log(`[NetworkScanPlugin] Using browser fallback - isTauri: ${context.isTauri}, hasInvoke: !!${context.tauriInvoke}`);
+      const fallbackResult = await this.browserFallback(isCameraQuery, start);
+      processRegistry.complete(scanId);
+      return fallbackResult;
+    } catch (err) {
+      processRegistry.fail(scanId, String(err));
+      throw err;
+    }
   }
 
   private async browserFallback(isCameraQuery: boolean, start: number): Promise<PluginResult> {
@@ -303,41 +322,60 @@ export class NetworkScanPlugin implements Plugin {
   private async detectSubnet(): Promise<{ localIp: string | null; subnet: string; detectionMethod: string }> {
     console.log(`[NetworkScanPlugin] Starting subnet detection...`);
     
-    // Strategy 1: WebRTC
+    // Strategy 1: WebRTC - most reliable, gets actual local IP from OS
     const webrtcIp = await this.detectLocalIpViaWebRTC();
     if (webrtcIp) {
       const subnet = webrtcIp.split('.').slice(0, 3).join('.');
-      console.log(`[NetworkScanPlugin] WebRTC detected: IP=${webrtcIp}, subnet=${subnet}`);
+      console.log(`[NetworkScanPlugin] ✅ WebRTC detected: IP=${webrtcIp}, subnet=${subnet}`);
       return {
         localIp: webrtcIp,
         subnet,
         detectionMethod: 'WebRTC',
       };
     }
-    console.log(`[NetworkScanPlugin] WebRTC failed, trying gateway probe...`);
+    console.log(`[NetworkScanPlugin] ⚠️ WebRTC failed (not supported or blocked), trying gateway probe...`);
 
-    // Strategy 2: Probe common gateway IPs — first to respond wins
-    const candidateSubnets = [
-      '192.168.1', '192.168.0', '192.168.188', '192.168.2', '192.168.10',
-      '10.0.0', '10.0.1', '10.1.1',
-      '172.16.0', '172.16.1'
-    ];
-    console.log(`[NetworkScanPlugin] Probing gateways for subnets: ${candidateSubnets.join(', ')}`);
+    // Strategy 2: Probe common gateway IPs to infer subnet
+    // Note: This is a fallback and may detect wrong subnet if multiple networks respond
+    const candidateSubnets = this.getCommonSubnets();
+    console.log(`[NetworkScanPlugin] Probing ${candidateSubnets.length} common gateways...`);
     
     const gatewayResult = await this.probeGateways(candidateSubnets);
     if (gatewayResult) {
-      console.log(`[NetworkScanPlugin] Subnet detected via gateway probe: ${gatewayResult}`);
+      console.log(`[NetworkScanPlugin] ✅ Gateway probe detected: ${gatewayResult}.0/24`);
+      console.warn(`[NetworkScanPlugin] ⚠️ Using gateway probe fallback - may be inaccurate. Consider using Tauri for accurate detection.`);
       return { localIp: null, subnet: gatewayResult, detectionMethod: 'gateway-probe' };
     }
-    console.log(`[NetworkScanPlugin] Gateway probe failed, using default subnet...`);
+    console.log(`[NetworkScanPlugin] ❌ Gateway probe failed, using default subnet...`);
 
-    // Strategy 3: Default - use more common subnet
+    // Strategy 3: Default fallback - least reliable
+    console.warn(`[NetworkScanPlugin] ⚠️ Using default subnet 192.168.1 - this is likely incorrect!`);
+    console.warn(`[NetworkScanPlugin] 💡 Tip: Use Tauri app for accurate network detection, or specify IP manually.`);
     return { localIp: null, subnet: '192.168.1', detectionMethod: 'domyślna' };
+  }
+
+  private getCommonSubnets(): string[] {
+    // Common private network subnets, ordered by popularity
+    // Note: This is a heuristic fallback - WebRTC or Tauri backend is more reliable
+    return [
+      // Most common home router subnets
+      '192.168.188', '192.168.0', '192.168.1',
+      '192.168.2',
+      // Less common but still popular
+      '192.168.10', '192.168.100',
+      // Corporate/ISP common ranges
+      '10.0.0', '10.0.1', '10.1.1', '10.10.10',
+      // Private class B
+      '172.16.0', '172.16.1', '172.31.0',
+    ];
   }
 
   private detectLocalIpViaWebRTC(): Promise<string | null> {
     return new Promise((resolve) => {
-      const timeout = setTimeout(() => resolve(null), 2000);
+      const timeout = setTimeout(() => {
+        console.log(`[NetworkScanPlugin] WebRTC timeout - no local IP detected in 2s`);
+        resolve(null);
+      }, 2000);
 
       try {
         const RTCPeerConnection = (window as any).RTCPeerConnection
@@ -345,31 +383,42 @@ export class NetworkScanPlugin implements Plugin {
           || (window as any).mozRTCPeerConnection;
 
         if (!RTCPeerConnection) {
+          console.log(`[NetworkScanPlugin] WebRTC not available (RTCPeerConnection undefined)`);
           clearTimeout(timeout);
           resolve(null);
           return;
         }
 
+        console.log(`[NetworkScanPlugin] WebRTC available, starting ICE candidate gathering...`);
+        
         // Use null iceServers to get only host candidates (no STUN needed for LAN IP)
         const pc = new RTCPeerConnection({ iceServers: [] });
         pc.createDataChannel('');
 
+        let candidateCount = 0;
         pc.onicecandidate = (event: RTCPeerConnectionIceEvent) => {
           if (!event.candidate) {
             // Gathering complete, no LAN IP found
+            console.log(`[NetworkScanPlugin] WebRTC ICE gathering complete. Candidates found: ${candidateCount}, but no private IP detected.`);
             clearTimeout(timeout);
             pc.close();
             resolve(null);
             return;
           }
+          
+          candidateCount++;
           const candidate = event.candidate.candidate;
+          console.log(`[NetworkScanPlugin] WebRTC candidate #${candidateCount}: ${candidate}`);
+          
           const ipMatch = candidate.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
           if (ipMatch) {
             const ip = ipMatch[1];
+            console.log(`[NetworkScanPlugin] WebRTC extracted IP: ${ip}, isPrivate: ${this.isPrivateIp(ip)}`);
+            
             if (this.isPrivateIp(ip)) {
               clearTimeout(timeout);
               pc.close();
-              console.log(`[NetworkScanPlugin] WebRTC local IP: ${ip}`);
+              console.log(`[NetworkScanPlugin] ✅ WebRTC detected local IP: ${ip}`);
               resolve(ip);
             }
           }
@@ -377,8 +426,13 @@ export class NetworkScanPlugin implements Plugin {
 
         pc.createOffer()
           .then((offer: RTCSessionDescriptionInit) => pc.setLocalDescription(offer))
-          .catch(() => { clearTimeout(timeout); resolve(null); });
-      } catch {
+          .catch((err) => { 
+            console.error(`[NetworkScanPlugin] WebRTC createOffer failed:`, err);
+            clearTimeout(timeout); 
+            resolve(null); 
+          });
+      } catch (err) {
+        console.error(`[NetworkScanPlugin] WebRTC exception:`, err);
         clearTimeout(timeout);
         resolve(null);
       }
@@ -386,43 +440,83 @@ export class NetworkScanPlugin implements Plugin {
   }
 
   private async probeGateways(subnets: string[]): Promise<string | null> {
-    // Race all gateway probes — first reachable gateway reveals the subnet
     return new Promise((resolve) => {
       let resolved = false;
-      let pending = subnets.length;
+      const settled: Array<boolean | null> = new Array(subnets.length).fill(null);
 
-      const done = (subnet: string | null) => {
-        if (!resolved) {
-          resolved = true;
-          resolve(subnet);
+      const tryResolve = () => {
+        if (resolved) return;
+
+        for (let i = 0; i < settled.length; i++) {
+          const v = settled[i];
+          if (v === null) return;
+          if (v === true) {
+            resolved = true;
+            console.log(`[NetworkScanPlugin] Gateway ${subnets[i]}.1 responded`);
+            resolve(subnets[i]);
+            return;
+          }
         }
+
+        resolved = true;
+        resolve(null);
       };
 
-      for (const subnet of subnets) {
-        const gatewayIp = `${subnet}.1`;
-        const t0 = Date.now();
-        const img = new Image();
-        const timer = setTimeout(() => { 
-          img.src = ''; 
-          if (--pending === 0) done(null); 
-        }, 1000);
+      subnets.forEach((subnet, idx) => {
+        this.probeGateway(subnet)
+          .then((ok) => {
+            settled[idx] = ok;
+            tryResolve();
+          })
+          .catch(() => {
+            settled[idx] = false;
+            tryResolve();
+          });
+      });
+    });
+  }
 
-        img.onload = () => {
+  private async probeGateway(subnet: string): Promise<boolean> {
+    const gatewayIp = `${subnet}.1`;
+    const probePath = `/?_probe=${Date.now()}`;
+
+    // Try HTTP first
+    const httpUrl = `http://${gatewayIp}${probePath}`;
+    if (await this.tryFetchGateway(httpUrl)) {
+      return true;
+    }
+
+    // Fallback to HTTPS (some routers force HTTPS)
+    const httpsUrl = `https://${gatewayIp}${probePath}`;
+    return this.tryFetchGateway(httpsUrl);
+  }
+
+  private tryFetchGateway(url: string, timeoutMs = 1500): Promise<boolean> {
+    if (typeof fetch === 'undefined') {
+      return Promise.resolve(false);
+    }
+
+    return new Promise((resolve) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => {
+        controller.abort();
+        resolve(false);
+      }, timeoutMs);
+
+      fetch(url, {
+        method: 'GET',
+        mode: 'no-cors',
+        cache: 'no-store',
+        signal: controller.signal,
+      })
+        .then(() => {
           clearTimeout(timer);
-          done(subnet);
-        };
-        img.onerror = () => {
+          resolve(true);
+        })
+        .catch(() => {
           clearTimeout(timer);
-          // Timing gate: real TCP connection takes >50ms
-          if (Date.now() - t0 > 50) {
-            done(subnet); // Gateway responded (even with error = it's reachable)
-          } else {
-            if (--pending === 0) done(null);
-          }
-        };
-        // Use generic probe endpoint for gateway as well
-        img.src = `http://${gatewayIp}/?_probe=${Date.now()}`;
-      }
+          resolve(false);
+        });
     });
   }
 

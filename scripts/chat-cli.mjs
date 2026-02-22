@@ -53,6 +53,7 @@ const INTENTS = [
   { name: 'camera:onvif',      re: /\bonvif\b|kamery\s+ip/i },
   { name: 'network:scan',      re: /skanuj\s+sieć|scan\s+net|pokaż\s+kamery|kamery\s+w\s+sieci|urządzenia\s+w\s+sieci|znajdź\s+urządzenia/i },
   { name: 'browse:url',        re: /https?:\/\/\S+/i },
+  { name: 'system:processes',  re: /^procesy\b|^processes\b|^stop\s+proc|^zatrzymaj\s+proc/i },
 ];
 function detectIntent(q) {
   for (const { name, re } of INTENTS) if (re.test(q)) return name;
@@ -292,6 +293,21 @@ rl.on('line', async line => {
       case 'network:scan':
       case 'camera:onvif':      result = handleScan(input); break;
       case 'browse:url':        result = await handleBrowse(input); break;
+      case 'system:processes': {
+        const appResult = await askApp(input, currentScope);
+        result = appResult
+          ? col('[app:processes] ', 'blue') + appResult
+          : [
+              `📋 **Procesy** *(tryb CLI)*`,
+              ``,
+              `ℹ️  Rejestr procesów działa w kontekście przeglądarki/Tauri.`,
+              `   Uruchom aplikację i wpisz "procesy" w czacie, aby zobaczyć`,
+              `   aktywne monitoringi i zadania.`,
+              ``,
+              `💡 Uruchom: ${col('pnpm dev', 'bold')} i spróbuj ponownie.`,
+            ].join('\n');
+        break;
+      }
       default: {
         const appResult = await askApp(input, currentScope);
         result = appResult

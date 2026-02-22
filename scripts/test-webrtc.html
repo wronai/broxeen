@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebRTC Network Detection Test</title>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .log { margin: 5px 0; padding: 5px; background: #2a2a2a; border-left: 3px solid #00ff00; }
+        .error { border-left-color: #ff0000; color: #ff6666; }
+        .success { border-left-color: #00ff00; color: #00ff00; }
+        .warning { border-left-color: #ffaa00; color: #ffaa00; }
+        h1 { color: #00ff00; }
+        button { 
+            background: #00ff00; 
+            color: #000; 
+            border: none; 
+            padding: 10px 20px; 
+            cursor: pointer; 
+            font-family: monospace;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover { background: #00cc00; }
+        #result { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 WebRTC Network Detection Test</h1>
+    <p>Ten test sprawdzi, czy WebRTC może wykryć lokalny IP w Twojej przeglądarce.</p>
+    
+    <button onclick="testWebRTC()">▶ Uruchom test WebRTC</button>
+    <button onclick="clearLogs()">🗑️ Wyczyść logi</button>
+    
+    <div id="result"></div>
+
+    <script>
+        const resultDiv = document.getElementById('result');
+
+        function log(message, type = 'log') {
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            resultDiv.appendChild(div);
+            console.log(message);
+        }
+
+        function clearLogs() {
+            resultDiv.innerHTML = '';
+        }
+
+        async function testWebRTC() {
+            clearLogs();
+            log('🚀 Starting WebRTC test...', 'log');
+
+            // Check if RTCPeerConnection exists
+            const RTCPeerConnection = window.RTCPeerConnection
+                || window.webkitRTCPeerConnection
+                || window.mozRTCPeerConnection;
+
+            if (!RTCPeerConnection) {
+                log('❌ RTCPeerConnection not available in this browser!', 'error');
+                log('💡 WebRTC is not supported. Browser mode will use gateway probe fallback.', 'warning');
+                return;
+            }
+
+            log('✅ RTCPeerConnection is available', 'success');
+
+            return new Promise((resolve) => {
+                const timeout = setTimeout(() => {
+                    log('⏱️ Timeout - no ICE candidates found in 3 seconds', 'warning');
+                    log('💡 This may indicate WebRTC is blocked by browser policy or firewall', 'warning');
+                    resolve(null);
+                }, 3000);
+
+                try {
+                    log('📡 Creating RTCPeerConnection with empty iceServers...', 'log');
+                    const pc = new RTCPeerConnection({ iceServers: [] });
+                    
+                    log('📡 Creating data channel...', 'log');
+                    pc.createDataChannel('test');
+
+                    let candidateCount = 0;
+                    let foundPrivateIp = false;
+
+                    pc.onicecandidate = (event) => {
+                        if (!event.candidate) {
+                            clearTimeout(timeout);
+                            pc.close();
+                            
+                            if (foundPrivateIp) {
+                                log(`✅ ICE gathering complete. Found ${candidateCount} candidates.`, 'success');
+                            } else {
+                                log(`⚠️ ICE gathering complete. Found ${candidateCount} candidates, but no private IP.`, 'warning');
+                                log('💡 Your browser may be blocking local IP detection for privacy.', 'warning');
+                            }
+                            resolve(null);
+                            return;
+                        }
+
+                        candidateCount++;
+                        const candidate = event.candidate.candidate;
+                        log(`📍 Candidate #${candidateCount}: ${candidate}`, 'log');
+
+                        // Extract IP
+                        const ipMatch = candidate.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+                        if (ipMatch) {
+                            const ip = ipMatch[1];
+                            const isPrivate = isPrivateIp(ip);
+                            
+                            log(`   └─ Extracted IP: ${ip} (private: ${isPrivate})`, isPrivate ? 'success' : 'log');
+
+                            if (isPrivate) {
+                                foundPrivateIp = true;
+                                const subnet = ip.split('.').slice(0, 3).join('.');
+                                log(`🎯 FOUND LOCAL IP: ${ip}`, 'success');
+                                log(`🌐 Subnet: ${subnet}.0/24`, 'success');
+                                log(`✅ WebRTC detection works! This IP should be used for scanning.`, 'success');
+                                
+                                clearTimeout(timeout);
+                                pc.close();
+                                resolve(ip);
+                            }
+                        }
+                    };
+
+                    log('📡 Creating offer...', 'log');
+                    pc.createOffer()
+                        .then((offer) => {
+                            log('📡 Setting local description...', 'log');
+                            return pc.setLocalDescription(offer);
+                        })
+                        .then(() => {
+                            log('✅ Offer created, waiting for ICE candidates...', 'log');
+                        })
+                        .catch((err) => {
+                            clearTimeout(timeout);
+                            log(`❌ Error creating offer: ${err.message}`, 'error');
+                            resolve(null);
+                        });
+
+                } catch (err) {
+                    clearTimeout(timeout);
+                    log(`❌ Exception: ${err.message}`, 'error');
+                    resolve(null);
+                }
+            });
+        }
+
+        function isPrivateIp(ip) {
+            return ip.startsWith('192.168.') ||
+                ip.startsWith('10.') ||
+                /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+        }
+
+        // Auto-run on load
+        window.addEventListener('load', () => {
+            log('ℹ️ Strona załadowana. Kliknij przycisk aby uruchomić test.', 'log');
+        });
+    </script>
+</body>
+</html>

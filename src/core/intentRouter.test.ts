@@ -214,6 +214,22 @@ describe('IntentRouter', () => {
     expect(r3.intent).toBe('camera:snapshot');
   });
 
+  // ── System intents ─────────────────────────────────────
+
+  it('should detect system:processes intent', async () => {
+    const r1 = await router.detect('procesy');
+    expect(r1.intent).toBe('system:processes');
+
+    const r2 = await router.detect('processes');
+    expect(r2.intent).toBe('system:processes');
+
+    const r3 = await router.detect('stop proces scan:abc-1');
+    expect(r3.intent).toBe('system:processes');
+
+    const r4 = await router.detect('zatrzymaj proces query:1');
+    expect(r4.intent).toBe('system:processes');
+  });
+
   // ── Marketplace intent ──────────────────────────────────
 
   it('should detect marketplace:browse intent', async () => {
