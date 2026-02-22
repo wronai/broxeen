@@ -1,3 +1,18 @@
+## [1.0.17] - 2026-02-22
+
+### Summary
+
+feat(docs): new API capabilities
+
+### Docs
+
+- docs: update README
+
+### Other
+
+- update img.png
+
+
 ## [1.0.16] - 2026-02-22
 
 ### Summary

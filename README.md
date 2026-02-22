@@ -1,3 +1,5 @@
+![img.png](img.png)
+
 # ⚡ Broxeen — Przeglądaj Internet przez Chat z TTS
 
 Desktopowa aplikacja **Tauri 2 + React** do przeglądania internetu przez chat z wbudowanym TTS (Text-to-Speech) i rozpoznawaniem mowy.
