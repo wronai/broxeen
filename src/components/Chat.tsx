@@ -28,6 +28,7 @@ import { CommandHistory, type CommandHistoryItem } from "./CommandHistory";
 import { QuickCommandHistory } from "./QuickCommandHistory";
 import { CameraPreview, type CameraPreviewProps } from "./CameraPreview";
 import { ActionSuggestions } from "./ActionSuggestions";
+import { QuickCommands } from "./QuickCommands";
 import type { AudioSettings } from "../domain/audioSettings";
 import { type ChatMessage } from "../domain/chatEvents";
 import { logger } from "../lib/logger";
@@ -1406,6 +1407,17 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
                     recentQueries={getRecentQueries()}
                     isVisible={true}
                   />
+                  
+                  {/* Quick Commands */}
+                  <div className="mt-4">
+                    <QuickCommands
+                      onCommandSelect={(query) => {
+                        setInput(query);
+                        handleSubmit(query);
+                      }}
+                      recentCommands={getRecentQueries()}
+                    />
+                  </div>
                 </>
               )}
               {messages.map((msg) => (

@@ -71,6 +71,33 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
       category: 'network',
       priority: 6,
     },
+    {
+      id: 'quick-browse',
+      title: 'Szybkie przeglądanie',
+      description: 'Facebook, YouTube, Wikipedia',
+      icon: <Globe className="w-4 h-4" />,
+      query: 'facebook.com',
+      category: 'browse',
+      priority: 5,
+    },
+    {
+      id: 'news-search',
+      title: 'Przeglądaj wiadomości',
+      description: 'Najnowsze informacje',
+      icon: <Search className="w-4 h-4" />,
+      query: 'wyszukaj wiadomości dzisiaj',
+      category: 'search',
+      priority: 5,
+    },
+    {
+      id: 'camera-details',
+      title: 'Szczegóły kamer',
+      description: 'Sprawdź szczegóły znalezionych kamer',
+      icon: <Camera className="w-4 h-4" />,
+      query: 'szczegóły kamer',
+      category: 'camera',
+      priority: 7,
+    },
   ];
 
   useEffect(() => {
