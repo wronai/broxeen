@@ -26,6 +26,7 @@ tokio = { version = "1", features = ["time"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "time"] }
 tracing-appender = "0.2"
+chrono = { version = "0.4", features = ["serde"] }
 
 [features]
 default = ["custom-protocol"]

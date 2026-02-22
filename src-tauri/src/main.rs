@@ -7,6 +7,7 @@ mod content_cleaning;
 mod content_extraction;
 mod llm;
 mod logging;
+mod network_scan;
 mod settings;
 mod stt;
 mod tts;
@@ -388,7 +389,7 @@ fn main() {
     }
 
     backend_info(
-        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop",
+        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network",
     );
 
     let recording_state: SharedRecordingState = Arc::new(Mutex::new(audio_capture::RecordingState::new()));
@@ -422,6 +423,12 @@ fn main() {
             tts::tts_is_available,
             tts::tts_speak,
             tts::tts_stop,
+            network_scan::ping_host,
+            network_scan::scan_ports,
+            network_scan::arp_scan,
+            network_scan::discover_onvif_cameras,
+            network_scan::discover_mdns,
+            network_scan::scan_network,
         ])
         .run(tauri::generate_context!())
     {

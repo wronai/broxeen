@@ -1,38 +1,9 @@
 /**
  * Network Scan Plugin - provides network discovery capabilities
- * Integrates with NetworkScanner for device discovery
+ * Uses Tauri backend commands for real network scanning.
  */
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
-
-// Dynamic imports to avoid browser compatibility issues
-let NetworkScanner: any = null;
-let DatabaseManager: any = null;
-let NetworkScannerConfig: any = null;
-
-// Only import in environments where Node.js APIs are available
-const loadDependencies = async () => {
-  if (typeof window !== 'undefined' && !(window as any).__TAURI__) {
-    return null; // Browser environment - don't load Node.js dependencies
-  }
-  
-  try {
-    const [networkScannerModule, databaseManagerModule, typesModule] = await Promise.all([
-      import('../../discovery/networkScanner'),
-      import('../../persistence/databaseManager'),
-      import('../../discovery/types')
-    ]);
-    
-    NetworkScanner = networkScannerModule.NetworkScanner;
-    DatabaseManager = databaseManagerModule.DatabaseManager;
-    NetworkScannerConfig = typesModule.NetworkScannerConfig;
-    
-    return { NetworkScanner, DatabaseManager, NetworkScannerConfig };
-  } catch (error) {
-    console.warn('Failed to load network scan dependencies:', error);
-    return null;
-  }
-};
 
 export class NetworkScanPlugin implements Plugin {
   readonly id = 'network-scan';
@@ -40,59 +11,8 @@ export class NetworkScanPlugin implements Plugin {
   readonly version = '1.0.0';
   readonly supportedIntents = ['network:scan', 'network:discover', 'network:devices', 'camera:describe', 'camera:discover'];
 
-  private networkScanner: any = null;
-
   async initialize(context: PluginContext): Promise<void> {
-    console.log('🔧 NetworkScanPlugin.initialize called', { 
-      isTauri: context.isTauri,
-      hasTauri: !!(window as any).__TAURI__
-    });
-    
-    // Only initialize in Tauri environment (requires Node.js APIs)
-    if (!context.isTauri) {
-      console.warn('NetworkScanPlugin: Database operations not available in browser environment');
-      return;
-    }
-
-    console.log('🔄 NetworkScanPlugin: Loading dependencies for Tauri environment...');
-    try {
-      // Load dependencies dynamically
-      const deps = await loadDependencies();
-      if (!deps) {
-        console.warn('NetworkScanPlugin: Failed to load dependencies');
-        return;
-      }
-
-      console.log('✅ NetworkScanPlugin: Dependencies loaded successfully');
-      console.log('🗄️ NetworkScanPlugin: Initializing database manager...');
-
-      // Initialize database manager
-      const dbManager = new deps.DatabaseManager({
-        devicesDbPath: 'devices.db',
-        chatDbPath: 'chat.db',
-        walMode: true,
-        connectionPoolSize: 5
-      });
-
-      await dbManager.initialize();
-      console.log('✅ NetworkScanPlugin: Database manager initialized');
-
-      // Configure network scanner
-      const config: deps.NetworkScannerConfig = {
-        scanMethods: ['ping', 'mdns'],
-        timeout: 5000,
-        maxConcurrent: 10,
-        excludeRanges: ['127.0.0.0/8']
-      };
-
-      console.log('🔍 NetworkScanPlugin: Creating network scanner...');
-      this.networkScanner = new deps.NetworkScanner(config, dbManager);
-      
-      console.log('✅ Network Scan Plugin initialized successfully');
-    } catch (error) {
-      console.error('NetworkScanPlugin initialization failed:', error);
-      this.networkScanner = null;
-    }
+    console.log('🔧 NetworkScanPlugin.initialize called', { isTauri: context.isTauri });
   }
 
   async canHandle(input: string, context: PluginContext): Promise<boolean> {
@@ -113,143 +33,169 @@ export class NetworkScanPlugin implements Plugin {
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
+    const start = Date.now();
     const isCameraQuery = input.toLowerCase().includes('kamer') || input.toLowerCase().includes('camera');
 
-    // Check if scanner is available
-    if (!this.networkScanner) {
-      const message = context.isTauri 
-        ? `Skanowanie sieci nie jest dostępne. Sprawdź konfigurację uprawnień sieciowych.`
-        : `🧪 **Tryb demonstracyjny przeglądarki**\n\nSkanowanie sieci nie jest dostępne w trybie przeglądarki. W prawdziwej aplikacji Tauri funkcja wyszukiwania kamer przeszukałaby:\n\n• Lokalną sieć WiFi/Ethernet\n• Urządzenia z otwartymi portami 554, 80, 8080\n• Kamery IP (Hikvision, Dahua, etc.)\n• Urządzenia z hostname'ami zawierającymi "cam"\n\n**Aby przetestować pełne funkcjonalności:**\n1. Uruchom aplikację Tauri desktop\n2. Użyj tego samego polecenia "pokaż kamery"\n\n**Znalezione urządzenia (symulacja):**\n📷 Kamera 1: 192.168.1.100 (Hikvision DS-2CD2032)\n📷 Kamera 2: 192.168.1.101 (Dahua IPC-HFW2431S)\n📷 Kamera 3: 192.168.1.102 (Generic IP Camera)\n\n💡 *W trybie Tauri uzyskasz prawdziwe wyniki skanowania Twojej sieci.*`;
+    if (context.isTauri && context.tauriInvoke) {
+      try {
+        console.log(`[NetworkScanPlugin] Starting real network scan via Tauri...`);
+        const result = await context.tauriInvoke('scan_network', {
+          subnet: null,
+          timeout: 5000,
+        }) as NetworkScanResult;
 
-      return {
-        pluginId: this.id,
-        status: 'success',
-        content: [{
-          type: 'text',
-          data: message,
-          title: context.isTauri ? 'Błąd skanowania' : 'Tryb demonstracyjny'
-        }],
-        metadata: {
-          duration_ms: 0,
-          cached: false,
-          truncated: false,
-          queryType: isCameraQuery ? 'camera_discovery_demo' : 'network_scan_demo',
-          environment: context.isTauri ? 'tauri' : 'browser'
-        },
-      };
+        return {
+          pluginId: this.id,
+          status: 'success',
+          content: [{
+            type: 'text',
+            data: this.formatScanResult(result, isCameraQuery),
+            title: isCameraQuery ? 'Wyniki wyszukiwania kamer' : 'Wyniki skanowania sieci',
+          }],
+          metadata: {
+            duration_ms: Date.now() - start,
+            cached: false,
+            truncated: false,
+            deviceCount: result.devices.length,
+            scanDuration: result.scan_duration,
+            scanMethod: result.scan_method,
+          },
+        };
+      } catch (error) {
+        console.error('[NetworkScanPlugin] scan_network failed:', error);
+        return {
+          pluginId: this.id,
+          status: 'error',
+          content: [{
+            type: 'text',
+            data: `Błąd skanowania sieci: ${error instanceof Error ? error.message : String(error)}`,
+          }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+        };
+      }
     }
 
-    try {
-      console.log(`Starting network scan for ${isCameraQuery ? 'cameras' : 'devices'}...`);
-      const result = await this.networkScanner.scanNetwork();
-
-      const content = this.formatScanResult(result, isCameraQuery);
-      
-      return {
-        pluginId: this.id,
-        status: 'success',
-        content: [{
-          type: 'text',
-          data: content,
-          title: isCameraQuery ? 'Wyniki wyszukiwania kamer' : 'Wyniki skanowania sieci'
-        }],
-        metadata: {
-          duration_ms: result.scanDuration,
-          cached: false,
-          truncated: false,
-          deviceCount: result.devices.length,
-          scanDuration: result.scanDuration,
-          scanMethod: result.scanMethod,
-          executionTime: result.scanDuration,
-          queryType: isCameraQuery ? 'camera_discovery' : 'network_scan'
-        },
-      };
-
-    } catch (error) {
-      console.error('Network scan failed:', error);
-      return {
-        pluginId: this.id,
-        status: 'error',
-        content: [{
-          type: 'text',
-          data: `Wystąpił błąd podczas ${isCameraQuery ? 'wyszukiwania kamer' : 'skanowania sieci'}: ${error instanceof Error ? error.message : 'Nieznany błąd'}`
-        }],
-        metadata: {
-          duration_ms: 0,
-          cached: false,
-          truncated: false,
-          queryType: isCameraQuery ? 'camera_discovery' : 'network_scan'
-        },
-      };
-    }
+    // Browser fallback: HTTP probe of common LAN addresses
+    return this.browserFallback(isCameraQuery, start);
   }
 
-  private formatScanResult(result: any, isCameraQuery = false): string {
-    const { devices, scanDuration, scanMethod } = result;
-    
-    let content = isCameraQuery 
+  private async browserFallback(isCameraQuery: boolean, start: number): Promise<PluginResult> {
+    const subnet = '192.168.1';
+    const ports = isCameraQuery ? [554, 8554, 80, 8080] : [80, 443, 22, 8080, 554];
+    const probeIps = Array.from({ length: 20 }, (_, i) => `${subnet}.${i + 1}`);
+    const found: Array<{ ip: string; port: number }> = [];
+
+    await Promise.allSettled(
+      probeIps.flatMap(ip =>
+        ports.map(async port => {
+          const resp = await fetch(`http://${ip}:${port}`, {
+            method: 'HEAD',
+            signal: AbortSignal.timeout(600),
+          }).catch(() => null);
+          if (resp) found.push({ ip, port });
+        })
+      )
+    );
+
+    const lines = [
+      isCameraQuery
+        ? `📷 **Wyszukiwanie kamer** *(tryb HTTP — pełne skanowanie wymaga Tauri)*\n`
+        : `🔍 **Skanowanie sieci** *(tryb HTTP — pełne skanowanie wymaga Tauri)*\n`,
+      `Przeskanowano: ${probeIps.length} adresów IP`,
+      `Znaleziono: ${found.length} aktywnych hostów\n`,
+    ];
+
+    if (found.length === 0) {
+      lines.push('Nie wykryto urządzeń w sieci (ograniczenia przeglądarki).');
+      lines.push('\n💡 Uruchom aplikację Tauri dla pełnego skanowania TCP/ARP.');
+    } else {
+      const unique = [...new Map(found.map(f => [f.ip, f])).values()];
+      unique.forEach(({ ip, port }) => {
+        const isCamera = [554, 8554].includes(port);
+        lines.push(`${isCamera ? '📷' : '🖥️'} **${ip}** (port ${port})`);
+        if (isCamera) lines.push(`   RTSP: \`rtsp://${ip}:554/stream\``);
+      });
+    }
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data: lines.join('\n'), title: isCameraQuery ? 'Kamery (HTTP)' : 'Sieć (HTTP)' }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  private formatScanResult(result: NetworkScanResult, isCameraQuery = false): string {
+    const { devices, scan_duration, scan_method } = result;
+
+    let content = isCameraQuery
       ? `📷 **Wyszukiwanie kamer zakończone**\n\n`
       : `🔍 **Skanowanie sieci zakończone**\n\n`;
-    
-    content += `Metoda: ${scanMethod}\n`;
-    content += `Czas trwania: ${scanDuration}ms\n`;
+
+    content += `Metoda: ${scan_method}\n`;
+    content += `Czas trwania: ${scan_duration}ms\n`;
     content += `Znaleziono urządzeń: ${devices.length}\n\n`;
 
     if (devices.length === 0) {
       content += `Nie znaleziono żadnych urządzeń w sieci.\n`;
     } else {
-      // Filter for camera-like devices if this is a camera query
-      const relevantDevices = isCameraQuery 
-        ? devices.filter((device: any) => 
-            device.hostname?.toLowerCase().includes('cam') ||
-            device.hostname?.toLowerCase().includes('ipcam') ||
-            device.vendor?.toLowerCase().includes('hikvision') ||
-            device.vendor?.toLowerCase().includes('dahua') ||
-            device.openPorts.some((port: number) => [554, 80, 8080, 8000].includes(port)) ||
-            device.openPorts.some((port: number) => port >= 8000 && port <= 9000)
+      const relevantDevices = isCameraQuery
+        ? devices.filter(d =>
+            d.device_type === 'camera' ||
+            d.hostname?.toLowerCase().includes('cam') ||
+            d.vendor?.toLowerCase().includes('hikvision') ||
+            d.vendor?.toLowerCase().includes('dahua') ||
+            d.open_ports.some(p => [554, 8554].includes(p))
           )
         : devices;
 
       if (isCameraQuery && relevantDevices.length === 0) {
-        content += `Nie znaleziono kamer w sieci.\n\n`;
-        content += `**Wszystkie znalezione urządzenia:**\n\n`;
+        content += `Nie znaleziono kamer w sieci.\n\n**Wszystkie znalezione urządzenia:**\n\n`;
       } else {
-        content += isCameraQuery 
-          ? `**Znalezione kamery:**\n\n`
-          : `**Znalezione urządzenia:**\n\n`;
+        content += isCameraQuery ? `**Znalezione kamery:**\n\n` : `**Znalezione urządzenia:**\n\n`;
       }
-      
+
       const devicesToShow = isCameraQuery && relevantDevices.length > 0 ? relevantDevices : devices;
-      
-      devicesToShow.forEach((device: any, index: number) => {
-        content += `${index + 1}. **${device.ip}**\n`;
-        if (device.hostname) {
-          content += `   Hostname: ${device.hostname}\n`;
+
+      devicesToShow.forEach((device, index) => {
+        content += `${index + 1}. **${device.ip}**`;
+        if (device.device_type) content += ` *(${device.device_type})*`;
+        content += '\n';
+        if (device.hostname) content += `   Hostname: ${device.hostname}\n`;
+        if (device.mac) content += `   MAC: \`${device.mac}\`\n`;
+        if (device.vendor) content += `   Producent: ${device.vendor}\n`;
+        if (device.open_ports.length > 0) content += `   Porty: ${device.open_ports.join(', ')}\n`;
+        content += `   RTT: ${device.response_time}ms\n`;
+        if (device.open_ports.includes(554)) {
+          content += `   📷 RTSP: \`rtsp://${device.ip}:554/stream\`\n`;
         }
-        if (device.mac) {
-          content += `   MAC: ${device.mac}\n`;
-        }
-        if (device.vendor) {
-          content += `   Producent: ${device.vendor}\n`;
-        }
-        if (device.openPorts.length > 0) {
-          content += `   Otwarte porty: ${device.openPorts.join(', ')}\n`;
-        }
-        content += `   Czas odpowiedzi: ${device.responseTime}ms\n`;
-        content += `   Ostatnio widziany: ${device.lastSeen.toLocaleString()}\n\n`;
+        content += '\n';
       });
     }
 
-    content += `💡 *Możesz teraz zapytać o szczegóły konkretnego urządzenia lub spróbować połączyć się z kamerą.*`;
-    
+    content += `💡 *Zapytaj "pokaż kamerę [IP]" aby zobaczyć obraz lub "skanuj porty [IP]" dla szczegółów.*`;
     return content;
   }
 
   async dispose(): Promise<void> {
-    if (this.networkScanner) {
-      // Cleanup if needed
-      this.networkScanner = null;
-    }
     console.log('Network Scan Plugin disposed');
   }
+}
+
+interface NetworkDevice {
+  ip: string;
+  mac?: string;
+  hostname?: string;
+  vendor?: string;
+  open_ports: number[];
+  response_time: number;
+  last_seen: string;
+  device_type?: string;
+}
+
+interface NetworkScanResult {
+  devices: NetworkDevice[];
+  scan_duration: number;
+  scan_method: string;
+  subnet: string;
 }

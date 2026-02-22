@@ -100,6 +100,53 @@ async function registerCorePlugins(
     }
   }
 
+  // ── Local Network Plugins ──────────────────────────────────
+  const localNetworkPlugins = [
+    () => import('../plugins/local-network/pingPlugin').then(m => new m.PingPlugin()),
+    () => import('../plugins/local-network/portScanPlugin').then(m => new m.PortScanPlugin()),
+    () => import('../plugins/local-network/arpPlugin').then(m => new m.ArpPlugin()),
+    () => import('../plugins/local-network/wakeOnLanPlugin').then(m => new m.WakeOnLanPlugin()),
+    () => import('../plugins/local-network/mdnsPlugin').then(m => new m.MdnsPlugin()),
+    () => import('../plugins/local-network/onvifPlugin').then(m => new m.OnvifPlugin()),
+  ];
+
+  for (const loader of localNetworkPlugins) {
+    try {
+      const plugin = await loader();
+      registry.register(plugin);
+      router.registerPlugin(plugin);
+    } catch (error) {
+      console.warn(`⚠️ Local network plugin not available:`, error);
+    }
+  }
+
+  // ── Camera Plugins ─────────────────────────────────────────
+  const cameraPlugins = [
+    () => import('../plugins/cameras/cameraHealthPlugin').then(m => new m.CameraHealthPlugin()),
+    () => import('../plugins/cameras/cameraPtzPlugin').then(m => new m.CameraPtzPlugin()),
+    () => import('../plugins/cameras/cameraSnapshotPlugin').then(m => new m.CameraSnapshotPlugin()),
+  ];
+
+  for (const loader of cameraPlugins) {
+    try {
+      const plugin = await loader();
+      registry.register(plugin);
+      router.registerPlugin(plugin);
+    } catch (error) {
+      console.warn(`⚠️ Camera plugin not available:`, error);
+    }
+  }
+
+  // ── Marketplace Plugin ─────────────────────────────────────
+  try {
+    const { MarketplacePlugin } = await import('../plugins/marketplace/marketplaceLoader');
+    const marketplacePlugin = new MarketplacePlugin();
+    registry.register(marketplacePlugin);
+    router.registerPlugin(marketplacePlugin);
+  } catch (error) {
+    console.warn('⚠️ MarketplacePlugin not available:', error);
+  }
+
   // Register HTTP Browse plugin
   const httpBrowsePlugin = new HttpBrowsePlugin();
   registry.register(httpBrowsePlugin);

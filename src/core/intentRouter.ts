@@ -62,6 +62,124 @@ export class IntentRouter implements IIntentRouter {
       /co.*dzieje.*się.*na.*kamerze.*salonow/i,
     ]);
 
+    // Network ping intents
+    this.intentPatterns.set('network:ping', [
+      /ping\s/i,
+      /sprawdź.*host/i,
+      /sprawdz.*host/i,
+      /czy.*odpowiada/i,
+      /czy.*działa.*host/i,
+      /check.*host/i,
+    ]);
+
+    // Port scan intents
+    this.intentPatterns.set('network:port-scan', [
+      /skanuj.*port/i,
+      /otwarte.*port/i,
+      /sprawdź.*port/i,
+      /sprawdz.*port/i,
+      /scan.*port/i,
+      /open.*port/i,
+      /jakie.*porty/i,
+    ]);
+
+    // ARP intents
+    this.intentPatterns.set('network:arp', [
+      /tablica.*arp/i,
+      /arp.*table/i,
+      /adresy.*mac/i,
+      /mac.*address/i,
+      /pokaż.*urządzenia.*mac/i,
+      /pokaz.*urzadzenia.*mac/i,
+    ]);
+
+    // Wake-on-LAN intents
+    this.intentPatterns.set('network:wol', [
+      /wake.*on.*lan/i,
+      /wol\s/i,
+      /obudź.*urządzenie/i,
+      /obudz.*urzadzenie/i,
+      /włącz.*komputer/i,
+      /wlacz.*komputer/i,
+      /wybudź/i,
+      /wybudz/i,
+    ]);
+
+    // mDNS intents
+    this.intentPatterns.set('network:mdns', [
+      /mdns/i,
+      /bonjour/i,
+      /avahi/i,
+      /odkryj.*usługi/i,
+      /odkryj.*uslugi/i,
+      /discover.*services/i,
+      /znajdź.*usługi/i,
+      /znajdz.*uslugi/i,
+    ]);
+
+    // ONVIF camera discovery intents
+    this.intentPatterns.set('camera:onvif', [
+      /onvif/i,
+      /odkryj.*kamer.*onvif/i,
+      /wyszukaj.*kamer.*ip/i,
+    ]);
+
+    // Camera health/status intents
+    this.intentPatterns.set('camera:health', [
+      /status.*kamer/i,
+      /stan.*kamer/i,
+      /zdrowie.*kamer/i,
+      /health.*camera/i,
+      /czy.*kamer.*działa/i,
+      /czy.*kamer.*dziala/i,
+      /sprawdź.*kamer/i,
+      /sprawdz.*kamer/i,
+    ]);
+
+    // Camera PTZ intents
+    this.intentPatterns.set('camera:ptz', [
+      /obróć.*kamer/i,
+      /obroc.*kamer/i,
+      /przesuń.*kamer/i,
+      /przesun.*kamer/i,
+      /zoom.*kamer/i,
+      /przybliż/i,
+      /przybliz/i,
+      /kamer.*w.*lewo/i,
+      /kamer.*w.*prawo/i,
+      /kamer.*do.*góry/i,
+      /kamer.*w.*dół/i,
+      /ptz/i,
+    ]);
+
+    // Camera snapshot intents
+    this.intentPatterns.set('camera:snapshot', [
+      /zrób.*zdjęcie.*kamer/i,
+      /zrob.*zdjecie.*kamer/i,
+      /snapshot.*kamer/i,
+      /capture.*camera/i,
+      /zrzut.*kamer/i,
+      /złap.*klatkę/i,
+      /zlap.*klatke/i,
+    ]);
+
+    // Marketplace intents
+    this.intentPatterns.set('marketplace:browse', [
+      /marketplace/i,
+      /plugin.*store/i,
+      /zainstaluj.*plugin/i,
+      /install.*plugin/i,
+      /lista.*plugin/i,
+      /dostępne.*plugin/i,
+      /dostepne.*plugin/i,
+      /szukaj.*plugin/i,
+      /wyszukaj.*plugin/i,
+      /odinstaluj.*plugin/i,
+      /uninstall.*plugin/i,
+      /usun.*plugin/i,
+      /usuń.*plugin/i,
+    ]);
+
     // IoT/MQTT intents
     this.intentPatterns.set('iot:read', [
       /jaka.*temperatura/i,
@@ -143,6 +261,16 @@ export class IntentRouter implements IIntentRouter {
     const keywordMap: Record<string, string[]> = {
       'browse:url': ['http', 'www', '.pl', '.com', '.org'],
       'camera:describe': ['kamera', 'wida', 'dzieje'],
+      'camera:health': ['status', 'stan', 'sprawdź', 'kamera'],
+      'camera:ptz': ['obróć', 'przesuń', 'zoom', 'ptz', 'lewo', 'prawo'],
+      'camera:snapshot': ['zdjęcie', 'snapshot', 'zrzut', 'klatka'],
+      'camera:onvif': ['onvif', 'odkryj', 'kamera'],
+      'network:ping': ['ping', 'sprawdź', 'host'],
+      'network:port-scan': ['port', 'skanuj', 'otwarte'],
+      'network:arp': ['arp', 'mac', 'tablica'],
+      'network:wol': ['wake', 'wol', 'obudź', 'wybudź'],
+      'network:mdns': ['mdns', 'bonjour', 'usługi'],
+      'marketplace:browse': ['marketplace', 'plugin', 'zainstaluj'],
       'iot:read': ['temperatura', 'wilgotność', 'czujnik', 'sensor'],
       'search:web': ['wyszukaj', 'znajdź', 'szukaj'],
     };
@@ -184,6 +312,31 @@ export class IntentRouter implements IIntentRouter {
           entities.sensorType = 'humidity';
         }
         break;
+
+      case 'network:ping':
+      case 'network:port-scan': {
+        const ipTarget = input.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
+        if (ipTarget) entities.target = ipTarget[0];
+        break;
+      }
+
+      case 'network:wol': {
+        const macAddr = input.match(/([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}/);
+        if (macAddr) entities.mac = macAddr[0];
+        break;
+      }
+
+      case 'camera:health':
+      case 'camera:ptz':
+      case 'camera:snapshot': {
+        if (input.includes('wejściow') || input.includes('front') || input.includes('wejsc'))
+          entities.cameraId = 'cam-front';
+        else if (input.includes('ogród') || input.includes('ogrod') || input.includes('garden'))
+          entities.cameraId = 'cam-garden';
+        else if (input.includes('salon') || input.includes('living'))
+          entities.cameraId = 'cam-salon';
+        break;
+      }
     }
 
     return entities;
