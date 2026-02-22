@@ -2,8 +2,7 @@
  * Plugin Registry - manages plugin lifecycle and discovery
  */
 
-import type { Plugin, PluginRegistry as IPluginRegistry } from './types';
-import type { DataSourcePlugin } from './plugin.types';
+import type { Plugin, PluginRegistry as IPluginRegistry, DataSourcePlugin } from './types';
 
 export class PluginRegistry implements IPluginRegistry {
   private plugins = new Map<string, Plugin>();

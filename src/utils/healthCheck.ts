@@ -169,7 +169,7 @@ class HealthChecker {
 
       for (const module of criticalModules) {
         try {
-          await import(module);
+          await import(/* @vite-ignore */ module);
           results[module] = true;
         } catch (error) {
           results[module] = false;

@@ -3,23 +3,15 @@
  * Provides extensible architecture for multiple data sources
  */
 
-import type { DataSourcePlugin } from './plugin.types';
+import type { DataSourcePlugin, PluginResult as NewPluginResult, ContentBlock } from './plugin.types';
 
-export interface PluginResult {
-  status: 'success' | 'error' | 'partial';
-  content: PluginContentBlock[];
-  metadata?: Record<string, unknown>;
-  executionTime?: number;
-}
+export type { DataSourcePlugin } from './plugin.types';
 
-export interface PluginContentBlock {
-  type: 'text' | 'image' | 'audio' | 'video' | 'data' | 'function_call';
-  data: string | unknown;
-  title?: string;
-  mimeType?: string;
-  functionName?: string;
-  functionArgs?: Record<string, unknown>;
-}
+// Re-export for backward compatibility
+export type { ContentBlock as PluginContentBlock } from './plugin.types';
+
+// Legacy exports for compatibility
+export type PluginResult = NewPluginResult;
 
 export interface PluginContext {
   isTauri: boolean;
@@ -85,10 +77,8 @@ export interface IntentDetection {
 
 export interface IntentRouter {
   detect(input: string): Promise<IntentDetection>;
-  route(intent: string): Plugin | null;
+  route(intent: string): Plugin | DataSourcePlugin | null;
 }
-
-import type { DataSourcePlugin } from './plugin.types';
 
 export interface PluginRegistry {
   register(plugin: Plugin | DataSourcePlugin): void;

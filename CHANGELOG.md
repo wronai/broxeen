@@ -1,3 +1,20 @@
+## [1.0.31] - 2026-02-22
+
+### Summary
+
+fix(tests): CLI interface with 2 supporting modules
+
+### Other
+
+- update src/components/HealthDiagnostic.test.tsx
+- update src/components/HealthDiagnostic.tsx
+- update src/contexts/pluginContext.tsx
+- update src/core/pluginRegistry.ts
+- update src/core/types.ts
+- update src/plugins/rtsp-camera/rtspCameraPlugin.ts
+- update src/utils/healthCheck.ts
+
+
 ## [1.0.30] - 2026-02-22
 
 ### Summary

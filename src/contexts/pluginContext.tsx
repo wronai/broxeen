@@ -15,6 +15,7 @@ import type {
   Plugin,
   PluginResult,
 } from "../core/types";
+import type { DataSourcePlugin, PluginQuery, PluginResult as NewPluginResult } from "../core/plugin.types";
 import type { IntentDetection } from "../core/types";
 
 // ─── Context Value ──────────────────────────────────────────
@@ -33,7 +34,7 @@ interface PluginContextValue {
   ) => Promise<PluginResult>;
 
   /** List all registered plugins */
-  plugins: Plugin[];
+  plugins: (Plugin | DataSourcePlugin)[];
 
   /** Check if a specific plugin is registered */
   hasPlugin: (pluginId: string) => boolean;
@@ -64,10 +65,48 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
           throw new Error(`No plugin found for intent: ${intent.intent}`);
         }
 
-        return await plugin.execute(rawInput, {
+        // Handle both Plugin and DataSourcePlugin
+        const pluginContext = {
           isTauri: typeof window !== 'undefined' && !!(window as any).__TAURI__,
           tauriInvoke: (window as any).__TAURI__?.core?.invoke,
-        });
+        };
+
+        // Check if it's a DataSourcePlugin (new API) or Plugin (old API)
+        if ('execute' in plugin && 'capabilities' in plugin) {
+          // DataSourcePlugin - create PluginQuery
+          const query = {
+            intent: intent.intent,
+            rawInput,
+            params: intent.entities || {},
+            metadata: {
+              timestamp: Date.now(),
+              source,
+              locale: 'pl-PL'
+            }
+          };
+          const result = await plugin.execute(query);
+          
+          // Convert NewPluginResult to legacy PluginResult for compatibility
+          return {
+            status: result.status,
+            content: result.content.map(block => ({
+              type: block.type === 'html' ? 'text' : block.type,
+              data: block.data,
+              title: block.title,
+              mimeType: block.mimeType
+            })),
+            metadata: {
+              ...result.metadata,
+              duration_ms: result.metadata.duration_ms,
+              source_url: result.metadata.source_url,
+              cached: result.metadata.cached,
+              truncated: result.metadata.truncated
+            }
+          };
+        } else {
+          // Legacy Plugin - use old API
+          return await plugin.execute(rawInput, pluginContext);
+        }
       },
 
       plugins: context.pluginRegistry.getAll(),

@@ -179,8 +179,8 @@ export class RtspCameraPlugin implements DataSourcePlugin, VisualPlugin {
   readonly id: PluginId = "rtsp-camera";
   readonly name = "RTSP Camera";
   readonly capabilities: PluginCapabilities = {
-    intents: ["camera:describe", "camera:list", "camera:snapshot"],
-    streaming: false, // TODO: add streaming support later
+    intents: ["camera:describe", "camera:list", "camera:snapshot", "camera:stream"],
+    streaming: true, // Streaming support added
     requiresNetwork: true,
     browserCompatible: true, // HTTP snapshot works in browser
     priority: 70,

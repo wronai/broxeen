@@ -20,6 +20,99 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [isVisible, setIsVisible] = useState(showOnStartup);
 
+  const copyErrorsToClipboard = async () => {
+    try {
+      // Run health check to get current status
+      const currentReport = await healthChecker.runChecks();
+      
+      // Format the report for clipboard
+      const timestamp = new Date().toLocaleString('pl-PL');
+      const errors = currentReport.checks.filter(c => c.status === 'error');
+      const warnings = currentReport.checks.filter(c => c.status === 'warning');
+      
+      let reportText = `🏥 BROXEEN HEALTH REPORT - ${timestamp}\n`;
+      reportText += `Overall Status: ${currentReport.overall.toUpperCase()}\n`;
+      reportText += `Total Checks: ${currentReport.checks.length}\n\n`;
+      
+      if (errors.length > 0) {
+        reportText += `❌ ERRORS (${errors.length}):\n`;
+        errors.forEach(error => {
+          reportText += `  • [${error.category.toUpperCase()}] ${error.name}: ${error.message}\n`;
+          if (error.details) {
+            // Format details as simple string, not JSON
+            const detailsStr = typeof error.details === 'string' 
+              ? error.details 
+              : JSON.stringify(error.details, null, 2);
+            reportText += `    Details: ${detailsStr}\n`;
+          }
+        });
+        reportText += '\n';
+      }
+      
+      if (warnings.length > 0) {
+        reportText += `⚠️ WARNINGS (${warnings.length}):\n`;
+        warnings.forEach(warning => {
+          reportText += `  • [${warning.category.toUpperCase()}] ${warning.name}: ${warning.message}\n`;
+          if (warning.details) {
+            // Format details as simple string, not JSON
+            const detailsStr = typeof warning.details === 'string' 
+              ? warning.details 
+              : JSON.stringify(warning.details, null, 2);
+            reportText += `    Details: ${detailsStr}\n`;
+          }
+        });
+        reportText += '\n';
+      }
+      
+      if (errors.length === 0 && warnings.length === 0) {
+        reportText += `✅ All checks passed!\n`;
+      }
+      
+      // Add system info
+      reportText += `\n📋 SYSTEM INFO:\n`;
+      reportText += `  • Platform: ${navigator.platform}\n`;
+      reportText += `  • User Agent: ${navigator.userAgent}\n`;
+      reportText += `  • URL: ${window.location.href}\n`;
+      reportText += `  • Timestamp: ${timestamp}\n`;
+      
+      // Try modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(reportText);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = reportText;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      
+      // Show success notification
+      showNotification('✅ Błędy skopiowane do schowka!', 'success');
+      
+    } catch (error) {
+      console.error('Failed to copy errors to clipboard:', error);
+      showNotification('❌ Nie udało się skopiować błędów', 'error');
+    }
+  };
+
+  const showNotification = (message: string, type: 'success' | 'error') => {
+    const notification = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-600' : 'bg-red-600';
+    notification.className = `fixed top-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2`;
+    notification.innerHTML = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.remove();
+    }, 3000);
+  };
+
   const runHealthCheck = async () => {
     setIsLoading(true);
     try {
@@ -43,15 +136,37 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
     }
   }, [isVisible, autoRefresh, refreshInterval]);
 
+  // Add keyboard shortcut for copying errors (Ctrl+Shift+E)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'E') {
+        e.preventDefault();
+        copyErrorsToClipboard();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   if (!isVisible) {
     return (
-      <button
-        onClick={() => setIsVisible(true)}
-        className="fixed bottom-4 right-4 bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg hover:bg-blue-700 transition-colors z-50"
-        title="Pokaż diagnostykę systemu"
-      >
-        🏥 Diagnostyka
-      </button>
+      <div className="fixed bottom-4 right-4 flex gap-2 z-50">
+        <button
+          onClick={() => copyErrorsToClipboard()}
+          className="bg-orange-600 text-white px-3 py-2 rounded-lg shadow-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+          title="Kopiuj błędy do schowka (Ctrl+Shift+E)"
+        >
+          📋 Kopiuj błędy
+        </button>
+        <button
+          onClick={() => setIsVisible(true)}
+          className="bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          title="Pokaż diagnostykę systemu"
+        >
+          🏥 Diagnostyka
+        </button>
+      </div>
     );
   }
 
@@ -186,6 +301,13 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
 
             {/* Akcje */}
             <div className="flex justify-end gap-3 pt-4 border-t border-gray-700">
+              <button
+                onClick={copyErrorsToClipboard}
+                className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 transition-colors flex items-center gap-2"
+                title="Kopiuj błędy do schowka (Ctrl+Shift+E)"
+              >
+                📋 Kopiuj błędy
+              </button>
               <button
                 onClick={runHealthCheck}
                 className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
