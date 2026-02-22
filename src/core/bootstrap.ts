@@ -33,7 +33,7 @@ export async function bootstrapApp(config: {
   };
 
   // Auto-register plugins (will be implemented in subsequent steps)
-  await registerCorePlugins(pluginRegistry, intentRouter, commandBus);
+  await registerCorePlugins(pluginRegistry, intentRouter, commandBus, config.isTauri);
 
   // Initialize all plugins
   await pluginRegistry.initializeAll(pluginContext);
@@ -59,14 +59,32 @@ export async function bootstrapApp(config: {
 async function registerCorePlugins(
   registry: PluginRegistry,
   router: IntentRouter,
-  bus: CommandBus
+  bus: CommandBus,
+  isTauri: boolean
 ): Promise<void> {
   // Import plugins dynamically to avoid circular dependencies
   const { HttpBrowsePlugin } = await import('../plugins/http/browsePlugin');
   const { ChatLlmPlugin } = await import('../plugins/chat/chatPlugin');
-  // Enable discovery plugins for actual network scanning
-  const { NetworkScanPlugin } = await import('../plugins/discovery/networkScanPlugin');
-  const { ServiceProbePlugin } = await import('../plugins/discovery/serviceProbePlugin');
+  
+  // Only register discovery plugins in Tauri environment
+  if (isTauri) {
+    try {
+      const { NetworkScanPlugin } = await import('../plugins/discovery/networkScanPlugin');
+      const { ServiceProbePlugin } = await import('../plugins/discovery/serviceProbePlugin');
+
+      // Register Network Scan plugin
+      const networkScanInstance = new NetworkScanPlugin();
+      registry.register(networkScanInstance);
+      router.registerPlugin(networkScanInstance);
+
+      // Register Service Probe plugin
+      const serviceProbeInstance = new ServiceProbePlugin();
+      registry.register(serviceProbeInstance);
+      router.registerPlugin(serviceProbeInstance);
+    } catch (error) {
+      console.warn('⚠️ Discovery plugins not available in browser environment:', error);
+    }
+  }
 
   // Register HTTP Browse plugin
   const httpBrowsePlugin = new HttpBrowsePlugin();
@@ -77,16 +95,6 @@ async function registerCorePlugins(
   const chatLlmPlugin = new ChatLlmPlugin();
   registry.register(chatLlmPlugin);
   router.registerPlugin(chatLlmPlugin);
-
-  // Register Network Scan plugin
-  const networkScanPlugin = new NetworkScanPlugin();
-  registry.register(networkScanPlugin);
-  router.registerPlugin(networkScanPlugin);
-
-  // Register Service Probe plugin
-  const serviceProbePlugin = new ServiceProbePlugin();
-  registry.register(serviceProbePlugin);
-  router.registerPlugin(serviceProbePlugin);
 
   // Register command handlers
   bus.register('plugins:ask', async (payload: string) => {

@@ -12,7 +12,7 @@ export class NetworkScanPlugin implements Plugin {
   readonly id = 'network-scan';
   readonly name = 'Network Scanner';
   readonly version = '1.0.0';
-  readonly supportedIntents = ['network:scan', 'network:discover', 'network:devices'];
+  readonly supportedIntents = ['network:scan', 'network:discover', 'network:devices', 'camera:describe', 'camera:discover'];
 
   private networkScanner: NetworkScanner | null = null;
 
@@ -47,7 +47,14 @@ export class NetworkScanPlugin implements Plugin {
       'scan network', 'discover devices', 'network scan', 'find devices'
     ];
     
-    return scanKeywords.some(keyword => lowerInput.includes(keyword));
+    const cameraKeywords = [
+      'pokaż kamery', 'pokaż kamerę', 'pokaz kamery', 'pokaz kamera',
+      'znajdź kamery', 'znajdź kamerę', 'wyszukaj kamery', 'wyszukaj kamerę',
+      'kamery w sieci', 'kamera w sieci', 'discover cameras', 'find cameras'
+    ];
+    
+    return scanKeywords.some(keyword => lowerInput.includes(keyword)) ||
+           cameraKeywords.some(keyword => lowerInput.includes(keyword));
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
@@ -55,11 +62,13 @@ export class NetworkScanPlugin implements Plugin {
       throw new Error('Network Scanner not initialized');
     }
 
+    const isCameraQuery = input.toLowerCase().includes('kamer') || input.toLowerCase().includes('camera');
+
     try {
-      console.log('Starting network scan...');
+      console.log(`Starting network scan for ${isCameraQuery ? 'cameras' : 'devices'}...`);
       const result = await this.networkScanner.scanNetwork();
 
-      const content = this.formatScanResult(result);
+      const content = this.formatScanResult(result, isCameraQuery);
       
       return {
         pluginId: this.id,
@@ -67,7 +76,7 @@ export class NetworkScanPlugin implements Plugin {
         content: [{
           type: 'text',
           data: content,
-          title: 'Wyniki skanowania sieci'
+          title: isCameraQuery ? 'Wyniki wyszukiwania kamer' : 'Wyniki skanowania sieci'
         }],
         metadata: {
           duration_ms: result.scanDuration,
@@ -76,7 +85,8 @@ export class NetworkScanPlugin implements Plugin {
           deviceCount: result.devices.length,
           scanDuration: result.scanDuration,
           scanMethod: result.scanMethod,
-          executionTime: result.scanDuration
+          executionTime: result.scanDuration,
+          queryType: isCameraQuery ? 'camera_discovery' : 'network_scan'
         },
       };
 
@@ -87,21 +97,25 @@ export class NetworkScanPlugin implements Plugin {
         status: 'error',
         content: [{
           type: 'text',
-          data: `Wystąpił błąd podczas skanowania sieci: ${error instanceof Error ? error.message : 'Nieznany błąd'}`
+          data: `Wystąpił błąd podczas ${isCameraQuery ? 'wyszukiwania kamer' : 'skanowania sieci'}: ${error instanceof Error ? error.message : 'Nieznany błąd'}`
         }],
         metadata: {
           duration_ms: 0,
           cached: false,
-          truncated: false
+          truncated: false,
+          queryType: isCameraQuery ? 'camera_discovery' : 'network_scan'
         },
       };
     }
   }
 
-  private formatScanResult(result: any): string {
+  private formatScanResult(result: any, isCameraQuery = false): string {
     const { devices, scanDuration, scanMethod } = result;
     
-    let content = `🔍 **Skanowanie sieci zakończone**\n\n`;
+    let content = isCameraQuery 
+      ? `📷 **Wyszukiwanie kamer zakończone**\n\n`
+      : `🔍 **Skanowanie sieci zakończone**\n\n`;
+    
     content += `Metoda: ${scanMethod}\n`;
     content += `Czas trwania: ${scanDuration}ms\n`;
     content += `Znaleziono urządzeń: ${devices.length}\n\n`;
@@ -109,9 +123,30 @@ export class NetworkScanPlugin implements Plugin {
     if (devices.length === 0) {
       content += `Nie znaleziono żadnych urządzeń w sieci.\n`;
     } else {
-      content += `**Znalezione urządzenia:**\n\n`;
+      // Filter for camera-like devices if this is a camera query
+      const relevantDevices = isCameraQuery 
+        ? devices.filter((device: any) => 
+            device.hostname?.toLowerCase().includes('cam') ||
+            device.hostname?.toLowerCase().includes('ipcam') ||
+            device.vendor?.toLowerCase().includes('hikvision') ||
+            device.vendor?.toLowerCase().includes('dahua') ||
+            device.openPorts.some((port: number) => [554, 80, 8080, 8000].includes(port)) ||
+            device.openPorts.some((port: number) => port >= 8000 && port <= 9000)
+          )
+        : devices;
+
+      if (isCameraQuery && relevantDevices.length === 0) {
+        content += `Nie znaleziono kamer w sieci.\n\n`;
+        content += `**Wszystkie znalezione urządzenia:**\n\n`;
+      } else {
+        content += isCameraQuery 
+          ? `**Znalezione kamery:**\n\n`
+          : `**Znalezione urządzenia:**\n\n`;
+      }
       
-      devices.forEach((device: any, index: number) => {
+      const devicesToShow = isCameraQuery && relevantDevices.length > 0 ? relevantDevices : devices;
+      
+      devicesToShow.forEach((device: any, index: number) => {
         content += `${index + 1}. **${device.ip}**\n`;
         if (device.hostname) {
           content += `   Hostname: ${device.hostname}\n`;
@@ -130,7 +165,7 @@ export class NetworkScanPlugin implements Plugin {
       });
     }
 
-    content += `💡 *Możesz teraz zapytać o szczegóły konkretnego urządzenia lub usługę.*`;
+    content += `💡 *Możesz teraz zapytać o szczegóły konkretnego urządzenia lub spróbować połączyć się z kamerą.*`;
     
     return content;
   }

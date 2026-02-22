@@ -19,6 +19,7 @@ export interface PluginContext {
   cameras?: CameraConfig[];
   mqtt?: MqttConfig;
   describeImage?: (imageUrl: string) => Promise<string>;
+  scope?: string; // Add scope to plugin context
 }
 
 export interface CameraConfig {

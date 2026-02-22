@@ -24,7 +24,29 @@ export class HttpBrowsePlugin implements Plugin {
     const startTime = Date.now();
 
     try {
-      // Use existing browseGateway logic for now
+      // Check if scope is local - if so, don't browse the internet
+      if (context.scope === 'local') {
+        return {
+          pluginId: this.id,
+          status: 'error',
+          content: [
+            {
+              type: 'text',
+              data: 'Przeszukiwanie internetu nie jest dostępne w zakresie "Sieć lokalna". Zmień zakres na "Internet", aby wyszukać w sieci.',
+              title: 'Ograniczenie zakresu'
+            }
+          ],
+          metadata: {
+            duration_ms: Date.now() - startTime,
+            cached: false,
+            truncated: false,
+            executionTime: Date.now() - startTime,
+            scope: context.scope,
+          },
+        };
+      }
+
+      // Use existing browseGateway logic for non-local scopes
       const { executeBrowseCommand } = await import('../../lib/browseGateway');
       
       // Resolve URL using existing resolver
@@ -60,6 +82,7 @@ export class HttpBrowsePlugin implements Plugin {
           url: result.url,
           resolveType: resolved.resolveType,
           executionTime: Date.now() - startTime,
+          scope: context.scope,
         },
       };
 
@@ -80,6 +103,7 @@ export class HttpBrowsePlugin implements Plugin {
           cached: false,
           truncated: false,
           executionTime: Date.now() - startTime,
+          scope: context.scope,
         },
       };
     }

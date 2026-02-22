@@ -10,6 +10,7 @@ import {
   Copy,
   Bot,
   Wifi,
+  ChevronDown,
 } from "lucide-react";
 import { resolve } from "../lib/resolver";
 import { looksLikeUrl } from "../lib/phonetic";
@@ -47,11 +48,20 @@ interface ChatProps {
   settings: AudioSettings;
 }
 
+type QueryScope = 'local' | 'internet' | 'tor' | 'vpn';
+
+interface ScopeOption {
+  id: QueryScope;
+  name: string;
+  icon: React.ReactNode;
+  description: string;
+}
+
 export default function Chat({ settings }: ChatProps) {
   // State managed by CQRS Event Store
   const { commands, eventStore } = useCqrs();
   const messages = useChatMessages();
-  const { ask } = usePlugins();
+  const { ask, detectIntent } = usePlugins();
 
   const [input, setInput] = useState("");
   const [expandedImage, setExpandedImage] = useState<string | null>(null);
@@ -64,8 +74,38 @@ export default function Chat({ settings }: ChatProps) {
   const [showQuickHistory, setShowQuickHistory] = useState(false);
   const [discoveredCameras, setDiscoveredCameras] = useState<CameraPreviewProps['camera'][]>([]);
   const [selectedCamera, setSelectedCamera] = useState<CameraPreviewProps['camera'] | null>(null);
+  const [currentScope, setCurrentScope] = useState<QueryScope>('local');
+  const [showScopeSelector, setShowScopeSelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatLogger = logger.scope("chat:ui");
+
+  // Scope options configuration
+  const scopeOptions: ScopeOption[] = [
+    {
+      id: 'local',
+      name: 'Sieć lokalna',
+      icon: <Wifi size={16} />,
+      description: 'Przeszukuj tylko Twoją lokalną sieć'
+    },
+    {
+      id: 'internet',
+      name: 'Internet',
+      icon: <Globe size={16} />,
+      description: 'Przeszukuj cały internet'
+    },
+    {
+      id: 'tor',
+      name: 'Tor',
+      icon: <Search size={16} />,
+      description: 'Przeszukuj przez sieć Tor'
+    },
+    {
+      id: 'vpn',
+      name: 'VPN',
+      icon: <Zap size={16} />,
+      description: 'Przeszukuj przez połączenie VPN'
+    }
+  ];
 
   // Get recent user queries for suggestions
   const getRecentQueries = () => {
@@ -74,6 +114,21 @@ export default function Chat({ settings }: ChatProps) {
       .map(msg => msg.text)
       .slice(-5);
   };
+
+  // Close scope selector when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showScopeSelector) {
+        const target = event.target as Element;
+        if (!target.closest('.scope-selector-container')) {
+          setShowScopeSelector(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showScopeSelector]);
 
   // Auto-watch integration
   useEffect(() => {
@@ -1018,44 +1073,45 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
       return;
     }
 
+    let detectedIntent: string | null = null;
+    try {
+      const intentDetection = await detectIntent(query);
+      detectedIntent = intentDetection.intent;
+    } catch (error) {
+      chatLogger.warn("Intent detection failed, continuing with fallback flow", error);
+    }
+
+    if (detectedIntent === "network:scan") {
+      if (!selectedNetwork) {
+        chatLogger.info("Network scan intent detected without selected network, prompting user");
+        setPendingNetworkQuery(query);
+        await sendNetworkSelectionMessage(query);
+        return;
+      }
+
+      await executeNetworkQuery(query, selectedNetwork);
+      return;
+    }
+
     // Hide command history when user submits
     setShowCommandHistory(false);
 
     // Check if this is an ambiguous query and suggest options
-    if (checkIfAmbiguousQuery(query)) {
+    if ((!detectedIntent || detectedIntent === "chat:ask") && checkIfAmbiguousQuery(query)) {
       chatLogger.info('Ambiguous query detected, sending suggestions', { query });
       await sendAmbiguousQuerySuggestions(query);
       return;
     }
 
-    // Check if this is the first message and we should ask about network
-    if (messages.length === 0 && !selectedNetwork && !containsUrl(query) && query.length < 20) {
-      chatLogger.info('First message detected, asking about network');
-      await sendNetworkSelectionMessage(query);
-      return;
-    }
-
-    // Check if this is a network-related query
-    if (checkIfNetworkQuery(query)) {
-      chatLogger.info('Network query detected', { query });
-      
-      // Check if user wants to change network scope
-      const wantsGlobalNetwork = query.toLowerCase().includes('global') || 
-                               query.toLowerCase().includes('globalnie') ||
-                               query.toLowerCase().includes('tor') ||
-                               query.toLowerCase().includes('vpn');
-      
-      // If user wants different network or no network selected, show selector
-      if (!selectedNetwork || wantsGlobalNetwork) {
-        setPendingNetworkQuery(query);
-        await sendNetworkSelectionMessage(query);
-        return;
-      }
-      
-      // If network is selected, proceed with network query
-      setPendingNetworkQuery(query);
-      handleNetworkSelect(selectedNetwork);
-      setInput("");
+    // Check if this is the first message and we should suggest features
+    if (
+      (!detectedIntent || detectedIntent === "chat:ask") &&
+      messages.length === 0 &&
+      !containsUrl(query) &&
+      query.length < 20
+    ) {
+      chatLogger.info('First message detected, showing welcome suggestions');
+      await sendAmbiguousQuerySuggestions(query);
       return;
     }
 
@@ -1075,13 +1131,14 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
     });
 
     try {
-      // Use plugin system to handle the query
-      const result = await ask(query, isListening || stt.isRecording ? "voice" : "text");
+      // Use plugin system to handle the query with scope information
+      const result = await ask(query, isListening || stt.isRecording ? "voice" : "text", currentScope);
       
       chatLogger.info("Plugin system result", {
         status: result.status,
         contentBlocks: result.content.length,
         executionTime: result.metadata.duration_ms,
+        scope: currentScope,
       });
 
       if (result.status === 'success') {
@@ -1695,6 +1752,62 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
         {/* Input bar */}
         <div className="border-t border-gray-800 bg-gray-900/80 px-4 py-4 backdrop-blur">
           <div className="mx-auto max-w-3xl">
+            {/* Scope Selector */}
+            <div className="mb-3 flex items-center justify-between scope-selector-container">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">Zakres:</span>
+                <button
+                  onClick={() => setShowScopeSelector(!showScopeSelector)}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition ${
+                    currentScope === 'local' 
+                      ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
+                      : 'bg-broxeen-600/20 text-broxeen-400 border border-broxeen-600/30 hover:bg-broxeen-600/30'
+                  }`}
+                >
+                  {scopeOptions.find(option => option.id === currentScope)?.icon}
+                  <span>{scopeOptions.find(option => option.id === currentScope)?.name}</span>
+                  <ChevronDown size={14} className={`transition-transform ${showScopeSelector ? 'rotate-180' : ''}`} />
+                </button>
+                {currentScope !== 'local' && (
+                  <span className="text-xs text-amber-400">
+                    ⚠️ Przeszukujesz poza siecią lokalną
+                  </span>
+                )}
+              </div>
+              
+              {/* Scope Selector Dropdown */}
+              {showScopeSelector && (
+                <div className="absolute bottom-full left-4 right-4 mb-2 z-50 rounded-lg bg-gray-800 border border-gray-700 shadow-lg">
+                  <div className="p-2">
+                    {scopeOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        onClick={() => {
+                          setCurrentScope(option.id);
+                          setShowScopeSelector(false);
+                          chatLogger.info('Scope changed', { from: currentScope, to: option.id });
+                        }}
+                        className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left transition ${
+                          currentScope === option.id
+                            ? 'bg-broxeen-600 text-white'
+                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                        }`}
+                      >
+                        {option.icon}
+                        <div className="flex-1">
+                          <div className="text-sm font-medium">{option.name}</div>
+                          <div className="text-xs text-gray-400">{option.description}</div>
+                        </div>
+                        {currentScope === option.id && (
+                          <div className="w-2 h-2 rounded-full bg-white"></div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            
             <div className="flex items-center gap-3">
               {settings.mic_enabled && (speechSupported || stt.isSupported) && (
                 <button

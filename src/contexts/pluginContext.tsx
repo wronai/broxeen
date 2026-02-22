@@ -31,6 +31,7 @@ interface PluginContextValue {
   ask: (
     rawInput: string,
     source?: "voice" | "text" | "api",
+    scope?: string
   ) => Promise<PluginResult>;
 
   /** List all registered plugins */
@@ -57,7 +58,7 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
       executeCommand: <T,>(command: string, payload?: T) => 
         context.commandBus.execute(command, payload),
 
-      ask: async (rawInput, source = "text") => {
+      ask: async (rawInput, source = "text", scope = "local") => {
         const intent = await context.intentRouter.detect(rawInput);
         const plugin = context.intentRouter.route(intent.intent);
         
@@ -69,6 +70,7 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
         const pluginContext = {
           isTauri: typeof window !== 'undefined' && !!(window as any).__TAURI__,
           tauriInvoke: (window as any).__TAURI__?.core?.invoke,
+          scope, // Pass scope to plugin context
         };
 
         // Check if it's a DataSourcePlugin (new API) or Plugin (old API)
@@ -77,11 +79,12 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
           const query = {
             intent: intent.intent,
             rawInput,
-            params: intent.entities || {},
+            params: { ...intent.entities, scope }, // Include scope in params
             metadata: {
               timestamp: Date.now(),
               source,
-              locale: 'pl-PL'
+              locale: 'pl-PL',
+              scope // Include scope in metadata
             }
           };
           const result = await plugin.execute(query);

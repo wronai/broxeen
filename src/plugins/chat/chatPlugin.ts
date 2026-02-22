@@ -19,6 +19,35 @@ export class ChatLlmPlugin implements Plugin {
     const startTime = Date.now();
 
     try {
+      // Check if scope is local and this looks like an internet search query
+      if (context.scope === 'local') {
+        const isSearchQuery = input.toLowerCase().includes('wyszukaj') || 
+                             input.toLowerCase().includes('znajdź') ||
+                             input.toLowerCase().includes('szukaj') ||
+                             input.length < 20; // Short queries are often searches
+        
+        if (isSearchQuery) {
+          return {
+            pluginId: this.id,
+            status: 'error',
+            content: [
+              {
+                type: 'text',
+                data: 'Wyszukiwanie w internecie nie jest dostępne w zakresie "Sieć lokalna". Zmień zakres na "Internet", aby wyszukać w sieci, lub spróbuj bardziej szczegółowe zapytanie.',
+                title: 'Ograniczenie zakresu'
+              }
+            ],
+            metadata: {
+              duration_ms: Date.now() - startTime,
+              cached: false,
+              truncated: false,
+              executionTime: Date.now() - startTime,
+              scope: context.scope,
+            },
+          };
+        }
+      }
+
       // Use existing LLM client for now
       const llmModule = await import('../../lib/llmClient');
       
@@ -39,6 +68,7 @@ export class ChatLlmPlugin implements Plugin {
           cached: false,
           truncated: false,
           executionTime: Date.now() - startTime, // Legacy compatibility
+          scope: context.scope,
         },
       };
       }
@@ -62,6 +92,7 @@ export class ChatLlmPlugin implements Plugin {
           cached: false,
           truncated: false,
           executionTime: Date.now() - startTime, // Legacy compatibility
+          scope: context.scope,
         },
       };
 
@@ -82,6 +113,7 @@ export class ChatLlmPlugin implements Plugin {
           cached: false,
           truncated: false,
           executionTime: Date.now() - startTime, // Legacy compatibility
+          scope: context.scope,
         },
       };
     }
