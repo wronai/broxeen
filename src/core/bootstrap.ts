@@ -163,6 +163,16 @@ async function registerCorePlugins(
     safeRegister(registry, router, new ProcessesPlugin(), 'ProcessesPlugin');
   } catch (e) { console.warn('ProcessesPlugin unavailable:', e); }
 
+  try {
+    const { DiskInfoPlugin } = await import('../plugins/system/diskInfoPlugin');
+    safeRegister(registry, router, new DiskInfoPlugin(), 'DiskInfoPlugin');
+  } catch (e) { console.warn('DiskInfoPlugin unavailable:', e); }
+
+  try {
+    const { SshPlugin } = await import('../plugins/system/sshPlugin');
+    safeRegister(registry, router, new SshPlugin(), 'SshPlugin');
+  } catch (e) { console.warn('SshPlugin unavailable:', e); }
+
   // ── Protocol Bridge plugin ──────────────────────────────────────
 
   try {

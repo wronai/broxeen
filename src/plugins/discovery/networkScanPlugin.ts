@@ -39,6 +39,14 @@ export class NetworkScanPlugin implements Plugin {
     const scanId = `scan:${Date.now()}`;
     const scanLabel = isCameraQuery ? 'Skanowanie kamer' : 'Skanowanie sieci';
 
+    // Extract subnet from input if provided (e.g. "skanuj 192.168.188" or "pokaż kamery 192.168.0")
+    const subnetMatch = input.match(/(\d{1,3}\.\d{1,3}\.\d{1,3})/);
+    const userSpecifiedSubnet = subnetMatch ? subnetMatch[1] : null;
+    
+    if (userSpecifiedSubnet) {
+      console.log(`[NetworkScanPlugin] User specified subnet: ${userSpecifiedSubnet}`);
+    }
+
     processRegistry.upsertRunning({
       id: scanId,
       type: 'scan',
@@ -94,9 +102,8 @@ export class NetworkScanPlugin implements Plugin {
       }
 
       console.log(`[NetworkScanPlugin] Using browser fallback - isTauri: ${context.isTauri}, hasInvoke: !!${context.tauriInvoke}`);
-      const fallbackResult = await this.browserFallback(isCameraQuery, start);
+      const fallbackResult = await this.browserFallback(isCameraQuery, start, userSpecifiedSubnet);
       processRegistry.complete(scanId);
-      processRegistry.remove(scanId);
       return fallbackResult;
     } catch (err) {
       processRegistry.fail(scanId, String(err));
@@ -105,9 +112,58 @@ export class NetworkScanPlugin implements Plugin {
     }
   }
 
-  private async browserFallback(isCameraQuery: boolean, start: number): Promise<PluginResult> {
-    // Step 1: Detect local subnet via multiple strategies
-    const { localIp, subnet, detectionMethod } = await this.detectSubnet();
+  private async browserFallback(isCameraQuery: boolean, start: number, userSpecifiedSubnet: string | null = null): Promise<PluginResult> {
+    // Step 1: Detect local subnet (or use user-specified one)
+    let localIp: string | null = null;
+    let subnet: string;
+    let detectionMethod: string;
+    
+    if (userSpecifiedSubnet) {
+      // User specified subnet directly (e.g. "skanuj 192.168.188")
+      subnet = userSpecifiedSubnet;
+      detectionMethod = 'user-specified';
+      console.log(`[NetworkScanPlugin] Using user-specified subnet: ${subnet}`);
+    } else {
+      // Auto-detect subnet
+      const detection = await this.detectSubnet();
+      localIp = detection.localIp;
+      subnet = detection.subnet;
+      detectionMethod = detection.detectionMethod;
+      
+      // Handle multiple interfaces - ask user to choose
+      if (detectionMethod === 'user-selection-required') {
+        const interfaces = (detection as any).interfaces as Array<[string, string]>;
+        const lines = [
+          '🌐 **Wykryto wiele interfejsów sieciowych**\n',
+          'Wybierz interfejs do skanowania:\n',
+        ];
+        
+        interfaces.forEach(([ifaceName, ip], index) => {
+          const subnet = ip.split('.').slice(0, 3).join('.');
+          lines.push(`**${index + 1}. ${ifaceName}** — ${ip} (podsieć: ${subnet}.0/24)`);
+          lines.push(`   💬 Skanuj: *"skanuj ${subnet}"* lub *"pokaż kamery ${subnet}"*\n`);
+        });
+        
+        lines.push('---');
+        lines.push('💡 **Sugerowane akcje:**');
+        interfaces.forEach(([ifaceName, ip], index) => {
+          const subnet = ip.split('.').slice(0, 3).join('.');
+          const action = isCameraQuery ? `pokaż kamery ${subnet}` : `skanuj ${subnet}`;
+          lines.push(`- "${action}" — Skanuj ${ifaceName} (${ip})`);
+        });
+        
+        return {
+          pluginId: this.id,
+          status: 'success',
+          content: [{ 
+            type: 'text', 
+            data: lines.join('\n'), 
+            title: 'Wybór interfejsu sieciowego' 
+          }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false } as any,
+        };
+      }
+    }
 
     console.log(`[NetworkScanPlugin] Browser scan: subnet=${subnet} (via ${detectionMethod}), localIp=${localIp || 'unknown'}`);
 
@@ -123,70 +179,30 @@ export class NetworkScanPlugin implements Plugin {
     const probeIps = [...allOffsets].map(n => `${subnet}.${n}`);
 
     // Step 3: Multi-strategy probe on common ports
-    const httpPorts = isCameraQuery ? [80, 8080, 8000, 8888, 8554, 81] : [80, 443, 8080];
+    const httpPorts = isCameraQuery ? [554, 8554, 80, 8080] : [80, 443, 8080];
     const httpFound: Array<{ ip: string; port: number; method: string }> = [];
 
-    // Timing threshold: real TCP handshake takes >15ms even on fast LAN
-    // jsdom/blocked requests fire onerror in <5ms
-    const TIMING_THRESHOLD_MS = 15;
-
-    const probeHttp = (ip: string, port: number): Promise<void> =>
-      new Promise((resolve) => {
-        let settled = false;
-        const done = (method: string) => {
-          if (!settled) { settled = true; httpFound.push({ ip, port, method }); }
-          resolve();
-        };
-        const fail = () => { if (!settled) { settled = true; } resolve(); };
-        const t0 = Date.now();
-
-        const probeTimeout = setTimeout(() => {
-          fail();
-        }, 2500);
-
-        // Strategy A: Image probe — bypasses CORS, timing-gated
-        const img = new Image();
-        img.onload = () => { clearTimeout(probeTimeout); done('img-load'); };
-        img.onerror = () => {
-          if (Date.now() - t0 > TIMING_THRESHOLD_MS) {
-            clearTimeout(probeTimeout);
-            done('img-timing');
-          }
-        };
-        img.src = `http://${ip}:${port}/?_probe=${Date.now()}`;
-
-        // Strategy B: no-cors fetch — opaque response = host reachable
-        fetch(`http://${ip}:${port}/`, {
-          method: 'HEAD', mode: 'no-cors',
-          signal: AbortSignal.timeout(2000),
-        }).then(() => {
-          clearTimeout(probeTimeout);
-          done('fetch-ok');
-        }).catch(() => {
-          // Expected for most IPs
+    // fetch no-cors: resolves (opaque) = host alive on that port, rejects = unreachable/closed.
+    // Timing gates are removed — they cause false positives in WebKitGTK/Chromium
+    // because CORS-blocked requests to non-existent IPs often take >15ms.
+    const probeHttp = (ip: string, port: number): Promise<void> => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 1500);
+      return fetch(`http://${ip}:${port}/`, {
+        method: 'HEAD',
+        mode: 'no-cors',
+        signal: controller.signal,
+      })
+        .then(() => {
+          httpFound.push({ ip, port, method: 'fetch-ok' });
+        })
+        .catch(() => {
+          // Host not reachable on this port — expected for most IPs
+        })
+        .finally(() => {
+          clearTimeout(timer);
         });
-
-        // Strategy C: WebSocket probe — connection attempt reveals host
-        try {
-          const ws = new WebSocket(`ws://${ip}:${port}/`);
-          const wsTimer = setTimeout(() => { try { ws.close(); } catch {} }, 2000);
-          ws.onopen = () => {
-            clearTimeout(wsTimer); clearTimeout(probeTimeout);
-            try { ws.close(); } catch {}
-            done('ws-open');
-          };
-          ws.onerror = () => {
-            clearTimeout(wsTimer);
-            // WebSocket onerror with timing gate — real host triggers TCP handshake
-            if (Date.now() - t0 > TIMING_THRESHOLD_MS) {
-              clearTimeout(probeTimeout);
-              done('ws-timing');
-            }
-          };
-        } catch {
-          // WebSocket constructor may throw in some environments
-        }
-      });
+    };
 
     const batchSize = 10;
     console.log(`[NetworkScanPlugin] Probing ${probeIps.length} IPs × ${httpPorts.length} ports (batch=${batchSize})`);
@@ -208,36 +224,10 @@ export class NetworkScanPlugin implements Plugin {
     const httpHosts = [...httpByIp.entries()].map(([ip, { port, method }]) => ({ ip, port, method }));
     console.log(`[NetworkScanPlugin] Scan complete: ${httpHosts.length} hosts found`, httpHosts.map(h => `${h.ip}:${h.port}(${h.method})`));
 
-    // Step 4: Secondary RTSP probe on found HTTP hosts (port 8554 also, 554 is TCP-only but img timing works)
+    // Step 4: IPs with port 554 or 8554 already captured in httpFound — mark as RTSP cameras
     const rtspHosts = new Set<string>();
-    if (httpHosts.length > 0) {
-      await Promise.allSettled(
-        httpHosts.map(({ ip }) =>
-          new Promise<void>((resolve) => {
-            const t0 = Date.now();
-            const img = new Image();
-            const timer = setTimeout(() => { 
-              img.src = ''; 
-              resolve(); 
-            }, 1200);
-            img.onload = () => { 
-              clearTimeout(timer); 
-              rtspHosts.add(ip); 
-              resolve(); 
-            };
-            img.onerror = () => {
-              clearTimeout(timer);
-              // Timing gate: real TCP connection takes >50ms
-              if (Date.now() - t0 > 50) { 
-                rtspHosts.add(ip); 
-              }
-              resolve();
-            };
-            // Use generic probe endpoint for RTSP port as well
-            img.src = `http://${ip}:554/?_probe=${Date.now()}`;
-          })
-        )
-      );
+    for (const { ip, port } of httpFound) {
+      if (port === 554 || port === 8554) rtspHosts.add(ip);
     }
 
     // Step 5: Classify and format results
@@ -283,14 +273,14 @@ export class NetworkScanPlugin implements Plugin {
 
       for (const { ip, port } of httpHosts) {
         const hasRtsp = rtspHosts.has(ip);
-        const isCameraPort = [8000, 8080, 8888].includes(port);
-        const isCamera = hasRtsp || isCameraPort;
+        const isCamera = hasRtsp; // only confirmed RTSP port 554/8554 = camera
 
         if (isCamera) {
           cameras.push(ip);
-          lines.push(`📷 **${ip}** *(kamera)* — port HTTP: ${port}${hasRtsp ? ', RTSP: 554' : ''}`);
-          lines.push(`   🎥 RTSP: \`rtsp://${ip}:554/stream\``);
-          lines.push(`   🌐 HTTP: \`http://${ip}:${port}\``);
+          const rtspPort = httpFound.find(h => h.ip === ip && (h.port === 8554))?.port === 8554 ? 8554 : 554;
+          lines.push(`📷 **${ip}** *(kamera RTSP)*`);
+          lines.push(`   🎥 RTSP: \`rtsp://${ip}:${rtspPort}/stream\``);
+          if (port !== 554 && port !== 8554) lines.push(`   🌐 HTTP: \`http://${ip}:${port}\``);
           lines.push(`   💬 Monitoruj: *"monitoruj ${ip}"*`);
         } else {
           others.push(ip);
@@ -319,6 +309,7 @@ export class NetworkScanPlugin implements Plugin {
 
   /**
    * Multi-strategy local subnet detection:
+   * 0. Tauri backend - most reliable (reads from OS network interfaces)
    * 1. WebRTC ICE candidates (works in Chrome/Firefox, not Tauri WebKitGTK)
    * 2. Gateway probe — try common gateway IPs to infer subnet
    * 3. Default fallback
@@ -326,7 +317,49 @@ export class NetworkScanPlugin implements Plugin {
   private async detectSubnet(): Promise<{ localIp: string | null; subnet: string; detectionMethod: string }> {
     console.log(`[NetworkScanPlugin] Starting subnet detection...`);
     
-    // Strategy 1: WebRTC - most reliable, gets actual local IP from OS
+    // Strategy 0: Tauri backend - 100% reliable, reads from OS
+    if (typeof window !== 'undefined' && (window as any).__TAURI__) {
+      try {
+        const { invoke } = (window as any).__TAURI__.core;
+        console.log(`[NetworkScanPlugin] Trying Tauri backend network detection...`);
+        
+        // Get all network interfaces
+        const interfaces = await invoke('list_network_interfaces') as Array<[string, string]>;
+        console.log(`[NetworkScanPlugin] Found ${interfaces.length} network interfaces:`, interfaces);
+        
+        if (interfaces.length === 0) {
+          console.warn(`[NetworkScanPlugin] ⚠️ No network interfaces found`);
+        } else if (interfaces.length === 1) {
+          // Single interface - use it directly
+          const [ifaceName, ip] = interfaces[0];
+          const subnet = ip.split('.').slice(0, 3).join('.');
+          console.log(`[NetworkScanPlugin] ✅ Tauri detected: IP=${ip}, subnet=${subnet}, interface=${ifaceName}`);
+          return {
+            localIp: ip,
+            subnet,
+            detectionMethod: `Tauri (${ifaceName})`,
+          };
+        } else {
+          // Multiple interfaces - ask user which one to use
+          console.log(`[NetworkScanPlugin] Multiple interfaces detected, prompting user...`);
+          
+          // Store interfaces for user selection
+          (this as any)._pendingInterfaces = interfaces;
+          
+          // Return special result that triggers user prompt
+          return {
+            localIp: null,
+            subnet: '',
+            detectionMethod: 'user-selection-required',
+            interfaces, // Pass interfaces for UI to display
+          } as any;
+        }
+      } catch (err) {
+        console.warn(`[NetworkScanPlugin] ⚠️ Tauri network detection failed:`, err);
+      }
+    }
+    
+    // Strategy 1: WebRTC - most reliable for browser, gets actual local IP from OS
     const webrtcIp = await this.detectLocalIpViaWebRTC();
     if (webrtcIp) {
       const subnet = webrtcIp.split('.').slice(0, 3).join('.');
@@ -481,36 +514,25 @@ export class NetworkScanPlugin implements Plugin {
   }
 
   private probeGateway(subnet: string): Promise<boolean> {
-    return new Promise((resolve) => {
-      const gatewayIp = `${subnet}.1`;
-      const t0 = Date.now();
-      const img = new Image();
-      const timer = setTimeout(() => { 
-        img.src = ''; 
-        resolve(false);
-      }, 800); // Shorter timeout for faster detection
-
-      img.onload = () => {
+    const gatewayIp = `${subnet}.1`;
+    // Use fetch no-cors: resolves (opaque) = gateway reachable, rejects = unreachable.
+    // Timing gates removed — they produce false positives in WebKitGTK/Chromium
+    // where CORS-blocked requests to non-existent IPs can take >15ms.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 1200);
+    return fetch(`http://${gatewayIp}/`, {
+      method: 'HEAD',
+      mode: 'no-cors',
+      signal: controller.signal,
+    })
+      .then(() => {
+        console.log(`[NetworkScanPlugin] Gateway ${gatewayIp} reachable`);
+        return true;
+      })
+      .catch(() => false)
+      .finally(() => {
         clearTimeout(timer);
-        console.log(`[NetworkScanPlugin] Gateway ${gatewayIp} responded (onload)`);
-        resolve(true);
-      };
-      img.onerror = () => {
-        clearTimeout(timer);
-        const elapsed = Date.now() - t0;
-        // Timing gate: real TCP connection takes >15ms
-        // Blocked/non-existent hosts fail in <5ms
-        if (elapsed > 15) {
-          console.log(`[NetworkScanPlugin] Gateway ${gatewayIp} responded (onerror, ${elapsed}ms)`);
-          resolve(true); // Gateway responded (even with error = it's reachable)
-        } else {
-          console.log(`[NetworkScanPlugin] Gateway ${gatewayIp} blocked/non-existent (${elapsed}ms)`);
-          resolve(false);
-        }
-      };
-      // Use generic probe endpoint for gateway as well
-      img.src = `http://${gatewayIp}/?_probe=${Date.now()}`;
-    });
+      });
   }
 
   private isPrivateIp(ip: string): boolean {

@@ -299,6 +299,52 @@ export class IntentRouter implements IIntentRouter {
       /protokół.*most|protokol.*most/i,
     ]);
 
+    // Disk info intents
+    this.intentPatterns.set('disk:info', [
+      /dysk/i,
+      /disk/i,
+      /partycj/i,
+      /partition/i,
+      /ile.*miejsca/i,
+      /ile.*wolnego/i,
+      /ile.*zajęte/i,
+      /ile.*zajete/i,
+      /wolne.*miejsce/i,
+      /storage/i,
+      /\bdf\b/i,
+      /pojemność.*dysk/i,
+      /pojemnosc.*dysk/i,
+      /miejsce.*na.*dysku/i,
+      /disk.*usage/i,
+      /disk.*space/i,
+      /disk.*info/i,
+    ]);
+
+    // SSH intents
+    this.intentPatterns.set('ssh:execute', [
+      /^ssh\s/i,
+      /text2ssh/i,
+      /wykonaj.*na.*\d{1,3}\.\d{1,3}/i,
+      /run\s+on\s+\d{1,3}\.\d{1,3}/i,
+      /połącz.*ssh/i,
+      /polacz.*ssh/i,
+      /ssh.*connect/i,
+      /zdaln.*komend/i,
+      /remote.*command/i,
+      /sprawdź.*na.*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/i,
+      /sprawdz.*na.*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/i,
+    ]);
+
+    this.intentPatterns.set('ssh:hosts', [
+      /ssh.*host/i,
+      /znane.*host/i,
+      /known.*host/i,
+      /^ssh$/i,
+      /test.*ssh/i,
+      /sprawdź.*ssh/i,
+      /sprawdz.*ssh/i,
+    ]);
+
     // IoT/MQTT intents
     this.intentPatterns.set('iot:read', [
       /jaka.*temperatura/i,
@@ -403,6 +449,9 @@ export class IntentRouter implements IIntentRouter {
       'bridge:list': ['lista', 'bridge', 'pokaż'],
       'bridge:status': ['status', 'bridge', 'most', 'protokół'],
       'search:web': ['wyszukaj', 'znajdź', 'szukaj'],
+      'disk:info': ['dysk', 'disk', 'partycj', 'miejsce', 'wolne', 'storage', 'df'],
+      'ssh:execute': ['ssh', 'text2ssh', 'zdaln', 'wykonaj', 'połącz'],
+      'ssh:hosts': ['ssh', 'hosty', 'known_hosts'],
     };
 
     const keywords = keywordMap[intent] || [];
@@ -453,6 +502,23 @@ export class IntentRouter implements IIntentRouter {
       case 'network:wol': {
         const macAddr = input.match(/([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}/);
         if (macAddr) entities.mac = macAddr[0];
+        break;
+      }
+
+      case 'disk:info': {
+        const diskPath = input.match(/(?:ścieżk[aę]|path|katalog|folder)\s+(\S+)/i);
+        if (diskPath) entities.path = diskPath[1];
+        const diskHost = input.match(/(?:na|on|host)\s+(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/i);
+        if (diskHost) entities.remoteHost = diskHost[1];
+        break;
+      }
+
+      case 'ssh:execute':
+      case 'ssh:hosts': {
+        const sshIp = input.match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/);
+        if (sshIp) entities.host = sshIp[1];
+        const sshUser = input.match(/(?:user|użytkownik|jako)\s+(\S+)/i);
+        if (sshUser) entities.user = sshUser[1];
         break;
       }
 

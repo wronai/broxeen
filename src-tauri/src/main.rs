@@ -5,10 +5,13 @@ mod audio_commands;
 mod browse_rendered;
 mod content_cleaning;
 mod content_extraction;
+mod disk_info;
 mod llm;
 mod logging;
+mod network_info;
 mod network_scan;
 mod settings;
+mod ssh;
 mod stt;
 mod tts;
 mod tts_backend;
@@ -389,7 +392,7 @@ fn main() {
     }
 
     backend_info(
-        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network",
+        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network, get_disk_info, get_disk_usage, ssh_execute, ssh_test_connection, ssh_list_known_hosts",
     );
 
     let recording_state: SharedRecordingState = Arc::new(Mutex::new(audio_capture::RecordingState::new()));
@@ -429,6 +432,13 @@ fn main() {
             network_scan::discover_onvif_cameras,
             network_scan::discover_mdns,
             network_scan::scan_network,
+            network_info::get_local_network_info,
+            network_info::list_network_interfaces,
+            disk_info::get_disk_info,
+            disk_info::get_disk_usage,
+            ssh::ssh_execute,
+            ssh::ssh_test_connection,
+            ssh::ssh_list_known_hosts,
         ])
         .run(tauri::generate_context!())
     {
