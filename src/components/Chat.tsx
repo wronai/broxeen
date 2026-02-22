@@ -1415,12 +1415,23 @@ ${analysis}`,
                     }`}
                     onClick={
                       msg.role === "user"
-                        ? () => handleSubmit(msg.text)
+                        ? () => {
+                            setInput(msg.text);
+                            // Focus input field
+                            const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
+                            if (inputElement) {
+                              inputElement.focus();
+                              // Move cursor to end
+                              setTimeout(() => {
+                                inputElement.selectionStart = inputElement.selectionEnd = msg.text.length;
+                              }, 0);
+                            }
+                          }
                         : undefined
                     }
                     title={
                       msg.role === "user"
-                        ? "Kliknij, aby ponowić to zapytanie"
+                        ? "Kliknij, aby skopiować do pola chat"
                         : undefined
                     }
                   >
@@ -1464,8 +1475,26 @@ ${analysis}`,
                                   em: ({children}) => <em className="italic">{children}</em>,
                                   code: ({className, children}) => {
                                     const isInline = !className?.includes('language-');
+                                    const codeText = String(children).replace(/\n$/, '');
+                                    
                                     return isInline ? 
-                                      <code className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code> :
+                                      <code 
+                                        className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono cursor-pointer hover:bg-gray-600 transition-colors"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setInput(codeText);
+                                          const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
+                                          if (inputElement) {
+                                            inputElement.focus();
+                                            setTimeout(() => {
+                                              inputElement.selectionStart = inputElement.selectionEnd = codeText.length;
+                                            }, 0);
+                                          }
+                                        }}
+                                        title="Kliknij, aby skopiować do pola chat"
+                                      >
+                                        {children}
+                                      </code> :
                                       <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>;
                                   },
                                   ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
@@ -1523,7 +1552,7 @@ ${analysis}`,
                             .join('\n');
 
                           const hintPattern = /^-\s*"([^"]+)"(?:\s*[—–-]\s*(.+))?$/gm;
-                          const hints: Array<{ query: string; label: string }> = [];
+                          const hints: Array<{ query: string; label: string; isPrefill: boolean }> = [];
                           const seen = new Set<string>();
                           let m: RegExpExecArray | null;
 
@@ -1535,7 +1564,11 @@ ${analysis}`,
                             if (query.length > 200) continue;
                             if (seen.has(query)) continue;
                             seen.add(query);
-                            hints.push({ query, label });
+                            
+                            // Detect if this is a template to prefill (contains HASŁO, PASSWORD, etc.)
+                            const isPrefill = /HASŁO|PASSWORD|HASLO|USER|USERNAME|NAZWA/i.test(query);
+                            
+                            hints.push({ query, label, isPrefill });
                             if (hints.length >= 6) break;
                           }
 
@@ -1547,7 +1580,28 @@ ${analysis}`,
                                   key={hint.query}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleSubmit(hint.query);
+                                    if (hint.isPrefill) {
+                                      // Prefill input for editing
+                                      setInput(hint.query);
+                                      const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
+                                      if (inputElement) {
+                                        inputElement.focus();
+                                        // Select the placeholder text for easy replacement
+                                        setTimeout(() => {
+                                          const placeholderMatch = hint.query.match(/HASŁO|PASSWORD|HASLO|USER|USERNAME|NAZWA/i);
+                                          if (placeholderMatch) {
+                                            const placeholderPos = hint.query.indexOf(placeholderMatch[0]);
+                                            inputElement.selectionStart = placeholderPos;
+                                            inputElement.selectionEnd = placeholderPos + placeholderMatch[0].length;
+                                          } else {
+                                            inputElement.selectionStart = inputElement.selectionEnd = hint.query.length;
+                                          }
+                                        }, 0);
+                                      }
+                                    } else {
+                                      // Execute immediately
+                                      handleSubmit(hint.query);
+                                    }
                                   }}
                                   className="flex items-center gap-1.5 rounded-lg bg-broxeen-600/20 border border-broxeen-600/30 px-3 py-1.5 text-xs font-medium text-broxeen-300 hover:bg-broxeen-600/30 transition"
                                   title={hint.query}

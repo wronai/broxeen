@@ -52,7 +52,7 @@ export const BUILTIN_SCOPES: Record<ScopeId, Omit<ScopeDefinition, 'remotePlugin
     allowedPlugins: [
       'network-scan', 'network-ping', 'network-arp', 'network-mdns',
       'network-port-scan', 'network-onvif', 'network-wol',
-      'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot',
+      'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot', 'camera-live',
       'mqtt', 'service-probe', 'monitor', 'protocol-bridge', 'processes',
       'disk-info', 'ssh', 'advanced-port-scan', 'http-browse',
     ],
@@ -66,7 +66,7 @@ export const BUILTIN_SCOPES: Record<ScopeId, Omit<ScopeDefinition, 'remotePlugin
     allowedPlugins: [
       'network-scan', 'network-ping', 'network-arp', 'network-mdns',
       'network-port-scan', 'network-onvif', 'network-wol',
-      'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot',
+      'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot', 'camera-live',
       'mqtt', 'service-probe', 'monitor', 'protocol-bridge',
       'http-browse', 'chat-llm', 'marketplace', 'processes',
       'disk-info', 'ssh', 'advanced-port-scan',
@@ -89,7 +89,7 @@ export const BUILTIN_SCOPES: Record<ScopeId, Omit<ScopeDefinition, 'remotePlugin
     allowedPlugins: [
       'network-scan', 'network-ping', 'network-arp', 'network-mdns',
       'network-port-scan', 'network-onvif', 'network-wol',
-      'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot',
+      'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot', 'camera-live',
       'mqtt', 'service-probe', 'monitor', 'protocol-bridge',
       'http-browse', 'chat-llm', 'marketplace', 'processes',
       'disk-info', 'ssh', 'advanced-port-scan',

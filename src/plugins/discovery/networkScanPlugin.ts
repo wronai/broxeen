@@ -594,6 +594,8 @@ export class NetworkScanPlugin implements Plugin {
           const hasHttp = device.open_ports.includes(80) || device.open_ports.includes(8000);
           
           if (hasRtsp) {
+            const rtspPort = device.open_ports.includes(554) ? 554 : 8554;
+            content += `- "pokaż live ${device.ip}" — Podgląd na żywo z kamery\n`;
             content += `- "monitoruj ${device.ip}" — Rozpocznij monitoring kamery\n`;
           }
           if (hasHttp) {

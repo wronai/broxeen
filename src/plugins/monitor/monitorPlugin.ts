@@ -107,7 +107,7 @@ export class MonitorPlugin implements Plugin {
 
   // ── Start Monitoring ────────────────────────────────────
 
-  private handleStart(input: string, context: PluginContext, start: number): PluginResult {
+  private async handleStart(input: string, context: PluginContext, start: number): Promise<PluginResult> {
     const parsed = this.parseTarget(input);
     if (!parsed) {
       return this.errorResult(
@@ -143,13 +143,23 @@ export class MonitorPlugin implements Plugin {
       };
     }
 
-    // Generate RTSP URL for camera
+    // Save credentials to configStore for reuse
+    if (parsed.address && parsed.rtspUsername) {
+      configStore.set(`camera.credentials.${parsed.address}.username`, parsed.rtspUsername);
+      configStore.set(`camera.credentials.${parsed.address}.password`, parsed.rtspPassword ?? '');
+    }
+
+    // Generate RTSP URL + candidate HTTP snapshot URLs (Hikvision ISAPI / generic)
     let rtspUrl: string | undefined;
+    let snapshotUrl: string | undefined;
     if (parsed.type === 'camera' && parsed.address) {
-      const auth = parsed.rtspUsername && parsed.rtspPassword 
-        ? `${parsed.rtspUsername}:${parsed.rtspPassword}@` 
+      const auth = parsed.rtspUsername && parsed.rtspPassword
+        ? `${parsed.rtspUsername}:${parsed.rtspPassword}@`
         : '';
       rtspUrl = `rtsp://${auth}${parsed.address}:554/stream`;
+      if (parsed.rtspUsername) {
+        snapshotUrl = `http://${parsed.rtspUsername}:${parsed.rtspPassword ?? ''}@${parsed.address}/ISAPI/Streaming/channels/101/picture`;
+      }
     }
 
     const target: MonitorTarget = {
@@ -169,12 +179,31 @@ export class MonitorPlugin implements Plugin {
       }],
       // Camera-specific
       rtspUrl,
+      snapshotUrl,
       rtspUsername: parsed.rtspUsername,
       rtspPassword: parsed.rtspPassword,
       needsCredentials: !parsed.rtspUsername && parsed.type === 'camera',
     };
 
     this.targets.set(parsed.id, target);
+
+    // Verify credentials for cameras with auth
+    let credentialsValid = false;
+    let credentialsMessage = '';
+    
+    if (target.type === 'camera' && target.address && target.rtspUsername) {
+      try {
+        credentialsValid = await this.verifyCredentials(target.address, target.rtspUsername, target.rtspPassword || '', context);
+        if (credentialsValid) {
+          credentialsMessage = `\n✅ **Credentials zweryfikowane** — logowanie udane (${target.rtspUsername})\n`;
+        } else {
+          credentialsMessage = `\n⚠️ **Credentials niepoprawne** — nie udało się zalogować (${target.rtspUsername})\n` +
+            `💡 Spróbuj innych credentials lub sprawdź hasło.\n`;
+        }
+      } catch (err) {
+        credentialsMessage = `\n⚠️ **Nie można zweryfikować credentials** — ${err instanceof Error ? err.message : 'błąd połączenia'}\n`;
+      }
+    }
 
     processRegistry.upsertRunning({
       id: `monitor:${target.id}`,
@@ -195,95 +224,47 @@ export class MonitorPlugin implements Plugin {
       `📍 **Typ:** ${target.type}\n` +
       (target.address ? `🌐 **Adres:** ${target.address}\n` : '') +
       `⏱️ **Interwał:** co ${target.intervalMs / 1000}s\n` +
-      `📊 **Próg zmian:** ${(target.threshold * 100).toFixed(0)}%\n`;
+      `📊 **Próg zmian:** ${(target.threshold * 100).toFixed(0)}%\n` +
+      credentialsMessage;
     
-    // Add credentials warning for cameras
-    if (target.type === 'camera' && target.needsCredentials) {
-      data += `\n⚠️ **Brak danych logowania**\n` +
-        `Monitoring uruchomiony bez autoryzacji RTSP.\n` +
-        `Live preview i snapshoty mogą nie działać.\n\n` +
-        `💡 Dodaj dane logowania do kamery:`;
+    // Live preview info for cameras
+    if (target.type === 'camera' && target.address) {
+      if (target.snapshotUrl) {
+        data += `\n📸 **Snapshot HTTP (1fps):**\n\`${target.snapshotUrl}\`\n` +
+          `*(otwórz w przeglądarce / odświeżaj co 1s)*\n\n` +
+          `🎥 **RTSP stream:** \`${target.rtspUrl}\`\n` +
+          `*(VLC → Media → Otwórz strumień sieciowy)*\n`;
+      } else if (target.needsCredentials) {
+        data += `\n⚠️ **Brak danych logowania** — live preview niedostępne.\n` +
+          `💡 Restart z credentials: \`monitoruj ${target.address} user:admin admin:HASŁO\`\n\n` +
+          `---\n` +
+          `💡 **Sugerowane akcje:**\n` +
+          `- "monitoruj ${target.address} user:admin admin:HASŁO" — Dodaj własne hasło\n` +
+          `- "monitoruj ${target.address} user:admin admin:12345" — Spróbuj Hikvision\n` +
+          `- "monitoruj ${target.address} user:admin admin:admin" — Spróbuj Dahua\n` +
+          `- "monitoruj ${target.address} user:admin admin:" — Bez hasła\n` +
+          `- "stop monitoring ${target.name}" — Zatrzymaj monitoring\n`;
+      } else {
+        data += `\nZmiany będą automatycznie zgłaszane w tym czacie.\n\n` +
+          `💡 **Komendy:**\n` +
+          `- "pokaż logi monitoringu ${target.name}"\n` +
+          `- "stop monitoring ${target.name}"\n` +
+          `- "aktywne monitoringi"`;
+      }
     } else {
-      data += `\nZmiany będą automatycznie zgłaszane w tym czacie.`;
+      data += `\nZmiany będą automatycznie zgłaszane w tym czacie.\n\n` +
+        `💡 **Komendy:**\n` +
+        `- "pokaż logi monitoringu ${target.name}"\n` +
+        `- "stop monitoring ${target.name}"\n` +
+        `- "aktywne monitoringi"`;
     }
-    
-    data += `\n\n💡 **Komendy:**\n` +
-      `- "pokaż logi monitoringu ${target.name}"\n` +
-      `- "stop monitoring ${target.name}"\n` +
-      `- "aktywne monitoringi"`;
 
-    const result: PluginResult = {
+    return {
       pluginId: this.id,
       status: 'success',
       content: [{ type: 'text', data, title: `Monitor: ${target.name}` }],
       metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
     };
-
-    // Add credentials prompt for cameras without auth
-    if (target.type === 'camera' && target.needsCredentials && target.address) {
-      (result.metadata as any).configPrompt = {
-        title: 'Dodaj dane logowania do kamery',
-        actions: [
-          {
-            id: 'add-credentials',
-            label: 'Zaloguj do kamery',
-            icon: '🔐',
-            type: 'execute' as const,
-            executeQuery: `stop monitoring ${target.name}; monitoruj ${target.address} user:{username} admin:{password}`,
-            variant: 'primary' as const,
-            description: 'Wprowadź username i hasło',
-            fields: [
-              {
-                id: 'username',
-                label: 'Username',
-                type: 'text' as const,
-                defaultValue: 'admin',
-                placeholder: 'admin',
-                required: true,
-              },
-              {
-                id: 'password',
-                label: 'Password',
-                type: 'password' as const,
-                defaultValue: '',
-                placeholder: 'Hasło do kamery',
-                required: true,
-              },
-            ],
-          },
-          {
-            id: 'try-hikvision',
-            label: 'Spróbuj domyślne Hikvision',
-            icon: '📹',
-            type: 'execute' as const,
-            executeQuery: `stop monitoring ${target.name}; monitoruj ${target.address} user:admin admin:12345`,
-            variant: 'secondary' as const,
-            description: 'admin:12345',
-          },
-          {
-            id: 'try-dahua',
-            label: 'Spróbuj domyślne Dahua',
-            icon: '📹',
-            type: 'execute' as const,
-            executeQuery: `stop monitoring ${target.name}; monitoruj ${target.address} user:admin admin:admin`,
-            variant: 'secondary' as const,
-            description: 'admin:admin',
-          },
-          {
-            id: 'try-empty',
-            label: 'Spróbuj bez hasła',
-            icon: '🔓',
-            type: 'execute' as const,
-            executeQuery: `stop monitoring ${target.name}; monitoruj ${target.address} user:admin admin:`,
-            variant: 'secondary' as const,
-            description: 'Dla kamer bez hasła',
-          },
-        ],
-        layout: 'cards' as const,
-      };
-    }
-
-    return result;
   }
 
   // ── Stop Monitoring ─────────────────────────────────────
@@ -697,6 +678,56 @@ export class MonitorPlugin implements Plugin {
     if (m < 60) return `${m}m ${s % 60}s`;
     const h = Math.floor(m / 60);
     return `${h}h ${m % 60}m`;
+  }
+
+  private async verifyCredentials(
+    ip: string,
+    username: string,
+    password: string,
+    context: PluginContext
+  ): Promise<boolean> {
+    // Try common camera HTTP endpoints with auth
+    const endpoints = [
+      `/ISAPI/System/deviceInfo`,  // Hikvision
+      `/cgi-bin/magicBox.cgi?action=getDeviceType`,  // Dahua
+      `/api/1.0/system/deviceinfo`,  // Generic
+      `/`,  // Root with auth
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const url = `http://${ip}${endpoint}`;
+        const authHeader = `Basic ${btoa(`${username}:${password}`)}`;
+        
+        if (context.isTauri && context.tauriInvoke) {
+          // Tauri backend - use browse command with auth
+          const result = await context.tauriInvoke('browse', {
+            url,
+            headers: { Authorization: authHeader },
+          }) as any;
+          
+          if (result && !result.error) {
+            return true;
+          }
+        } else {
+          // Browser - try fetch with credentials
+          const response = await fetch(url, {
+            method: 'GET',
+            headers: { Authorization: authHeader },
+            mode: 'no-cors',
+            signal: AbortSignal.timeout(3000),
+          });
+          
+          // In no-cors mode, we can't read status, but if it doesn't throw, connection worked
+          return true;
+        }
+      } catch (err) {
+        // Try next endpoint
+        continue;
+      }
+    }
+    
+    return false;
   }
 
   private errorResult(message: string, start: number): PluginResult {
