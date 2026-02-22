@@ -183,7 +183,8 @@ pub fn extract_with_scraper(html: &str, url: &str) -> (String, String) {
 }
 
 /// Build a search result BrowseResult if the URL is a DuckDuckGo search.
-pub fn try_extract_search(html: &str, url: &str, final_url: &str) -> Option<(String, String)> {
+#[allow(dead_code)]
+pub fn try_extract_search(html: &str, url: &str, _final_url: &str) -> Option<(String, String)> {
     let search_content = extract_search_results(html, url)?;
 
     backend_info("Detected DuckDuckGo search results page, extracting results directly");

@@ -1,0 +1,18 @@
+[build]
+rustc-wrapper = "sccache"
+incremental = true
+
+[profile.dev]
+incremental = true
+codegen-units = 16
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+
+[profile.dev-release]
+inherits = "release"
+debug = true
+incremental = true
+codegen-units = 16
+lto = false

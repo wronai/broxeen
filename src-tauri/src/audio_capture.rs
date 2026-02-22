@@ -196,6 +196,7 @@ fn base64_encode(data: &[u8]) -> String {
 // ── Silence detection (auto-stop) ────────────────────
 
 /// Check if the last N seconds of audio are silence.
+#[allow(dead_code)]
 pub fn is_silence(state: &SharedRecordingState, threshold_seconds: f32, rms_threshold: f32) -> bool {
     let s = state.lock().unwrap();
     if !s.is_recording || s.samples.is_empty() {

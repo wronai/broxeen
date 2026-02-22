@@ -100,6 +100,7 @@ pub fn select_tts_engine(preferred: &str) -> TtsEngine {
 }
 
 /// Synthesize text to WAV bytes using the best available engine.
+#[allow(dead_code)]
 pub fn synthesize_to_wav(text: &str, rate: f32, lang: &str) -> Result<Vec<u8>, String> {
     let engine = detect_tts_engine();
 
@@ -202,6 +203,7 @@ fn synthesize_espeak(text: &str, rate: f32, lang: &str) -> Result<Vec<u8>, Strin
 
 /// Play WAV bytes through the default audio output.
 /// Blocks until playback is complete.
+#[allow(dead_code)]
 pub fn play_wav_blocking(wav_data: &[u8], volume: f32) -> Result<(), String> {
     let (_stream, handle) = OutputStream::try_default()
         .map_err(|e| format!("Cannot open audio output: {e}"))?;
@@ -223,6 +225,7 @@ pub fn play_wav_blocking(wav_data: &[u8], volume: f32) -> Result<(), String> {
 
 /// Play WAV bytes asynchronously (non-blocking).
 /// Returns immediately, audio plays in background.
+#[allow(dead_code)]
 pub fn play_wav_async(wav_data: Vec<u8>, volume: f32) -> Result<(), String> {
     std::thread::spawn(move || {
         if let Err(e) = play_wav_blocking(&wav_data, volume) {
@@ -255,6 +258,7 @@ pub fn play_wav_stoppable(wav_data: &[u8], volume: f32) -> Result<(OutputStream,
 
 /// Full pipeline: text → synthesize → play.
 /// This is the main function called from Tauri commands.
+#[allow(dead_code)]
 pub fn speak(text: &str, rate: f32, volume: f32, lang: &str) -> Result<(), String> {
     if text.trim().is_empty() {
         return Ok(());
@@ -269,6 +273,7 @@ pub fn speak(text: &str, rate: f32, volume: f32, lang: &str) -> Result<(), Strin
 }
 
 /// Full pipeline with user-preferred engine selection.
+#[allow(dead_code)]
 pub fn speak_with_engine(text: &str, rate: f32, volume: f32, lang: &str, preferred_engine: &str) -> Result<(), String> {
     if text.trim().is_empty() {
         return Ok(());
@@ -283,6 +288,7 @@ pub fn speak_with_engine(text: &str, rate: f32, volume: f32, lang: &str, preferr
 }
 
 /// Speak text and return WAV as base64 (for frontend playback option).
+#[allow(dead_code)]
 pub fn speak_to_base64(text: &str, rate: f32, lang: &str) -> Result<String, String> {
     let wav = synthesize_to_wav(text, rate, lang)?;
     Ok(base64_encode(&wav))
@@ -332,6 +338,7 @@ fn base64_encode(data: &[u8]) -> String {
     base64::engine::general_purpose::STANDARD.encode(data)
 }
 
+#[allow(dead_code)]
 fn truncate(s: &str, max: usize) -> String {
     if s.len() <= max { s.to_string() } else { format!("{}…", &s[..max]) }
 }

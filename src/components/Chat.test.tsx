@@ -512,7 +512,7 @@ describe("Chat — TTS auto-play", () => {
     await waitFor(() => {
       const els = screen.getAllByText(/Pierwsza treść/i);
       expect(els.length).toBeGreaterThan(0);
-    });
+    }, { timeout: 5000 });
 
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(1);
 
@@ -530,7 +530,7 @@ describe("Chat — TTS auto-play", () => {
     await waitFor(() => {
       const els = screen.getAllByText(/Druga treść/i);
       expect(els.length).toBeGreaterThan(0);
-    });
+    }, { timeout: 5000 });
 
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(2);
   });

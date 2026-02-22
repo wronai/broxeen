@@ -2,7 +2,6 @@
 //! Tier 2: Chrome `--dump-dom` (JS-rendered DOM → text extraction)
 //! Tier 3: Chrome `--screenshot` → Vision LLM (image → text description)
 
-use std::path::PathBuf;
 use std::process::Command;
 
 // ── Chrome Detection ─────────────────────────────────

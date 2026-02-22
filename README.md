@@ -40,6 +40,21 @@ npm run tauri dev
 npm run tauri build
 ```
 
+### Przyspieszenie buildów (Rust + Tauri)
+W repo dostajesz `.cargo/config.toml` przygotowany pod [`sccache`](https://github.com/mozilla/sccache) i profil `dev-release`.
+
+1. Zainstaluj sccache (`cargo install sccache` lub z pakietów) i ustaw zmienne środowiskowe:
+   ```bash
+   export RUSTC_WRAPPER="sccache"
+   export SCCACHE_DIR="$HOME/.cache/sccache"
+   ```
+2. Standardowe `npm run tauri build` automatycznie użyje cache (inkrementalne kompilacje).
+3. Gdy potrzebujesz szybkiego, zoptymalizowanego buildu, uruchom:
+   ```bash
+   cargo tauri build --profile dev-release
+   ```
+   Profil dziedziczy z `release`, ale ma włączone debug info i incremental build, dzięki czemu rebuildy są dużo szybsze.
+
 ## Testy
 
 ```bash
