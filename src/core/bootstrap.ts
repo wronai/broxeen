@@ -185,12 +185,13 @@ async function registerCorePlugins(
 
   bus.register('plugins:ask', async (payload: string) => {
     const intent = await router.detect(payload);
-    const plugin = router.route(intent.intent);
+    const activeScope = scopeRegistry.getActiveScope().id;
+    const plugin = router.route(intent.intent, activeScope);
     if (!plugin) throw new Error(`No plugin found for intent: ${intent.intent}`);
     return await plugin.execute(payload, {
       isTauri: typeof window !== 'undefined' && !!(window as any).__TAURI__,
       tauriInvoke: (window as any).__TAURI__?.core?.invoke,
-      scope: scopeRegistry.getActiveScope().id,
+      scope: activeScope,
     } as PluginContext);
   });
 

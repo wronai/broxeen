@@ -36,6 +36,8 @@ export class NetworkScanPlugin implements Plugin {
     const start = Date.now();
     const isCameraQuery = input.toLowerCase().includes('kamer') || input.toLowerCase().includes('camera');
 
+    console.log(`[NetworkScanPlugin] Execute - isTauri: ${context.isTauri}, hasTauriInvoke: !!${context.tauriInvoke}`);
+
     if (context.isTauri && context.tauriInvoke) {
       try {
         console.log(`[NetworkScanPlugin] Starting real network scan via Tauri...`);
@@ -75,6 +77,7 @@ export class NetworkScanPlugin implements Plugin {
       }
     }
 
+    console.log(`[NetworkScanPlugin] Using browser fallback - isTauri: ${context.isTauri}, hasInvoke: !!${context.tauriInvoke}`);
     // Browser fallback: HTTP probe of common LAN addresses
     return this.browserFallback(isCameraQuery, start);
   }
