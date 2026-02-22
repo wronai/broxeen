@@ -564,4 +564,100 @@ describe('Bootstrap integration', () => {
 
     await ctx.dispose();
   });
+
+  it('registers protocol-bridge plugin', async () => {
+    const { bootstrapApp } = await import('../../core/bootstrap');
+    const ctx = await bootstrapApp({ isTauri: false });
+
+    expect(ctx.pluginRegistry.get('protocol-bridge')).not.toBeNull();
+    const ids = ctx.pluginRegistry.getAll().map(p => p.id);
+    expect(ids).toContain('protocol-bridge');
+
+    await ctx.dispose();
+  });
+
+  it('exposes tauriInvoke on AppContext', async () => {
+    const { bootstrapApp } = await import('../../core/bootstrap');
+    const mockInvoke = vi.fn();
+    const ctx = await bootstrapApp({ isTauri: true, tauriInvoke: mockInvoke });
+
+    expect(ctx.tauriInvoke).toBe(mockInvoke);
+
+    await ctx.dispose();
+  });
+
+  it('command bus plugins:ask uses scope-aware routing', async () => {
+    const { bootstrapApp } = await import('../../core/bootstrap');
+    const ctx = await bootstrapApp({ isTauri: false });
+
+    // plugins:ask should be registered
+    expect(ctx.commandBus.has('plugins:ask')).toBe(true);
+
+    // Execute a ping command via command bus — routes through intent detection + scope
+    const result = await ctx.commandBus.execute('plugins:ask', 'ping 192.168.1.1') as any;
+    expect(result).toBeDefined();
+    expect(result.pluginId).toBe('network-ping');
+
+    await ctx.dispose();
+  });
+
+  it('command bus routes bridge intent to protocol-bridge plugin', async () => {
+    const { bootstrapApp } = await import('../../core/bootstrap');
+    const ctx = await bootstrapApp({ isTauri: false });
+
+    const result = await ctx.commandBus.execute('plugins:ask', 'bridge status') as any;
+    expect(result).toBeDefined();
+    expect(result.pluginId).toBe('protocol-bridge');
+
+    await ctx.dispose();
+  });
+});
+
+// ─── Scope-aware routing ─────────────────────────────────────
+
+describe('Scope-aware routing — end to end', () => {
+  it('local scope blocks http-browse but allows network-scan', async () => {
+    const router = new IntentRouter();
+    const registry = new PluginRegistry();
+
+    const plugins = [
+      new NetworkScanPlugin(),
+      new HttpBrowsePlugin(),
+    ];
+    plugins.forEach(p => { registry.register(p); router.registerPlugin(p as any); });
+
+    // network:scan should be routable in local scope
+    const scanPlugin = router.route('network:scan', 'local');
+    expect(scanPlugin).not.toBeNull();
+    expect(scanPlugin!.id).toBe('network-scan');
+
+    // browse:url should be blocked in local scope
+    const browsePlugin = router.route('browse:url', 'local');
+    expect(browsePlugin).toBeNull();
+  });
+
+  it('internet scope blocks network-scan but allows http-browse', () => {
+    const router = new IntentRouter();
+    const registry = new PluginRegistry();
+
+    const plugins = [
+      new NetworkScanPlugin(),
+      new HttpBrowsePlugin(),
+    ];
+    plugins.forEach(p => { registry.register(p); router.registerPlugin(p as any); });
+
+    const scanPlugin = router.route('network:scan', 'internet');
+    expect(scanPlugin).toBeNull();
+
+    const browsePlugin = router.route('browse:url', 'internet');
+    expect(browsePlugin).not.toBeNull();
+    expect(browsePlugin!.id).toBe('http-browse');
+  });
+
+  it('protocol-bridge is allowed in local, network, internet, and vpn scopes', () => {
+    expect(scopeRegistry.isPluginAllowed('protocol-bridge', 'local')).toBe(true);
+    expect(scopeRegistry.isPluginAllowed('protocol-bridge', 'network')).toBe(true);
+    expect(scopeRegistry.isPluginAllowed('protocol-bridge', 'internet')).toBe(true);
+    expect(scopeRegistry.isPluginAllowed('protocol-bridge', 'vpn')).toBe(true);
+  });
 });

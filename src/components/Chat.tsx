@@ -12,6 +12,8 @@ import {
   Wifi,
   ChevronDown,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { resolve } from "../lib/resolver";
 import { looksLikeUrl } from "../lib/phonetic";
 import { useSpeech } from "../hooks/useSpeech";
@@ -1290,13 +1292,46 @@ ${analysis}`,
                             <span>{msg.text}</span>
                           </div>
                         ) : (
-                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                          <div className="text-sm leading-relaxed">
                             {msg.pageTitle && (
                               <div className="font-bold mb-2">
                                 {msg.pageTitle}
                               </div>
                             )}
-                            {msg.text}
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              className="prose prose-invert max-w-none prose-sm"
+                              components={{
+                                // Customize styling for common elements
+                                p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                                strong: ({children}) => <strong className="font-bold text-white">{children}</strong>,
+                                em: ({children}) => <em className="italic">{children}</em>,
+                                code: ({inline, children}) => 
+                                  inline ? 
+                                    <code className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code> :
+                                    <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>,
+                                ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                                ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                                li: ({children}) => <li className="text-gray-200">{children}</li>,
+                                a: ({href, children}) => (
+                                  <a 
+                                    href={href} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-blue-400 hover:text-blue-300 underline"
+                                  >
+                                    {children}
+                                  </a>
+                                ),
+                                blockquote: ({children}) => (
+                                  <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-2">
+                                    {children}
+                                  </blockquote>
+                                ),
+                              }}
+                            >
+                              {msg.text}
+                            </ReactMarkdown>
                           </div>
                         )}
 
@@ -1389,8 +1424,35 @@ ${analysis}`,
                                 <div className="text-sm font-medium text-blue-400 mb-2">
                                   AI Analiza Kamery
                                 </div>
-                                <div className="text-sm text-gray-300 whitespace-pre-wrap">
-                                  {msg.text}
+                                <div className="text-sm text-gray-300">
+                                  <ReactMarkdown 
+                                    remarkPlugins={[remarkGfm]}
+                                    className="prose prose-invert max-w-none prose-sm"
+                                    components={{
+                                      p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
+                                      strong: ({children}) => <strong className="font-bold text-white">{children}</strong>,
+                                      em: ({children}) => <em className="italic">{children}</em>,
+                                      code: ({inline, children}) => 
+                                        inline ? 
+                                          <code className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code> :
+                                          <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>,
+                                      ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                                      ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                                      li: ({children}) => <li className="text-gray-200">{children}</li>,
+                                      a: ({href, children}) => (
+                                        <a 
+                                          href={href} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-blue-400 hover:text-blue-300 underline"
+                                        >
+                                          {children}
+                                        </a>
+                                      ),
+                                    }}
+                                  >
+                                    {msg.text}
+                                  </ReactMarkdown>
                                 </div>
                                 <div className="text-xs text-gray-500 mt-2">
                                   Analiza wykonana automatycznie • Wykrywanie zmian co sekundę
