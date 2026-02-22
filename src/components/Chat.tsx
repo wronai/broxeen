@@ -12,6 +12,8 @@ import {
   Wifi,
   ChevronDown,
 } from "lucide-react";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { resolve } from "../lib/resolver";
 import { looksLikeUrl } from "../lib/phonetic";
 import { useSpeech } from "../hooks/useSpeech";
@@ -1285,13 +1287,74 @@ ${analysis}`,
                             <span>{msg.text}</span>
                           </div>
                         ) : (
-                          <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                          <div className="text-sm leading-relaxed">
                             {msg.pageTitle && (
                               <div className="font-bold mb-2">
                                 {msg.pageTitle}
                               </div>
                             )}
-                            {msg.text}
+                            <ReactMarkdown 
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                // Style dla nagłówków
+                                h1: ({children}) => <h1 className="text-xl font-bold text-white mb-2">{children}</h1>,
+                                h2: ({children}) => <h2 className="text-lg font-semibold text-white mb-2">{children}</h2>,
+                                h3: ({children}) => <h3 className="text-base font-semibold text-white mb-1">{children}</h3>,
+                                // Style dla akapitów
+                                p: ({children}) => <p className="mb-2 text-gray-100">{children}</p>,
+                                // Style dla list
+                                ul: ({children}) => <ul className="list-disc list-inside mb-2 text-gray-100">{children}</ul>,
+                                ol: ({children}) => <ol className="list-decimal list-inside mb-2 text-gray-100">{children}</ol>,
+                                li: ({children}) => <li className="mb-1 text-gray-100">{children}</li>,
+                                // Style dla kodu
+                                code: ({node, children, className, ...props}) => {
+                                  const match = /language-(\w+)/.exec(className || '');
+                                  const isInline = !className || !match;
+                                  return isInline 
+                                    ? <code className="bg-gray-700 px-1 py-0.5 rounded text-gray-100 text-sm" {...props}>{children}</code>
+                                    : <code className="block bg-gray-700 p-2 rounded text-gray-100 text-sm overflow-x-auto" {...props}>{children}</code>;
+                                },
+                                // Style dla linków
+                                a: ({href, children}) => 
+                                  <a 
+                                    href={href} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-broxeen-400 hover:text-broxeen-300 underline"
+                                  >
+                                    {children}
+                                  </a>,
+                                // Style dla pogrubienia i kursywy
+                                strong: ({children}) => <strong className="font-bold text-white">{children}</strong>,
+                                em: ({children}) => <em className="italic text-gray-200">{children}</em>,
+                                // Style dla bloków cytowań
+                                blockquote: ({children}) => (
+                                  <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 mb-2">
+                                    {children}
+                                  </blockquote>
+                                ),
+                                // Style dla tabel
+                                table: ({children}) => (
+                                  <div className="overflow-x-auto mb-2">
+                                    <table className="min-w-full border-collapse border border-gray-600">
+                                      {children}
+                                    </table>
+                                  </div>
+                                ),
+                                th: ({children}) => (
+                                  <th className="border border-gray-600 bg-gray-700 px-2 py-1 text-left text-white font-semibold">
+                                    {children}
+                                  </th>
+                                ),
+                                td: ({children}) => (
+                                  <td className="border border-gray-600 px-2 py-1 text-gray-100">
+                                    {children}
+                                  </td>
+                                ),
+                              }}
+                            >
+                              {msg.text}
+                            </ReactMarkdown>
                           </div>
                         )}
 

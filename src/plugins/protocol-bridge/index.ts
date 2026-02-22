@@ -1,5 +1,5 @@
 /**
- * Protocol Bridge Plugin — MQTT ↔ text ↔ voice, REST ↔ text ↔ voice
+ * Protocol Bridge Plugin v2 — MQTT, REST, WebSocket, SSE, GraphQL ↔ text ↔ voice
  */
 
 export { ProtocolBridgePlugin } from './protocolBridgePlugin';
@@ -8,4 +8,5 @@ export type {
   BridgeDirection,
   BridgeEndpoint,
   BridgeMessage,
+  ActionHint,
 } from './protocolBridgePlugin';

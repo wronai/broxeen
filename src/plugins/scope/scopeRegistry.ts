@@ -121,11 +121,7 @@ export class ScopeRegistry {
   private activeScope: ScopeId = 'network';
 
   private normalizeScopeId(scopeId?: ScopeId): ScopeId {
-    const raw = scopeId ?? this.activeScope;
-    if (raw === 'tor' || raw === 'vpn') {
-      return 'internet';
-    }
-    return raw;
+    return scopeId ?? this.activeScope;
   }
 
   constructor() {

@@ -600,47 +600,77 @@ pub struct NetworkScanResult {
 #[tauri::command]
 pub async fn scan_network(subnet: Option<String>, timeout: Option<u64>) -> Result<NetworkScanResult, String> {
     let timeout_ms = timeout.unwrap_or(5000);
+    let per_port_timeout = std::cmp::max(timeout_ms / 100, 50);
     let target_subnet = subnet.unwrap_or_else(|| detect_local_subnet());
     let t0 = Instant::now();
 
-    backend_info(format!("scan_network: subnet={} timeout={}ms", target_subnet, timeout_ms));
+    backend_info(format!("scan_network: subnet={} timeout={}ms (per-port={}ms)", target_subnet, timeout_ms, per_port_timeout));
 
-    let camera_ports = [80u16, 443, 554, 8080, 8443, 8554, 8000, 9000];
+    let camera_ports: Vec<u16> = vec![80, 443, 554, 8080, 8443, 8554, 8000, 9000];
+
+    // Parallel scan: spawn a blocking task per IP, batched to avoid fd exhaustion
+    let batch_size = 50usize;
     let mut devices = Vec::new();
 
-    for i in 1..=254u8 {
-        let ip = format!("{}.{}", target_subnet, i);
-        let mut open_ports = Vec::new();
-        let mut response_time = 0u64;
+    for batch_start in (1u16..=254).step_by(batch_size) {
+        let batch_end = std::cmp::min(batch_start + batch_size as u16 - 1, 254);
+        let mut handles = Vec::new();
 
-        for &port in &camera_ports {
-            let addr_str = format!("{}:{}", ip, port);
-            if let Ok(addr) = addr_str.parse::<SocketAddr>() {
-                let pt = Instant::now();
-                if TcpStream::connect_timeout(&addr, Duration::from_millis(timeout_ms / 100)).is_ok() {
-                    if response_time == 0 { response_time = pt.elapsed().as_millis() as u64; }
-                    open_ports.push(port);
+        for i in batch_start..=batch_end {
+            let ip = format!("{}.{}", target_subnet, i);
+            let ports = camera_ports.clone();
+            let ppt = per_port_timeout;
+
+            let handle = tokio::task::spawn_blocking(move || {
+                let mut open_ports = Vec::new();
+                let mut response_time = 0u64;
+
+                for &port in &ports {
+                    let addr_str = format!("{}:{}", ip, port);
+                    if let Ok(addr) = addr_str.parse::<SocketAddr>() {
+                        let pt = Instant::now();
+                        if TcpStream::connect_timeout(&addr, Duration::from_millis(ppt)).is_ok() {
+                            if response_time == 0 { response_time = pt.elapsed().as_millis() as u64; }
+                            open_ports.push(port);
+                        }
+                    }
                 }
-            }
+
+                if !open_ports.is_empty() {
+                    let device_type = classify_device(&open_ports);
+                    Some(NetworkDevice {
+                        ip,
+                        mac: None,
+                        hostname: None,
+                        vendor: None,
+                        open_ports,
+                        response_time,
+                        last_seen: chrono::Utc::now().to_rfc3339(),
+                        device_type: Some(device_type),
+                    })
+                } else {
+                    None
+                }
+            });
+            handles.push(handle);
         }
 
-        if !open_ports.is_empty() {
-            let device_type = classify_device(&open_ports);
-            devices.push(NetworkDevice {
-                ip: ip.clone(),
-                mac: None,
-                hostname: None,
-                vendor: None,
-                open_ports,
-                response_time,
-                last_seen: chrono::Utc::now().to_rfc3339(),
-                device_type: Some(device_type),
-            });
+        for handle in handles {
+            if let Ok(Some(device)) = handle.await {
+                devices.push(device);
+            }
         }
     }
 
     // Enrich with ARP cache
     enrich_with_arp(&mut devices);
+
+    // Sort by IP for consistent output
+    devices.sort_by(|a, b| {
+        let a_last: u8 = a.ip.rsplit('.').next().and_then(|s| s.parse().ok()).unwrap_or(0);
+        let b_last: u8 = b.ip.rsplit('.').next().and_then(|s| s.parse().ok()).unwrap_or(0);
+        a_last.cmp(&b_last)
+    });
 
     let scan_duration = t0.elapsed().as_millis() as u64;
     backend_info(format!("scan_network: found {} devices in {}ms", devices.len(), scan_duration));
@@ -648,7 +678,7 @@ pub async fn scan_network(subnet: Option<String>, timeout: Option<u64>) -> Resul
     Ok(NetworkScanResult {
         devices,
         scan_duration,
-        scan_method: "tcp-connect".to_string(),
+        scan_method: "tcp-connect-parallel".to_string(),
         subnet: target_subnet,
     })
 }

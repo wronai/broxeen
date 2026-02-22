@@ -220,7 +220,7 @@ class HealthChecker {
     this.addCheck('dependencies', 'critical-modules', async () => {
       const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;
       
-      // In Tauri, check modules differently
+      // In Tauri, check modules differently - exclude better-sqlite3 from browser checks
       if (isTauri) {
         try {
           // Check if React is available globally
@@ -255,9 +255,8 @@ class HealthChecker {
         }
       }
       
-      // Browser/Node.js environment
+      // Browser/Node.js environment - only check browser-compatible modules
       const criticalModules = [
-        '@tauri-apps/api/core',
         'react',
         'react-dom'
       ];
@@ -276,10 +275,10 @@ class HealthChecker {
       }
 
       return {
-        status: allAvailable ? 'healthy' : 'error',
+        status: allAvailable ? 'healthy' : 'warning',
         category: 'dependencies',
         name: 'critical-modules',
-        message: allAvailable ? 'All critical modules available' : 'Missing critical modules',
+        message: allAvailable ? 'All critical modules available' : 'Some modules unavailable in browser context',
         details: { modules: results, allAvailable, environment: 'browser' }
       };
     });
