@@ -277,15 +277,39 @@ export const CAMERA_VENDORS: Record<string, CameraVendor> = {
 };
 
 /**
- * Detect camera vendor from hostname, MAC address, or HTTP response
+ * RTSP path patterns for vendor detection
+ */
+const RTSP_PATH_PATTERNS: Record<string, RegExp[]> = {
+  reolink:    [/h264Preview_\d+_(main|sub|mobile)/i, /h265Preview_\d+_(main|sub|mobile)/i, /Preview_\d+_(main|sub)/i],
+  hikvision:  [/\/Streaming\/Channels\/\d+/i, /\/h264\/ch\d+\/(main|sub)\/av_stream/i],
+  dahua:      [/\/cam\/realmonitor/i, /channel=\d+&subtype=\d+/i],
+  axis:       [/\/axis-media\/media\.amp/i, /\/mpeg4\/media\.amp/i],
+  foscam:     [/\/videoMain/i, /\/videoSub/i],
+  tplink:     [/\/stream\d+/i, /\/live\/mpeg4/i],
+};
+
+/**
+ * Detect camera vendor from hostname, MAC address, HTTP response, or RTSP path
  */
 export function detectCameraVendor(options: {
   hostname?: string;
   mac?: string;
   httpHeaders?: Record<string, string>;
   httpContent?: string;
+  rtspPath?: string;
 }): string {
-  const { hostname, mac, httpHeaders, httpContent } = options;
+  const { hostname, mac, httpHeaders, httpContent, rtspPath } = options;
+
+  // Check RTSP path first — most reliable when URL is provided
+  if (rtspPath) {
+    for (const [vendorId, patterns] of Object.entries(RTSP_PATH_PATTERNS)) {
+      for (const pattern of patterns) {
+        if (pattern.test(rtspPath)) {
+          return vendorId;
+        }
+      }
+    }
+  }
 
   for (const [vendorId, vendor] of Object.entries(CAMERA_VENDORS)) {
     if (vendorId === 'generic') continue;

@@ -432,7 +432,6 @@ export class IntentRouter implements IIntentRouter {
       if (scope && !scopeRegistry.isPluginAllowed(plugin.id, scope)) continue;
       return plugin;
     }
-    console.log(`❌ No plugin found for intent: ${intent}`);
     return null;
   }
 

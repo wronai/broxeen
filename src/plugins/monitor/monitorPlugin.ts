@@ -149,16 +149,27 @@ export class MonitorPlugin implements Plugin {
       configStore.set(`camera.credentials.${parsed.address}.password`, parsed.rtspPassword ?? '');
     }
 
-    // Generate RTSP URL + candidate HTTP snapshot URLs (Hikvision ISAPI / generic)
+    // Generate RTSP URL + candidate HTTP snapshot URLs using vendor database
     let rtspUrl: string | undefined;
     let snapshotUrl: string | undefined;
     if (parsed.type === 'camera' && parsed.address) {
+      const { detectCameraVendor, getVendorInfo } = await import('../camera/cameraVendorDatabase');
       const auth = parsed.rtspUsername && parsed.rtspPassword
         ? `${parsed.rtspUsername}:${parsed.rtspPassword}@`
-        : '';
-      rtspUrl = `rtsp://${auth}${parsed.address}:554/stream`;
+        : parsed.rtspUsername ? `${parsed.rtspUsername}@` : '';
+      
+      // Detect vendor from any existing RTSP path hint in the input
+      const vendorId = detectCameraVendor({ hostname: parsed.address });
+      const vendor = getVendorInfo(vendorId);
+      
+      // Use vendor-specific main stream path
+      const mainPath = vendor.rtspPaths.find(p => p.quality === 'main')?.path || '/stream';
+      rtspUrl = `rtsp://${auth}${parsed.address}:554${mainPath}`;
+      
+      // Use vendor-specific snapshot URL
       if (parsed.rtspUsername) {
-        snapshotUrl = `http://${parsed.rtspUsername}:${parsed.rtspPassword ?? ''}@${parsed.address}/ISAPI/Streaming/channels/101/picture`;
+        const snapshotPath = vendor.httpSnapshotPaths[0]?.path || '/snapshot.jpg';
+        snapshotUrl = `http://${parsed.rtspUsername}:${parsed.rtspPassword ?? ''}@${parsed.address}${snapshotPath}`;
       }
     }
 
