@@ -84,7 +84,7 @@ export class InMemoryDbAdapter implements DbAdapter {
       run: () => ({ changes: 0, lastInsertRowid: 0 }),
       all: () => [],
       get: () => null,
-    } as Database.Statement;
+    } as unknown as Database.Statement;
   }
 
   close(): void {

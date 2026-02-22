@@ -25,7 +25,7 @@ export class HttpBrowsePlugin implements Plugin {
 
     try {
       // Use existing browseGateway logic for now
-      const { browseGateway } = await import('../../lib/browseGateway');
+      const { executeBrowseCommand } = await import('../../lib/browseGateway');
       
       // Resolve URL using existing resolver
       const { resolve } = await import('../../lib/resolver');
@@ -41,7 +41,7 @@ export class HttpBrowsePlugin implements Plugin {
       }
 
       // Execute browse using existing gateway
-      const result = await browseGateway.executeBrowseCommand(url);
+      const result = await executeBrowseCommand(url);
       
       return {
         status: 'success',

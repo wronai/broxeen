@@ -757,7 +757,6 @@ Kliknij przycisk odtwarzania, aby rozpocząć monitoring z AI.`,
 
 ${analysis}`,
         type: "camera_analysis",
-        cameraId,
         analysis
       },
     });
@@ -872,7 +871,12 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
               role: "assistant",
               text: cameraListText,
               type: "camera_list",
-              cameras: cameras
+              cameras: cameras.map(cam => ({
+              id: cam.id,
+              name: cam.name,
+              address: cam.ip,
+              status: cam.status
+            }))
             },
           });
         }
@@ -1082,7 +1086,12 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
             id: Date.now(),
             role: "assistant",
             text: "Czy chodziło Ci o jedną z tych stron?",
-            suggestions: result.suggestions,
+            suggestions: result.suggestions.map(s => ({
+              action: 'browse',
+              text: s,
+              description: `Przejdź do strony: ${s}`,
+              query: s
+            })),
             resolveType: result.resolveType,
           },
         });
@@ -1442,10 +1451,15 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
                         {/* Camera List */}
                         {msg.type === "camera_list" && msg.cameras && (
                           <div className="mt-4 space-y-4" data-testid="camera-list">
-                            {msg.cameras.map((camera: CameraPreviewProps['camera'], index: number) => (
+                            {msg.cameras.map((camera, index: number) => (
                               <CameraPreview
                                 key={camera.id}
-                                camera={camera}
+                                camera={{
+                                  ...camera,
+                                  ip: camera.address,
+                                  type: 'rtsp',
+                                  status: camera.status as 'online' | 'offline'
+                                }}
                                 onSelect={handleCameraSelect}
                                 onAnalysisComplete={handleCameraAnalysisComplete}
                                 className="max-w-md"
@@ -1543,14 +1557,14 @@ Kliknij na kamerę, aby zobaczyć podgląd wideo.`;
                           <div className="mt-3 flex flex-wrap gap-2">
                             {msg.suggestions.map((s) => (
                               <button
-                                key={s}
+                                key={s.query}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleSuggestionClick(s);
                                 }}
                                 className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-broxeen-300 transition hover:bg-gray-600"
                               >
-                                {s.replace("https://", "")}
+                                {s.text.replace("https://", "")}
                               </button>
                             ))}
                           </div>

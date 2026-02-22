@@ -80,14 +80,14 @@ export const CameraPreview: React.FC<CameraPreviewProps> = ({
     return canvas.toDataURL('image/jpeg', 0.8);
   }, []);
 
-  const compareFrames = useCallback((frame1: string, frame2: string): boolean => {
-    if (!frame1 || !frame2) return false;
+  const compareFrames = useCallback((frame1: string, frame2: string): Promise<boolean> => {
+    if (!frame1 || !frame2) return Promise.resolve(false);
     
     // Simple pixel comparison for change detection
     const img1 = new Image();
     const img2 = new Image();
     
-    return new Promise((resolve) => {
+    return new Promise<boolean>((resolve) => {
       img1.onload = () => {
         img2.onload = () => {
           const canvas1 = document.createElement('canvas');

@@ -1,3 +1,19 @@
+## [1.0.28] - 2026-02-22
+
+### Summary
+
+feat(None): deep code analysis engine
+
+### Other
+
+- update src/components/CameraPreview.tsx
+- update src/components/Chat.tsx
+- update src/domain/chatEvents.ts
+- update src/integration/autoWatchIntegration.ts
+- update src/persistence/databaseManager.ts
+- update src/plugins/http/browsePlugin.ts
+
+
 ## [1.0.27] - 2026-02-22
 
 ### Summary
