@@ -262,6 +262,14 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
               <div
                 onClick={(e) => toggleFavorite(command.id, e)}
                 className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    toggleFavorite(command.id, e as any);
+                  }
+                }}
               >
                 <div className={`w-3 h-3 ${
                   command.isFavorite 

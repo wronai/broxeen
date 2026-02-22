@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Test</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/react-markdown@10.1.0/index.min.js"></script>
+    <script src="https://unpkg.com/remark-gfm@4.0.1/index.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white p-8">
+    <div id="root"></div>
+    
+    <script type="text/babel">
+        const { useState } = React;
+        const ReactMarkdown = window.ReactMarkdown.default;
+        const remarkGfm = window.remarkGfm.default;
+        
+        const testMarkdown = `📷 **Wyszukiwanie kamer** *(tryb przeglądarkowy)*
+
+🌐 **Podsieć:** 192.168.1.0/24 *(wykryta: domyślna)*
+Przeskanowano: 61 adresów IP
+Znaleziono: 2 aktywnych hostów
+
+📷 **192.168.1.100** (port 80)
+   Możliwy RTSP: \`rtsp://192.168.1.100:554/stream\` 
+   HTTP: \`http://192.168.1.100:80\` 
+🖥️ **192.168.1.1** (port 80)
+
+💡 *Sprawdź kamerę: "monitoruj [IP]" lub otwórz \`http://[IP]\` w przeglądarce.*
+
+⚠️ Nie udało się wykryć lokalnego IP — skanowanie oparte na domyślnej podsieci 192.168.1.x`;
+
+        function App() {
+            return React.createElement('div', {className: 'max-w-2xl mx-auto'}, [
+                React.createElement('h1', {className: 'text-2xl font-bold mb-4'}, 'Markdown Rendering Test'),
+                React.createElement('div', {className: 'bg-gray-800 p-4 rounded-lg'}, 
+                    React.createElement(ReactMarkdown, {
+                        remarkPlugins: [remarkGfm],
+                        components: {
+                            h1: ({children}) => React.createElement('h1', {className: 'text-xl font-bold text-white mb-2'}, children),
+                            h2: ({children}) => React.createElement('h2', {className: 'text-lg font-semibold text-white mb-2'}, children),
+                            h3: ({children}) => React.createElement('h3', {className: 'text-base font-semibold text-white mb-1'}, children),
+                            p: ({children}) => React.createElement('p', {className: 'mb-2 text-gray-100'}, children),
+                            ul: ({children}) => React.createElement('ul', {className: 'list-disc list-inside mb-2 text-gray-100'}, children),
+                            ol: ({children}) => React.createElement('ol', {className: 'list-decimal list-inside mb-2 text-gray-100'}, children),
+                            li: ({children}) => React.createElement('li', {className: 'mb-1 text-gray-100'}, children),
+                            code: ({node, children, className, ...props}) => {
+                                const isInline = !className;
+                                return isInline 
+                                    ? React.createElement('code', {className: 'bg-gray-700 px-1 py-0.5 rounded text-gray-100 text-sm', ...props}, children)
+                                    : React.createElement('code', {className: 'block bg-gray-700 p-2 rounded text-gray-100 text-sm overflow-x-auto', ...props}, children);
+                            },
+                            a: ({href, children}) => 
+                                React.createElement('a', {
+                                    href,
+                                    target: '_blank',
+                                    rel: 'noopener noreferrer',
+                                    className: 'text-blue-400 hover:text-blue-300 underline'
+                                }, children),
+                            strong: ({children}) => React.createElement('strong', {className: 'font-bold text-white'}, children),
+                            em: ({children}) => React.createElement('em', {className: 'italic text-gray-200'}, children),
+                            blockquote: ({children}) => 
+                                React.createElement('blockquote', {className: 'border-l-4 border-gray-600 pl-4 italic text-gray-300 mb-2'}, children),
+                        }
+                    }, testMarkdown)
+                )
+            ]);
+        }
+
+        ReactDOM.render(React.createElement(App), document.getElementById('root'));
+    </script>
+    
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</body>
+</html>
