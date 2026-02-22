@@ -8,6 +8,7 @@ mod content_extraction;
 mod disk_info;
 mod llm;
 mod logging;
+mod network;
 mod network_info;
 mod network_scan;
 mod settings;
