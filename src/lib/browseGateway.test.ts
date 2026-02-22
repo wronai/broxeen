@@ -264,6 +264,79 @@ describe("browseGateway", () => {
     expect(result.content).not.toContain("zwanych ciasteczkami");
   });
 
+  it("strips nav, footer, button, and form elements from extracted content", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        contents: `
+          <html>
+            <head><title>Portal Informacyjny</title></head>
+            <body>
+              <nav><a href="/">Strona główna</a> <a href="/sport">Sport</a> <a href="/pogoda">Pogoda</a></nav>
+              <header><button>Zaloguj się</button> <button>Menu</button></header>
+              <main>
+                <article>
+                  <p>
+                    Naukowcy z Polskiej Akademii Nauk odkryli nowy gatunek motyla w Puszczy Białowieskiej.
+                    Odkrycie ma duże znaczenie dla ochrony bioróżnorodności w Europie Środkowej.
+                  </p>
+                </article>
+              </main>
+              <footer>
+                <p>© 2026 Portal. Regulamin. Polityka prywatności. Kontakt: info@portal.pl</p>
+              </footer>
+              <form><input type="text" placeholder="Szukaj..." /><button>Szukaj</button></form>
+            </body>
+          </html>
+        `,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await executeBrowseCommand("https://portal.pl", false);
+
+    expect(result.title).toBe("Portal Informacyjny");
+    expect(result.content).toContain("Polskiej Akademii Nauk");
+    expect(result.content).not.toContain("Zaloguj się");
+    expect(result.content).not.toContain("Szukaj");
+    expect(result.content).not.toContain("Regulamin");
+    expect(result.content).not.toContain("Strona główna");
+  });
+
+  it("filters out navigation menu items from content", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        contents: `
+          <html>
+            <head><title>News Site</title></head>
+            <body>
+              <aside class="sidebar">
+                <ul><li>Popularne</li><li>Najnowsze</li><li>Komentarze</li></ul>
+              </aside>
+              <div role="navigation"><a>Home</a> <a>About</a> <a>Contact</a></div>
+              <article>
+                <p>
+                  The latest research shows that renewable energy adoption has increased by 40 percent
+                  across European countries in the past year, marking a significant milestone in
+                  the transition to sustainable energy sources.
+                </p>
+              </article>
+            </body>
+          </html>
+        `,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await executeBrowseCommand("https://news.example.com", false);
+
+    expect(result.content).toContain("renewable energy");
+    expect(result.content).not.toContain("Popularne");
+    expect(result.content).not.toContain("Najnowsze");
+    expect(result.content).not.toContain("Contact");
+  });
+
   it("throws when browser fallback response is not ok", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,

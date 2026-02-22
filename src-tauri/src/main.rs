@@ -2,6 +2,7 @@
 
 mod audio_capture;
 mod audio_commands;
+mod browse_rendered;
 mod llm;
 mod stt;
 mod tts;
@@ -421,13 +422,14 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
     };
     let mut cursor = std::io::Cursor::new(html.clone());
 
+    // ── Tier 1: reqwest + readability/scraper ─────────
     let (title, content) = match readability::extractor::extract(&mut cursor, &parsed_url) {
         Ok(product) => {
             let readable_title = normalize_whitespace(&product.title);
             let readable_content = normalize_whitespace(&product.text);
 
             if readable_content.len() >= MIN_READABLE_CONTENT_LENGTH {
-                backend_info("Readability extraction successful");
+                backend_info("Tier 1: Readability extraction successful");
                 (
                     if readable_title.is_empty() {
                         url.clone()
@@ -453,40 +455,105 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
         }
     };
 
-    let final_title = if title.trim().is_empty() {
+    let mut final_title = if title.trim().is_empty() {
         final_url.clone()
     } else {
         title
     };
 
     let cookie_stripped = strip_cookie_banner_text(&content);
-    if cookie_stripped.len() != content.len() {
+    let mut final_content = truncate_to_chars(&cookie_stripped, MAX_BACKEND_CONTENT_CHARS);
+    let mut resolve_type = "exact".to_string();
+
+    // ── Tier 2: Chrome headless --dump-dom ────────────
+    if final_content.len() < MIN_READABLE_CONTENT_LENGTH && browse_rendered::is_available() {
         backend_info(format!(
-            "Cookie banner-like content stripped (original_len={}, stripped_len={})",
-            content.len(),
-            cookie_stripped.len()
+            "Tier 1 content too short ({} chars). Trying headless Chrome rendering...",
+            final_content.len()
         ));
+
+        match browse_rendered::render_and_extract(&url, 8) {
+            Ok((rendered_title, rendered_content)) => {
+                if rendered_content.len() > final_content.len() {
+                    backend_info(format!(
+                        "Tier 2: Chrome rendering improved content ({} → {} chars)",
+                        final_content.len(),
+                        rendered_content.len()
+                    ));
+                    if !rendered_title.is_empty() {
+                        final_title = rendered_title;
+                    }
+                    final_content = truncate_to_chars(&rendered_content, MAX_BACKEND_CONTENT_CHARS);
+                    resolve_type = "rendered".to_string();
+                } else {
+                    backend_warn("Tier 2: Chrome rendering didn't improve content");
+                }
+            }
+            Err(e) => {
+                backend_warn(format!("Tier 2: Chrome rendering failed: {}", e));
+            }
+        }
     }
 
-    let final_content = truncate_to_chars(&cookie_stripped, MAX_BACKEND_CONTENT_CHARS);
+    // ── Tier 3: Chrome screenshot + Vision LLM ───────
+    if final_content.len() < MIN_READABLE_CONTENT_LENGTH && browse_rendered::is_available() {
+        backend_info(format!(
+            "Tier 2 content still too short ({} chars). Trying screenshot + Vision LLM...",
+            final_content.len()
+        ));
+
+        let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_default();
+        if !api_key.is_empty() {
+            match browse_rendered::screenshot_and_describe(&url, &api_key, 10).await {
+                Ok((vision_title, vision_content)) => {
+                    if vision_content.len() > final_content.len() {
+                        backend_info(format!(
+                            "Tier 3: Vision LLM improved content ({} → {} chars)",
+                            final_content.len(),
+                            vision_content.len()
+                        ));
+                        if final_title == final_url {
+                            final_title = vision_title;
+                        }
+                        final_content = truncate_to_chars(&vision_content, MAX_BACKEND_CONTENT_CHARS);
+                        resolve_type = "vision".to_string();
+                    }
+                }
+                Err(e) => {
+                    backend_warn(format!("Tier 3: Vision LLM failed: {}", e));
+                }
+            }
+        } else {
+            backend_warn("Tier 3: Skipped — OPENROUTER_API_KEY not set");
+        }
+    }
 
     backend_info(format!(
-        "Content extracted for {} (title_len={}, content_len={})",
+        "Content extracted for {} (title_len={}, content_len={}, method={})",
         final_url,
         final_title.len(),
-        final_content.len()
+        final_content.len(),
+        resolve_type
     ));
 
     Ok(BrowseResult {
         url: final_url,
         title: final_title,
         content: final_content,
-        resolve_type: "exact".to_string(),
+        resolve_type,
         suggestions: vec![],
     })
 }
 
 fn extract_content(document: &scraper::Html) -> String {
+    // Junk elements to subtract from any matched container
+    let junk_sel = scraper::Selector::parse(
+        "script, style, noscript, nav, footer, header, aside, form, button, select, \
+         [role=\"navigation\"], [role=\"banner\"], [role=\"contentinfo\"], \
+         .cookie-banner, .cookie-consent, .ad, .advertisement, .sidebar, \
+         .menu, .nav, .footer, .header"
+    ).unwrap();
+
     // Try to find article content first
     let selectors = [
         "article",
@@ -501,7 +568,21 @@ fn extract_content(document: &scraper::Html) -> String {
     for sel_str in &selectors {
         if let Ok(selector) = scraper::Selector::parse(sel_str) {
             if let Some(element) = document.select(&selector).next() {
-                let text = normalize_whitespace(&element.text().collect::<Vec<_>>().join(" "));
+                // Collect full text, then subtract junk element text
+                let full_text: String = element.text().collect::<Vec<_>>().join(" ");
+                let junk_text: String = element
+                    .select(&junk_sel)
+                    .flat_map(|el| el.text())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                let clean = if junk_text.len() > 30 {
+                    full_text.replace(&junk_text, " ")
+                } else {
+                    full_text
+                };
+
+                let text = normalize_whitespace(&clean);
                 if text.len() >= MIN_READABLE_CONTENT_LENGTH {
                     return text;
                 }
@@ -509,10 +590,24 @@ fn extract_content(document: &scraper::Html) -> String {
         }
     }
 
-    // Fallback: collect all paragraph text
+    // Fallback: collect all paragraph text (skip paragraphs inside junk containers)
     if let Ok(p_selector) = scraper::Selector::parse("p") {
         let paragraphs: Vec<String> = document
             .select(&p_selector)
+            .filter(|el| {
+                // Skip paragraphs that are inside nav/footer/aside/form
+                let mut parent = el.parent();
+                while let Some(p) = parent {
+                    if let Some(p_el) = p.value().as_element() {
+                        let tag = p_el.name();
+                        if matches!(tag, "nav" | "footer" | "header" | "aside" | "form") {
+                            return false;
+                        }
+                    }
+                    parent = p.parent();
+                }
+                true
+            })
             .map(|el| normalize_whitespace(&el.text().collect::<Vec<_>>().join(" ")))
             .filter(|t| t.len() > 40)
             .collect();
@@ -579,6 +674,8 @@ fn main() {
             audio_commands::backend_tts_speak_base64,
             audio_commands::backend_tts_info,
             audio_commands::backend_audio_devices,
+            audio_commands::piper_install,
+            audio_commands::piper_is_installed,
             tts::tts_is_available,
             tts::tts_speak,
             tts::tts_stop,

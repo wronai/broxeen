@@ -341,3 +341,161 @@ pub fn piper_setup_instructions() -> Option<String> {
         dir = piper_dir().display()
     ))
 }
+
+/// Check if Piper is already fully installed.
+pub fn piper_is_installed() -> bool {
+    piper_binary().exists() && piper_model().exists()
+}
+
+// ── Piper auto-download ─────────────────────────────
+
+const PIPER_TAR_URL: &str =
+    "https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz";
+const PIPER_MODEL_URL: &str =
+    "https://huggingface.co/rhasspy/piper-voices/resolve/main/pl/pl_PL/darkman/medium/pl_PL-darkman-medium.onnx";
+const PIPER_MODEL_CONFIG_URL: &str =
+    "https://huggingface.co/rhasspy/piper-voices/resolve/main/pl/pl_PL/darkman/medium/pl_PL-darkman-medium.onnx.json";
+
+/// Download a file from `url` and save it to `dest`.
+async fn download_file(client: &reqwest::Client, url: &str, dest: &std::path::Path) -> Result<u64, String> {
+    use std::io::Write;
+
+    println!("[piper-setup] Downloading {} ...", url);
+
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed for {url}: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!("HTTP {} for {url}", response.status()));
+    }
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read response body from {url}: {e}"))?;
+
+    let size = bytes.len() as u64;
+
+    let mut file = std::fs::File::create(dest)
+        .map_err(|e| format!("Cannot create {}: {e}", dest.display()))?;
+    file.write_all(&bytes)
+        .map_err(|e| format!("Cannot write to {}: {e}", dest.display()))?;
+
+    println!("[piper-setup] Saved {} ({} bytes)", dest.display(), size);
+    Ok(size)
+}
+
+/// Automatically download and install Piper binary + Polish voice model.
+/// Returns a status message on success.
+pub async fn download_and_install_piper() -> Result<String, String> {
+    if piper_is_installed() {
+        return Ok("Piper jest już zainstalowany.".into());
+    }
+
+    let dir = piper_dir();
+    std::fs::create_dir_all(&dir)
+        .map_err(|e| format!("Cannot create {}: {e}", dir.display()))?;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(300))
+        .user_agent("Broxeen/1.0")
+        .build()
+        .map_err(|e| format!("Cannot create HTTP client: {e}"))?;
+
+    // ── 1. Download and extract Piper binary ─────────
+    let tar_path = dir.join("piper_linux_x86_64.tar.gz");
+
+    if !piper_binary().exists() {
+        download_file(&client, PIPER_TAR_URL, &tar_path).await?;
+
+        // Extract to a temp directory first, then move contents up.
+        // tar creates piper/ subdirectory which contains a binary also named 'piper',
+        // causing collisions with mv. Using cp -a to merge properly.
+        let tmp_extract = dir.join("_extract_tmp");
+        std::fs::create_dir_all(&tmp_extract)
+            .map_err(|e| format!("Cannot create temp dir: {e}"))?;
+
+        let tar_output = Command::new("tar")
+            .arg("xzf")
+            .arg(&tar_path)
+            .arg("-C")
+            .arg(&tmp_extract)
+            .output()
+            .map_err(|e| format!("Failed to run tar: {e}"))?;
+
+        if !tar_output.status.success() {
+            let stderr = String::from_utf8_lossy(&tar_output.stderr);
+            std::fs::remove_dir_all(&tmp_extract).ok();
+            return Err(format!("tar extraction failed: {stderr}"));
+        }
+
+        // Copy everything from _extract_tmp/piper/* (or _extract_tmp/*) to target dir
+        let inner_dir = tmp_extract.join("piper");
+        let source_dir = if inner_dir.exists() { &inner_dir } else { &tmp_extract };
+
+        // Use shell cp with glob — avoids name collision between piper/ dir and piper binary
+        let cp_output = Command::new("sh")
+            .arg("-c")
+            .arg(format!("cp -a {}/* {}/", source_dir.display(), dir.display()))
+            .output()
+            .map_err(|e| format!("Failed to copy extracted files: {e}"))?;
+
+        if !cp_output.status.success() {
+            let stderr = String::from_utf8_lossy(&cp_output.stderr);
+            println!("[piper-setup] cp warning (non-fatal): {}", stderr);
+        }
+
+        // Clean up temp dir and tar.gz
+        std::fs::remove_dir_all(&tmp_extract).ok();
+        std::fs::remove_file(&tar_path).ok();
+
+        // Make binary executable
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let binary = piper_binary();
+            if binary.exists() {
+                let mut perms = std::fs::metadata(&binary)
+                    .map_err(|e| format!("Cannot read perms: {e}"))?
+                    .permissions();
+                perms.set_mode(0o755);
+                std::fs::set_permissions(&binary, perms)
+                    .map_err(|e| format!("Cannot set executable: {e}"))?;
+            }
+        }
+
+        println!("[piper-setup] Piper binary installed: {}", piper_binary().display());
+    }
+
+    // ── 2. Download voice model ──────────────────────
+    let model_path = piper_model();
+    if !model_path.exists() {
+        download_file(&client, PIPER_MODEL_URL, &model_path).await?;
+    }
+
+    // ── 3. Download model config ─────────────────────
+    let config_path = dir.join("pl_PL-darkman-medium.onnx.json");
+    if !config_path.exists() {
+        download_file(&client, PIPER_MODEL_CONFIG_URL, &config_path).await?;
+    }
+
+    // ── 4. Verify ────────────────────────────────────
+    if !piper_binary().exists() {
+        return Err("Piper binary not found after installation".into());
+    }
+    if !model_path.exists() {
+        return Err("Piper model not found after installation".into());
+    }
+
+    let engine = detect_tts_engine();
+    println!("[piper-setup] Installation complete. Detected engine: {:?}", engine);
+
+    Ok(format!(
+        "Piper TTS zainstalowany pomyślnie w {}. Silnik: {:?}",
+        dir.display(),
+        engine
+    ))
+}

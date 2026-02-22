@@ -237,7 +237,12 @@ export async function summarizeForTts(
         content:
           `Podsumuj poniższą treść strony w maksymalnie ${maxSentences} zdaniach. ` +
           "Pisz naturalnym językiem polskim, tak żeby dobrze brzmiało czytane " +
-          "na głos przez syntezator mowy. Nie używaj markdown, linków ani formatowania.",
+          "na głos przez syntezator mowy. Nie używaj markdown, linków ani formatowania. " +
+          "WAŻNE: Skup się TYLKO na głównej treści artykułu lub strony. " +
+          "Całkowicie ignoruj: elementy nawigacji, przyciski, etykiety menu, " +
+          "linki w stopce, powiadomienia o ciasteczkach, formularze logowania, " +
+          "nazwy kategorii, breadcrumby, sidebary i inne elementy interfejsu. " +
+          "Nie cytuj nazw przycisków ani pozycji menu.",
       },
       { role: "user", content: pageContent.slice(0, TTS_TRIM) },
     ];

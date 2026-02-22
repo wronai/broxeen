@@ -136,6 +136,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const modeRef = useRef<"media" | "tauri" | "none">("none");
+  const isRecordingRef = useRef(false);
 
   useEffect(() => {
     const reason = getUnsupportedReason();
@@ -356,12 +357,16 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   }, [isRecording, lang, stopTracks]);
 
   useEffect(() => {
+    isRecordingRef.current = isRecording;
+  }, [isRecording]);
+
+  useEffect(() => {
     return () => {
-      if (modeRef.current === "tauri" && isRecording) {
+      if (modeRef.current === "tauri" && isRecordingRef.current) {
         invoke("stt_stop", { language: lang.split("-")[0] }).catch(() => undefined);
       }
     };
-  }, [isRecording, lang]);
+  }, [lang]);
 
   return {
     isSupported,

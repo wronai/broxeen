@@ -249,3 +249,19 @@ pub fn backend_audio_devices() -> Result<AudioDevices, String> {
 pub struct AudioDevices {
     pub inputs: Vec<String>,
 }
+
+// ── Piper Install Commands ───────────────────────────
+
+/// Download and install Piper TTS binary + Polish voice model.
+#[tauri::command]
+pub async fn piper_install() -> Result<String, String> {
+    crate::backend_info("Command piper_install invoked");
+    tts_backend::download_and_install_piper().await
+}
+
+/// Check if Piper is installed.
+#[tauri::command]
+pub fn piper_is_installed() -> bool {
+    tts_backend::piper_is_installed()
+}
+

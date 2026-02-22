@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Settings as SettingsIcon, X, Mic, Volume2 } from "lucide-react";
+import { Settings as SettingsIcon, X, Mic, Volume2, Download } from "lucide-react";
 import {
   DEFAULT_AUDIO_SETTINGS,
   withAudioSettingsDefaults,
@@ -24,6 +24,9 @@ export default function Settings({
   const [settings, setSettings] = useState<AudioSettings>(DEFAULT_AUDIO_SETTINGS);
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [saved, setSaved] = useState(false);
+  const [piperInstalled, setPiperInstalled] = useState<boolean | null>(null);
+  const [piperInstalling, setPiperInstalling] = useState(false);
+  const [piperStatus, setPiperStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -37,6 +40,16 @@ export default function Settings({
       .catch((e) => {
         logger.error("Failed to fetch settings:", e);
         setSettings(DEFAULT_AUDIO_SETTINGS);
+      });
+
+    invoke<boolean>("piper_is_installed")
+      .then((installed) => {
+        logger.debug("Piper installed:", installed);
+        setPiperInstalled(installed);
+      })
+      .catch((e) => {
+        logger.warn("Failed to check piper status:", e);
+        setPiperInstalled(false);
       });
 
     navigator.mediaDevices
@@ -129,6 +142,43 @@ export default function Settings({
                   <option value="webspeech">Web Speech API (przeglądarka)</option>
                 </select>
               </label>
+
+              {piperInstalled === false && (
+                <div className="rounded-lg border border-yellow-600/30 bg-yellow-900/20 p-3">
+                  <p className="mb-2 text-xs text-yellow-300">
+                    Piper TTS nie jest zainstalowany. Pobierz binarkę + model głosu (~60 MB).
+                  </p>
+                  <button
+                    onClick={async () => {
+                      setPiperInstalling(true);
+                      setPiperStatus("Pobieranie Piper TTS…");
+                      try {
+                        const result = await invoke<string>("piper_install");
+                        setPiperStatus(result);
+                        setPiperInstalled(true);
+                        logger.info("Piper installed:", result);
+                      } catch (e) {
+                        const msg = e instanceof Error ? e.message : String(e);
+                        setPiperStatus(`Błąd: ${msg}`);
+                        logger.error("Piper install failed:", e);
+                      } finally {
+                        setPiperInstalling(false);
+                      }
+                    }}
+                    disabled={piperInstalling}
+                    className="flex items-center gap-2 rounded-lg bg-broxeen-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-broxeen-500 disabled:opacity-50"
+                  >
+                    <Download size={14} />
+                    {piperInstalling ? "Instalowanie…" : "Zainstaluj Piper"}
+                  </button>
+                  {piperStatus && (
+                    <p className="mt-2 text-xs text-gray-400">{piperStatus}</p>
+                  )}
+                </div>
+              )}
+              {piperInstalled === true && (
+                <p className="text-xs text-green-400">✓ Piper TTS zainstalowany</p>
+              )}
 
               <label className="block">
                 <span className="text-sm text-gray-300">Głos</span>

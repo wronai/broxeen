@@ -135,7 +135,13 @@ function extractBrowserReadableContent(rawHtml: string): { title: string; conten
 
   const document = new DOMParser().parseFromString(rawHtml, "text/html");
   document
-    .querySelectorAll("script, style, noscript, template")
+    .querySelectorAll(
+      "script, style, noscript, template, nav, footer, header, aside, form, " +
+      "button, select, input[type='hidden'], " +
+      "[role='navigation'], [role='banner'], [role='contentinfo'], " +
+      ".cookie-banner, .cookie-consent, .ad, .advertisement, .sidebar, " +
+      ".menu, .nav, .footer, .header"
+    )
     .forEach((el) => el.remove());
 
   const title = normalizeText(document.title) || "Untitled";
@@ -356,9 +362,9 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
           const extracted = htmlPayload
             ? extractBrowserReadableContent(rawContent)
             : {
-                title: "Untitled",
-                content: rawContent,
-              };
+              title: "Untitled",
+              content: rawContent,
+            };
 
           const normalized = normalizeBrowseResult(
             {

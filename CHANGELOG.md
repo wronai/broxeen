@@ -1,3 +1,22 @@
+## [1.0.15] - 2026-02-22
+
+### Summary
+
+feat(tests): CLI interface improvements
+
+### Other
+
+- update src-tauri/src/audio_commands.rs
+- update src-tauri/src/browse_rendered.rs
+- update src-tauri/src/main.rs
+- update src-tauri/src/tts_backend.rs
+- update src/components/Settings.tsx
+- update src/hooks/useStt.ts
+- update src/lib/browseGateway.test.ts
+- update src/lib/browseGateway.ts
+- update src/lib/llmClient.ts
+
+
 ## [1.0.14] - 2026-02-21
 
 ### Summary
