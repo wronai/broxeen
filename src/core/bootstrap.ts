@@ -158,6 +158,11 @@ async function registerCorePlugins(
     safeRegister(registry, router, new MonitorPlugin(), 'MonitorPlugin');
   } catch (e) { console.warn('MonitorPlugin unavailable:', e); }
 
+  try {
+    const { ProcessesPlugin } = await import('../plugins/system/processesPlugin');
+    safeRegister(registry, router, new ProcessesPlugin(), 'ProcessesPlugin');
+  } catch (e) { console.warn('ProcessesPlugin unavailable:', e); }
+
   // ── Protocol Bridge plugin ──────────────────────────────────────
 
   try {

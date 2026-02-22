@@ -55,7 +55,7 @@ function chatApiPlugin(): Plugin {
       const ip = m[1];
       const block = out.slice(m.index!, out.indexOf('\n\n', m.index!) + 1);
       const ports = [...block.matchAll(/(\d+)\/tcp\s+open/g)].map(p => +p[1]);
-      hosts.push({ ip, ports, hasCam: ports.some(p => [554,8554,8000,8080].includes(p)) });
+      hosts.push({ ip, ports, hasCam: ports.some(p => [554, 8554].includes(p)) });
     }
     return hosts;
   }
@@ -94,25 +94,38 @@ function chatApiPlugin(): Plugin {
       case 'camera:onvif': {
         lines.push(isCam ? `📷 **Skanowanie kamer** *(tryb systemowy)*\n` : `🔍 **Skanowanie sieci** *(tryb systemowy)*\n`);
         lines.push(`🌐 Podsieć: ${sub}.0/24 | IP: ${localIp ?? '?'}\n`);
-        const arp = parseArpEntries();
-        if (arp.length) {
-          lines.push(`**ARP (${arp.length} hostów):**`);
-          arp.forEach(e => {
-            lines.push(`  📍 ${e.ip} [${e.mac ?? '??'}] (${e.state})`);
-            if (isCam) lines.push(`     🎥 RTSP: \`rtsp://${e.ip}:554/stream\``);
-          });
+        // ARP: show neighbours without RTSP speculation
+        const arp = parseArpEntries().filter(e => e.state !== 'failed' && e.ip !== localIp);
+        const wifiArp = arp.filter(e => e.ip.startsWith(sub + '.'));
+        if (wifiArp.length) {
+          lines.push(`**Sąsiedzi w sieci WiFi (${wifiArp.length}):**`);
+          wifiArp.forEach(e => lines.push(`  📍 ${e.ip} [${e.mac ?? '??'}] (${e.state})`));
         }
+        // nmap: camera ports only
         const nmapCmd = isCam
-          ? `nmap -p 80,8080,554,8554,8000 --open -T4 ${sub}.0/24 2>/dev/null`
+          ? `nmap -p 554,8554,80,8080,8000 --open -T4 ${sub}.0/24 2>/dev/null`
           : `nmap -sn -T4 ${sub}.0/24 2>/dev/null`;
         const nmapOut = run(nmapCmd, 30000);
         if (nmapOut) {
-          const hosts = parseNmapHosts(nmapOut);
-          lines.push(`\n**nmap (${hosts.length} hostów):**`);
-          hosts.forEach(h => {
-            lines.push(`  ${h.hasCam ? '📷' : '🖥️ '} **${h.ip}**${h.ports.length ? ` ports: ${h.ports.join(',')}` : ''}`);
-            if (h.hasCam) lines.push(`     🎥 RTSP: \`rtsp://${h.ip}:554/stream\``);
-          });
+          const hosts = parseNmapHosts(nmapOut).filter(h => h.ip !== localIp);
+          const cameras = hosts.filter(h => h.hasCam);
+          const others  = hosts.filter(h => !h.hasCam);
+          if (isCam) {
+            lines.push(cameras.length
+              ? `\n**📷 Kamery RTSP (${cameras.length}):**`
+              : `\n⚠️ Nie wykryto kamer RTSP (port 554/8554 zamknięty na wszystkich hostach)`);
+            cameras.forEach(h => {
+              lines.push(`  📷 **${h.ip}** ports: ${h.ports.join(',')}`);
+              lines.push(`     🎥 RTSP: \`rtsp://${h.ip}:554/stream\``);
+            });
+            if (others.length) {
+              lines.push(`\n🖥️  Inne urządzenia (${others.length}):`);
+              others.forEach(h => lines.push(`  🖥️  ${h.ip} ports: ${h.ports.join(',')}`))
+            }
+          } else {
+            lines.push(`\n**Hosty w sieci (${hosts.length}):**`);
+            hosts.forEach(h => lines.push(`  ${h.hasCam ? '📷' : '🖥️ '} ${h.ip}${h.ports.length ? ` [${h.ports.join(',')}]` : ''}`));
+          }
         } else {
           lines.push('\n💡 Zainstaluj nmap: sudo apt install nmap');
         }

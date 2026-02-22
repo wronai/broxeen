@@ -140,7 +140,7 @@ function parseNmapResult(out) {
     const ports = [...block.matchAll(/(\d+)\/tcp\s+open/g)].map(p => +p[1]);
     const mac = block.match(/MAC Address: ([0-9A-F:]+)/i)?.[1] || null;
     const vendor = block.match(/MAC Address:.*?\(([^)]+)\)/i)?.[1] || null;
-    const hasCam = ports.some(p => [554, 8554, 8000, 8080].includes(p));
+    const hasCam = ports.some(p => [554, 8554].includes(p));
     hosts.push({ ip, hostname, ports, mac, vendor, hasCam });
   }
   return hosts;
@@ -238,7 +238,7 @@ async function main() {
     ...pingAlive.map(h => h.ip),
     ...nmapHosts.map(h => h.ip),
   ]);
-  const cameras = nmapHosts.filter(h => h.hasCam);
+  const cameras = nmapHosts.filter(h => h.hasCam && h.ip !== localIp);
 
   console.log(sep());
   console.log(col('\n📊 Podsumowanie:', 'bold'));

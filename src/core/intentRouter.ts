@@ -206,6 +206,15 @@ export class IntentRouter implements IIntentRouter {
       /ustaw.*interwal/i,
     ]);
 
+    this.intentPatterns.set('system:processes', [
+      /^procesy\b/i,
+      /^processes\b/i,
+      /^stop\s+proces\b/i,
+      /^stop\s+process\b/i,
+      /^zatrzymaj\s+proces\b/i,
+      /^zatrzymaj\s+process\b/i,
+    ]);
+
     // Marketplace intents
     this.intentPatterns.set('marketplace:browse', [
       /marketplace/i,

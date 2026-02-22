@@ -173,6 +173,48 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
     },
   ];
 
+  // Helper functions - must be defined before useMemo
+  const formatCommandTitle = (command: string): string => {
+    // Truncate long commands
+    if (command.length > 30) {
+      return command.slice(0, 27) + '...';
+    }
+    // Capitalize first letter
+    return command.charAt(0).toUpperCase() + command.slice(1);
+  };
+
+  const inferCategory = (storedCategory: string | undefined, command: string): QuickCommand['category'] => {
+    // If we have a valid stored category, use it
+    if (storedCategory && ['browse', 'network', 'camera', 'search'].includes(storedCategory)) {
+      return storedCategory as QuickCommand['category'];
+    }
+    
+    // Otherwise infer from command text
+    const lower = command.toLowerCase();
+    if (lower.includes('kamer') || lower.includes('camera')) return 'camera';
+    if (lower.includes('sieci') || lower.includes('network') || lower.includes('skanuj')) return 'network';
+    if (lower.includes('.pl') || lower.includes('.com') || lower.includes('http')) return 'browse';
+    if (lower.includes('wyszukaj') || lower.includes('search')) return 'search';
+    
+    // Default to browse
+    return 'browse';
+  };
+
+  const getCategoryIcon = (category: QuickCommand['category']) => {
+    switch (category) {
+      case 'browse':
+        return <Globe className="w-3 h-3" />;
+      case 'network':
+        return <Wifi className="w-3 h-3" />;
+      case 'camera':
+        return <Camera className="w-3 h-3" />;
+      case 'search':
+        return <Search className="w-3 h-3" />;
+      default:
+        return <Command className="w-3 h-3" />;
+    }
+  };
+
   useEffect(() => {
     // Sort by usage count and favorites
     const sortedCommands = [...quickCommands].sort((a, b) => {
@@ -241,21 +283,16 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
 
   const getCategoryColor = (category: QuickCommand['category']) => {
     switch (category) {
-      case 'browse': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'network': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      case 'camera': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-      case 'search': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
-    }
-  };
-
-  const getCategoryIcon = (category: QuickCommand['category']) => {
-    switch (category) {
-      case 'browse': return <Globe className="w-3 h-3" />;
-      case 'network': return <Wifi className="w-3 h-3" />;
-      case 'camera': return <Camera className="w-3 h-3" />;
-      case 'search': return <Search className="w-3 h-3" />;
-      default: return <Command className="w-3 h-3" />;
+      case 'browse':
+        return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'network':
+        return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'camera':
+        return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+      case 'search':
+        return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      default:
+        return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
     }
   };
 

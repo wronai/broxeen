@@ -14,6 +14,7 @@
  */
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
+import { processRegistry } from '../../core/processRegistry';
 
 export interface MonitorTarget {
   id: string;
@@ -152,6 +153,14 @@ export class MonitorPlugin implements Plugin {
 
     this.targets.set(parsed.id, target);
 
+    processRegistry.upsertRunning({
+      id: `monitor:${target.id}`,
+      type: 'monitor',
+      label: `Monitoring: ${target.name}`,
+      pluginId: this.id,
+      stopCommand: `stop monitoring ${target.name}`,
+    });
+
     // Start polling timer (simulated in browser, real in Tauri)
     const timer = setInterval(() => {
       this.poll(target, context);
@@ -220,6 +229,8 @@ export class MonitorPlugin implements Plugin {
       `Sprawdzeń: ${found.logs.filter(l => l.type === 'check').length}`;
 
     this.targets.delete(found.id);
+
+    processRegistry.remove(`monitor:${found.id}`);
 
     return {
       pluginId: this.id,
@@ -589,6 +600,10 @@ export class MonitorPlugin implements Plugin {
   async dispose(): Promise<void> {
     for (const timer of this.timers.values()) clearInterval(timer);
     this.timers.clear();
+
+    for (const id of this.targets.keys()) {
+      processRegistry.remove(`monitor:${id}`);
+    }
     this.targets.clear();
     console.log('MonitorPlugin disposed');
   }

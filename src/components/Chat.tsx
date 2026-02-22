@@ -32,6 +32,7 @@ import { QuickCommandHistory } from "./QuickCommandHistory";
 import { CameraPreview, type CameraPreviewProps } from "./CameraPreview";
 import { ActionSuggestions } from "./ActionSuggestions";
 import { QuickCommands } from "./QuickCommands";
+import { processRegistry } from "../core/processRegistry";
 import type { AudioSettings } from "../domain/audioSettings";
 import { type ChatMessage } from "../domain/chatEvents";
 import { logger } from "../lib/logger";
@@ -959,7 +960,17 @@ ${analysis}`,
       payload: { id: Date.now(), role: "user", text: query },
     });
 
+    const processId = `query:${Date.now()}`;
+
     try {
+      processRegistry.upsertRunning({
+        id: processId,
+        type: 'query',
+        label: `Zapytanie: ${query.length > 60 ? query.slice(0, 57) + '...' : query}`,
+        details: `scope=${currentScope}`,
+        stopCommand: undefined,
+      });
+
       // Use plugin system to handle the query with scope information
       const result = await ask(query, isListening || stt.isRecording ? "voice" : "text", currentScope);
       
@@ -1006,6 +1017,9 @@ ${analysis}`,
 
         // Add to command history
         addToCommandHistory(query, fullResult.trim(), categorizeCommand(query), true);
+
+        processRegistry.complete(processId);
+        processRegistry.remove(processId);
       } else {
         // Handle error case
         const errorMessage = (result.content[0]?.data as string) ?? "Wystąpił błąd podczas przetwarzania zapytania.";
@@ -1021,6 +1035,9 @@ ${analysis}`,
         
         // Add to command history
         addToCommandHistory(query, errorMessage, categorizeCommand(query), false);
+
+        processRegistry.fail(processId, errorMessage);
+        processRegistry.remove(processId);
       }
     } catch (error) {
       chatLogger.error("Plugin system execution failed", error);
@@ -1038,6 +1055,10 @@ ${analysis}`,
       
       // Add to command history
       addToCommandHistory(query, "Błąd systemu pluginów", categorizeCommand(query), false);
+
+      const msg = error instanceof Error ? error.message : 'Nieznany błąd';
+      processRegistry.fail(processId, msg);
+      processRegistry.remove(processId);
     }
   };
 
@@ -1372,15 +1393,13 @@ ${analysis}`,
                           </div>
                         )}
 
-                        {/* Inline Action Hints — parsed from plugin response text */}
+                        {/* Inline Action Hints */}
                         {msg.role === "assistant" && !msg.loading && (() => {
-                          // Only parse hints from an explicit section to avoid false-positives
-                          // from normal markdown bullet lists.
                           const markers = [
                             '💡 **Sugerowane akcje:**',
-                            '💡 **Komendy:**',
-                            '💡 Komendy:',
-                            '💡 Komendy'
+                            '💡 **Sugerowane akcje**:',
+                            'Sugerowane akcje:',
+                            'Sugerowane akcje',
                           ];
 
                           let markerIdx = -1;
