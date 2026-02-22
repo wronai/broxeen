@@ -197,6 +197,15 @@ function showHelp() {
     '  arp                     — tabela ARP',
     '  <URL>                   — pobierz i wyświetl stronę',
     '',
+    col('Urządzenia i pluginy:', 'bold'),
+    '  .devices                — lista wykrytych urządzeń (SQLite)',
+    '  .devices <IP>           — szczegóły urządzenia',
+    '  .plugins                — lista zarejestrowanych pluginów',
+    '  .db stats               — statystyki baz danych',
+    '  .db query <SQL>         — zapytanie SQL (devices.db)',
+    '  .config                 — pokaż bieżącą konfigurację',
+    '  .config set <k> <v>     — ustaw wartość konfiguracji',
+    '',
     col('Specjalne:', 'bold'),
     '  .scope <id>             — zmień scope (local|network|internet)',
     '  .compare                — CLI vs App side-by-side',
@@ -207,6 +216,167 @@ function showHelp() {
     col('Narzędzia:', 'bold'),
     ...Object.entries(tools).map(([k, v]) => `  ${v ? '✅' : '❌'} ${k}`),
   ].join('\n');
+}
+
+// ── Device/Plugin/DB handlers ───────────────────────────────────────────────
+
+import { existsSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
+
+function findDbPath(name) {
+  // Tauri stores DBs next to the binary or in cwd
+  const candidates = [
+    join(process.cwd(), name),
+    join(process.cwd(), 'src-tauri', name),
+    join(homedir(), '.local', 'share', 'com.broxeen.app', name),
+  ];
+  return candidates.find(p => existsSync(p)) || null;
+}
+
+function hasSqlite3Cli() {
+  return !!run('which sqlite3');
+}
+
+function sqliteQuery(dbPath, sql) {
+  if (!dbPath || !hasSqlite3Cli()) return null;
+  return run(`sqlite3 -header -column "${dbPath}" "${sql.replace(/"/g, '\\"')}"`, 10000);
+}
+
+function handleDevices(arg) {
+  const dbPath = findDbPath('broxeen_devices.db');
+  if (!dbPath) {
+    return col('⚠️  Baza devices.db nie znaleziona.', 'yellow') +
+      '\n   Uruchom aplikację Tauri, aby utworzyć bazę danych.' +
+      '\n   Ścieżki przeszukane: cwd, src-tauri/, ~/.local/share/com.broxeen.app/';
+  }
+  if (!hasSqlite3Cli()) {
+    return col('⚠️  sqlite3 CLI nie znalezione.', 'yellow') +
+      '\n   Zainstaluj: sudo apt install sqlite3';
+  }
+
+  if (arg) {
+    // Device details by IP
+    const device = sqliteQuery(dbPath, `SELECT * FROM devices WHERE ip='${arg.replace(/'/g, '')}' LIMIT 1`);
+    const services = sqliteQuery(dbPath, `SELECT type, port, path, status, last_checked FROM device_services WHERE device_id='${arg.replace(/'/g, '')}'`);
+    if (!device) return col(`❌ Urządzenie ${arg} nie znalezione w bazie`, 'red');
+    return `${col('📱 Urządzenie:', 'bold', 'cyan')}\n${device}\n\n${col('Usługi:', 'bold')}\n${services || '  (brak)'}`;
+  }
+
+  const out = sqliteQuery(dbPath, 'SELECT ip, hostname, mac, vendor, datetime(last_seen/1000, "unixepoch", "localtime") as last_seen FROM devices ORDER BY last_seen DESC LIMIT 50');
+  if (!out) return col('📭 Brak urządzeń w bazie. Wykonaj skan sieci.', 'dim');
+  const count = sqliteQuery(dbPath, 'SELECT count(*) as total FROM devices');
+  return `${col('📱 Wykryte urządzenia:', 'bold', 'cyan')}\n${out}\n\n${count}`;
+}
+
+async function handlePlugins() {
+  // Try to get plugin list from the running app
+  try {
+    const res = await fetch(`${APP_URL}/api/plugins`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const plugins = data.plugins || data;
+      if (Array.isArray(plugins)) {
+        const lines = [col('🔌 Zarejestrowane pluginy:', 'bold', 'cyan')];
+        plugins.forEach((p, i) => {
+          lines.push(`  ${i + 1}. ${col(p.name || p.id, 'green')} v${p.version || '?'} — ${(p.supportedIntents || []).join(', ')}`);
+        });
+        return lines.join('\n');
+      }
+    }
+  } catch { /* app not running */ }
+
+  // Fallback: list known plugin files
+  const pluginDirs = ['plugins/discovery', 'plugins/network', 'plugins/camera', 'plugins/cameras',
+    'plugins/monitor', 'plugins/system', 'plugins/chat', 'plugins/http',
+    'plugins/rtsp-camera', 'plugins/protocol-bridge', 'plugins/marketplace',
+    'plugins/local-network', 'plugins/scope'];
+  const lines = [col('🔌 Pluginy (z plików src/):', 'bold', 'cyan')];
+  for (const dir of pluginDirs) {
+    const out = run(`ls src/${dir}/*Plugin.ts 2>/dev/null`);
+    if (out) {
+      out.split('\n').forEach(f => {
+        const name = f.replace(/^.*\//, '').replace('.ts', '');
+        lines.push(`  📦 ${col(name, 'green')} — ${dir}`);
+      });
+    }
+  }
+  if (lines.length === 1) lines.push(col('  (brak plików pluginów)', 'dim'));
+  lines.push('\n' + col('💡 Uruchom aplikację, aby zobaczyć aktywne pluginy i intenty.', 'dim'));
+  return lines.join('\n');
+}
+
+function handleDbCommand(args) {
+  const sub = args[0];
+  if (sub === 'stats') {
+    const devicesDb = findDbPath('broxeen_devices.db');
+    const chatDb = findDbPath('broxeen_chat.db');
+    const lines = [col('🗄️  Statystyki baz danych:', 'bold', 'cyan')];
+
+    for (const [label, path] of [['devices.db', devicesDb], ['chat.db', chatDb]]) {
+      if (!path) {
+        lines.push(`  ${col(label, 'yellow')}: nie znaleziona`);
+        continue;
+      }
+      if (!hasSqlite3Cli()) {
+        lines.push(`  ${col(label, 'yellow')}: ${path} (sqlite3 CLI niedostępne)`);
+        continue;
+      }
+      const tables = sqliteQuery(path, "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+      const size = run(`du -h "${path}" | cut -f1`);
+      lines.push(`  ${col(label, 'green')}: ${path} (${size || '?'})`);
+      if (tables) {
+        tables.split('\n').filter(Boolean).forEach(t => {
+          const count = sqliteQuery(path, `SELECT count(*) FROM ${t.trim()}`);
+          lines.push(`    📋 ${t.trim()}: ${count ? count.trim() : '?'} rows`);
+        });
+      }
+    }
+    return lines.join('\n');
+  }
+
+  if (sub === 'query') {
+    const sql = args.slice(1).join(' ');
+    if (!sql) return col('❌ Podaj zapytanie SQL: .db query SELECT * FROM devices', 'red');
+    const dbPath = findDbPath('broxeen_devices.db');
+    if (!dbPath) return col('⚠️  devices.db nie znaleziona', 'yellow');
+    if (!hasSqlite3Cli()) return col('⚠️  sqlite3 CLI niedostępne', 'yellow');
+    const out = sqliteQuery(dbPath, sql);
+    return out || col('(brak wyników)', 'dim');
+  }
+
+  return col('Użycie: .db stats | .db query <SQL>', 'yellow');
+}
+
+function handleConfig(args) {
+  const sub = args[0];
+  if (sub === 'set' && args.length >= 3) {
+    // Would need app API to set config remotely
+    return col(`⚠️  Ustawienie konfiguracji z CLI wymaga uruchomionej aplikacji.`, 'yellow') +
+      `\n   Użyj w czacie: "konfiguruj ${args[1]} ${args.slice(2).join(' ')}"` +
+      `\n   Lub ustaw zmienną env: export VITE_${args[1].toUpperCase().replace(/\./g, '_')}=${args.slice(2).join(' ')}`;
+  }
+
+  // Show current config from env / .env file
+  const envFile = run('cat .env 2>/dev/null || cat .env.example 2>/dev/null');
+  const lines = [col('⚙️  Konfiguracja (zmienne środowiskowe):', 'bold', 'cyan')];
+
+  const keys = [
+    'VITE_OPENROUTER_API_KEY', 'VITE_LLM_MODEL', 'VITE_LLM_API_URL',
+    'VITE_STT_MODEL', 'VITE_STT_LANG', 'VITE_DEFAULT_SUBNET',
+    'VITE_LOCALE', 'VITE_LANGUAGE',
+  ];
+  for (const k of keys) {
+    const val = process.env[k];
+    const fromFile = envFile?.match(new RegExp(`^${k}=(.*)$`, 'm'))?.[1];
+    const display = val || fromFile || col('(nie ustawione)', 'dim');
+    const masked = k.includes('KEY') && val ? val.slice(0, 8) + '...' : display;
+    lines.push(`  ${col(k, 'cyan')}: ${masked}`);
+  }
+  lines.push('\n' + col('💡 Ustaw: export VITE_xxx=value lub edytuj .env', 'dim'));
+  return lines.join('\n');
 }
 
 // ── App API integration ───────────────────────────────────────────────────────
@@ -275,6 +445,29 @@ rl.on('line', async line => {
   if (input === '.compare') { await runComparison(); showPrompt(); return; }
 
   if (input === '.help') { console.log('\n' + showHelp()); showPrompt(); return; }
+
+  if (input.startsWith('.devices')) {
+    const arg = input.split(/\s+/)[1] || '';
+    console.log('\n' + handleDevices(arg || undefined));
+    showPrompt(); return;
+  }
+
+  if (input === '.plugins') {
+    console.log('\n' + await handlePlugins());
+    showPrompt(); return;
+  }
+
+  if (input.startsWith('.db')) {
+    const args = input.split(/\s+/).slice(1);
+    console.log('\n' + handleDbCommand(args));
+    showPrompt(); return;
+  }
+
+  if (input.startsWith('.config')) {
+    const args = input.split(/\s+/).slice(1);
+    console.log('\n' + handleConfig(args));
+    showPrompt(); return;
+  }
 
   if (input.startsWith('.scope')) {
     const s = input.split(/\s+/)[1];

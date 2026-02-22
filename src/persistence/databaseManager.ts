@@ -1,95 +1,95 @@
 /**
  * Database Manager - handles SQLite connections, migrations, and connection pooling
  * Provides unified access to devices.db and chat.db with adapter pattern
+ *
+ * Architecture:
+ *   Tauri mode  → TauriDbAdapter → invoke('db_execute'/'db_query'/'db_close') → Rust rusqlite
+ *   Browser/test → InMemoryDbAdapter (no-op, returns empty results)
  */
 
-import Database from 'better-sqlite3';
 import { devicesDbMigrations, chatDbMigrations } from './migrations';
 import type { DatabaseConfig, Migration } from './types';
+import { logger } from '../lib/logger';
+
+const dbLogger = logger.scope('persistence:db');
 
 // Database Adapter Interface (DIP)
 export interface DbAdapter {
-  execute(sql: string, params?: unknown[]): void;
-  query<T = Record<string, unknown>>(sql: string, params?: unknown[]): T[];
-  queryOne<T = Record<string, unknown>>(sql: string, params?: unknown[]): T | null;
-  prepare(sql: string): Database.Statement;
-  close(): void;
+  execute(sql: string, params?: unknown[]): Promise<void>;
+  query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
+  queryOne<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T | null>;
+  close(): Promise<void>;
+  readonly dbPath: string;
   readonly isOpen: boolean;
 }
 
-// SQLite Adapter (better-sqlite3)
-export class SQLiteAdapter implements DbAdapter {
-  private db: Database.Database;
+// Tauri SQLite Adapter — calls Rust db_execute/db_query/db_close via invoke
+export class TauriDbAdapter implements DbAdapter {
   private _isOpen = true;
+  readonly dbPath: string;
+  private tauriInvoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
 
-  constructor(dbPath: string) {
-    this.db = new Database(dbPath);
-    this.db.pragma('journal_mode = WAL');
-    this.db.pragma('foreign_keys = ON');
+  constructor(dbPath: string, tauriInvoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>) {
+    this.dbPath = dbPath;
+    this.tauriInvoke = tauriInvoke;
+    dbLogger.info('TauriDbAdapter created', { dbPath });
   }
 
   get isOpen(): boolean {
     return this._isOpen;
   }
 
-  execute(sql: string, params: unknown[] = []): void {
-    this.db.exec(sql);
+  async execute(sql: string, params: unknown[] = []): Promise<void> {
+    await this.tauriInvoke('db_execute', { db: this.dbPath, sql, params });
   }
 
-  query<T>(sql: string, params: unknown[] = []): T[] {
-    return this.db.prepare(sql).all(...params) as T[];
+  async query<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
+    const rows = await this.tauriInvoke('db_query', { db: this.dbPath, sql, params });
+    return (rows as T[]) ?? [];
   }
 
-  queryOne<T>(sql: string, params: unknown[] = []): T | null {
-    return this.db.prepare(sql).get(...params) as T | null;
+  async queryOne<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T | null> {
+    const rows = await this.query<T>(sql, params);
+    return rows[0] ?? null;
   }
 
-  prepare(sql: string): Database.Statement {
-    return this.db.prepare(sql);
-  }
-
-  close(): void {
+  async close(): Promise<void> {
     this._isOpen = false;
-    this.db.close();
+    await this.tauriInvoke('db_close', { db: this.dbPath });
+    dbLogger.info('TauriDbAdapter closed', { dbPath: this.dbPath });
   }
 }
 
-// In-Memory Adapter (for browser/testing)
+// In-Memory Adapter (for browser/testing — no real SQLite)
 export class InMemoryDbAdapter implements DbAdapter {
-  private tables = new Map<string, unknown[]>();
   private _isOpen = true;
-  private autoId = 0;
+  readonly dbPath: string;
+  private store = new Map<string, Record<string, unknown>[]>();
+
+  constructor(dbPath = ':memory:') {
+    this.dbPath = dbPath;
+  }
 
   get isOpen(): boolean {
     return this._isOpen;
   }
 
-  execute(sql: string, _params: unknown[] = []): void {
-    // Minimal SQL parser for CREATE TABLE and PRAGMA
-    if (sql.includes("PRAGMA") || sql.includes("CREATE")) return;
+  async execute(_sql: string, _params: unknown[] = []): Promise<void> {
+    // No-op for in-memory
   }
 
-  query<T>(sql: string, params: unknown[] = []): T[] {
+  async query<T = Record<string, unknown>>(_sql: string, _params: unknown[] = []): Promise<T[]> {
     return [] as T[];
   }
 
-  queryOne<T>(sql: string, params: unknown[] = []): T | null {
-    const results = this.query<T>(sql, params);
-    return results[0] ?? null;
+  async queryOne<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T | null> {
+    const rows = await this.query<T>(sql, params);
+    return rows[0] ?? null;
   }
 
-  prepare(sql: string): Database.Statement {
-    // Mock implementation for in-memory adapter
-    return {
-      run: () => ({ changes: 0, lastInsertRowid: 0 }),
-      all: () => [],
-      get: () => null,
-    } as unknown as Database.Statement;
-  }
-
-  close(): void {
+  async close(): Promise<void> {
     this._isOpen = false;
-    this.tables.clear();
+    this.store.clear();
   }
 }
 
@@ -97,80 +97,64 @@ export class DatabaseManager {
   private devicesDb: DbAdapter | null = null;
   private chatDb: DbAdapter | null = null;
   private config: DatabaseConfig;
+  private tauriInvoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;
   private isInitialized = false;
 
-  constructor(config: DatabaseConfig) {
+  constructor(
+    config: DatabaseConfig,
+    tauriInvoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>,
+  ) {
     this.config = config;
+    this.tauriInvoke = tauriInvoke;
   }
 
   /**
    * Initialize both databases with migrations
    */
   async initialize(): Promise<void> {
-    if (this.isInitialized) {
-      return;
-    }
+    if (this.isInitialized) return;
 
-    console.log('🗄️ Initializing databases...');
+    dbLogger.info('Initializing databases...', {
+      devicesDb: this.config.devicesDbPath,
+      chatDb: this.config.chatDbPath,
+      mode: this.tauriInvoke ? 'tauri' : 'in-memory',
+    });
 
     try {
-      // Initialize devices database
-      if (this.config.connectionPoolSize > 0) {
-        // Use better-sqlite3 for production
-        this.devicesDb = new SQLiteAdapter(this.config.devicesDbPath);
+      if (this.tauriInvoke) {
+        this.devicesDb = new TauriDbAdapter(this.config.devicesDbPath, this.tauriInvoke);
+        this.chatDb = new TauriDbAdapter(this.config.chatDbPath, this.tauriInvoke);
       } else {
-        // Use in-memory for testing
-        this.devicesDb = new InMemoryDbAdapter();
+        this.devicesDb = new InMemoryDbAdapter(this.config.devicesDbPath);
+        this.chatDb = new InMemoryDbAdapter(this.config.chatDbPath);
       }
 
-      // Run migrations for devices database
+      // Run migrations
       await this.runMigrations(this.devicesDb, devicesDbMigrations, 'devices');
-
-      // Initialize chat database
-      if (this.config.connectionPoolSize > 0) {
-        this.chatDb = new SQLiteAdapter(this.config.chatDbPath);
-      } else {
-        this.chatDb = new InMemoryDbAdapter();
-      }
-
-      // Run migrations for chat database
       await this.runMigrations(this.chatDb, chatDbMigrations, 'chat');
 
       this.isInitialized = true;
-      console.log('✅ Databases initialized successfully');
+      dbLogger.info('Databases initialized successfully');
     } catch (error) {
-      console.error('❌ Failed to initialize databases:', error);
+      dbLogger.error('Failed to initialize databases', error);
       await this.close();
       throw error;
     }
   }
 
-  /**
-   * Get devices database instance
-   */
   getDevicesDb(): DbAdapter {
-    if (!this.devicesDb) {
-      throw new Error('Devices database not initialized');
-    }
+    if (!this.devicesDb) throw new Error('Devices database not initialized');
     return this.devicesDb;
   }
 
-  /**
-   * Get chat database instance
-   */
   getChatDb(): DbAdapter {
-    if (!this.chatDb) {
-      throw new Error('Chat database not initialized');
-    }
+    if (!this.chatDb) throw new Error('Chat database not initialized');
     return this.chatDb;
   }
 
-  /**
-   * Run migrations for a database
-   */
   private async runMigrations(db: DbAdapter, migrations: Migration[], dbName: string): Promise<void> {
     // Create migrations table
-    db.execute(`
+    await db.execute(`
       CREATE TABLE IF NOT EXISTS schema_migrations (
         version INTEGER PRIMARY KEY,
         description TEXT NOT NULL,
@@ -178,100 +162,62 @@ export class DatabaseManager {
       )
     `);
 
-    // Get applied migrations
-    const appliedVersions = db.query('SELECT version FROM schema_migrations ORDER BY version').map((v: any) => v.version);
-    const appliedVersionSet = new Set(appliedVersions);
+    const applied = await db.query<{ version: number }>('SELECT version FROM schema_migrations ORDER BY version');
+    const appliedSet = new Set(applied.map(v => v.version));
 
-    // Run pending migrations
     for (const migration of migrations) {
-      if (!appliedVersionSet.has(migration.version)) {
-        console.log(`🔄 Running migration ${migration.version} for ${dbName}: ${migration.description}`);
-        
+      if (!appliedSet.has(migration.version)) {
+        dbLogger.info(`Running migration ${migration.version} for ${dbName}: ${migration.description}`);
         try {
-          migration.up(db as any);
-          
-          // Record migration
-          db.execute(`
-            INSERT INTO schema_migrations (version, description, applied_at) VALUES (?, ?, ?)
-          `, [migration.version, migration.description, Date.now()]);
-          
-          console.log(`✅ Migration ${migration.version} applied successfully`);
+          // Migrations use exec() which maps to execute()
+          migration.up({ exec: (sql: string) => { db.execute(sql); } });
+
+          await db.execute(
+            'INSERT INTO schema_migrations (version, description, applied_at) VALUES (?, ?, ?)',
+            [migration.version, migration.description, Date.now()],
+          );
+          dbLogger.info(`Migration ${migration.version} applied for ${dbName}`);
         } catch (error) {
-          console.error(`❌ Migration ${migration.version} failed:`, error);
+          dbLogger.error(`Migration ${migration.version} failed for ${dbName}`, error);
           throw error;
         }
       }
     }
   }
 
-  /**
-   * Execute a transaction across both databases
-   */
-  async transaction<T>(callback: (devicesDb: DbAdapter, chatDb: DbAdapter) => T): Promise<T> {
-    if (!this.devicesDb || !this.chatDb) {
-      throw new Error('Databases not initialized');
-    }
-
-    // For simplicity, we'll run the callback with both databases
-    // In a production environment, you might want more sophisticated cross-database transaction handling
+  async transaction<T>(callback: (devicesDb: DbAdapter, chatDb: DbAdapter) => Promise<T>): Promise<T> {
+    if (!this.devicesDb || !this.chatDb) throw new Error('Databases not initialized');
     return callback(this.devicesDb, this.chatDb);
   }
 
-  /**
-   * Get database statistics
-   */
-  getStats(): {
-    devices: { tables: Record<string, number> };
-    chat: { tables: Record<string, number> };
-  } {
-    if (!this.devicesDb || !this.chatDb) {
-      throw new Error('Databases not initialized');
-    }
+  async getStats(): Promise<{
+    devices: { tableCount: number };
+    chat: { tableCount: number };
+  }> {
+    if (!this.devicesDb || !this.chatDb) throw new Error('Databases not initialized');
 
-    const getTableStats = (db: DbAdapter) => {
-      // Simplified - in production you'd query actual table stats
-      return {
-        tables: {
-          devices: 0,
-          device_services: 0,
-          content_snapshots: 0,
-          change_history: 0,
-          conversations: 0,
-          messages: 0,
-          watch_rules: 0
-        }
-      };
+    const countTables = async (db: DbAdapter) => {
+      try {
+        const rows = await db.query<{ cnt: number }>("SELECT count(*) as cnt FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'");
+        return { tableCount: rows[0]?.cnt ?? 0 };
+      } catch {
+        return { tableCount: 0 };
+      }
     };
 
     return {
-      devices: getTableStats(this.devicesDb),
-      chat: getTableStats(this.chatDb)
+      devices: await countTables(this.devicesDb),
+      chat: await countTables(this.chatDb),
     };
   }
 
-  /**
-   * Close all database connections
-   */
   async close(): Promise<void> {
-    console.log('🔒 Closing database connections...');
-    
-    if (this.devicesDb) {
-      this.devicesDb.close();
-      this.devicesDb = null;
-    }
-    
-    if (this.chatDb) {
-      this.chatDb.close();
-      this.chatDb = null;
-    }
-    
+    dbLogger.info('Closing database connections...');
+    if (this.devicesDb) { await this.devicesDb.close(); this.devicesDb = null; }
+    if (this.chatDb) { await this.chatDb.close(); this.chatDb = null; }
     this.isInitialized = false;
-    console.log('✅ Database connections closed');
   }
 
-  /**
-   * Check if databases are initialized
-   */
   isReady(): boolean {
     return this.isInitialized && this.devicesDb !== null && this.chatDb !== null;
   }

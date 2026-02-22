@@ -88,6 +88,6 @@ export interface DatabaseConfig {
 export interface Migration {
   version: number;
   description: string;
-  up: (db: import('better-sqlite3').Database) => void;
-  down: (db: import('better-sqlite3').Database) => void;
+  up: (db: { exec(sql: string): void }) => void;
+  down: (db: { exec(sql: string): void }) => void;
 }

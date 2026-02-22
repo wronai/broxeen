@@ -392,7 +392,7 @@ fn main() {
     }
 
     backend_info(
-        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network, get_disk_info, get_disk_usage, ssh_execute, ssh_test_connection, ssh_list_known_hosts",
+        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network, get_disk_info, get_disk_usage, ssh_execute, ssh_test_connection, ssh_list_known_hosts, db_execute, db_query, db_close",
     );
 
     let recording_state: SharedRecordingState = Arc::new(Mutex::new(audio_capture::RecordingState::new()));
@@ -441,6 +441,9 @@ fn main() {
             ssh::ssh_list_known_hosts,
             network_scan::rtsp_capture_frame,
             network_scan::http_fetch_base64,
+            network::db_execute,
+            network::db_query,
+            network::db_close,
         ])
         .run(tauri::generate_context!())
     {

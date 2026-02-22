@@ -4,6 +4,7 @@
 
 import type { PluginContext, AppContext } from './types';
 import { scopeRegistry } from '../plugins/scope/scopeRegistry';
+import { DatabaseManager } from '../persistence/databaseManager';
 
 export type { AppContext };
 import { PluginRegistry } from './pluginRegistry';
@@ -24,6 +25,23 @@ export async function bootstrapApp(config: {
   const pluginRegistry = new PluginRegistry();
   const intentRouter = new IntentRouter();
   const commandBus = new CommandBus();
+
+  // Initialize SQLite databases (devices.db + chat.db)
+  const dbManager = new DatabaseManager(
+    {
+      devicesDbPath: 'broxeen_devices.db',
+      chatDbPath: 'broxeen_chat.db',
+      walMode: true,
+      connectionPoolSize: 1,
+    },
+    config.isTauri ? (config.tauriInvoke as any) : undefined,
+  );
+  try {
+    await dbManager.initialize();
+    console.log('✅ SQLite databases initialized');
+  } catch (err) {
+    console.warn('⚠️ SQLite initialization failed (data will not persist):', err);
+  }
 
   const pluginContext: PluginContext = {
     isTauri: config.isTauri,
@@ -46,11 +64,13 @@ export async function bootstrapApp(config: {
     pluginRegistry,
     intentRouter,
     commandBus,
+    databaseManager: dbManager,
     dispose: async () => {
       console.log('🧹 Disposing plugin system...');
       await pluginRegistry.disposeAll();
       commandBus.clear();
       scopeRegistry.persist();
+      await dbManager.close();
     },
     // Expose the tauriInvoke for command bus
     tauriInvoke: sharedTauriInvoke,

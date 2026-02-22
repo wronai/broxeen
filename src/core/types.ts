@@ -99,6 +99,7 @@ export interface AppContext {
   pluginRegistry: PluginRegistry;
   intentRouter: IntentRouter;
   commandBus: CommandBus;
+  databaseManager: import('../persistence/databaseManager').DatabaseManager;
   dispose(): Promise<void>;
   tauriInvoke?: (command: string, args?: unknown) => Promise<unknown>;
 }
