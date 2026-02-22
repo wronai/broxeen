@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Settings as SettingsIcon } from "lucide-react";
 import { CqrsProvider } from "./contexts/CqrsContext";
@@ -26,7 +26,7 @@ export default function App() {
   );
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [appCtx, setAppCtx] = useState<AppContext | null>(null);
-  const startupLogger = logger.scope("startup:app");
+  const startupLogger = useMemo(() => logger.scope("startup:app"), []);
 
   useEffect(() => {
     startupLogger.info("App mounted. Running startup initialization...");
@@ -156,7 +156,19 @@ export default function App() {
         });
       }
     };
-  }, [appCtx]);
+  }, []);
+
+  useEffect(() => {
+    if (!appCtx) {
+      return;
+    }
+
+    return () => {
+      void appCtx.dispose().catch((error: unknown) => {
+        startupLogger.warn("Plugin system cleanup failed", error);
+      });
+    };
+  }, [appCtx, startupLogger]);
 
   return (
     <div className="flex h-screen flex-col bg-gray-950 text-white">

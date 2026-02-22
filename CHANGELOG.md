@@ -1,3 +1,21 @@
+## [1.0.35] - 2026-02-22
+
+### Summary
+
+fix(None): CLI interface with 2 supporting modules
+
+### Other
+
+- update src/App.tsx
+- update src/contexts/pluginContext.tsx
+- update src/core/plugin.types.ts
+- update src/plugins/chat/chatPlugin.ts
+- update src/plugins/discovery/networkScanPlugin.ts
+- update src/plugins/discovery/serviceProbePlugin.ts
+- update src/plugins/http/browsePlugin.ts
+- update src/utils/errorReporting.ts
+
+
 ## [1.0.34] - 2026-02-22
 
 ### Summary

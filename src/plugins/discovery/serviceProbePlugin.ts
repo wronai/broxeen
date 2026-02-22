@@ -69,11 +69,17 @@ export class ServiceProbePlugin implements Plugin {
       
       if (!target) {
         return {
+          pluginId: this.id,
           status: 'error',
           content: [{
             type: 'text',
             data: 'Nie można zidentyfikować celu. Podaj adres IP lub nazwę urządzenia.'
-          }]
+          }],
+          metadata: {
+            duration_ms: 0,
+            cached: false,
+            truncated: false
+          },
         };
       }
 
@@ -84,11 +90,17 @@ export class ServiceProbePlugin implements Plugin {
       
       if (!deviceId) {
         return {
+          pluginId: this.id,
           status: 'error',
           content: [{
             type: 'text',
             data: `Nie znaleziono urządzenia ${target} w bazie danych. Uruchom najpierw skanowanie sieci.`
-          }]
+          }],
+          metadata: {
+            duration_ms: 0,
+            cached: false,
+            truncated: false
+          },
         };
       }
 
@@ -96,6 +108,7 @@ export class ServiceProbePlugin implements Plugin {
       const content = this.formatProbeResult(result, target);
       
       return {
+        pluginId: this.id,
         status: 'success',
         content: [{
           type: 'text',
@@ -103,21 +116,30 @@ export class ServiceProbePlugin implements Plugin {
           title: `Usługi na ${target}`
         }],
         metadata: {
+          duration_ms: result.probeDuration,
+          cached: false,
+          truncated: false,
           target,
           serviceCount: result.services.length,
-          probeDuration: result.probeDuration
+          probeDuration: result.probeDuration,
+          executionTime: result.probeDuration
         },
-        executionTime: result.probeDuration
       };
 
     } catch (error) {
       console.error('Service probe failed:', error);
       return {
+        pluginId: this.id,
         status: 'error',
         content: [{
           type: 'text',
           data: `Wystąpił błąd podczas sprawdzania usług: ${error instanceof Error ? error.message : 'Nieznany błąd'}`
-        }]
+        }],
+        metadata: {
+          duration_ms: 0,
+          cached: false,
+          truncated: false
+        },
       };
     }
   }

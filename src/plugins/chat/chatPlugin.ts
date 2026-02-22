@@ -26,20 +26,21 @@ export class ChatLlmPlugin implements Plugin {
       const config = llmModule.getConfig();
       if (!config.apiKey) {
         return {
-          status: 'error',
-          content: [
-            {
-              type: 'text',
-              data: 'LLM nie jest dostępny. Sprawdź konfigurację klucza API.',
-            }
-          ],
-          metadata: {
-            duration_ms: Date.now() - startTime,
-            cached: false,
-            truncated: false,
-          },
+        pluginId: this.id,
+        status: 'error',
+        content: [
+          {
+            type: 'text',
+            data: 'LLM nie jest dostępny. Sprawdź konfigurację klucza API.',
+          }
+        ],
+        metadata: {
+          duration_ms: Date.now() - startTime,
+          cached: false,
+          truncated: false,
           executionTime: Date.now() - startTime, // Legacy compatibility
-        };
+        },
+      };
       }
 
       // Generate response
@@ -48,6 +49,7 @@ export class ChatLlmPlugin implements Plugin {
       ]);
       
       return {
+        pluginId: this.id,
         status: 'success',
         content: [
           {
@@ -59,14 +61,15 @@ export class ChatLlmPlugin implements Plugin {
           duration_ms: Date.now() - startTime,
           cached: false,
           truncated: false,
+          executionTime: Date.now() - startTime, // Legacy compatibility
         },
-        executionTime: Date.now() - startTime, // Legacy compatibility
       };
 
     } catch (error) {
       console.error('ChatLlmPlugin execution failed:', error);
       
       return {
+        pluginId: this.id,
         status: 'error',
         content: [
           {
@@ -78,8 +81,8 @@ export class ChatLlmPlugin implements Plugin {
           duration_ms: Date.now() - startTime,
           cached: false,
           truncated: false,
+          executionTime: Date.now() - startTime, // Legacy compatibility
         },
-        executionTime: Date.now() - startTime, // Legacy compatibility
       };
     }
   }

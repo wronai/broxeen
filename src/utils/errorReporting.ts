@@ -181,7 +181,14 @@ class ErrorReporting {
       type: 'plugin',
       severity: 'high',
       message: `Plugin ${pluginId}: ${message}`,
-      context: { component: 'plugin', action: pluginId },
+      context: { 
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        userId: this.userId,
+        sessionId: this.sessionId,
+        component: 'plugin', 
+        action: pluginId 
+      },
       details: { pluginId, ...details },
     });
   }

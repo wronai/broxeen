@@ -44,6 +44,7 @@ export class HttpBrowsePlugin implements Plugin {
       const result = await executeBrowseCommand(url);
       
       return {
+        pluginId: this.id,
         status: 'success',
         content: [
           {
@@ -53,17 +54,20 @@ export class HttpBrowsePlugin implements Plugin {
           }
         ],
         metadata: {
+          duration_ms: Date.now() - startTime,
+          cached: false,
+          truncated: false,
           url: result.url,
           resolveType: resolved.resolveType,
           executionTime: Date.now() - startTime,
         },
-        executionTime: Date.now() - startTime,
       };
 
     } catch (error) {
       console.error('HttpBrowsePlugin execution failed:', error);
       
       return {
+        pluginId: this.id,
         status: 'error',
         content: [
           {
@@ -71,7 +75,12 @@ export class HttpBrowsePlugin implements Plugin {
             data: `Błąd podczas przeglądania: ${error instanceof Error ? error.message : String(error)}`,
           }
         ],
-        executionTime: Date.now() - startTime,
+        metadata: {
+          duration_ms: Date.now() - startTime,
+          cached: false,
+          truncated: false,
+          executionTime: Date.now() - startTime,
+        },
       };
     }
   }

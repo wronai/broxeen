@@ -88,6 +88,7 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
           
           // Convert NewPluginResult to legacy PluginResult for compatibility
           return {
+            pluginId: plugin.id,
             status: result.status,
             content: result.content.map(block => ({
               type: block.type === 'html' ? 'text' : block.type,

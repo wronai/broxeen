@@ -60,6 +60,12 @@ export interface ResultMetadata {
   readonly executionTime?: number;
   readonly deviceCount?: number;
   readonly target?: string;
+  readonly url?: string;
+  readonly serviceCount?: number;
+  readonly scanDuration?: number;
+  readonly scanMethod?: string;
+  readonly probeDuration?: number;
+  readonly resolveType?: string;
 }
 
 // ─── Plugin Capabilities ────────────────────────────────────

@@ -62,6 +62,7 @@ export class NetworkScanPlugin implements Plugin {
       const content = this.formatScanResult(result);
       
       return {
+        pluginId: this.id,
         status: 'success',
         content: [{
           type: 'text',
@@ -69,21 +70,30 @@ export class NetworkScanPlugin implements Plugin {
           title: 'Wyniki skanowania sieci'
         }],
         metadata: {
+          duration_ms: result.scanDuration,
+          cached: false,
+          truncated: false,
           deviceCount: result.devices.length,
           scanDuration: result.scanDuration,
-          scanMethod: result.scanMethod
+          scanMethod: result.scanMethod,
+          executionTime: result.scanDuration
         },
-        executionTime: result.scanDuration
       };
 
     } catch (error) {
       console.error('Network scan failed:', error);
       return {
+        pluginId: this.id,
         status: 'error',
         content: [{
           type: 'text',
           data: `Wystąpił błąd podczas skanowania sieci: ${error instanceof Error ? error.message : 'Nieznany błąd'}`
-        }]
+        }],
+        metadata: {
+          duration_ms: 0,
+          cached: false,
+          truncated: false
+        },
       };
     }
   }
