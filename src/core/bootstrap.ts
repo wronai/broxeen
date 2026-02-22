@@ -116,6 +116,28 @@ async function registerCorePlugins(
     safeRegister(registry, router, rtspPlugin, 'RtspCameraPlugin');
   } catch (e) { console.warn('RtspCameraPlugin unavailable:', e); }
 
+  try {
+    const { WakeOnLanPlugin } = await import('../plugins/local-network/wakeOnLanPlugin');
+    safeRegister(registry, router, new WakeOnLanPlugin(), 'WakeOnLanPlugin');
+  } catch (e) { console.warn('WakeOnLanPlugin unavailable:', e); }
+
+  // ── Camera plugins ────────────────────────────────────────────
+
+  try {
+    const { CameraHealthPlugin } = await import('../plugins/cameras/cameraHealthPlugin');
+    safeRegister(registry, router, new CameraHealthPlugin(), 'CameraHealthPlugin');
+  } catch (e) { console.warn('CameraHealthPlugin unavailable:', e); }
+
+  try {
+    const { CameraPtzPlugin } = await import('../plugins/cameras/cameraPtzPlugin');
+    safeRegister(registry, router, new CameraPtzPlugin(), 'CameraPtzPlugin');
+  } catch (e) { console.warn('CameraPtzPlugin unavailable:', e); }
+
+  try {
+    const { CameraSnapshotPlugin } = await import('../plugins/cameras/cameraSnapshotPlugin');
+    safeRegister(registry, router, new CameraSnapshotPlugin(), 'CameraSnapshotPlugin');
+  } catch (e) { console.warn('CameraSnapshotPlugin unavailable:', e); }
+
   // Service probe (Tauri only)
   if (isTauri) {
     try {
@@ -123,6 +145,20 @@ async function registerCorePlugins(
       safeRegister(registry, router, new ServiceProbePlugin(), 'ServiceProbePlugin');
     } catch (e) { console.warn('ServiceProbePlugin unavailable:', e); }
   }
+
+  // ── Monitor plugin ────────────────────────────────────────────
+
+  try {
+    const { MonitorPlugin } = await import('../plugins/monitor/monitorPlugin');
+    safeRegister(registry, router, new MonitorPlugin(), 'MonitorPlugin');
+  } catch (e) { console.warn('MonitorPlugin unavailable:', e); }
+
+  // ── Marketplace plugin ────────────────────────────────────────
+
+  try {
+    const { MarketplacePlugin } = await import('../plugins/marketplace/marketplaceLoader');
+    safeRegister(registry, router, new MarketplacePlugin(), 'MarketplacePlugin');
+  } catch (e) { console.warn('MarketplacePlugin unavailable:', e); }
 
   // ── Internet scope plugins ───────────────────────────────────
 

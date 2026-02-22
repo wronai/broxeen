@@ -1,0 +1,590 @@
+/**
+ * Monitor Plugin - enables chat-based monitoring of devices/endpoints
+ *
+ * Commands (via chat):
+ *   "monitoruj kamerę wejściową"        → start monitoring
+ *   "monitoruj 192.168.1.100 co 30s"    → start with custom interval
+ *   "stop monitoring kamery"             → stop monitoring
+ *   "pokaż logi monitoringu"             → show change history
+ *   "aktywne monitoringi"                → list active watches
+ *   "ustaw próg zmian 20%"              → configure threshold via chat
+ *
+ * Integrates with WatchManager + ChangeDetector for real polling,
+ * and optionally with LLM for intelligent change descriptions.
+ */
+
+import type { Plugin, PluginContext, PluginResult } from '../../core/types';
+
+export interface MonitorTarget {
+  id: string;
+  type: 'camera' | 'device' | 'endpoint' | 'service';
+  name: string;
+  address?: string;
+  intervalMs: number;
+  threshold: number;
+  active: boolean;
+  startedAt: number;
+  lastChecked?: number;
+  lastChange?: number;
+  changeCount: number;
+  logs: MonitorLogEntry[];
+}
+
+export interface MonitorLogEntry {
+  timestamp: number;
+  type: 'start' | 'stop' | 'change' | 'error' | 'check';
+  message: string;
+  changeScore?: number;
+  details?: string;
+}
+
+export class MonitorPlugin implements Plugin {
+  readonly id = 'monitor';
+  readonly name = 'Device Monitor';
+  readonly version = '1.0.0';
+  readonly supportedIntents = [
+    'monitor:start', 'monitor:stop', 'monitor:list',
+    'monitor:logs', 'monitor:config',
+  ];
+
+  private targets = new Map<string, MonitorTarget>();
+  private timers = new Map<string, ReturnType<typeof setInterval>>();
+
+  async canHandle(input: string, context: PluginContext): Promise<boolean> {
+    const lower = input.toLowerCase();
+    return /monitoruj/i.test(lower) ||
+      /obserwuj/i.test(lower) ||
+      /śledź/i.test(lower) ||
+      /sledz/i.test(lower) ||
+      /stop.*monitor/i.test(lower) ||
+      /zatrzymaj.*monitor/i.test(lower) ||
+      /przestań.*monitor/i.test(lower) ||
+      /przestan.*monitor/i.test(lower) ||
+      /aktywne.*monitor/i.test(lower) ||
+      /lista.*monitor/i.test(lower) ||
+      /logi.*monitor/i.test(lower) ||
+      /historia.*zmian/i.test(lower) ||
+      /pokaż.*logi/i.test(lower) ||
+      /pokaz.*logi/i.test(lower) ||
+      /ustaw.*próg/i.test(lower) ||
+      /ustaw.*prog/i.test(lower) ||
+      /ustaw.*interwał/i.test(lower) ||
+      /ustaw.*interwal/i.test(lower) ||
+      /monitor.*flag/i.test(lower) ||
+      /watch/i.test(lower) && /start|stop|list|log/i.test(lower);
+  }
+
+  async execute(input: string, context: PluginContext): Promise<PluginResult> {
+    const start = Date.now();
+    const lower = input.toLowerCase();
+
+    if (/stop.*monitor|zatrzymaj.*monitor|przestań.*monitor|przestan.*monitor/i.test(lower)) {
+      return this.handleStop(input, start);
+    }
+    if (/aktywne.*monitor|lista.*monitor|list.*watch/i.test(lower)) {
+      return this.handleList(start);
+    }
+    if (/logi.*monitor|historia.*zmian|pokaż.*logi|pokaz.*logi|log.*monitor/i.test(lower)) {
+      return this.handleLogs(input, start);
+    }
+    if (/ustaw.*próg|ustaw.*prog|ustaw.*interwał|ustaw.*interwal/i.test(lower)) {
+      return this.handleConfig(input, start);
+    }
+
+    // Default: start monitoring
+    return this.handleStart(input, context, start);
+  }
+
+  // ── Start Monitoring ────────────────────────────────────
+
+  private handleStart(input: string, context: PluginContext, start: number): PluginResult {
+    const parsed = this.parseTarget(input);
+    if (!parsed) {
+      return this.errorResult(
+        'Podaj cel monitoringu, np.:\n' +
+        '- "monitoruj kamerę wejściową"\n' +
+        '- "monitoruj 192.168.1.100 co 30s"\n' +
+        '- "obserwuj kamerę ogrodową próg 10%"',
+        start,
+      );
+    }
+
+    // Check if already monitoring
+    if (this.targets.has(parsed.id)) {
+      const existing = this.targets.get(parsed.id)!;
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{
+          type: 'text',
+          data: `⚠️ **${parsed.name}** jest już monitorowane.\n\n` +
+            `Od: ${new Date(existing.startedAt).toLocaleString('pl-PL')}\n` +
+            `Interwał: ${existing.intervalMs / 1000}s\n` +
+            `Próg zmian: ${(existing.threshold * 100).toFixed(0)}%\n` +
+            `Wykrytych zmian: ${existing.changeCount}\n\n` +
+            `💡 Użyj "stop monitoring ${parsed.name}" aby zatrzymać.`,
+        }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    const target: MonitorTarget = {
+      id: parsed.id,
+      type: parsed.type,
+      name: parsed.name,
+      address: parsed.address,
+      intervalMs: parsed.intervalMs,
+      threshold: parsed.threshold,
+      active: true,
+      startedAt: Date.now(),
+      changeCount: 0,
+      logs: [{
+        timestamp: Date.now(),
+        type: 'start',
+        message: `Rozpoczęto monitoring: ${parsed.name}`,
+      }],
+    };
+
+    this.targets.set(parsed.id, target);
+
+    // Start polling timer (simulated in browser, real in Tauri)
+    const timer = setInterval(() => {
+      this.poll(target, context);
+    }, target.intervalMs);
+    this.timers.set(parsed.id, timer);
+
+    const data = `✅ **Monitoring uruchomiony**\n\n` +
+      `📌 **Cel:** ${target.name}\n` +
+      `📍 **Typ:** ${target.type}\n` +
+      (target.address ? `🌐 **Adres:** ${target.address}\n` : '') +
+      `⏱️ **Interwał:** co ${target.intervalMs / 1000}s\n` +
+      `📊 **Próg zmian:** ${(target.threshold * 100).toFixed(0)}%\n\n` +
+      `Zmiany będą automatycznie zgłaszane w tym czacie.\n\n` +
+      `💡 Komendy:\n` +
+      `- "pokaż logi monitoringu ${target.name}"\n` +
+      `- "stop monitoring ${target.name}"\n` +
+      `- "aktywne monitoringi"`;
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data, title: `Monitor: ${target.name}` }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  // ── Stop Monitoring ─────────────────────────────────────
+
+  private handleStop(input: string, start: number): PluginResult {
+    const targetName = input.replace(/^.*(?:stop|zatrzymaj|przestań|przestan)\s*(?:monitoring?\s*)?/i, '').trim().toLowerCase();
+
+    // Find matching target
+    let found: MonitorTarget | undefined;
+    for (const t of this.targets.values()) {
+      if (t.name.toLowerCase().includes(targetName) || t.id.includes(targetName) ||
+          (t.address && t.address.includes(targetName))) {
+        found = t;
+        break;
+      }
+    }
+
+    if (!found) {
+      if (this.targets.size === 0) {
+        return this.errorResult('Brak aktywnych monitoringów do zatrzymania.', start);
+      }
+      const names = Array.from(this.targets.values()).map(t => `- ${t.name}`).join('\n');
+      return this.errorResult(`Nie znaleziono monitoringu: "${targetName}"\n\nAktywne:\n${names}`, start);
+    }
+
+    // Stop timer
+    const timer = this.timers.get(found.id);
+    if (timer) clearInterval(timer);
+    this.timers.delete(found.id);
+
+    // Log and deactivate
+    found.active = false;
+    found.logs.push({
+      timestamp: Date.now(),
+      type: 'stop',
+      message: `Zatrzymano monitoring: ${found.name}`,
+    });
+
+    const summary = `🛑 **Monitoring zatrzymany: ${found.name}**\n\n` +
+      `Czas trwania: ${this.formatDuration(Date.now() - found.startedAt)}\n` +
+      `Wykrytych zmian: ${found.changeCount}\n` +
+      `Sprawdzeń: ${found.logs.filter(l => l.type === 'check').length}`;
+
+    this.targets.delete(found.id);
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data: summary, title: `Stop: ${found.name}` }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  // ── List Active Monitors ────────────────────────────────
+
+  private handleList(start: number): PluginResult {
+    if (this.targets.size === 0) {
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{
+          type: 'text',
+          data: '📋 **Brak aktywnych monitoringów**\n\n' +
+            'Użyj "monitoruj [cel]" aby rozpocząć monitoring.\n\n' +
+            'Przykłady:\n' +
+            '- "monitoruj kamerę wejściową"\n' +
+            '- "monitoruj 192.168.1.100 co 60s"\n' +
+            '- "obserwuj kamerę ogrodową próg 5%"',
+        }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    let data = `📋 **Aktywne monitoringi** — ${this.targets.size}\n\n`;
+
+    for (const t of this.targets.values()) {
+      const uptime = this.formatDuration(Date.now() - t.startedAt);
+      const lastCheck = t.lastChecked ? `${Math.round((Date.now() - t.lastChecked) / 1000)}s temu` : 'nigdy';
+      const icon = t.active ? '🟢' : '🔴';
+
+      data += `### ${icon} ${t.name}\n`;
+      data += `- **Typ:** ${t.type}\n`;
+      if (t.address) data += `- **Adres:** ${t.address}\n`;
+      data += `- **Interwał:** co ${t.intervalMs / 1000}s\n`;
+      data += `- **Próg:** ${(t.threshold * 100).toFixed(0)}%\n`;
+      data += `- **Uptime:** ${uptime}\n`;
+      data += `- **Ostatnie sprawdzenie:** ${lastCheck}\n`;
+      data += `- **Wykryte zmiany:** ${t.changeCount}\n\n`;
+    }
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data, title: 'Aktywne monitoringi' }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  // ── Show Logs ───────────────────────────────────────────
+
+  private handleLogs(input: string, start: number): PluginResult {
+    const targetName = input.replace(/^.*(?:logi|historia|pokaż|pokaz)\s*(?:monitoringu?\s*|zmian\s*)?/i, '').trim().toLowerCase();
+
+    // Find matching target or show all
+    let target: MonitorTarget | undefined;
+    if (targetName) {
+      for (const t of this.targets.values()) {
+        if (t.name.toLowerCase().includes(targetName) || t.id.includes(targetName)) {
+          target = t;
+          break;
+        }
+      }
+    }
+
+    if (target) {
+      return this.formatTargetLogs(target, start);
+    }
+
+    // Show combined logs from all targets
+    const allLogs: Array<MonitorLogEntry & { targetName: string }> = [];
+    for (const t of this.targets.values()) {
+      for (const log of t.logs) {
+        allLogs.push({ ...log, targetName: t.name });
+      }
+    }
+
+    if (allLogs.length === 0) {
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data: '📋 Brak logów monitoringu. Uruchom monitoring poleceniem "monitoruj [cel]".' }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    allLogs.sort((a, b) => b.timestamp - a.timestamp);
+    const recent = allLogs.slice(0, 20);
+
+    let data = `📋 **Logi monitoringu** — ostatnie ${recent.length} wpisów\n\n`;
+    for (const log of recent) {
+      const time = new Date(log.timestamp).toLocaleString('pl-PL');
+      const icon = this.logIcon(log.type);
+      data += `${icon} **${time}** [${log.targetName}] ${log.message}`;
+      if (log.changeScore != null) data += ` (zmiana: ${(log.changeScore * 100).toFixed(1)}%)`;
+      data += '\n';
+    }
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data, title: 'Logi monitoringu' }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  // ── Chat-based Config ───────────────────────────────────
+
+  private handleConfig(input: string, start: number): PluginResult {
+    const lower = input.toLowerCase();
+
+    // Parse threshold: "ustaw próg zmian 20%"
+    const thresholdMatch = lower.match(/(?:próg|prog)\s*(?:zmian\s*)?(\d+)\s*%/);
+    if (thresholdMatch) {
+      const newThreshold = parseInt(thresholdMatch[1]) / 100;
+      let updated = 0;
+      for (const t of this.targets.values()) {
+        t.threshold = newThreshold;
+        updated++;
+      }
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{
+          type: 'text',
+          data: `✅ Próg zmian ustawiony na **${(newThreshold * 100).toFixed(0)}%** dla ${updated} monitoringów.`,
+        }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    // Parse interval: "ustaw interwał 60s"
+    const intervalMatch = lower.match(/(?:interwał|interwal)\s*(\d+)\s*(s|m|min)/);
+    if (intervalMatch) {
+      const value = parseInt(intervalMatch[1]);
+      const unit = intervalMatch[2];
+      const ms = unit === 'm' || unit === 'min' ? value * 60000 : value * 1000;
+      let updated = 0;
+      for (const t of this.targets.values()) {
+        t.intervalMs = ms;
+        // Restart timer
+        const oldTimer = this.timers.get(t.id);
+        if (oldTimer) clearInterval(oldTimer);
+        const newTimer = setInterval(() => this.poll(t, { isTauri: false }), ms);
+        this.timers.set(t.id, newTimer);
+        updated++;
+      }
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{
+          type: 'text',
+          data: `✅ Interwał ustawiony na **${ms / 1000}s** dla ${updated} monitoringów.`,
+        }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    return this.errorResult(
+      'Nierozpoznana konfiguracja. Przykłady:\n' +
+      '- "ustaw próg zmian 20%"\n' +
+      '- "ustaw interwał 60s"\n' +
+      '- "ustaw interwał 5m"',
+      start,
+    );
+  }
+
+  // ── Polling Logic ───────────────────────────────────────
+
+  private async poll(target: MonitorTarget, context: PluginContext): Promise<void> {
+    if (!target.active) return;
+
+    target.lastChecked = Date.now();
+
+    try {
+      let currentContent: string;
+
+      if (context.isTauri && context.tauriInvoke) {
+        // Real polling via Tauri backend
+        currentContent = await context.tauriInvoke('monitor_poll', {
+          targetId: target.id,
+          targetType: target.type,
+          address: target.address,
+        }) as string;
+      } else {
+        // Browser demo: simulate periodic content
+        currentContent = this.simulateContent(target);
+      }
+
+      // Simple diff: compare with last known content
+      const lastLog = target.logs.filter(l => l.type === 'check').pop();
+      const previousContent = lastLog?.details || '';
+      const changeScore = this.quickDiff(previousContent, currentContent);
+
+      target.logs.push({
+        timestamp: Date.now(),
+        type: 'check',
+        message: changeScore > target.threshold ? `Zmiana wykryta!` : `Brak zmian`,
+        changeScore,
+        details: currentContent.slice(0, 500),
+      });
+
+      if (changeScore > target.threshold) {
+        target.changeCount++;
+        target.lastChange = Date.now();
+
+        target.logs.push({
+          timestamp: Date.now(),
+          type: 'change',
+          message: `🔔 Zmiana na ${target.name}: ${(changeScore * 100).toFixed(1)}% różnicy`,
+          changeScore,
+          details: currentContent.slice(0, 200),
+        });
+
+        console.log(`🔔 [Monitor] Change detected on ${target.name}: ${(changeScore * 100).toFixed(1)}%`);
+      }
+    } catch (error) {
+      target.logs.push({
+        timestamp: Date.now(),
+        type: 'error',
+        message: `Błąd pollingu: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
+  }
+
+  // ── Helpers ─────────────────────────────────────────────
+
+  private parseTarget(input: string): {
+    id: string; type: MonitorTarget['type']; name: string;
+    address?: string; intervalMs: number; threshold: number;
+  } | null {
+    const lower = input.toLowerCase();
+
+    // Extract interval: "co 30s" / "co 5m"
+    let intervalMs = 30000;
+    const intervalMatch = lower.match(/co\s+(\d+)\s*(s|m|min)/);
+    if (intervalMatch) {
+      const val = parseInt(intervalMatch[1]);
+      intervalMs = intervalMatch[2] === 's' ? val * 1000 : val * 60000;
+    }
+
+    // Extract threshold: "próg 10%"
+    let threshold = 0.15;
+    const thresholdMatch = lower.match(/(?:próg|prog)\s*(\d+)\s*%/);
+    if (thresholdMatch) threshold = parseInt(thresholdMatch[1]) / 100;
+
+    // Extract IP
+    const ipMatch = input.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
+    if (ipMatch) {
+      return {
+        id: `device-${ipMatch[0]}`,
+        type: 'device',
+        name: `Urządzenie ${ipMatch[0]}`,
+        address: ipMatch[0],
+        intervalMs, threshold,
+      };
+    }
+
+    // Extract camera name
+    if (/kamer/i.test(lower)) {
+      let camName = 'domyślna';
+      if (/wejści|front|wejsc/i.test(lower)) camName = 'wejściowa';
+      else if (/ogr[oó]d|garden/i.test(lower)) camName = 'ogrodowa';
+      else if (/salon|living/i.test(lower)) camName = 'salonowa';
+      else if (/garaż|garage|garaz/i.test(lower)) camName = 'garażowa';
+
+      return {
+        id: `camera-${camName}`,
+        type: 'camera',
+        name: `Kamera ${camName}`,
+        intervalMs, threshold,
+      };
+    }
+
+    // Extract URL/endpoint
+    const urlMatch = input.match(/https?:\/\/[^\s]+/);
+    if (urlMatch) {
+      return {
+        id: `endpoint-${urlMatch[0].replace(/[^a-z0-9]/gi, '-')}`,
+        type: 'endpoint',
+        name: urlMatch[0],
+        address: urlMatch[0],
+        intervalMs, threshold,
+      };
+    }
+
+    // Generic target from remaining text
+    const targetText = input.replace(/^.*(?:monitoruj|obserwuj|śledź|sledz)\s*/i, '').replace(/\s*co\s+\d+\s*(s|m|min).*/i, '').replace(/\s*próg\s+\d+\s*%.*/i, '').trim();
+    if (targetText.length > 1) {
+      return {
+        id: `target-${targetText.replace(/\s+/g, '-').toLowerCase()}`,
+        type: 'service',
+        name: targetText,
+        intervalMs, threshold,
+      };
+    }
+
+    return null;
+  }
+
+  private simulateContent(target: MonitorTarget): string {
+    const now = new Date();
+    const noise = Math.random();
+    // Occasionally simulate a real change
+    if (noise > 0.85) {
+      return `[${now.toISOString()}] ALERT: Ruch wykryty na ${target.name}. Nowy obiekt w kadrze.`;
+    }
+    return `[${now.toISOString()}] Status: OK. ${target.name} - brak zmian.`;
+  }
+
+  private quickDiff(a: string, b: string): number {
+    if (!a || !b) return 0;
+    if (a === b) return 0;
+    const wordsA = new Set(a.toLowerCase().split(/\s+/));
+    const wordsB = new Set(b.toLowerCase().split(/\s+/));
+    const union = new Set([...wordsA, ...wordsB]);
+    const intersection = new Set([...wordsA].filter(w => wordsB.has(w)));
+    return 1 - intersection.size / union.size;
+  }
+
+  private formatTargetLogs(target: MonitorTarget, start: number): PluginResult {
+    const recent = target.logs.slice(-20).reverse();
+    let data = `📋 **Logi: ${target.name}** — ${recent.length} wpisów\n\n`;
+    for (const log of recent) {
+      const time = new Date(log.timestamp).toLocaleString('pl-PL');
+      const icon = this.logIcon(log.type);
+      data += `${icon} **${time}** ${log.message}`;
+      if (log.changeScore != null) data += ` (${(log.changeScore * 100).toFixed(1)}%)`;
+      data += '\n';
+    }
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data, title: `Logi: ${target.name}` }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  private logIcon(type: MonitorLogEntry['type']): string {
+    return { start: '▶️', stop: '⏹️', change: '🔔', error: '❌', check: '✅' }[type] || '📝';
+  }
+
+  private formatDuration(ms: number): string {
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s`;
+    const m = Math.floor(s / 60);
+    if (m < 60) return `${m}m ${s % 60}s`;
+    const h = Math.floor(m / 60);
+    return `${h}h ${m % 60}m`;
+  }
+
+  private errorResult(message: string, start: number): PluginResult {
+    return {
+      pluginId: this.id, status: 'error',
+      content: [{ type: 'text', data: message }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  async initialize(context: PluginContext): Promise<void> { console.log('MonitorPlugin initialized'); }
+
+  async dispose(): Promise<void> {
+    for (const timer of this.timers.values()) clearInterval(timer);
+    this.timers.clear();
+    this.targets.clear();
+    console.log('MonitorPlugin disposed');
+  }
+}

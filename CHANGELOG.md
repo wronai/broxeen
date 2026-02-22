@@ -1,3 +1,47 @@
+## [2.0.0] - 2026-02-22
+
+### Summary
+
+feat(plugins): Full plugin system with scoped architecture, camera controls, marketplace, and E2E tests
+
+### New Plugins — Local Network (`src/plugins/local-network/`)
+
+- **PingPlugin** — ICMP ping / HTTP HEAD fallback for host reachability
+- **PortScanPlugin** — TCP port scanning with common service identification
+- **ArpPlugin** — ARP table discovery with MAC vendor lookup
+- **WakeOnLanPlugin** — Wake-on-LAN magic packet sending
+- **MdnsPlugin** — mDNS/Bonjour/Avahi service discovery
+- **OnvifPlugin** — ONVIF WS-Discovery camera detection with profiles
+
+### New Plugins — Cameras (`src/plugins/cameras/`)
+
+- **CameraHealthPlugin** — Camera online/offline status, uptime, resolution, FPS
+- **CameraPtzPlugin** — Pan/Tilt/Zoom control (left/right/up/down/zoom/preset)
+- **CameraSnapshotPlugin** — Single-frame capture from cameras
+
+### New Plugins — Marketplace (`src/plugins/marketplace/`)
+
+- **MarketplacePlugin** — Browse, search, install, uninstall community plugins
+- Demo catalog with 6 community plugins (UPnP, Bandwidth, DNS, Geolocation, Timelapse, SNMP)
+
+### Plugin System Improvements
+
+- **Scoped plugin folders** — `local-network/`, `cameras/`, `marketplace/` with barrel exports
+- **ScopeRegistry** — Updated with all new plugin IDs per scope (local, network, internet, remote)
+- **IntentRouter** — 13 new intent patterns (ping, port-scan, arp, wol, mdns, onvif, camera:health, camera:ptz, camera:snapshot, marketplace) with entity extraction
+- **Bootstrap** — Auto-registers all new plugins with try/catch resilience
+
+### Tests
+
+- **Unit tests** — `localNetwork.test.ts` (6 plugins × 4-6 tests), `cameras.test.ts` (3 plugins × 5-6 tests), `marketplace.test.ts` (install/uninstall/search/browse)
+- **IntentRouter tests** — 10 new test cases for all new intents + scope-aware routing
+- **E2E tests** — `plugin-system.spec.ts` with full flows: network scanning, camera discovery → health → snapshot, PTZ control, marketplace browse → install → uninstall
+
+### Docs
+
+- Updated CHANGELOG, TODO, usage examples
+
+
 ## [1.0.35] - 2026-02-22
 
 ### Summary

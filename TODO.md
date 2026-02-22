@@ -64,7 +64,9 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [ ] **Export danych** - CSV, JSON raporty
 
 ### 🔧 Techniczne Ulepszenia
-- [ ] **Plugin system v2** - dynamiczne ładowanie pluginów
+- [x] **Plugin system v2** - dynamiczne ładowanie pluginów ✅ v2.0.0
+- [x] **Scoped plugins** - foldery per scope (local-network, cameras, marketplace) ✅ v2.0.0
+- [x] **Marketplace** - zdalne ładowanie pluginów community ✅ v2.0.0
 - [ ] **Real-time updates** - WebSocket dla natychmiastowych zmian
 - [ ] **Cache system** - przyspieszenie powtarzających się zapytań
 - [ ] **Error recovery** - automatyczne ponawianie błędnych operacji
@@ -89,6 +91,82 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 3. **Multi-user** - wiele profili użytkowników
 
 
+
+---
+
+## 📦 DOSTĘPNE PLUGINY (v2.0.0)
+
+### 🌐 Sieć lokalna (`src/plugins/local-network/`)
+
+| Plugin | Intent | Przykład użycia |
+|--------|--------|-----------------|
+| PingPlugin | `network:ping` | `ping 192.168.1.1` |
+| PortScanPlugin | `network:port-scan` | `skanuj porty 192.168.1.100` |
+| ArpPlugin | `network:arp` | `tablica arp` / `adresy mac` |
+| WakeOnLanPlugin | `network:wol` | `obudź urządzenie AA:BB:CC:DD:EE:FF` |
+| MdnsPlugin | `network:mdns` | `odkryj usługi mdns` / `bonjour` |
+| OnvifPlugin | `camera:onvif` | `odkryj kamery onvif` |
+| NetworkScanPlugin | `network:scan` | `skanuj sieć` / `pokaż kamery` |
+
+### 📷 Kamery (`src/plugins/cameras/`)
+
+| Plugin | Intent | Przykład użycia |
+|--------|--------|-----------------|
+| CameraHealthPlugin | `camera:health` | `status kamery` / `czy kamera działa` |
+| CameraPtzPlugin | `camera:ptz` | `obróć kamerę w lewo` / `przybliż` |
+| CameraSnapshotPlugin | `camera:snapshot` | `zrób zdjęcie kamerą wejściową` |
+| RtspCameraPlugin | `camera:describe` | `co widać na kamerze ogrodowej` |
+
+### 🏪 Marketplace (`src/plugins/marketplace/`)
+
+| Plugin | Intent | Przykład użycia |
+|--------|--------|-----------------|
+| MarketplacePlugin | `marketplace:browse` | `marketplace` / `zainstaluj plugin UPnP` |
+
+### 🌍 Internet (`src/plugins/http/`, `src/plugins/chat/`)
+
+| Plugin | Intent | Przykład użycia |
+|--------|--------|-----------------|
+| HttpBrowsePlugin | `browse:url` | `https://example.com` |
+| ChatLlmPlugin | `chat:ask` | dowolny tekst (fallback) |
+
+### 🔑 Scopes
+
+- **local** — tylko LAN: sieć, kamery, IoT
+- **network** — LAN + internet: wszystko
+- **internet** — tylko internet: browse, LLM
+- **remote** — pluginy z marketplace
+
+### 📋 Przykłady pełnych przepływów
+
+**Odkrywanie kamer:**
+```
+> odkryj kamery onvif
+> status kamery wejściowej
+> zrób zdjęcie kamerą wejściową
+> obróć kamerę ogrodową w lewo
+> przybliż kamerę ogrodową
+```
+
+**Skanowanie sieci:**
+```
+> skanuj sieć
+> ping 192.168.1.100
+> skanuj porty 192.168.1.100
+> tablica arp
+> odkryj usługi mdns
+> obudź urządzenie AA:BB:CC:DD:EE:FF
+```
+
+**Marketplace:**
+```
+> marketplace
+> szukaj plugin bandwidth
+> zainstaluj plugin UPnP
+> odinstaluj plugin UPnP
+```
+
+---
 
 wyszukaj kamere w sieci lokalnej:
 Oto najważniejsze sposoby i narzędzia, które pomogą Ci odnaleźć kamerę w sieci lokalnej:

@@ -3,6 +3,7 @@
  */
 
 import type { IntentDetection, IntentRouter as IIntentRouter, Plugin, PluginContext, DataSourcePlugin } from './types';
+import { scopeRegistry } from '../plugins/scope/scopeRegistry';
 
 export class IntentRouter implements IIntentRouter {
   private intentPatterns = new Map<string, RegExp[]>();
@@ -185,6 +186,26 @@ export class IntentRouter implements IIntentRouter {
       /zlap.*klatke/i,
     ]);
 
+    // Monitor intents
+    this.intentPatterns.set('monitor:start', [
+      /monitoruj/i,
+      /obserwuj/i,
+      /śledź/i,
+      /sledz/i,
+      /stop.*monitor/i,
+      /zatrzymaj.*monitor/i,
+      /aktywne.*monitor/i,
+      /lista.*monitor/i,
+      /logi.*monitor/i,
+      /historia.*zmian/i,
+      /pokaż.*logi/i,
+      /pokaz.*logi/i,
+      /ustaw.*próg/i,
+      /ustaw.*prog/i,
+      /ustaw.*interwał/i,
+      /ustaw.*interwal/i,
+    ]);
+
     // Marketplace intents
     this.intentPatterns.set('marketplace:browse', [
       /marketplace/i,
@@ -266,18 +287,18 @@ export class IntentRouter implements IIntentRouter {
     };
   }
 
-  route(intent: string): Plugin | DataSourcePlugin | null {
+  route(intent: string, scope?: string): Plugin | DataSourcePlugin | null {
     // Check legacy plugins first
     for (const plugin of this.plugins.values()) {
-      if (plugin.supportedIntents.includes(intent)) {
-        return plugin;
-      }
+      if (!plugin.supportedIntents.includes(intent)) continue;
+      if (scope && !scopeRegistry.isPluginAllowed(plugin.id, scope)) continue;
+      return plugin;
     }
     // Check DataSourcePlugins
     for (const plugin of this.dataSourcePlugins.values()) {
-      if (plugin.capabilities.intents.includes(intent as any)) {
-        return plugin;
-      }
+      if (!plugin.capabilities.intents.includes(intent as any)) continue;
+      if (scope && !scopeRegistry.isPluginAllowed(plugin.id, scope)) continue;
+      return plugin;
     }
     console.log(`❌ No plugin found for intent: ${intent}`);
     return null;

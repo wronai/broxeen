@@ -11,8 +11,6 @@
  * Users can load remote plugins from marketplace into any scope.
  */
 
-import type { Plugin, DataSourcePlugin } from '../../core/types';
-
 // ─── Scope Definition ───────────────────────────────────────
 
 export type ScopeId = 'local' | 'network' | 'internet' | 'remote' | string;
@@ -53,7 +51,9 @@ export const BUILTIN_SCOPES: Record<ScopeId, Omit<ScopeDefinition, 'remotePlugin
     description: 'Tylko urządzenia w sieci LAN — kamery, IoT, skanowanie',
     allowedPlugins: [
       'network-scan', 'network-ping', 'network-arp', 'network-mdns',
-      'network-port-scan', 'network-onvif', 'rtsp-camera', 'mqtt', 'service-probe'
+      'network-port-scan', 'network-onvif', 'network-wol',
+      'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot',
+      'mqtt', 'service-probe', 'monitor',
     ],
     allowInternet: false,
     allowLan: true,
@@ -64,8 +64,10 @@ export const BUILTIN_SCOPES: Record<ScopeId, Omit<ScopeDefinition, 'remotePlugin
     description: 'Pełny dostęp — LAN i internet',
     allowedPlugins: [
       'network-scan', 'network-ping', 'network-arp', 'network-mdns',
-      'network-port-scan', 'network-onvif', 'rtsp-camera', 'mqtt', 'service-probe',
-      'http-browse', 'chat-llm'
+      'network-port-scan', 'network-onvif', 'network-wol',
+      'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot',
+      'mqtt', 'service-probe', 'monitor',
+      'http-browse', 'chat-llm', 'marketplace',
     ],
     allowInternet: true,
     allowLan: true,
@@ -74,7 +76,31 @@ export const BUILTIN_SCOPES: Record<ScopeId, Omit<ScopeDefinition, 'remotePlugin
     id: 'internet',
     name: 'Internet',
     description: 'Tylko internet — przeglądanie, wyszukiwanie, LLM',
-    allowedPlugins: ['http-browse', 'chat-llm'],
+    allowedPlugins: ['http-browse', 'chat-llm', 'marketplace'],
+    allowInternet: true,
+    allowLan: false,
+  },
+  vpn: {
+    id: 'vpn',
+    name: 'VPN',
+    description: 'Połączenie przez VPN — dostęp do zdalnych sieci prywatnych',
+    allowedPlugins: [
+      'network-scan', 'network-ping', 'network-arp', 'network-mdns',
+      'network-port-scan', 'network-onvif', 'network-wol',
+      'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot',
+      'mqtt', 'service-probe', 'monitor',
+      'http-browse', 'chat-llm', 'marketplace',
+    ],
+    allowInternet: true,
+    allowLan: true,
+  },
+  tor: {
+    id: 'tor',
+    name: 'Sieć Tor',
+    description: 'Anonimowe połączenie przez sieć Tor — .onion',
+    allowedPlugins: [
+      'http-browse', 'chat-llm', 'marketplace', 'monitor',
+    ],
     allowInternet: true,
     allowLan: false,
   },
@@ -82,7 +108,7 @@ export const BUILTIN_SCOPES: Record<ScopeId, Omit<ScopeDefinition, 'remotePlugin
     id: 'remote',
     name: 'Marketplace',
     description: 'Pluginy załadowane z marketplace',
-    allowedPlugins: [],
+    allowedPlugins: ['marketplace'],
     allowInternet: true,
     allowLan: true,
   },
@@ -94,6 +120,14 @@ export class ScopeRegistry {
   private scopes = new Map<ScopeId, ScopeDefinition>();
   private activeScope: ScopeId = 'network';
 
+  private normalizeScopeId(scopeId?: ScopeId): ScopeId {
+    const raw = scopeId ?? this.activeScope;
+    if (raw === 'tor' || raw === 'vpn') {
+      return 'internet';
+    }
+    return raw;
+  }
+
   constructor() {
     for (const [id, def] of Object.entries(BUILTIN_SCOPES)) {
       this.scopes.set(id, { ...def, remotePlugins: [] });
@@ -101,7 +135,7 @@ export class ScopeRegistry {
   }
 
   getScope(id: ScopeId): ScopeDefinition | undefined {
-    return this.scopes.get(id);
+    return this.scopes.get(this.normalizeScopeId(id));
   }
 
   getAllScopes(): ScopeDefinition[] {
@@ -109,19 +143,20 @@ export class ScopeRegistry {
   }
 
   getActiveScope(): ScopeDefinition {
-    return this.scopes.get(this.activeScope) ?? this.scopes.get('network')!;
+    return this.scopes.get(this.normalizeScopeId(this.activeScope)) ?? this.scopes.get('network')!;
   }
 
   setActiveScope(id: ScopeId): void {
-    if (!this.scopes.has(id)) {
+    const normalized = this.normalizeScopeId(id);
+    if (!this.scopes.has(normalized)) {
       throw new Error(`Unknown scope: ${id}`);
     }
-    this.activeScope = id;
-    console.log(`[ScopeRegistry] Active scope changed to: ${id}`);
+    this.activeScope = normalized;
+    console.log(`[ScopeRegistry] Active scope changed to: ${normalized}`);
   }
 
   isPluginAllowed(pluginId: string, scopeId?: ScopeId): boolean {
-    const scope = this.scopes.get(scopeId ?? this.activeScope);
+    const scope = this.scopes.get(this.normalizeScopeId(scopeId));
     if (!scope) return false;
     return scope.allowedPlugins.includes(pluginId) ||
       scope.remotePlugins.some(p => p.id === pluginId);
@@ -155,7 +190,7 @@ export class ScopeRegistry {
 
   /** List remote plugins available in a scope */
   getRemotePlugins(scopeId?: ScopeId): RemotePluginManifest[] {
-    const scope = this.scopes.get(scopeId ?? this.activeScope);
+    const scope = this.scopes.get(this.normalizeScopeId(scopeId));
     return scope?.remotePlugins ?? [];
   }
 

@@ -78,7 +78,7 @@ export interface IntentDetection {
 
 export interface IntentRouter {
   detect(input: string): Promise<IntentDetection>;
-  route(intent: string): Plugin | DataSourcePlugin | null;
+  route(intent: string, scope?: string): Plugin | DataSourcePlugin | null;
 }
 
 export interface PluginRegistry {

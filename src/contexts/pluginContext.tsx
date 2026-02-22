@@ -60,7 +60,7 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
 
       ask: async (rawInput, source = "text", scope = "local") => {
         const intent = await context.intentRouter.detect(rawInput);
-        const plugin = context.intentRouter.route(intent.intent);
+        const plugin = context.intentRouter.route(intent.intent, scope);
         
         if (!plugin) {
           throw new Error(`No plugin found for intent: ${intent.intent}`);
