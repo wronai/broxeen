@@ -59,6 +59,7 @@ export class NetworkScanPlugin implements Plugin {
           }) as NetworkScanResult;
 
           processRegistry.complete(scanId);
+          processRegistry.remove(scanId);
           return {
             pluginId: this.id,
             status: 'success',
@@ -79,6 +80,7 @@ export class NetworkScanPlugin implements Plugin {
         } catch (error) {
           console.error('[NetworkScanPlugin] scan_network failed:', error);
           processRegistry.fail(scanId, String(error));
+          processRegistry.remove(scanId);
           return {
             pluginId: this.id,
             status: 'error',
@@ -94,9 +96,11 @@ export class NetworkScanPlugin implements Plugin {
       console.log(`[NetworkScanPlugin] Using browser fallback - isTauri: ${context.isTauri}, hasInvoke: !!${context.tauriInvoke}`);
       const fallbackResult = await this.browserFallback(isCameraQuery, start);
       processRegistry.complete(scanId);
+      processRegistry.remove(scanId);
       return fallbackResult;
     } catch (err) {
       processRegistry.fail(scanId, String(err));
+      processRegistry.remove(scanId);
       throw err;
     }
   }
@@ -476,47 +480,36 @@ export class NetworkScanPlugin implements Plugin {
     });
   }
 
-  private async probeGateway(subnet: string): Promise<boolean> {
-    const gatewayIp = `${subnet}.1`;
-    const probePath = `/?_probe=${Date.now()}`;
-
-    // Try HTTP first
-    const httpUrl = `http://${gatewayIp}${probePath}`;
-    if (await this.tryFetchGateway(httpUrl)) {
-      return true;
-    }
-
-    // Fallback to HTTPS (some routers force HTTPS)
-    const httpsUrl = `https://${gatewayIp}${probePath}`;
-    return this.tryFetchGateway(httpsUrl);
-  }
-
-  private tryFetchGateway(url: string, timeoutMs = 1500): Promise<boolean> {
-    if (typeof fetch === 'undefined') {
-      return Promise.resolve(false);
-    }
-
+  private probeGateway(subnet: string): Promise<boolean> {
     return new Promise((resolve) => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => {
-        controller.abort();
+      const gatewayIp = `${subnet}.1`;
+      const t0 = Date.now();
+      const img = new Image();
+      const timer = setTimeout(() => { 
+        img.src = ''; 
         resolve(false);
-      }, timeoutMs);
+      }, 800); // Shorter timeout for faster detection
 
-      fetch(url, {
-        method: 'GET',
-        mode: 'no-cors',
-        cache: 'no-store',
-        signal: controller.signal,
-      })
-        .then(() => {
-          clearTimeout(timer);
-          resolve(true);
-        })
-        .catch(() => {
-          clearTimeout(timer);
+      img.onload = () => {
+        clearTimeout(timer);
+        console.log(`[NetworkScanPlugin] Gateway ${gatewayIp} responded (onload)`);
+        resolve(true);
+      };
+      img.onerror = () => {
+        clearTimeout(timer);
+        const elapsed = Date.now() - t0;
+        // Timing gate: real TCP connection takes >15ms
+        // Blocked/non-existent hosts fail in <5ms
+        if (elapsed > 15) {
+          console.log(`[NetworkScanPlugin] Gateway ${gatewayIp} responded (onerror, ${elapsed}ms)`);
+          resolve(true); // Gateway responded (even with error = it's reachable)
+        } else {
+          console.log(`[NetworkScanPlugin] Gateway ${gatewayIp} blocked/non-existent (${elapsed}ms)`);
           resolve(false);
-        });
+        }
+      };
+      // Use generic probe endpoint for gateway as well
+      img.src = `http://${gatewayIp}/?_probe=${Date.now()}`;
     });
   }
 
