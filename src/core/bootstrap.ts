@@ -78,14 +78,15 @@ async function registerCorePlugins(
   registry.register(chatLlmPlugin);
   router.registerPlugin(chatLlmPlugin);
 
-  // CRITICAL: Discovery plugins cause infinite get_settings loop - DISABLED
-  // const networkScanPlugin = new NetworkScanPlugin();
-  // registry.register(networkScanPlugin);
-  // router.registerPlugin(networkScanPlugin);
-  //
-  // const serviceProbePlugin = new ServiceProbePlugin();
-  // registry.register(serviceProbePlugin);
-  // router.registerPlugin(serviceProbePlugin);
+  // Register Network Scan plugin
+  const networkScanPlugin = new NetworkScanPlugin();
+  registry.register(networkScanPlugin);
+  router.registerPlugin(networkScanPlugin);
+
+  // Register Service Probe plugin
+  const serviceProbePlugin = new ServiceProbePlugin();
+  registry.register(serviceProbePlugin);
+  router.registerPlugin(serviceProbePlugin);
 
   // Register command handlers
   bus.register('plugins:ask', async (payload: string) => {
