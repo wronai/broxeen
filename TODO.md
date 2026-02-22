@@ -16,6 +16,13 @@ aby nie trzeba było na nowo skanowac calej sieci i inicjiowac konfiguracji, ewe
 dlatego lista stron, urzadzen powinna byc zapisywana do bazy sqlite
 wszystkie wiadomosci chat w osobnej bazie danych
 
+
+aktualnie prację nad scope: internet globalny/lokalny/vpn/tor
+oraz marketplace dla plugings, np wyszukiwanie kamer w sieci lokalnej przez arp, itd
+dzięki temu możliwe będzie nie tylko odnajdywanie urządzeń, ale też interakcja i monitorowanie, np jeśli zaznaczymy flagę MONITOR, to dane urządzenie/endpoint będzie monitorowany i analizowany przez LLM w celu np znalezienia różnic
+czyli mogę zlecić zaddaanie monitorowania kamer z automatyczną informacją zwrotną gdy coś się dzieje i mam dostęp do logów w postaci kontekstu w chat
+w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktywnych urządzeń, bez potrzeby szukania odpowiedniego narzędzia, w odroznieniu od innych rozwiazań, chcę zachować prostotę, aby konfiguracja była możliwe bezpośrednio przez chat
+
 ---
 
 ## 🚀 NOWE ULEPSZENIA SYSTEMU (v2.0+)
