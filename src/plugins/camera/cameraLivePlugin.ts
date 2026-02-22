@@ -1,5 +1,5 @@
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
-import { detectCameraVendor, getVendorInfo } from './cameraVendorDatabase';
+import { CAMERA_VENDORS, detectCameraVendor, getVendorInfo } from './cameraVendorDatabase';
 
 export class CameraLivePlugin implements Plugin {
   readonly id = 'camera-live';
@@ -67,17 +67,19 @@ export class CameraLivePlugin implements Plugin {
     let password = '';
     
     // Check if input is direct RTSP URL
-    const rtspMatch = input.match(/rtsp:\/\/(?:([^:]+):([^@]+)@)?([^:\/]+)(?::(\d+))?(.+)?/i);
+    const sanitizedInput = this.sanitizeRtspInput(input);
+    const rtspMatch = sanitizedInput.match(/rtsp:\/\/(?:([^:@\/\s]+)(?::([^@]*))?@)?([^:\/\s]+)(?::(\d+))?(\/[\S]*)?/i);
     if (rtspMatch) {
       username = rtspMatch[1] || 'admin';
       password = rtspMatch[2] || '';
       ip = rtspMatch[3];
-      rtspUrl = input.trim();
+      rtspUrl = sanitizedInput;
 
       // Persist RTSP path so MonitorPlugin can reuse the correct vendor path
       if (ip) {
         const { configStore } = await import('../../config/configStore');
-        configStore.set(`camera.rtspPath.${ip}`, rtspUrl);
+        const storedPath = this.extractRtspPath(rtspUrl) ?? rtspUrl;
+        configStore.set(`camera.rtspPath.${ip}`, storedPath);
         if (username) configStore.set(`camera.credentials.${ip}.username`, username);
         if (password) configStore.set(`camera.credentials.${ip}.password`, password);
       }
@@ -147,10 +149,10 @@ export class CameraLivePlugin implements Plugin {
     const vendor = getVendorInfo(vendorId);
 
     const auth = username && password ? `${username}:${password}@` : username ? `${username}@` : '';
-    const rtspCandidates = [
+    const rtspCandidates = [...new Set([
       ...(rtspUrl ? [rtspUrl] : []),
       ...vendor.rtspPaths.slice(0, 6).map((p) => `rtsp://${auth}${ip}:554${p.path}`),
-    ];
+    ])].map((candidate) => this.sanitizeRtspInput(candidate));
     const snapshotCandidates = vendor.httpSnapshotPaths
       .slice(0, 6)
       .map((p) => `http://${auth}${ip}${p.path}`);
@@ -164,11 +166,13 @@ export class CameraLivePlugin implements Plugin {
 
     if (context.isTauri && context.tauriInvoke) {
       // RTSP validation + preview (best-effort)
+      let lastRtspErr: string | null = null;
       for (const candidate of rtspCandidates) {
         try {
           const result = await context.tauriInvoke('rtsp_capture_frame', {
             url: candidate,
             cameraId: ip,
+            camera_id: ip,
           }) as { base64?: string };
           if (result?.base64) {
             previewBase64 = result.base64;
@@ -176,13 +180,14 @@ export class CameraLivePlugin implements Plugin {
             rtspStatusLine = `✅ **RTSP OK** — \`${candidate}\``;
             break;
           }
-        } catch {
-          // try next
+        } catch (e) {
+          lastRtspErr = (e instanceof Error ? e.message : String(e)) || lastRtspErr;
         }
       }
 
       if (!workingRtspUrl) {
-        rtspStatusLine = '❌ **RTSP nie działa** — nie udało się pobrać klatki (sprawdź ścieżkę/credentials)';
+        const msg = lastRtspErr ? this.truncateOneLine(lastRtspErr, 220) : 'nie udało się pobrać klatki';
+        rtspStatusLine = `❌ **RTSP nie działa** — ${msg}`;
       }
     } else {
       rtspStatusLine = 'ℹ️ **RTSP preview w czacie wymaga Tauri** (przeglądarka nie odtworzy RTSP)';
@@ -191,21 +196,44 @@ export class CameraLivePlugin implements Plugin {
     // HTTP snapshot validation (best-effort)
     for (const candidate of snapshotCandidates) {
       try {
-        const res = await fetch(candidate);
-        if (!res.ok) {
-          snapshotStatusLine = `❌ **HTTP snapshot** — ${res.status} ${res.statusText} (\`${candidate}\`)`;
+        if (context.isTauri && context.tauriInvoke) {
+          const res = await context.tauriInvoke('http_fetch_base64', { url: candidate }) as {
+            status: number;
+            content_type?: string | null;
+            base64: string;
+            url: string;
+          };
+
+          if (res?.status && res.status >= 200 && res.status < 300 && res.base64) {
+            workingSnapshotUrl = candidate;
+            previewMimeType = (res.content_type?.includes('png') ? 'image/png' : 'image/jpeg');
+            previewBase64 = previewBase64 ?? res.base64;
+            snapshotStatusLine = `✅ **HTTP snapshot OK** — ${res.status} (\`${candidate}\`)`;
+            break;
+          }
+
+          snapshotStatusLine = `❌ **HTTP snapshot** — ${res?.status ?? 'ERR'} (\`${candidate}\`)`;
           continue;
         }
-        const blob = await res.blob();
+
+        const httpRes = await fetch(candidate);
+        if (!httpRes.ok) {
+          snapshotStatusLine = `❌ **HTTP snapshot** — ${httpRes.status} ${httpRes.statusText} (\`${candidate}\`)`;
+          continue;
+        }
+        const blob = await httpRes.blob();
         previewMimeType = blob.type?.includes('png') ? 'image/png' : 'image/jpeg';
         previewBase64 = previewBase64 ?? (await this.blobToBase64(blob));
         workingSnapshotUrl = candidate;
-        snapshotStatusLine = `✅ **HTTP snapshot OK** — ${res.status} (\`${candidate}\`)`;
+        snapshotStatusLine = `✅ **HTTP snapshot OK** — ${httpRes.status} (\`${candidate}\`)`;
         break;
       } catch (e) {
         // Browser often throws due to CORS; keep trying next but remember a useful message
         if (!snapshotStatusLine) {
-          snapshotStatusLine = `⚠️ **HTTP snapshot** — fetch failed (CORS/auth). Otwórz URL w nowej karcie.`;
+          const errText = this.truncateOneLine(e instanceof Error ? e.message : String(e), 140);
+          snapshotStatusLine = context.isTauri && context.tauriInvoke
+            ? `⚠️ **HTTP snapshot** — backend fetch failed: ${errText}`
+            : `⚠️ **HTTP snapshot** — fetch failed (CORS/auth). Otwórz URL w nowej karcie.`;
         }
       }
     }
@@ -586,6 +614,25 @@ export class CameraLivePlugin implements Plugin {
       };
       reader.readAsDataURL(blob);
     });
+  }
+
+  private sanitizeRtspInput(input: string): string {
+    return input
+      .trim()
+      .replace(/^[`'"\s]+/, '')
+      .replace(/[`'"\s]+$/, '')
+      .replace(/[),.;:!?]+$/, '');
+  }
+
+  private extractRtspPath(rtspUrl: string): string | null {
+    const match = rtspUrl.match(/^rtsp:\/\/(?:[^@\/\s]+@)?[^\/\s]+(\/[^\s]*)$/i);
+    return match?.[1] ?? null;
+  }
+
+  private truncateOneLine(text: string, maxLen: number): string {
+    const one = String(text).replace(/\s+/g, ' ').trim();
+    if (one.length <= maxLen) return one;
+    return one.slice(0, Math.max(0, maxLen - 1)) + '…';
   }
 
   async initialize(context: PluginContext): Promise<void> {

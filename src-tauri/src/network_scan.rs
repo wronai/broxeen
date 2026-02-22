@@ -11,6 +11,85 @@ use std::process::Command;
 
 use crate::logging::{backend_info, backend_warn};
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CapturedFrame {
+    pub base64: String,
+    pub width: u32,
+    pub height: u32,
+}
+
+#[tauri::command]
+pub async fn rtsp_capture_frame(url: String, _camera_id: String) -> Result<CapturedFrame, String> {
+    use base64::{engine::general_purpose, Engine as _};
+
+    let output = Command::new("ffmpeg")
+        .args([
+            "-rtsp_transport", "tcp",
+            "-i", &url,
+            "-frames:v", "1",
+            "-f", "image2pipe",
+            "-vcodec", "mjpeg",
+            "-q:v", "5",
+            "pipe:1",
+        ])
+        .output()
+        .map_err(|e| format!("ffmpeg not found: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("ffmpeg failed: {}", stderr));
+    }
+
+    Ok(CapturedFrame {
+        base64: general_purpose::STANDARD.encode(&output.stdout),
+        width: 1920,
+        height: 1080,
+    })
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HttpFetchBase64Result {
+    pub url: String,
+    pub status: u16,
+    pub content_type: Option<String>,
+    pub base64: String,
+}
+
+#[tauri::command]
+pub async fn http_fetch_base64(url: String) -> Result<HttpFetchBase64Result, String> {
+    use base64::{engine::general_purpose, Engine as _};
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+
+    let res = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    let status = res.status().as_u16();
+    let content_type = res
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let bytes = res
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    Ok(HttpFetchBase64Result {
+        url,
+        status,
+        content_type,
+        base64: general_purpose::STANDARD.encode(&bytes),
+    })
+}
+
 // ─── Ping ────────────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize)]

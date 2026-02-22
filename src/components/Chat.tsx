@@ -1106,6 +1106,7 @@ ${analysis}`,
               role: "assistant",
               text: messageText,
               type: messageType,
+              mimeType: block.mimeType,
               title: block.title,
             },
           });
@@ -1452,13 +1453,30 @@ ${analysis}`,
                           />
                         </div>
                       )}
+                      {msg.role === "assistant" && msg.type === "image" && msg.text && (
+                        <div className="shrink-0 w-full max-w-sm rounded-lg border border-gray-700 bg-black/50 overflow-hidden">
+                          {msg.title && (
+                            <div className="px-3 py-1.5 text-xs text-gray-400 border-b border-gray-700 truncate">
+                              📷 {msg.title}
+                            </div>
+                          )}
+                          <img
+                            src={`data:${msg.mimeType || 'image/jpeg'};base64,${msg.text}`}
+                            alt={msg.title || "Podgląd kamery"}
+                            className="w-full h-auto object-contain max-h-64"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
                       <div className="flex-1 w-full min-w-0">
                         {msg.loading ? (
                           <div className="flex items-center gap-2 text-gray-400">
                             <Loader2 size={16} className="animate-spin" />
                             <span>{msg.text}</span>
                           </div>
-                        ) : (
+                        ) : msg.type === 'image' ? null : (
                           <div className="text-sm leading-relaxed">
                             {msg.pageTitle && (
                               <div className="font-bold mb-2">

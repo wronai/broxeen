@@ -13,6 +13,53 @@ use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, Ipv4Addr, TcpStream, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
+// ─── HTTP Fetch (base64) ────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct HttpFetchBase64Result {
+    pub url: String,
+    pub status: u16,
+    pub content_type: Option<String>,
+    pub base64: String,
+}
+
+/// Fetch arbitrary bytes via HTTP(S) and return base64.
+/// Useful for fetching camera snapshot images from the backend (avoids CORS).
+#[tauri::command]
+pub async fn http_fetch_base64(url: String) -> Result<HttpFetchBase64Result, String> {
+    use base64::{engine::general_purpose, Engine as _};
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
+
+    let res = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+    let status = res.status().as_u16();
+    let content_type = res
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string());
+
+    let bytes = res
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    Ok(HttpFetchBase64Result {
+        url,
+        status,
+        content_type,
+        base64: general_purpose::STANDARD.encode(&bytes),
+    })
+}
+
 // ─── Network Scan ───────────────────────────────────────────
 
 #[derive(Serialize)]
@@ -191,10 +238,12 @@ pub struct CapturedFrame {
 #[tauri::command]
 pub async fn rtsp_capture_frame(
     url: String,
-    _camera_id: String,
+    camera_id: String,
 ) -> Result<CapturedFrame, String> {
     use std::process::Command;
     use base64::{Engine as _, engine::general_purpose};
+
+    let _ = camera_id;
 
     // Use ffmpeg to capture a single frame as JPEG
     let output = Command::new("ffmpeg")

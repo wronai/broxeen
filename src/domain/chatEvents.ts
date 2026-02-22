@@ -8,6 +8,7 @@ export interface ChatMessage {
   role: ChatMessageRole;
   text: string;
   type?: 'content' | 'image' | 'error' | 'loading' | 'suggestions' | 'network_selection' | 'camera_list' | 'camera_analysis' | 'config_prompt';
+  mimeType?: string;
   url?: string;
   resolveType?: string;
   suggestions?: Array<{ action: string; text: string; description: string; query: string }>;

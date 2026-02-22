@@ -22,12 +22,15 @@ base64 = "0.22"
 cpal = "0.15"
 hound = "3.5"
 rodio = "0.17"
-tokio = { version = "1", features = ["time"] }
+tokio = { version = "1", features = ["io-util", "macros", "net", "rt", "time"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "time"] }
 tracing-appender = "0.2"
 chrono = { version = "0.4", features = ["serde"] }
 local-ip-address = "0.6"
+lazy_static = "1"
+dns-lookup = "2"
+rusqlite = { version = "0.31", features = ["bundled"] }
 
 [features]
 default = ["custom-protocol"]
