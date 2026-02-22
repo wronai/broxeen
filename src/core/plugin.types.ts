@@ -56,6 +56,7 @@ export interface ResultMetadata {
   readonly source_url?: string;
   readonly cached: boolean;
   readonly truncated: boolean;
+  readonly scope?: string;
   // Legacy compatibility
   readonly executionTime?: number;
   readonly deviceCount?: number;
