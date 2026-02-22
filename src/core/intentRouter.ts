@@ -117,11 +117,21 @@ export class IntentRouter implements IIntentRouter {
   }
 
   route(intent: string): Plugin | null {
+    console.log(`🔍 Routing intent: ${intent}`);
+    console.log(`📦 Available plugins: ${Array.from(this.plugins.keys()).join(', ')}`);
+    console.log(`🔍 Plugin intents:`, Array.from(this.plugins.entries()).map(([id, plugin]) => ({
+      id,
+      intents: plugin.supportedIntents
+    })));
+    
     for (const plugin of this.plugins.values()) {
       if (plugin.supportedIntents.includes(intent)) {
+        console.log(`✅ Found plugin for intent ${intent}: ${plugin.id}`);
         return plugin;
       }
     }
+    
+    console.log(`❌ No plugin found for intent: ${intent}`);
     return null;
   }
 

@@ -68,11 +68,22 @@ async function registerCorePlugins(
   
   // Register Network Scan plugin first (higher priority for local operations)
   try {
+    console.log('🔄 Attempting to import NetworkScanPlugin...');
     const { NetworkScanPlugin } = await import('../plugins/discovery/networkScanPlugin');
+    console.log('✅ NetworkScanPlugin imported successfully');
+    
     const networkScanInstance = new NetworkScanPlugin();
+    console.log('✅ NetworkScanPlugin instantiated');
+    console.log('📋 NetworkScanPlugin supported intents:', networkScanInstance.supportedIntents);
+    
     registry.register(networkScanInstance);
+    console.log('✅ NetworkScanPlugin registered in registry');
+    
     router.registerPlugin(networkScanInstance);
-    console.log('NetworkScanPlugin registered successfully');
+    console.log('✅ NetworkScanPlugin registered in router');
+    
+    console.log('📦 All registered plugins:', Array.from(router['plugins'].keys()));
+    console.log('📦 All registry plugins:', registry.getAll().map(p => p.id));
   } catch (error) {
     console.warn('⚠️ NetworkScanPlugin not available:', error);
   }

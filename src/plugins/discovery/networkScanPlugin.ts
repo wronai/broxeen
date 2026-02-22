@@ -4,9 +4,35 @@
  */
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
-import { NetworkScanner } from '../../discovery/networkScanner';
-import { DatabaseManager } from '../../persistence/databaseManager';
-import type { NetworkScannerConfig } from '../../discovery/types';
+
+// Dynamic imports to avoid browser compatibility issues
+let NetworkScanner: any = null;
+let DatabaseManager: any = null;
+let NetworkScannerConfig: any = null;
+
+// Only import in environments where Node.js APIs are available
+const loadDependencies = async () => {
+  if (typeof window !== 'undefined' && !(window as any).__TAURI__) {
+    return null; // Browser environment - don't load Node.js dependencies
+  }
+  
+  try {
+    const [networkScannerModule, databaseManagerModule, typesModule] = await Promise.all([
+      import('../../discovery/networkScanner'),
+      import('../../persistence/databaseManager'),
+      import('../../discovery/types')
+    ]);
+    
+    NetworkScanner = networkScannerModule.NetworkScanner;
+    DatabaseManager = databaseManagerModule.DatabaseManager;
+    NetworkScannerConfig = typesModule.NetworkScannerConfig;
+    
+    return { NetworkScanner, DatabaseManager, NetworkScannerConfig };
+  } catch (error) {
+    console.warn('Failed to load network scan dependencies:', error);
+    return null;
+  }
+};
 
 export class NetworkScanPlugin implements Plugin {
   readonly id = 'network-scan';
@@ -14,18 +40,34 @@ export class NetworkScanPlugin implements Plugin {
   readonly version = '1.0.0';
   readonly supportedIntents = ['network:scan', 'network:discover', 'network:devices', 'camera:describe', 'camera:discover'];
 
-  private networkScanner: NetworkScanner | null = null;
+  private networkScanner: any = null;
 
   async initialize(context: PluginContext): Promise<void> {
+    console.log('🔧 NetworkScanPlugin.initialize called', { 
+      isTauri: context.isTauri,
+      hasTauri: !!(window as any).__TAURI__
+    });
+    
     // Only initialize in Tauri environment (requires Node.js APIs)
     if (!context.isTauri) {
       console.warn('NetworkScanPlugin: Database operations not available in browser environment');
       return;
     }
 
+    console.log('🔄 NetworkScanPlugin: Loading dependencies for Tauri environment...');
     try {
-      // Initialize database manager (this would be injected in real implementation)
-      const dbManager = new DatabaseManager({
+      // Load dependencies dynamically
+      const deps = await loadDependencies();
+      if (!deps) {
+        console.warn('NetworkScanPlugin: Failed to load dependencies');
+        return;
+      }
+
+      console.log('✅ NetworkScanPlugin: Dependencies loaded successfully');
+      console.log('🗄️ NetworkScanPlugin: Initializing database manager...');
+
+      // Initialize database manager
+      const dbManager = new deps.DatabaseManager({
         devicesDbPath: 'devices.db',
         chatDbPath: 'chat.db',
         walMode: true,
@@ -33,18 +75,20 @@ export class NetworkScanPlugin implements Plugin {
       });
 
       await dbManager.initialize();
+      console.log('✅ NetworkScanPlugin: Database manager initialized');
 
       // Configure network scanner
-      const config: NetworkScannerConfig = {
+      const config: deps.NetworkScannerConfig = {
         scanMethods: ['ping', 'mdns'],
         timeout: 5000,
         maxConcurrent: 10,
         excludeRanges: ['127.0.0.0/8']
       };
 
-      this.networkScanner = new NetworkScanner(config, dbManager);
+      console.log('🔍 NetworkScanPlugin: Creating network scanner...');
+      this.networkScanner = new deps.NetworkScanner(config, dbManager);
       
-      console.log('Network Scan Plugin initialized successfully');
+      console.log('✅ Network Scan Plugin initialized successfully');
     } catch (error) {
       console.error('NetworkScanPlugin initialization failed:', error);
       this.networkScanner = null;

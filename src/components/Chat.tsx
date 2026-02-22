@@ -986,55 +986,19 @@ ${analysis}`,
     } catch (error) {
       chatLogger.error("Plugin system execution failed", error);
       
-      // Fallback to original logic if plugin system fails
-      const result = resolve(query);
-      chatLogger.info("Fallback to resolver", {
-        resolveType: result.resolveType,
-        needsClarification: result.needsClarification,
-        hasUrl: !!result.url,
-        suggestionsCount: result.suggestions.length,
+      // Show error message instead of fallback to suggestions
+      eventStore.append({
+        type: "message_added",
+        payload: {
+          id: Date.now(),
+          role: "assistant",
+          text: `Wystąpił błąd podczas przetwarzania zapytania przez system pluginów: ${error instanceof Error ? error.message : 'Nieznany błąd'}`,
+          type: "error",
+        },
       });
-
-      if (result.needsClarification) {
-        eventStore.append({
-          type: "message_added",
-          payload: {
-            id: Date.now(),
-            role: "assistant",
-            text: "Czy chodziło Ci o jedną z tych stron?",
-            suggestions: result.suggestions.map(s => ({
-              action: 'browse',
-              text: s,
-              description: `Przejdź do strony: ${s}`,
-              query: s
-            })),
-            resolveType: result.resolveType,
-          },
-        });
-        return;
-      }
-
-      if (!result.url) {
-        // If LLM is available and we have page content or it's a general question, route to LLM
-        if (llmAvailable && !looksLikeUrl(query)) {
-          chatLogger.info("No URL resolved, routing to LLM Q&A", {
-            hasPageContent: !!pageContent,
-          });
-          await handleLlmQuestion(query);
-          return;
-        }
-        chatLogger.warn(
-          "Resolution returned no URL and no clarification request",
-        );
-        return;
-      }
-
-      // Execute CQRS Browse Command
-      await commands.browse.execute({
-        query: query,
-        resolvedUrl: result.url,
-        resolveType: result.resolveType,
-      });
+      
+      // Add to command history
+      addToCommandHistory(query, "Błąd systemu pluginów", categorizeCommand(query), false);
     }
   };
 

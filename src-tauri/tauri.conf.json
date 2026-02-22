@@ -5,9 +5,7 @@
   "identifier": "com.broxeen.app",
   "build": {
     "frontendDist": "../dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "npm run build"
+    "devUrl": "http://localhost:5173"
   },
   "app": {
     "windows": [
