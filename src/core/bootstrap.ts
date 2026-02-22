@@ -153,6 +153,13 @@ async function registerCorePlugins(
     safeRegister(registry, router, new MonitorPlugin(), 'MonitorPlugin');
   } catch (e) { console.warn('MonitorPlugin unavailable:', e); }
 
+  // ── Protocol Bridge plugin ──────────────────────────────────────
+
+  try {
+    const { ProtocolBridgePlugin } = await import('../plugins/protocol-bridge/protocolBridgePlugin');
+    safeRegister(registry, router, new ProtocolBridgePlugin(), 'ProtocolBridgePlugin');
+  } catch (e) { console.warn('ProtocolBridgePlugin unavailable:', e); }
+
   // ── Marketplace plugin ────────────────────────────────────────
 
   try {

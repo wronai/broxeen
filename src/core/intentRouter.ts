@@ -223,6 +223,57 @@ export class IntentRouter implements IIntentRouter {
       /usuń.*plugin/i,
     ]);
 
+    // Protocol Bridge intents
+    this.intentPatterns.set('bridge:read', [
+      /bridge.*mqtt/i,
+      /bridge.*rest/i,
+      /bridge.*api/i,
+      /odczytaj.*mqtt/i,
+      /odczytaj.*rest/i,
+      /pobierz.*rest/i,
+      /pobierz.*api/i,
+      /mqtt.*text|mqtt.*tekst/i,
+      /rest.*text|rest.*tekst/i,
+      /mqtt.*głos|mqtt.*glos|mqtt.*voice/i,
+      /rest.*głos|rest.*glos|rest.*voice/i,
+    ]);
+
+    this.intentPatterns.set('bridge:send', [
+      /wyślij.*mqtt|wyslij.*mqtt/i,
+      /wyślij.*rest|wyslij.*rest/i,
+      /opublikuj.*mqtt/i,
+      /publish.*mqtt/i,
+      /send.*mqtt/i,
+      /send.*rest/i,
+      /post.*https?:\/\//i,
+    ]);
+
+    this.intentPatterns.set('bridge:add', [
+      /dodaj.*bridge/i,
+      /add.*bridge/i,
+      /nowy.*bridge|new.*bridge/i,
+      /konfiguruj.*bridge|configure.*bridge/i,
+    ]);
+
+    this.intentPatterns.set('bridge:remove', [
+      /usuń.*bridge|usun.*bridge/i,
+      /remove.*bridge/i,
+      /delete.*bridge/i,
+    ]);
+
+    this.intentPatterns.set('bridge:list', [
+      /lista.*bridge|list.*bridge/i,
+      /bridge.*lista|bridge.*list/i,
+      /pokaż.*bridge|pokaz.*bridge/i,
+    ]);
+
+    this.intentPatterns.set('bridge:status', [
+      /bridge.*status|status.*bridge/i,
+      /stan.*bridge|bridge.*stan/i,
+      /most.*protokół|most.*protokol/i,
+      /protokół.*most|protokol.*most/i,
+    ]);
+
     // IoT/MQTT intents
     this.intentPatterns.set('iot:read', [
       /jaka.*temperatura/i,
@@ -320,6 +371,12 @@ export class IntentRouter implements IIntentRouter {
       'network:mdns': ['mdns', 'bonjour', 'usługi'],
       'marketplace:browse': ['marketplace', 'plugin', 'zainstaluj'],
       'iot:read': ['temperatura', 'wilgotność', 'czujnik', 'sensor'],
+      'bridge:read': ['bridge', 'most', 'mqtt', 'rest', 'api', 'tekst', 'głos'],
+      'bridge:send': ['wyślij', 'mqtt', 'rest', 'publish', 'send'],
+      'bridge:add': ['dodaj', 'bridge', 'konfiguruj'],
+      'bridge:remove': ['usuń', 'bridge', 'remove'],
+      'bridge:list': ['lista', 'bridge', 'pokaż'],
+      'bridge:status': ['status', 'bridge', 'most', 'protokół'],
       'search:web': ['wyszukaj', 'znajdź', 'szukaj'],
     };
 
