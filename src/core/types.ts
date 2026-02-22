@@ -11,10 +11,12 @@ export interface PluginResult {
 }
 
 export interface PluginContentBlock {
-  type: 'text' | 'image' | 'audio' | 'video' | 'data';
+  type: 'text' | 'image' | 'audio' | 'video' | 'data' | 'function_call';
   data: string | unknown;
   title?: string;
   mimeType?: string;
+  functionName?: string;
+  functionArgs?: Record<string, unknown>;
 }
 
 export interface PluginContext {

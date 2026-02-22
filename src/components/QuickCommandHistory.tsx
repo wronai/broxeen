@@ -11,12 +11,14 @@ interface QuickCommandHistoryProps {
   onSelect: (command: string) => void;
   className?: string;
   maxItems?: number;
+  selectedNetwork?: { scope: string; name: string } | null;
 }
 
 export const QuickCommandHistory: React.FC<QuickCommandHistoryProps> = ({
   onSelect,
   className = '',
-  maxItems = 5
+  maxItems = 5,
+  selectedNetwork
 }) => {
   const [history, setHistory] = useState<CommandHistoryItem[]>([]);
 
@@ -57,13 +59,83 @@ export const QuickCommandHistory: React.FC<QuickCommandHistoryProps> = ({
     return `${Math.floor(diff / 3600000)} h temu`;
   };
 
+  // Popular commands based on network context
+  const getPopularCommands = () => {
+    const baseCommands = [
+      { category: 'browse' as const, command: 'https://onet.pl', description: 'Przeglądaj popularny portal' },
+      { category: 'browse' as const, command: 'https://google.com', description: 'Wyszukiwarka Google' },
+      { category: 'chat' as const, command: 'jaka jest pogoda', description: 'Sprawdź pogodę' },
+      { category: 'chat' as const, command: 'opisz aktualny czas', description: 'Sprawdź czas' },
+      { category: 'chat' as const, command: 'pomoc', description: 'Pokaż pomoc' },
+    ];
+
+    const networkCommands = [
+      { category: 'network' as const, command: 'znajdź kamere w sieci', description: 'Skanuj sieć w poszukiwaniu kamer' },
+      { category: 'network' as const, command: 'skanuj siec lokalna', description: 'Odkryj urządzenia w sieci lokalnej' },
+      { category: 'camera' as const, command: 'co widać na kamerze', description: 'Pokaż podgląd kamery' },
+      { category: 'camera' as const, command: 'znajdź kamery ogrodowe', description: 'Wyszukaj kamery zewnętrzne' },
+    ];
+
+    // If network is selected, prioritize network commands
+    if (selectedNetwork) {
+      return [...networkCommands.slice(0, 3), ...baseCommands.slice(0, 2)];
+    }
+
+    return baseCommands;
+  };
+
+  const popularCommands = getPopularCommands();
+
   if (history.length === 0) {
     return (
-      <div className={`bg-gray-800 rounded-lg p-4 border border-gray-700 ${className}`}>
-        <div className="text-center text-gray-400">
-          <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Brak historii komend</p>
-          <p className="text-xs mt-1">Rozpocznij korzystanie, aby zobaczyć ostatnie komendy</p>
+      <div className={`bg-gray-800 rounded-lg border border-gray-700 ${className}`}>
+        <div className="p-3 border-b border-gray-700">
+          <div className="flex items-center space-x-2 text-sm text-gray-300">
+            <Search className="w-4 h-4" />
+            <span>Popularne komendy</span>
+            {selectedNetwork && (
+              <span className="text-xs text-broxeen-400 bg-gray-700 px-2 py-1 rounded">
+                {selectedNetwork.name}
+              </span>
+            )}
+          </div>
+        </div>
+        
+        <div className="max-h-64 overflow-y-auto">
+          {popularCommands.map((cmd, index) => {
+            const categoryIcon = getCategoryIcon(cmd.category);
+            
+            return (
+              <div
+                key={index}
+                className="flex items-center space-x-3 p-3 hover:bg-gray-700 cursor-pointer transition-colors border-b border-gray-700 last:border-b-0"
+                onClick={() => onSelect(cmd.command)}
+              >
+                <div className="flex items-center space-x-2 text-sm">
+                  <span className="text-lg">{categoryIcon}</span>
+                  <span className="text-gray-500 text-xs">
+                    #{index + 1}
+                  </span>
+                </div>
+                
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm text-gray-200 truncate font-medium">
+                    {cmd.command}
+                  </div>
+                  
+                  <div className="text-xs text-gray-400 truncate mt-1">
+                    {cmd.description}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        <div className="p-2 border-t border-gray-700">
+          <div className="text-xs text-gray-400 text-center">
+            💡 Kliknij komendę, aby ją wykonać
+          </div>
         </div>
       </div>
     );

@@ -7,6 +7,7 @@ export interface ChatMessage {
   id: number;
   role: ChatMessageRole;
   text: string;
+  type?: 'content' | 'image' | 'error' | 'loading';
   url?: string;
   resolveType?: string;
   suggestions?: string[];
@@ -16,6 +17,8 @@ export interface ChatMessage {
   contactUrl?: string;
   phoneUrl?: string;
   pageTitle?: string;
+  title?: string;
+  timestamp?: number;
 }
 
 // ── Domain Events ──────────────────────────────────

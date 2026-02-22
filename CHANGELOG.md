@@ -1,3 +1,22 @@
+## [1.0.23] - 2026-02-22
+
+### Summary
+
+feat(None): deep code analysis engine with 3 supporting modules
+
+### Build
+
+- deps: update package.json
+
+### Other
+
+- update src/components/Chat.tsx
+- update src/components/QuickCommandHistory.tsx
+- update src/core/bootstrap.ts
+- update src/core/types.ts
+- update src/domain/chatEvents.ts
+
+
 ## [1.0.22] - 2026-02-22
 
 ### Summary

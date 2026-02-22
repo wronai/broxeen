@@ -417,6 +417,114 @@ export default function Chat({ settings }: ChatProps) {
     }, 200);
   };
 
+  const sendNetworkSelectionMessage = async (userQuery: string) => {
+    chatLogger.info('Sending network selection message', { userQuery });
+    
+    // Add user message to chat
+    eventStore.append({
+      type: "message_added",
+      payload: { 
+        id: Date.now(), 
+        role: "user", 
+        text: userQuery 
+      },
+    });
+
+    // Add network selection message from assistant
+    const networkSelectionId = Date.now() + 1;
+    eventStore.append({
+      type: "message_added",
+      payload: {
+        id: networkSelectionId,
+        role: "assistant",
+        text: getNetworkSelectionText(),
+        type: "network_selection",
+        networkOptions: [
+          { scope: 'local', name: 'Sieć lokalna', description: 'Szybkie skanowanie Twojej sieci domowej/biurowej' },
+          { scope: 'global', name: 'Internet globalny', description: 'Przeszukiwanie publicznych urządzeń' },
+          { scope: 'tor', name: 'Sieć Tor', description: 'Anonimowe skanowanie przez sieć Tor' },
+          { scope: 'vpn', name: 'Połączenie VPN', description: 'Skanowanie przez zewnętrzną sieć VPN' },
+          { scope: 'custom', name: 'Konfiguracja niestandardowa', description: 'Własne ustawienia sieciowe' }
+        ]
+      },
+    });
+
+    // Store the network selection message ID for handling clicks
+    (window as any).broxeenNetworkSelectionId = networkSelectionId;
+  };
+
+  const getNetworkSelectionText = () => {
+    return `Skanuję kamery w sieci:
+
+Skanowanie urządzeń w sieci, takich jak kamery IP, jest standardową procedurą podczas audytów bezpieczeństwa lub konfiguracji domowego monitoringu. Pozwala to upewnić się, że wszystkie urządzenia są widoczne i odpowiednio zabezpieczone.
+
+**Wybierz zakres sieci, który chcesz przeskanować:**`;
+  };
+
+  const handleNetworkOptionClick = (scope: string, name: string) => {
+    chatLogger.info('Network option clicked', { scope, name });
+    
+    // Find the network config
+    const networkConfig = {
+      scope: scope as NetworkScope,
+      name,
+      description: `Wybrano: ${name}`,
+      icon: null,
+      features: []
+    } as NetworkConfig;
+    
+    setSelectedNetwork(networkConfig);
+    
+    // Add confirmation message
+    eventStore.append({
+      type: "message_added",
+      payload: {
+        id: Date.now(),
+        role: "assistant",
+        text: `✅ Wybrano: **${name}**
+
+Rozpoczynam skanowanie sieci w trybie: ${name.toLowerCase()}
+
+${getNetworkScopeDescription(scope)}`,
+        type: "content"
+      },
+    });
+    
+    // Execute the pending query with network context
+    if (pendingNetworkQuery) {
+      executeNetworkQuery(pendingNetworkQuery, networkConfig);
+      setPendingNetworkQuery("");
+    }
+  };
+
+  const getNetworkScopeDescription = (scope: string) => {
+    switch (scope) {
+      case 'local':
+        return '🏠 **Skanowanie sieci lokalnej**\n• Szybkie wykrywanie urządzeń w Twojej sieci\n• Bezpieczne - tylko Twoja sieć domowa/biurowa\n• Zwykle 1-3 sekundy skanowania';
+      case 'global':
+        return '🌐 **Skanowanie globalne**\n• Przeszukiwanie publicznych urządzeń\n• Wymaga stabilnego połączenia internetowego\n• Może zająć więcej czasu';
+      case 'tor':
+        return '🔒 **Skanowanie przez Tor**\n• Anonimowe skanowanie\n• Wolniejsze połączenia\n• Ominięcie geo-restrykcji';
+      case 'vpn':
+        return '🏢 **Skanowanie VPN**\n• Przez zewnętrzną sieć VPN\n• Zdalny dostęp do zasobów\n• Zależne od konfiguracji VPN';
+      case 'custom':
+        return '⚙️ **Konfiguracja niestandardowa**\n• Pełna kontrola nad ustawieniami\n• Niestandardowe zakresy IP\n• Zaawansowane opcje';
+      default:
+        return 'Nieznany zakres sieci';
+    }
+  };
+
+  const getNetworkIcon = (scope: string) => {
+    switch (scope) {
+      case 'local': return '🏠';
+      case 'global': return '🌐';
+      case 'tor': return '🔒';
+      case 'vpn': return '🏢';
+      case 'custom': return '⚙️';
+      default: return '📡';
+    }
+  };
+
   const categorizeCommand = (command: string): CommandHistoryItem['category'] => {
     const lowerCommand = command.toLowerCase();
     
@@ -437,18 +545,37 @@ export default function Chat({ settings }: ChatProps) {
   };
 
   const executeNetworkQuery = async (query: string, networkConfig: NetworkConfig) => {
-    chatLogger.info('Executing network query', { 
+    chatLogger.info('Executing network query with plugin system', { 
       query, 
       networkScope: networkConfig.scope 
     });
 
-    // Add network context to the query
+    // Add network context to the query and use standard plugin system
     const enhancedQuery = `${query} (sieć: ${networkConfig.scope})`;
     
+    // Add user message to chat
+    eventStore.append({
+      type: "message_added",
+      payload: { 
+        id: Date.now(), 
+        role: "user", 
+        text: query 
+      },
+    });
+
+    // Use standard plugin system (which includes LLM orchestration)
     try {
       const result = await ask(enhancedQuery, "text");
       
+      chatLogger.info("Plugin system result for network query", {
+        status: result.status,
+        contentBlocks: result.content.length,
+        executionTime: result.executionTime,
+      });
+      
       if (result.status === 'success') {
+        // Convert plugin content blocks to chat messages
+        let fullResult = '';
         for (const block of result.content) {
           let messageText = '';
           let messageType: 'content' | 'image' = 'content';
@@ -462,6 +589,7 @@ export default function Chat({ settings }: ChatProps) {
             messageText = String(block.data);
           }
 
+          fullResult += messageText + ' ';
           eventStore.append({
             type: "message_added",
             payload: {
@@ -473,25 +601,32 @@ export default function Chat({ settings }: ChatProps) {
             },
           });
         }
+        
+        // Add to command history
+        addToCommandHistory(query, fullResult.trim(), categorizeCommand(query), true);
       } else {
+        const errorMessage = (result.content[0]?.data as string) ?? "Nie udało się przetworzyć zapytania sieciowego.";
         eventStore.append({
           type: "message_added",
           payload: {
             id: Date.now(),
             role: "assistant",
-            text: result.content[0]?.data ?? "Wystąpił błąd podczas skanowania sieci.",
+            text: errorMessage,
             type: "error",
           },
         });
+        
+        // Add to command history
+        addToCommandHistory(query, errorMessage, categorizeCommand(query), false);
       }
     } catch (error) {
-      chatLogger.error("Network query execution failed", error);
+      chatLogger.error("Plugin system execution failed", error);
       eventStore.append({
         type: "message_added",
         payload: {
           id: Date.now(),
           role: "assistant",
-          text: "Wystąpił błąd podczas wykonywania zapytania sieciowego.",
+          text: "Wystąpił błąd podczas przetwarzania zapytania przez system pluginów.",
           type: "error",
         },
       });
@@ -524,6 +659,13 @@ export default function Chat({ settings }: ChatProps) {
     // Hide command history when user submits
     setShowCommandHistory(false);
 
+    // Check if this is the first message and we should ask about network
+    if (messages.length === 0 && !selectedNetwork) {
+      chatLogger.info('First message detected, asking about network');
+      await sendNetworkSelectionMessage(query);
+      return;
+    }
+
     // Check if this is a network-related query
     if (checkIfNetworkQuery(query)) {
       chatLogger.info('Network query detected', { query });
@@ -537,8 +679,7 @@ export default function Chat({ settings }: ChatProps) {
       // If user wants different network or no network selected, show selector
       if (!selectedNetwork || wantsGlobalNetwork) {
         setPendingNetworkQuery(query);
-        setShowNetworkSelector(true);
-        setInput("");
+        await sendNetworkSelectionMessage(query);
         return;
       }
       
@@ -607,7 +748,7 @@ export default function Chat({ settings }: ChatProps) {
         addToCommandHistory(query, fullResult.trim(), categorizeCommand(query), true);
       } else {
         // Handle error case
-        const errorMessage = result.content[0]?.data ?? "Wystąpił błąd podczas przetwarzania zapytania.";
+        const errorMessage = (result.content[0]?.data as string) ?? "Wystąpił błąd podczas przetwarzania zapytania.";
         eventStore.append({
           type: "message_added",
           payload: {
@@ -799,57 +940,6 @@ export default function Chat({ settings }: ChatProps) {
 
   return (
     <>
-      {/* Network Selector Modal */}
-      {showNetworkSelector && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <div className="bg-gray-900 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-200">
-                  Wybierz zakres skanowania sieci
-                </h2>
-                <button
-                  onClick={() => {
-                    setShowNetworkSelector(false);
-                    setPendingNetworkQuery("");
-                  }}
-                  className="text-gray-400 hover:text-gray-200"
-                >
-                  ✕
-                </button>
-              </div>
-              
-              <div className="mb-4 p-4 bg-gray-800 rounded-lg">
-                <p className="text-sm text-gray-300">
-                  Wykryto zapytanie o skanowanie sieci: <span className="font-medium text-broxeen-400">"{pendingNetworkQuery}"</span>
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Wybierz, którą sieć chcesz przeskanować:
-                </p>
-              </div>
-              
-              <NetworkSelector 
-                onNetworkSelect={handleNetworkSelect}
-                onHistorySelect={handleHistorySelect}
-                className="mb-4"
-              />
-              
-              <div className="flex justify-end space-x-3">
-                <button
-                  onClick={() => {
-                    setShowNetworkSelector(false);
-                    setPendingNetworkQuery("");
-                  }}
-                  className="px-4 py-2 bg-gray-700 text-gray-300 rounded hover:bg-gray-600"
-                >
-                  Anuluj
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {expandedImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
@@ -993,6 +1083,33 @@ export default function Chat({ settings }: ChatProps) {
                               </div>
                             )}
                             {msg.text}
+                          </div>
+                        )}
+
+                        {/* Network Selection Options */}
+                        {msg.type === "network_selection" && msg.networkOptions && (
+                          <div className="mt-4 space-y-2">
+                            {msg.networkOptions.map((option: any, index: number) => (
+                              <button
+                                key={index}
+                                onClick={() => handleNetworkOptionClick(option.scope, option.name)}
+                                className="w-full text-left p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <div className="font-medium text-gray-200 group-hover:text-broxeen-400">
+                                      {getNetworkIcon(option.scope)} {option.name}
+                                    </div>
+                                    <div className="text-sm text-gray-400 mt-1">
+                                      {option.description}
+                                    </div>
+                                  </div>
+                                  <div className="text-gray-400 group-hover:text-broxeen-400">
+                                    →
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
                           </div>
                         )}
 
@@ -1158,6 +1275,7 @@ export default function Chat({ settings }: ChatProps) {
                     <QuickCommandHistory 
                       onSelect={handleQuickHistorySelect}
                       maxItems={5}
+                      selectedNetwork={selectedNetwork}
                     />
                   </div>
                 )}
