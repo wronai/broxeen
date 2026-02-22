@@ -5,6 +5,7 @@
 
 use std::sync::Mutex;
 use std::collections::HashMap;
+use std::path::Path;
 
 // ─── SQLite Commands ────────────────────────────────────────
 
@@ -20,13 +21,15 @@ lazy_static::lazy_static! {
 #[tauri::command]
 pub fn db_execute(db: String, sql: String, params: Vec<serde_json::Value>) -> Result<(), String> {
     let mut conns = DB_CONNECTIONS.lock().map_err(|e| e.to_string())?;
+    let db_path = resolve_db_path(&db)?;
 
-    let conn = conns.entry(db.clone()).or_insert_with(|| {
-        let c = rusqlite::Connection::open(&db).expect("Failed to open database");
-        c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
-            .expect("Failed to set PRAGMAs");
-        c
-    });
+    if !conns.contains_key(&db_path) {
+        conns.insert(db_path.clone(), open_database_connection(&db_path)?);
+    }
+
+    let conn = conns
+        .get_mut(&db_path)
+        .ok_or_else(|| format!("Database connection missing for {}", db_path))?;
 
     if params.is_empty() {
         conn.execute_batch(&sql).map_err(|e| e.to_string())?;
@@ -53,13 +56,15 @@ pub fn db_query(
     params: Vec<serde_json::Value>,
 ) -> Result<Vec<HashMap<String, serde_json::Value>>, String> {
     let mut conns = DB_CONNECTIONS.lock().map_err(|e| e.to_string())?;
+    let db_path = resolve_db_path(&db)?;
 
-    let conn = conns.entry(db.clone()).or_insert_with(|| {
-        let c = rusqlite::Connection::open(&db).expect("Failed to open database");
-        c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
-            .expect("Failed to set PRAGMAs");
-        c
-    });
+    if !conns.contains_key(&db_path) {
+        conns.insert(db_path.clone(), open_database_connection(&db_path)?);
+    }
+
+    let conn = conns
+        .get_mut(&db_path)
+        .ok_or_else(|| format!("Database connection missing for {}", db_path))?;
 
     let sqlite_params: Vec<Box<dyn rusqlite::types::ToSql>> = params
         .iter()
@@ -99,11 +104,41 @@ pub fn db_query(
 #[tauri::command]
 pub fn db_close(db: String) -> Result<(), String> {
     let mut conns = DB_CONNECTIONS.lock().map_err(|e| e.to_string())?;
-    conns.remove(&db);
+    let db_path = resolve_db_path(&db)?;
+    conns.remove(&db_path);
     Ok(())
 }
 
 // ─── Helpers ────────────────────────────────────────────────
+
+fn resolve_db_path(db: &str) -> Result<String, String> {
+    if db == ":memory:" {
+        return Ok(db.to_string());
+    }
+
+    let path = Path::new(db);
+
+    // Keep absolute paths and explicit relative subpaths as-is.
+    // Only normalize bare filenames (e.g. "broxeen_devices.db").
+    if path.is_absolute() || path.parent().is_some_and(|p| p != Path::new("")) {
+        return Ok(db.to_string());
+    }
+
+    let base = dirs::data_local_dir()
+        .or_else(dirs::data_dir)
+        .ok_or_else(|| "Cannot resolve local data directory".to_string())?;
+    let app_dir = base.join("broxeen");
+    std::fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
+
+    Ok(app_dir.join(path).to_string_lossy().into_owned())
+}
+
+fn open_database_connection(db_path: &str) -> Result<rusqlite::Connection, String> {
+    let c = rusqlite::Connection::open(db_path).map_err(|e| e.to_string())?;
+    c.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")
+        .map_err(|e| e.to_string())?;
+    Ok(c)
+}
 
 fn json_to_sqlite_param(value: &serde_json::Value) -> Box<dyn rusqlite::types::ToSql> {
     match value {
