@@ -32,11 +32,15 @@ import { QuickCommandHistory } from "./QuickCommandHistory";
 import { CameraPreview, type CameraPreviewProps } from "./CameraPreview";
 import { ActionSuggestions } from "./ActionSuggestions";
 import { QuickCommands } from "./QuickCommands";
+import { ChatConfigPrompt, buildApiKeyPrompt, buildConfigOverviewPrompt, buildNetworkConfigPrompt, buildModelSelectionPrompt } from "./ChatConfigPrompt";
+import type { ConfigPromptData } from "./ChatConfigPrompt";
 import { processRegistry } from "../core/processRegistry";
 import type { AudioSettings } from "../domain/audioSettings";
 import { type ChatMessage } from "../domain/chatEvents";
 import { logger } from "../lib/logger";
 import { getConfig } from "../lib/llmClient";
+import { configStore } from "../config/configStore";
+import { runAutoConfig } from "../config/autoConfig";
 import { errorReporting, capturePluginError, captureNetworkError } from "../utils/errorReporting";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
@@ -195,6 +199,34 @@ export default function Chat({ settings }: ChatProps) {
     });
     return unsub;
   }, [eventStore]);
+
+  // Auto-config detection — show interactive setup prompt on first load
+  useEffect(() => {
+    let cancelled = false;
+    runAutoConfig().then((result) => {
+      if (cancelled) return;
+      chatLogger.info('Auto-config result', {
+        needsSetup: result.needsSetup,
+        capabilities: result.capabilities,
+      });
+
+      // Show the auto-config message as the first assistant message
+      eventStore.append({
+        type: "message_added",
+        payload: {
+          id: Date.now(),
+          role: "assistant",
+          text: result.messageText,
+          type: result.prompt ? "config_prompt" : "content",
+          configPrompt: result.prompt,
+        },
+      });
+    }).catch((err) => {
+      chatLogger.error('Auto-config failed', err);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const llm = useLlm({ pageContent });
   const llmAvailable = !!getConfig().apiKey;
@@ -355,7 +387,7 @@ export default function Chat({ settings }: ChatProps) {
     });
     
     // Add to history
-    addToNetworkHistory(networkConfig.scope, networkConfig.name, '192.168.1.0/24');
+    addToNetworkHistory(networkConfig.scope, networkConfig.name, `${configStore.get<string>('network.defaultSubnet')}.0/24`);
     
     // Execute the pending query with network context
     if (pendingNetworkQuery) {
@@ -762,14 +794,14 @@ Skanowanie urządzeń w sieci, takich jak kamery IP, jest standardową procedur�
         // Extract camera name and IP
         const cameraMatch = line.match(/(.+?)\s*(\d+\.\d+\.\d+\.\d+)/);
         if (cameraMatch) {
+          const camCfg = configStore.getAll().camera;
           currentCamera = {
             id: cameraMatch[2],
             name: cameraMatch[1].trim(),
             ip: cameraMatch[2],
             status: 'online',
             type: 'IP Camera',
-            streamUrl: `rtsp://${cameraMatch[2]}:554/stream`,
-            snapshot: `https://picsum.photos/seed/${cameraMatch[2]}/640/480.jpg`
+            streamUrl: `rtsp://${cameraMatch[2]}:${camCfg.rtspPort}${camCfg.defaultStreamPath}`,
           };
         }
       }
@@ -778,30 +810,6 @@ Skanowanie urządzeń w sieci, takich jak kamery IP, jest standardową procedur�
     // Add the last camera if exists
     if (currentCamera) {
       cameras.push(currentCamera as CameraPreviewProps['camera']);
-    }
-    
-    // If no cameras found, create mock cameras for testing
-    if (cameras.length === 0 && result.includes('Znaleziono')) {
-      cameras.push(
-        {
-          id: '192.168.1.45',
-          name: 'Kamera Hikvision',
-          ip: '192.168.1.45',
-          status: 'online',
-          type: 'IP Camera',
-          streamUrl: 'rtsp://192.168.1.45:554/stream',
-          snapshot: 'https://picsum.photos/seed/camera1/640/480.jpg'
-        },
-        {
-          id: '192.168.1.67',
-          name: 'Kamera Reolink',
-          ip: '192.168.1.67',
-          status: 'online',
-          type: 'IP Camera',
-          streamUrl: 'rtsp://192.168.1.67:554/stream',
-          snapshot: 'https://picsum.photos/seed/camera2/640/480.jpg'
-        }
-      );
     }
     
     return cameras;
@@ -935,6 +943,82 @@ ${analysis}`,
     return urlPatterns.some(pattern => pattern.test(query));
   };
 
+  /** Handle config/setup commands locally with interactive prompts */
+  const handleConfigCommand = (query: string): { text: string; prompt: ConfigPromptData } | null => {
+    const lower = query.toLowerCase().trim();
+
+    // Config overview
+    if (/^(konfigur|config|ustawieni|settings|setup)/.test(lower) && !/\b(ai|llm|sieć|network|ssh|model)\b/.test(lower)) {
+      return {
+        text: '⚙️ **Konfiguracja Broxeen**\n\nWybierz sekcję do konfiguracji:',
+        prompt: buildConfigOverviewPrompt(),
+      };
+    }
+
+    // AI / LLM config
+    if (/konfiguruj\s*(ai|llm|model)|config\s*(ai|llm)|ustaw\s*(ai|model|klucz)/i.test(lower)) {
+      const status = configStore.getConfigStatus();
+      if (!status.llmConfigured) {
+        return {
+          text: '🧠 **Konfiguracja AI**\n\nAby korzystać z AI, potrzebujesz klucza API OpenRouter.\nWprowadź klucz poniżej lub kliknij link, aby go uzyskać:',
+          prompt: buildApiKeyPrompt(),
+        };
+      }
+      return {
+        text: `🧠 **Konfiguracja AI**\n\nAktualny model: **${configStore.get('llm.model')}**\nWybierz nowy model lub zmień ustawienia:`,
+        prompt: buildModelSelectionPrompt(),
+      };
+    }
+
+    // Network config
+    if (/konfiguruj\s*(sieć|network)|config\s*network|ustaw\s*(sieć|subnet|podsieć)/i.test(lower)) {
+      const subnet = configStore.get<string>('network.defaultSubnet');
+      return {
+        text: `🌐 **Konfiguracja sieci**\n\nAktualna podsieć: **${subnet}.0/24**\nWybierz akcję:`,
+        prompt: buildNetworkConfigPrompt(subnet),
+      };
+    }
+
+    // Reset config
+    if (/reset.*konfig|resetuj.*konfig|przywróć.*domyśl|restore.*default/i.test(lower)) {
+      configStore.reset();
+      return {
+        text: '🔄 **Konfiguracja zresetowana**\n\nPrzywrócono domyślne ustawienia. Skonfiguruj ponownie:',
+        prompt: buildConfigOverviewPrompt(),
+      };
+    }
+
+    // Help / what can you do
+    if (/^(pomoc|help|co\s+umiesz|co\s+potrafisz|jak\s+zacząć|jak\s+zaczac|start)$/i.test(lower)) {
+      const status = configStore.getConfigStatus();
+      const helpActions: import('./ChatConfigPrompt').ConfigAction[] = [
+        { id: 'help-scan', label: 'Skanuj sieć', icon: '🔍', type: 'prefill', prefillText: 'skanuj sieć', variant: 'primary', description: 'Znajdź urządzenia w sieci' },
+        { id: 'help-cameras', label: 'Znajdź kamery', icon: '📷', type: 'prefill', prefillText: 'znajdź kamery w sieci', variant: 'primary', description: 'Szukaj kamer IP' },
+        { id: 'help-browse', label: 'Przeglądaj stronę', icon: '🌍', type: 'prefill', prefillText: 'przeglądaj ', variant: 'secondary', description: 'Otwórz i przeczytaj stronę' },
+        { id: 'help-ssh', label: 'Połącz SSH', icon: '📡', type: 'prefill', prefillText: 'ssh ', variant: 'secondary', description: 'Zdalne połączenie SSH' },
+        { id: 'help-disk', label: 'Dyski', icon: '💾', type: 'prefill', prefillText: 'pokaż dyski', variant: 'secondary', description: 'Informacje o dyskach' },
+        { id: 'help-config', label: 'Konfiguracja', icon: '⚙️', type: 'execute', executeQuery: 'konfiguracja', variant: 'secondary', description: 'Zmień ustawienia' },
+      ];
+
+      if (!status.llmConfigured) {
+        helpActions.unshift({
+          id: 'help-setup-ai', label: 'Skonfiguruj AI', icon: '🧠', type: 'execute', executeQuery: 'konfiguruj ai', variant: 'warning', description: 'Wymagane do rozmów z AI',
+        });
+      }
+
+      return {
+        text: '👋 **Witaj w Broxeen!**\n\nOto co mogę dla Ciebie zrobić. Kliknij przycisk lub wpisz komendę:',
+        prompt: {
+          title: 'Dostępne akcje',
+          actions: helpActions,
+          layout: 'cards',
+        },
+      };
+    }
+
+    return null;
+  };
+
   const handleSubmit = async (text?: string) => {
     const query = (text || input).trim();
     if (!query) {
@@ -959,6 +1043,23 @@ ${analysis}`,
       type: "message_added",
       payload: { id: Date.now(), role: "user", text: query },
     });
+
+    // ── Config commands — handled locally with interactive prompts ──
+    const configResult = handleConfigCommand(query);
+    if (configResult) {
+      eventStore.append({
+        type: "message_added",
+        payload: {
+          id: Date.now() + 1,
+          role: "assistant",
+          text: configResult.text,
+          type: "config_prompt",
+          configPrompt: configResult.prompt,
+        },
+      });
+      addToCommandHistory(query, configResult.text, 'other', true);
+      return;
+    }
 
     const processId = `query:${Date.now()}`;
 
@@ -1513,6 +1614,15 @@ ${analysis}`,
                               </button>
                             ))}
                           </div>
+                        )}
+
+                        {/* Config Prompt (interactive buttons/fields) */}
+                        {msg.type === "config_prompt" && msg.configPrompt && (
+                          <ChatConfigPrompt
+                            data={msg.configPrompt}
+                            onPrefill={(text) => setInput(text)}
+                            onExecute={(query) => handleSubmit(query)}
+                          />
                         )}
 
                         {/* Camera List */}

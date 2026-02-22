@@ -1,10 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isTauriRuntime } from "./runtime";
 import { logger, logAsyncDecorator } from "./logger";
+import { configStore } from "../config/configStore";
 
 const sttLogger = logger.scope("speech:stt");
-
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 export type SttAudioFormat =
   | "wav"
@@ -24,10 +23,11 @@ export interface SttConfig {
 }
 
 export function getSttConfig(): SttConfig {
+  const cfg = configStore.getAll();
   return {
-    apiKey: import.meta.env.VITE_OPENROUTER_API_KEY ?? "",
-    model: import.meta.env.VITE_STT_MODEL ?? "google/gemini-2.0-flash",
-    language: import.meta.env.VITE_STT_LANG ?? "pl",
+    apiKey: cfg.llm.apiKey,
+    model: cfg.stt.model,
+    language: cfg.stt.language,
   };
 }
 
@@ -80,13 +80,14 @@ export async function transcribeAudio(
       `Return only the transcription. ` +
       `Language: ${languageOverride ?? cfg.language}.`;
 
-    const resp = await fetch(OPENROUTER_URL, {
+    const appCfg = configStore.getAll();
+    const resp = await fetch(appCfg.llm.apiUrl, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${cfg.apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://broxeen.local",
-        "X-Title": "broxeen",
+        "HTTP-Referer": appCfg.llm.httpReferer,
+        "X-Title": appCfg.llm.appTitle,
       },
       body: JSON.stringify({
         model: cfg.model,
@@ -105,8 +106,8 @@ export async function transcribeAudio(
             ],
           },
         ],
-        max_tokens: 256,
-        temperature: 0.0,
+        max_tokens: appCfg.stt.maxTokens,
+        temperature: appCfg.stt.temperature,
       }),
     });
 

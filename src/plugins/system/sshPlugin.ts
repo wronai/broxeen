@@ -8,6 +8,7 @@
  */
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
+import { configStore } from '../../config/configStore';
 
 /** Maps natural language descriptions to SSH commands */
 const TEXT2SSH_PATTERNS: Array<{ patterns: RegExp[]; command: string; description: string }> = [
@@ -123,8 +124,9 @@ export class SshPlugin implements Plugin {
       // text2ssh: detect command from natural language or execute raw
       const host = this.extractHost(input);
       if (!host) {
-        return this.errorResult(
-          '📡 **SSH — Podaj adres hosta**\n\nPrzykłady:\n- "ssh 192.168.1.100 uptime"\n- "sprawdź dysk na 192.168.1.100"\n- "text2ssh 10.0.0.1 jakie procesy działają"\n- "ssh hosty" — pokaż znane hosty',
+        const subnet = configStore.get<string>('network.defaultSubnet');
+      return this.errorResult(
+          `📡 **SSH — Podaj adres hosta**\n\nPrzykłady:\n- "ssh ${subnet}.100 uptime"\n- "sprawdź dysk na ${subnet}.100"\n- "text2ssh ${subnet}.1 jakie procesy działają"\n- "ssh hosty" — pokaż znane hosty`,
           start,
         );
       }
@@ -138,12 +140,13 @@ export class SshPlugin implements Plugin {
         );
       }
 
+      const sshCfg = configStore.getAll().ssh;
       const result = (await context.tauriInvoke('ssh_execute', {
         host,
         command,
-        user: this.extractUser(input),
-        port: this.extractPort(input),
-        timeout: 15,
+        user: this.extractUser(input) || sshCfg.defaultUser,
+        port: this.extractPort(input) || sshCfg.defaultPort,
+        timeout: sshCfg.defaultTimeoutSec,
       })) as SshExecResult;
 
       return this.formatSshResult(host, command, description, result, start);
@@ -176,7 +179,7 @@ export class SshPlugin implements Plugin {
         status: 'success',
         content: [{
           type: 'text',
-          data: '📡 **SSH — Znane hosty**\n\nBrak wpisów w known_hosts.\n\n💡 Połącz się z hostem: "ssh 192.168.1.100 uptime"',
+          data: `📡 **SSH — Znane hosty**\n\nBrak wpisów w known_hosts.\n\n💡 Połącz się z hostem: "ssh ${configStore.get<string>('network.defaultSubnet')}.100 uptime"`,
         }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };

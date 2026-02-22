@@ -5,6 +5,7 @@
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
 import { processRegistry } from '../../core/processRegistry';
+import { configStore } from '../../config/configStore';
 
 export class NetworkScanPlugin implements Plugin {
   readonly id = 'network-scan';
@@ -171,15 +172,16 @@ export class NetworkScanPlugin implements Plugin {
     const gatewayIp = `${subnet}.1`;
     
     // Focus on common camera/device IP ranges instead of full subnet scan
-    const commonCameraIps = [100, 101, 102, 103, 108, 110, 150, 200, 201, 250];
-    const commonDeviceIps = [2, 10, 20, 30, 50, 60, 70, 80, 90, 120, 130, 140, 160, 170, 180, 190, 210, 220, 240];
+    const netCfg = configStore.getAll().network;
+    const commonCameraIps = netCfg.commonCameraIpOffsets;
+    const commonDeviceIps = netCfg.commonDeviceIpOffsets;
     
     // Combine all target IPs, removing duplicates
     const allOffsets = new Set([1, ...commonCameraIps, ...commonDeviceIps]);
     const probeIps = [...allOffsets].map(n => `${subnet}.${n}`);
 
     // Step 3: Multi-strategy probe on common ports
-    const httpPorts = isCameraQuery ? [554, 8554, 80, 8080] : [80, 443, 8080];
+    const httpPorts = isCameraQuery ? netCfg.cameraPorts : netCfg.generalPorts;
     const httpFound: Array<{ ip: string; port: number; method: string }> = [];
 
     // fetch no-cors: resolves (opaque) = host alive on that port, rejects = unreachable/closed.
@@ -187,7 +189,7 @@ export class NetworkScanPlugin implements Plugin {
     // because CORS-blocked requests to non-existent IPs often take >15ms.
     const probeHttp = (ip: string, port: number): Promise<void> => {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 1500);
+      const timer = setTimeout(() => controller.abort(), netCfg.probeTimeoutMs);
       return fetch(`http://${ip}:${port}/`, {
         method: 'HEAD',
         mode: 'no-cors',
@@ -204,7 +206,7 @@ export class NetworkScanPlugin implements Plugin {
         });
     };
 
-    const batchSize = 10;
+    const batchSize = netCfg.batchSize;
     console.log(`[NetworkScanPlugin] Probing ${probeIps.length} IPs × ${httpPorts.length} ports (batch=${batchSize})`);
     
     for (let i = 0; i < probeIps.length; i += batchSize) {
@@ -386,25 +388,14 @@ export class NetworkScanPlugin implements Plugin {
     console.log(`[NetworkScanPlugin] ❌ Gateway probe failed, using default subnet...`);
 
     // Strategy 3: Default fallback - least reliable
-    console.warn(`[NetworkScanPlugin] ⚠️ Using default subnet 192.168.1 - this is likely incorrect!`);
+    const fallbackSubnet = configStore.get<string>('network.defaultSubnet');
+    console.warn(`[NetworkScanPlugin] ⚠️ Using default subnet ${fallbackSubnet} - this is likely incorrect!`);
     console.warn(`[NetworkScanPlugin] 💡 Tip: Use Tauri app for accurate network detection, or specify IP manually.`);
-    return { localIp: null, subnet: '192.168.1', detectionMethod: 'domyślna' };
+    return { localIp: null, subnet: fallbackSubnet, detectionMethod: 'domyślna' };
   }
 
   private getCommonSubnets(): string[] {
-    // Common private network subnets, ordered by popularity
-    // Note: This is a heuristic fallback - WebRTC or Tauri backend is more reliable
-    return [
-      // Most common home router subnets
-      '192.168.188', '192.168.0', '192.168.1',
-      '192.168.2',
-      // Less common but still popular
-      '192.168.10', '192.168.100',
-      // Corporate/ISP common ranges
-      '10.0.0', '10.0.1', '10.1.1', '10.10.10',
-      // Private class B
-      '172.16.0', '172.16.1', '172.31.0',
-    ];
+    return configStore.get<string[]>('network.commonSubnets');
   }
 
   private detectLocalIpViaWebRTC(): Promise<string | null> {
@@ -519,7 +510,7 @@ export class NetworkScanPlugin implements Plugin {
     // Timing gates removed — they produce false positives in WebKitGTK/Chromium
     // where CORS-blocked requests to non-existent IPs can take >15ms.
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 1200);
+    const timer = setTimeout(() => controller.abort(), configStore.get<number>('network.gatewayProbeTimeoutMs'));
     return fetch(`http://${gatewayIp}/`, {
       method: 'HEAD',
       mode: 'no-cors',

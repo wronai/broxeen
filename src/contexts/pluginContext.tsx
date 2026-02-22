@@ -76,6 +76,7 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
         // Check if it's a DataSourcePlugin (new API) or Plugin (old API)
         if ('execute' in plugin && 'capabilities' in plugin) {
           // DataSourcePlugin - create PluginQuery
+          const { configStore } = await import('../config/configStore');
           const query = {
             intent: intent.intent,
             rawInput,
@@ -83,7 +84,7 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
             metadata: {
               timestamp: Date.now(),
               source,
-              locale: 'pl-PL',
+              locale: configStore.get<string>('locale.locale'),
               scope // Include scope in metadata
             }
           };

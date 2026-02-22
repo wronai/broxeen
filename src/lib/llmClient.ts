@@ -5,10 +5,9 @@
 
 import { isTauriRuntime } from "./runtime";
 import { logger, logAsyncDecorator } from "./logger";
+import { configStore } from "../config/configStore";
 
 const llmClientLogger = logger.scope("llm:client");
-
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ── Types ───────────────────────────────────────────
 
@@ -38,11 +37,12 @@ export interface LlmResponse {
 // ── Config ──────────────────────────────────────────
 
 export function getConfig(): LlmConfig {
+  const cfg = configStore.getAll();
   return {
-    apiKey: import.meta.env.VITE_OPENROUTER_API_KEY ?? "",
-    model: import.meta.env.VITE_LLM_MODEL ?? "google/gemini-3-flash-preview",
-    maxTokens: Number(import.meta.env.VITE_LLM_MAX_TOKENS ?? 2048),
-    temperature: Number(import.meta.env.VITE_LLM_TEMPERATURE ?? 0.7),
+    apiKey: cfg.llm.apiKey,
+    model: cfg.llm.model,
+    maxTokens: cfg.llm.maxTokens,
+    temperature: cfg.llm.temperature,
   };
 }
 
@@ -88,17 +88,21 @@ async function chatDirect(
     "llm:client",
     "chatDirect",
     async () => {
-      llmClientLogger.debug("Executing HTTP POST to OpenRouter", {
-        url: OPENROUTER_URL,
+      const apiUrl = configStore.get<string>('llm.apiUrl');
+      const httpReferer = configStore.get<string>('llm.httpReferer');
+      const appTitle = configStore.get<string>('llm.appTitle');
+
+      llmClientLogger.debug("Executing HTTP POST to LLM API", {
+        url: apiUrl,
       });
 
-      const resp = await fetch(OPENROUTER_URL, {
+      const resp = await fetch(apiUrl, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${cfg.apiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://broxeen.local",
-          "X-Title": "broxeen",
+          "HTTP-Referer": httpReferer,
+          "X-Title": appTitle,
         },
         body: JSON.stringify({
           model: cfg.model,

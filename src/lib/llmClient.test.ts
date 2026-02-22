@@ -23,6 +23,7 @@ vi.mock("./logger", () => ({
 // Must import after mocks
 const { chat, askAboutContent, describeImage, summarizeForTts, detectIntent } =
   await import("./llmClient");
+const { configStore } = await import("../config/configStore");
 
 // ── Helpers ──────────────────────────────────────────
 
@@ -53,8 +54,9 @@ function mockFetchError(status: number, body: string) {
 
 describe("llmClient", () => {
   beforeEach(() => {
-    vi.stubEnv("VITE_OPENROUTER_API_KEY", "test-key-123");
-    vi.stubEnv("VITE_LLM_MODEL", "google/gemini-3-flash-preview");
+    vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
+    configStore.set('llm.apiKey', 'test-key-123');
+    configStore.set('llm.model', 'google/gemini-3-flash-preview');
   });
 
   afterEach(() => {
@@ -79,7 +81,7 @@ describe("llmClient", () => {
     });
 
     it("throws on missing API key", async () => {
-      vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
+      configStore.set('llm.apiKey', '');
       await expect(chat([{ role: "user", content: "test" }])).rejects.toThrow(
         "OPENROUTER_API_KEY not set",
       );

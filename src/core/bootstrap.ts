@@ -211,6 +211,7 @@ async function registerCorePlugins(
     
     // Check if it's a DataSourcePlugin (new API) or Plugin (old API)
     if ('capabilities' in plugin) {
+      const { configStore } = await import('../config/configStore');
       const query = {
         intent: intent.intent,
         rawInput: payload,
@@ -218,7 +219,7 @@ async function registerCorePlugins(
         metadata: {
           timestamp: Date.now(),
           source: 'text' as const,
-          locale: 'pl-PL',
+          locale: configStore.get<string>('locale.locale'),
           scope: activeScope,
         },
       };

@@ -1,46 +1,37 @@
 services:
-  # ── Production ─────────────────────────────────────
+  # ── Production (static build served by 'serve') ────
   broxeen:
     build:
       context: .
       target: production
     ports:
-      - "8080:8080"
-    volumes:
-      - broxeen-data:/data
+      - "4173:4173"
     restart: unless-stopped
     environment:
-      - CACHE_DIR=/data/cache
-      - CONTACTS_FILE=/data/contacts/contacts.json
-      - CACHE_TTL=3600
-      - FETCH_TIMEOUT=15
+      - NODE_ENV=production
 
-  # ── Development (hot reload) ───────────────────────
+  # ── Development (Vite dev server, hot reload) ──────
   broxeen-dev:
     build:
       context: .
-      target: base
+      target: dev
     ports:
-      - "8080:8080"
+      - "5173:5173"
     volumes:
       - .:/app
-      - broxeen-dev-data:/tmp
+      - /app/node_modules
     environment:
-      - FLASK_ENV=development
-      - FLASK_DEBUG=1
-    command: python wsgi.py
+      - VITE_OPENROUTER_API_KEY=${VITE_OPENROUTER_API_KEY:-}
+      - VITE_LLM_MODEL=${VITE_LLM_MODEL:-}
     profiles:
       - dev
 
-  # ── Tests ──────────────────────────────────────────
+  # ── Tests (vitest) ─────────────────────────────────
   broxeen-test:
     build:
       context: .
-      target: base
-    command: pytest tests/ -v --tb=short --cov=app --cov-report=term-missing
+      target: test
+    environment:
+      - CI=true
     profiles:
       - test
-
-volumes:
-  broxeen-data:
-  broxeen-dev-data:
