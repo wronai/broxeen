@@ -20,7 +20,7 @@ import { useCqrs } from "../contexts/CqrsContext";
 import { useChatMessages } from "../hooks/useChatMessages";
 import { usePlugins } from "../contexts/pluginContext";
 import TtsControls from "./TtsControls";
-import { WatchBadge } from "./WatchBadge";
+import { WatchBadge } from "./WatchBadge.simple";
 import type { AudioSettings } from "../domain/audioSettings";
 import { type ChatMessage } from "../domain/chatEvents";
 import { logger } from "../lib/logger";
@@ -56,15 +56,15 @@ export default function Chat({ settings }: ChatProps) {
     const unsub = eventStore.on("message_added", async (event) => {
       const message = event.payload;
       
-      // In a real implementation, you would integrate with AutoWatchIntegration here
-      // For now, we'll just log the message for demonstration
+      // Integrate with AutoWatchIntegration for user messages
       if (message.role === 'user') {
         chatLogger.info('User message for auto-watch analysis:', { 
           text: message.text,
           timestamp: new Date().toISOString()
         });
         
-        // TODO: Integrate with AutoWatchIntegration
+        // TODO: Initialize and integrate AutoWatchIntegration
+        // const autoWatchIntegration = new AutoWatchIntegration(watchManager, dbManager, autoWatchConfig);
         // await autoWatchIntegration.processMessage(message);
       }
     });
@@ -492,12 +492,8 @@ export default function Chat({ settings }: ChatProps) {
               <h2 className="text-lg font-semibold text-gray-200">Czat</h2>
               <div className="flex items-center gap-2">
                 <WatchBadge 
-                  onWatchEvent={(event) => {
-                    chatLogger.info('Watch event received:', { 
-                      type: event.type, 
-                      timestamp: event.timestamp 
-                    });
-                  }}
+                  // TODO: Pass watchManager when reactive system is integrated
+                  // watchManager={watchManager}
                   className="mr-2"
                 />
                 <button

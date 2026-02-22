@@ -19,6 +19,31 @@ export class IntentRouter implements IIntentRouter {
       /^(www\.)?[a-z0-9-]+\.[a-z]{2,}/i,
     ]);
 
+    // Network discovery intents
+    this.intentPatterns.set('network:scan', [
+      /skanuj.*sieć/i,
+      /odkryj.*urządzenia/i,
+      /znajdź.*urządzenia/i,
+      /scan.*network/i,
+      /znajdź.*kamerę.*w.*sieci/i,
+      /znajdź.*kamere.*w.*sieci/i,
+      /znajdź.*kamerę.*lokalnej/i,
+      /znajdź.*kamere.*lokalnej/i,
+      /wyszukaj.*kamerę.*w.*sieci/i,
+      /wyszukaj.*kamere.*lokalnej/i,
+      /skanuj.*siec.*w.*poszukiwaniu.*kamer/i,
+      /odkryj.*kamery.*w.*sieci/i,
+      /odkryj.*kamery.*lokalnej/i,
+      /wyszukaj.*kamery.*w.*sieci/i,
+      /znajdz.*kamery.*w.*sieci/i,
+      /znajdz.*kamery.*lokalnej/i,
+      /skanuj.*siec.*kamer/i,
+      /odkryj.*kamery.*sieci/i,
+      /skanuj.*siec.*kamerami/i,
+      /poszukaj.*kamer.*w.*sieci/i,
+      /znajdz.*kamery.*lokalnej/i,
+    ]);
+
     // Camera intents
     this.intentPatterns.set('camera:describe', [
       /co.*wida.*na.*kamerze/i,
@@ -30,6 +55,9 @@ export class IntentRouter implements IIntentRouter {
       /pokaz.*kamera/i,
       /kamera.*wejściow/i,
       /kamera.*ogrod/i,
+      /co.*dzieje.*się.*na.*kamerze/i,
+      /co.*dzieje.*się.*na.*kamerze.*ogrodow/i,
+      /co.*dzieje.*się.*na.*kamerze.*salonow/i,
     ]);
 
     // IoT/MQTT intents
@@ -144,4 +172,35 @@ export class IntentRouter implements IIntentRouter {
 
     return entities;
   }
+}
+
+// Helper: Build a PluginQuery
+export interface PluginQuery {
+  intent: string;
+  rawInput: string;
+  resolvedTarget?: string;
+  params?: Record<string, unknown>;
+  metadata?: {
+    timestamp: number;
+    source: 'voice' | 'text' | 'api';
+    locale: string;
+  };
+}
+
+export function buildQuery(
+  intent: string,
+  rawInput: string,
+  overrides: Partial<Omit<PluginQuery, 'intent' | 'rawInput'>> = {},
+): PluginQuery {
+  return {
+    intent,
+    rawInput,
+    params: {},
+    metadata: {
+      timestamp: Date.now(),
+      source: 'text',
+      locale: 'pl-PL',
+    },
+    ...overrides,
+  };
 }

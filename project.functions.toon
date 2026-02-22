@@ -1,6 +1,7 @@
 project: broxeen
-generated: "2026-02-22T11:26:19.892610"
-modules[85]{path,lang,items}:
+generated: "2026-02-22T12:01:40.499700"
+modules[145]{path,lang,items}:
+  test_network_scan.js,javascript,7
   phonetic.py,python,2
   vite.config.ts,typescript,0
   tailwind.config.js,javascript,0
@@ -8,19 +9,18 @@ modules[85]{path,lang,items}:
   postcss.config.js,javascript,0
   test_phonetic.py,python,12
   playwright.config.ts,typescript,0
+  test_intent_routing.js,javascript,1
   src-tauri/build.rs,rust,1
   src-tauri/test_read.rs,rust,1
-  TODO/llm.rs,rust,0
-  TODO/llmPrompts.ts,typescript,1
-  TODO/useLlm.ts,typescript,1
-  TODO/llmClient.ts,typescript,8
-  TODO/llmClient.test.ts,typescript,2
   src/main.tsx,typescript,0
-  src/App.tsx,typescript,1
+  src/App.tsx,typescript,0
   src/vite-env.d.ts,typescript,0
   e2e/voice-interface.spec.ts,typescript,1
   e2e/chat-features.spec.ts,typescript,1
   test/broxeen.test.js,javascript,0
+  src/persistence/types.ts,typescript,0
+  src/persistence/migrations.ts,typescript,0
+  src/persistence/databaseManager.ts,typescript,20
   src/commands/copyContextCommand.ts,typescript,2
   src/commands/sendMessageCommand.ts,typescript,2
   src/commands/saveSettingsCommand.ts,typescript,2
@@ -43,21 +43,39 @@ modules[85]{path,lang,items}:
   src/hooks/useTts.test.ts,typescript,0
   src/hooks/useStt.ts,typescript,6
   src/hooks/useLlm.ts,typescript,1
+  src/hooks/useWatchNotifications.ts,typescript,2
   src/hooks/useSpeech.ts,typescript,3
   src/hooks/useChatMessages.ts,typescript,1
-  src/components/Chat.test.tsx,typescript,1
+  src/components/WatchBadge.tsx,typescript,0
+  src/components/Chat.test.tsx,typescript,2
   src/components/Settings.test.tsx,typescript,0
   src/components/Settings.tsx,typescript,2
   src/components/Chat.tsx,typescript,8
+  src/components/WatchBadge.simple.tsx,typescript,1
   src/components/TtsControls.tsx,typescript,4
   src/components/TtsControls.test.tsx,typescript,0
   src/services/llmService.ts,typescript,0
   src/services/defaultBrowseAdapter.ts,typescript,1
   src/services/defaultLlmAdapter.ts,typescript,6
   src/services/browseService.ts,typescript,0
+  src/core/pluginRegistry.test.ts,typescript,5
+  src/core/types.ts,typescript,0
+  src/core/plugin.types.ts,typescript,3
+  src/core/queryBus.ts,typescript,6
+  src/core/pluginRegistry.ts,typescript,7
+  src/core/intentRouter.ts,typescript,8
+  src/core/bootstrap.ts,typescript,2
+  src/core/intentRouter.test.ts,typescript,3
+  src/core/commandBus.test.ts,typescript,0
+  src/core/commandBus.ts,typescript,6
+  src/discovery/types.ts,typescript,0
+  src/discovery/serviceProber.ts,typescript,13
+  src/discovery/networkScanner.ts,typescript,16
   src/contexts/CqrsContext.tsx,typescript,1
+  src/contexts/pluginContext.tsx,typescript,2
   src/queries/getSettingsQuery.ts,typescript,1
   src/queries/getMessagesQuery.ts,typescript,4
+  src/config/watchConfig.ts,typescript,6
   src/domain/chatAggregate.ts,typescript,7
   src/domain/audioSettings.ts,typescript,1
   src/domain/chatEvents.ts,typescript,2
@@ -66,7 +84,48 @@ modules[85]{path,lang,items}:
   src/domain/chatEvents.test.ts,typescript,0
   src/domain/eventStore.ts,typescript,7
   src/domain/audioSettings.test.ts,typescript,0
+  src/integration/autoWatchIntegration.ts,typescript,12
   src/test/setup.ts,typescript,0
+  src/reactive/types.ts,typescript,0
+  src/reactive/watchManager.ts,typescript,22
+  src/reactive/changeDetector.ts,typescript,10
+  src/plugins/discovery/serviceProbePlugin.ts,typescript,7
+  src/plugins/discovery/networkScanPlugin.ts,typescript,5
+  src/plugins/http-browse/index.ts,typescript,1
+  src/plugins/http-browse/httpBrowse.test.ts,typescript,1
+  src/plugins/http-browse/httpBrowsePlugin.ts,typescript,19
+  src/plugins/rtsp-camera/rtspCameraPlugin.ts,typescript,22
+  src/plugins/rtsp-camera/index.ts,typescript,1
+  src/plugins/mqtt/index.ts,typescript,1
+  src/plugins/mqtt/mqttPlugin.ts,typescript,17
+  src/plugins/http/browsePlugin.test.ts,typescript,0
+  src/plugins/http/browsePlugin.ts,typescript,4
+  src/plugins/chat/chatPlugin.ts,typescript,4
+  TODO/src/persistence/deviceRepository.ts,typescript,26
+  TODO/src/persistence/index.ts,typescript,0
+  TODO/src/persistence/database.ts,typescript,16
+  TODO/src/persistence/chatRepository.ts,typescript,19
+  TODO/src/hooks/useWatchNotifications.ts,typescript,2
+  TODO/src/core/pluginRegistry.test.ts,typescript,1
+  TODO/src/core/plugin.types.ts,typescript,3
+  TODO/src/core/queryBus.ts,typescript,6
+  TODO/src/core/pluginRegistry.ts,typescript,13
+  TODO/src/core/intentRouter.ts,typescript,5
+  TODO/src/core/bootstrap.ts,typescript,3
+  TODO/src/core/intentRouter.test.ts,typescript,1
+  TODO/src/core/commandBus.test.ts,typescript,0
+  TODO/src/core/commandBus.ts,typescript,7
+  TODO/src/contexts/PluginContext.tsx,typescript,2
+  TODO/src/reactive/watchManager.ts,typescript,15
+  TODO/src/plugins/discovery/index.ts,typescript,1
+  TODO/src/plugins/discovery/networkScanner.ts,typescript,18
+  TODO/src/plugins/http-browse/index.ts,typescript,1
+  TODO/src/plugins/http-browse/httpBrowse.test.ts,typescript,1
+  TODO/src/plugins/http-browse/httpBrowsePlugin.ts,typescript,19
+  TODO/src/plugins/rtsp-camera/rtspCameraPlugin.ts,typescript,22
+  TODO/src/plugins/rtsp-camera/index.ts,typescript,1
+  TODO/src/plugins/mqtt/index.ts,typescript,1
+  TODO/src/plugins/mqtt/mqttPlugin.ts,typescript,17
   src-tauri/src/main_changes.rs,rust,1
   src-tauri/src/tts.rs,rust,11
   src-tauri/src/useBackendStt.ts,typescript,1
@@ -80,6 +139,7 @@ modules[85]{path,lang,items}:
   src-tauri/src/audio_commands.rs,rust,10
   src-tauri/src/settings.rs,rust,15
   src-tauri/src/audio_capture.rs,rust,7
+  src-tauri/src/network.rs,rust,6
   src-tauri/src/useAudio.ts,typescript,1
   src-tauri/src/tts_backend.rs,rust,22
   src-tauri/src/content_cleaning.rs,rust,3
@@ -88,6 +148,15 @@ modules[85]{path,lang,items}:
   src-tauri/tests/test_read.rs,rust,1
 
 function_details:
+  test_network_scan.js:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      testNetworkScan,function,(),228-265,true,38,1,checks network scan
+      MockNetworkScanner.scan,method,(),8-65,true,58,1,scan
+      MockServiceProber.probeDevice,method,(device),70-86,true,17,1,probe device
+      MockServiceProber.getServiceDetails,method,"(port, device)",88-120,false,33,1,retrieves service details
+      MockNetworkScanPlugin.constructor,method,(),125-131,false,7,1,constructor
+      MockNetworkScanPlugin.execute,method,"(input, context)",133-181,true,49,1,starts
+      MockNetworkScanPlugin.formatResults,method,(devices),183-224,false,42,1,formats results
   phonetic.py:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       normalize,function,"(text:str) -> str",60-96,false,37,3,Apply phonetic rules to convert spoken Polish text to a URL-like string.
@@ -110,41 +179,43 @@ function_details:
       TestNormalize.test_case_insensitive,method,(),77-79,false,3,1,checks case insensitive
       TestLooksLikeUrl.test_valid_urls,method,(text),90-91,false,2,1,checks valid urls
       TestLooksLikeUrl.test_not_urls,method,(text),97-98,false,2,1,checks not urls
+  test_intent_routing.js:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      detectIntent,function,(input),53-95,false,43,1,detect intent
   src-tauri/build.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       main,function,(),"-",false,1,1,main
   src-tauri/test_read.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       main,function,(),"-",false,1,1,main
-  TODO/llmPrompts.ts:
-    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      getPrompt,function,"(mode: PromptMode, override?) -> string",53-55,false,3,1,retrieves prompt
-  TODO/useLlm.ts:
-    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      useLlm,function,"(options: UseLlmOptions) -> UseLlmReturn",53-165,false,113,1,use llm
-  TODO/llmClient.ts:
-    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
-      getConfig,function,() -> LlmConfig,40-47,false,8,1,retrieves config
-      chat,function,"(messages: LlmMessage[], configOverride?) -> Promise<LlmResponse>",55-70,true,16,1,chat
-      chatDirect,function,"(messages: LlmMessage[], cfg: LlmConfig) -> Promise<LlmResponse>",72-108,true,37,1,chat direct
-      chatViaTauri,function,"(messages: LlmMessage[], cfg: LlmConfig) -> Promise<LlmResponse>",110-122,true,13,1,chat via tauri
-      askAboutContent,function,"(pageContent: string, question: string) -> Promise<string>",130-151,true,22,1,ask about content
-      describeImage,function,"(base64Image: string, mimeType, prompt) -> Promise<string>",154-179,true,26,1,describe image
-      summarizeForTts,function,"(pageContent: string, maxSentences) -> Promise<string>",182-198,true,17,1,summarize for tts
-      detectIntent,function,"(userText: string) -> Promise<string>",201-220,true,20,1,detect intent
-  TODO/llmClient.test.ts:
-    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      mockFetchSuccess,function,"(responseText: string, model)",19-29,false,11,1,mock fetch success
-      mockFetchError,function,"(status: number, body: string)",31-37,false,7,1,mock fetch error
-  src/App.tsx:
-    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      App,function,(),15-140,false,126,1,app
   e2e/voice-interface.spec.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       openApp,function,"(page: Page)",5-8,true,4,1,starts app
   e2e/chat-features.spec.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       openApp,function,"(page: Page)",5-28,true,24,1,starts app
+  src/persistence/databaseManager.ts:
+    functions[20]{name,kind,sig,loc,async,lines,cc,does}:
+      SQLiteAdapter.constructor,method,"(dbPath: string)",24-28,false,5,1,constructor
+      SQLiteAdapter.isOpen,method,() -> boolean,30-32,false,3,1,checks open
+      SQLiteAdapter.execute,method,"(sql: string, params: unknown[]) -> void",34-36,false,3,1,starts
+      SQLiteAdapter.query,method,"(sql: string, params: unknown[]) -> T[]",38-40,false,3,1,retrieves
+      SQLiteAdapter.queryOne,method,"(sql: string, params: unknown[]) -> T | null",42-44,false,3,1,retrieves one
+      SQLiteAdapter.close,method,() -> void,46-49,false,4,1,stops
+      InMemoryDbAdapter.isOpen,method,() -> boolean,58-60,false,3,1,checks open
+      InMemoryDbAdapter.execute,method,"(sql: string, _params: unknown[]) -> void",62-65,false,4,1,starts
+      InMemoryDbAdapter.query,method,"(sql: string, params: unknown[]) -> T[]",67-69,false,3,1,retrieves
+      InMemoryDbAdapter.queryOne,method,"(sql: string, params: unknown[]) -> T | null",71-74,false,4,1,retrieves one
+      InMemoryDbAdapter.close,method,() -> void,76-79,false,4,1,stops
+      DatabaseManager.constructor,method,"(config: DatabaseConfig)",88-90,false,3,1,constructor
+      DatabaseManager.initialize,method,() -> Promise<void>,95-132,true,38,1,initializes
+      DatabaseManager.getDevicesDb,method,() -> DbAdapter,137-142,false,6,1,retrieves devices db
+      DatabaseManager.getChatDb,method,() -> DbAdapter,147-152,false,6,1,retrieves chat db
+      DatabaseManager.runMigrations,method,"(db: DbAdapter, migrations: Migration[], dbName: string) -> Promise<void>",157-191,true,35,1,starts migrations
+      DatabaseManager.transaction,method,"(callback: (devicesDb: DbAdapter, chatDb: DbAdapter) => T) -> Promise<T>",196-204,true,9,1,transaction
+      DatabaseManager.getStats,method,"() -> {\n    devices: { tables: Record<string, number> };\n    chat: { tables: Record<string, number> };\n  }",209-234,false,26,1,retrieves stats
+      DatabaseManager.close,method,() -> Promise<void>,239-254,true,16,1,stops
+      DatabaseManager.isReady,method,() -> boolean,259-261,false,3,1,checks ready
   src/commands/copyContextCommand.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       CopyContextCommand.constructor,method,"(aggregate: ChatAggregate)",11-11,false,1,1,constructor
@@ -239,6 +310,10 @@ function_details:
   src/hooks/useLlm.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       useLlm,function,"(options: UseLlmOptions) -> UseLlmReturn",56-250,false,195,1,use llm
+  src/hooks/useWatchNotifications.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      useWatchNotifications,function,"(watchManager: WatchManager | null) -> UseWatchNotificationsReturn",46-124,false,79,1,use watch notifications
+      mapChangeToNotification,function,"(change: ChangeDetectedEvent) -> WatchNotification",128-140,false,13,1,converts change to notification
   src/hooks/useSpeech.ts:
     functions[3]{name,kind,sig,loc,async,lines,cc,does}:
       getSpeechRecognitionCtor,function,"() -> | (new () => SpeechRecognitionInstance)\n  | undefined",41-49,false,9,1,retrieves speech recognition ctor
@@ -248,22 +323,26 @@ function_details:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       useChatMessages,function,(),9-25,false,17,1,use chat messages
   src/components/Chat.test.tsx:
-    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      mockTauriEnvironment,function,(),87-93,false,7,1,mock tauri environment
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      render,function,"(ui: React.ReactElement, options?)",50-59,false,10,1,formats
+      mockTauriEnvironment,function,(),130-136,false,7,1,mock tauri environment
   src/components/Settings.tsx:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       update,function,"(partial: Partial<AudioSettings>)",93-97,false,5,1,updates
       handleSave,function,(),99-114,true,16,1,handles save
   src/components/Chat.tsx:
     functions[8]{name,kind,sig,loc,async,lines,cc,does}:
-      handleSubmit,function,(text?),191-257,true,67,1,handles submit
-      handleLlmQuestion,function,"(question: string)",259-261,true,3,1,handles llm question
-      handleSuggestionClick,function,"(url: string)",263-266,false,4,1,handles suggestion click
-      handleKeyDown,function,"(e: React.KeyboardEvent)",271-311,false,41,1,handles key down
-      toggleMic,function,(),313-340,false,28,1,toggle mic
-      resolveIcon,function,(type?),342-353,false,12,1,resolve icon
-      copyChatContent,function,(),355-379,false,25,1,copy chat content
-      copyMessageContext,function,"(msg: ChatMessage)",381-383,true,3,1,copy message context
+      handleSubmit,function,(text?),216-334,true,119,1,handles submit
+      handleLlmQuestion,function,"(question: string)",336-338,true,3,1,handles llm question
+      handleSuggestionClick,function,"(url: string)",340-343,false,4,1,handles suggestion click
+      handleKeyDown,function,"(e: React.KeyboardEvent)",348-388,false,41,1,handles key down
+      toggleMic,function,(),390-417,false,28,1,toggle mic
+      resolveIcon,function,(type?),419-430,false,12,1,resolve icon
+      copyChatContent,function,(),432-456,false,25,1,copy chat content
+      copyMessageContext,function,"(msg: ChatMessage)",458-460,true,3,1,copy message context
+  src/components/WatchBadge.simple.tsx:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      WatchBadge,function,(),13-39,false,27,1,watch badge
   src/components/TtsControls.tsx:
     functions[4]{name,kind,sig,loc,async,lines,cc,does}:
       handleSpeak,function,(),23-26,false,4,1,handles speak
@@ -281,9 +360,102 @@ function_details:
       DefaultLlmAdapter.summarizeSearch,method,"(content: string, query: string) -> Promise<string>",30-32,true,3,1,summarize search
       DefaultLlmAdapter.detectIntent,method,"(text: string) -> Promise<string>",34-36,true,3,1,detect intent
       DefaultLlmAdapter.describeImage,method,"(base64: string, mime?) -> Promise<string>",38-40,true,3,1,describe image
+  src/core/pluginRegistry.test.ts:
+    functions[5]{name,kind,sig,loc,async,lines,cc,does}:
+      MockPlugin.constructor,method,"(id: string, name: string, intents: string[])",16-20,false,5,1,constructor
+      MockPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",22-24,true,3,1,checks handle
+      MockPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",26-31,true,6,1,starts
+      MockPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",33-35,true,3,1,initializes
+      MockPlugin.dispose,method,() -> Promise<void>,37-39,true,3,1,dispose
+  src/core/plugin.types.ts:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      isStreamable,function,"(plugin: DataSourcePlugin)",207-209,false,3,1,checks streamable
+      isVisual,function,"(plugin: DataSourcePlugin)",211-213,false,3,1,checks visual
+      isPersistent,function,"(plugin: DataSourcePlugin)",215-217,false,3,1,checks persistent
+  src/core/queryBus.ts:
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      cachingMiddleware,function,"(ttlMs: number) -> QueryMiddleware",93-110,false,18,1,caching middleware
+      QueryBus.register,method,"(queryType: string, handler: IQueryHandler<TQuery, TResult>) -> void",20-31,false,12,1,registers
+      QueryBus.unregister,method,"(queryType: string) -> void",33-35,false,3,1,unregister
+      QueryBus.use,method,"(middleware: QueryMiddleware) -> void",37-39,false,3,1,use
+      QueryBus.dispatch,method,"(query: IQuery<TResult>) -> Promise<TResult>",41-66,true,26,1,sends
+      QueryBus.registeredQueries,method,"() -> string[]",68-70,false,3,1,registered queries
+  src/core/pluginRegistry.ts:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      PluginRegistry.register,method,"(plugin: Plugin) -> void",10-17,false,8,1,registers
+      PluginRegistry.unregister,method,"(pluginId: string) -> void",19-31,false,13,1,unregister
+      PluginRegistry.get,method,"(pluginId: string) -> Plugin | null",33-35,false,3,1,retrieves
+      PluginRegistry.getAll,method,"() -> Plugin[]",37-39,false,3,1,retrieves all
+      PluginRegistry.findByIntent,method,"(intent: string) -> Plugin[]",41-45,false,5,1,retrieves by intent
+      PluginRegistry.initializeAll,method,"(context: import('./types').PluginContext) -> Promise<void>",50-56,true,7,1,initializes all
+      PluginRegistry.disposeAll,method,() -> Promise<void>,61-68,true,8,1,dispose all
+  src/core/intentRouter.ts:
+    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
+      buildQuery,function,"(intent: string, rawInput: string, overrides: Partial<Omit<PluginQuery, 'intent' | 'rawInput'>>) -> PluginQuery",190-206,false,17,1,creates query
+      IntentRouter.constructor,method,(),11-13,false,3,1,constructor
+      IntentRouter.initializeDefaultPatterns,method,() -> void,15-84,false,70,1,initializes default patterns
+      IntentRouter.registerPlugin,method,"(plugin: Plugin) -> void",86-88,false,3,1,registers plugin
+      IntentRouter.detect,method,"(input: string) -> Promise<IntentDetection>",90-114,true,25,1,detect
+      IntentRouter.route,method,"(intent: string) -> Plugin | null",116-123,false,8,1,route
+      IntentRouter.calculateConfidence,method,"(input: string, intent: string) -> number",125-140,false,16,1,processes confidence
+      IntentRouter.extractEntities,method,"(input: string, intent: string) -> Record<string, unknown>",142-174,false,33,1,parses entities
+  src/core/bootstrap.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      bootstrapApp,function,"(config: {\n  isTauri: boolean;\n  tauriInvoke?: (command: string, args?: unknown) => Promise<unknown>;\n  cameras?: import('./types').CameraConfig[];\n  mqtt?: import('./types').MqttConfig;\n  describeImage?: (imageUrl: string) => Promise<string>;\n}) -> Promise<AppContext>",12-53,true,42,1,initializes app
+      registerCorePlugins,function,"(registry: PluginRegistry, router: IntentRouter, bus: CommandBus) -> Promise<void>",59-106,true,48,1,registers core plugins
+  src/core/intentRouter.test.ts:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      MockPlugin.constructor,method,"(id: string, name: string, intents: string[])",16-20,false,5,1,constructor
+      MockPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",22-24,true,3,1,checks handle
+      MockPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",26-31,true,6,1,starts
+  src/core/commandBus.ts:
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      CommandBus.register,method,"(command: string, handler: CommandHandler<T>) -> void",12-19,false,8,1,registers
+      CommandBus.unregister,method,"(command: string) -> void",21-28,false,8,1,unregister
+      CommandBus.execute,method,"(command: string, payload?) -> Promise<unknown>",30-42,true,13,1,starts
+      CommandBus.getRegisteredCommands,method,"() -> string[]",47-49,false,3,1,retrieves registered commands
+      CommandBus.has,method,"(command: string) -> boolean",54-56,false,3,1,checks
+      CommandBus.clear,method,() -> void,61-63,false,3,1,deletes
+  src/discovery/serviceProber.ts:
+    functions[13]{name,kind,sig,loc,async,lines,cc,does}:
+      ServiceProber.constructor,method,"(config: ServiceProberConfig, dbManager: DatabaseManager)",22-25,false,4,1,constructor
+      ServiceProber.probeDevice,method,"(deviceId: string, deviceIp: string) -> Promise<ServiceProbeResult>",30-95,true,66,1,probe device
+      ServiceProber.probeHttpService,method,"(ip: string, port: number) -> Promise<DiscoveredService | null>",100-149,true,50,1,probe http service
+      ServiceProber.probeRtspService,method,"(ip: string, port: number) -> Promise<DiscoveredService | null>",154-189,true,36,1,probe rtsp service
+      ServiceProber.probeMqttService,method,"(ip: string, port: number) -> Promise<DiscoveredService | null>",194-225,true,32,1,probe mqtt service
+      ServiceProber.probeSshService,method,"(ip: string, port: number) -> Promise<DiscoveredService | null>",230-256,true,27,1,probe ssh service
+      ServiceProber.probeApiService,method,"(ip: string, port: number) -> Promise<DiscoveredService | null>",261-315,true,55,1,probe api service
+      ServiceProber.executeWithConcurrencyLimit,method,"(promises: Promise<T>[], limit: number) -> Promise<T[]>",320-343,true,24,1,starts with concurrency limit
+      ServiceProber.persistServices,method,"(deviceId: string, services: DiscoveredService[]) -> Promise<void>",348-393,true,46,1,caches services
+      ServiceProber.addEventListener,method,"(listener: (event: DiscoveryEvent) => void) -> void",398-400,false,3,1,creates event listener
+      ServiceProber.removeEventListener,method,"(listener: (event: DiscoveryEvent) => void) -> void",405-410,false,6,1,deletes event listener
+      ServiceProber.emitEvent,method,"(event: DiscoveryEvent) -> void",415-423,false,9,1,sends event
+      ServiceProber.isActive,method,() -> boolean,428-430,false,3,1,checks active
+  src/discovery/networkScanner.ts:
+    functions[16]{name,kind,sig,loc,async,lines,cc,does}:
+      NetworkScanner.constructor,method,"(config: NetworkScannerConfig, dbManager: DatabaseManager)",21-24,false,4,1,constructor
+      NetworkScanner.scanNetwork,method,() -> Promise<NetworkScanResult>,29-76,true,48,1,scan network
+      NetworkScanner.performScan,method,"(method: 'arp' | 'ping' | 'mdns' | 'ssdp') -> Promise<DiscoveredDevice[]>",81-94,true,14,1,perform scan
+      NetworkScanner.pingSweep,method,"() -> Promise<DiscoveredDevice[]>",99-124,true,26,1,ping sweep
+      NetworkScanner.mdnsDiscovery,method,"() -> Promise<DiscoveredDevice[]>",129-170,true,42,1,mdns discovery
+      NetworkScanner.ssdpDiscovery,method,"() -> Promise<DiscoveredDevice[]>",175-195,true,21,1,ssdp discovery
+      NetworkScanner.arpScan,method,"() -> Promise<DiscoveredDevice[]>",200-217,true,18,1,arp scan
+      NetworkScanner.pingHost,method,"(ip: string) -> Promise<DiscoveredDevice | null>",222-248,true,27,1,ping host
+      NetworkScanner.getLocalNetworkRanges,method,"() -> Promise<string[]>",253-256,true,4,1,retrieves local network ranges
+      NetworkScanner.generateIpRange,method,"(cidr: string) -> string[]",261-274,false,14,1,creates ip range
+      NetworkScanner.deduplicateDevices,method,"(devices: DiscoveredDevice[]) -> DiscoveredDevice[]",279-288,false,10,1,deduplicate devices
+      NetworkScanner.persistDevices,method,"(devices: DiscoveredDevice[]) -> Promise<void>",293-336,true,44,1,caches devices
+      NetworkScanner.addEventListener,method,"(listener: (event: DiscoveryEvent) => void) -> void",341-343,false,3,1,creates event listener
+      NetworkScanner.removeEventListener,method,"(listener: (event: DiscoveryEvent) => void) -> void",348-353,false,6,1,deletes event listener
+      NetworkScanner.emitEvent,method,"(event: DiscoveryEvent) -> void",358-366,false,9,1,sends event
+      NetworkScanner.isActive,method,() -> boolean,371-373,false,3,1,checks active
   src/contexts/CqrsContext.tsx:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       CqrsProvider,function,(),26-79,false,54,1,cqrs provider
+  src/contexts/pluginContext.tsx:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      PluginProvider,function,(),51-81,false,31,1,plugin provider
+      usePlugins,function,() -> PluginContextValue,85-91,false,7,1,use plugins
   src/queries/getSettingsQuery.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       GetSettingsQuery.execute,method,() -> Promise<AudioSettings>,16-32,true,17,1,starts
@@ -293,6 +465,14 @@ function_details:
       GetMessagesQuery.execute,method,"() -> readonly ChatMessage[]",11-13,false,3,1,starts
       GetMessagesQuery.getById,method,"(id: number) -> ChatMessage | undefined",15-17,false,3,1,retrieves by id
       GetMessagesQuery.getLastUserQuery,method,"(beforeId: number) -> string | null",19-21,false,3,1,retrieves last user query
+  src/config/watchConfig.ts:
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      getWatchConfig,function,() -> WatchConfig,147-150,false,4,1,retrieves watch config
+      getAutoWatchConfig,function,() -> AutoWatchConfig,155-158,false,4,1,retrieves auto watch config
+      getPollingInterval,function,"(serviceType: keyof typeof servicePollIntervals) -> number",163-165,false,3,1,retrieves polling interval
+      getChangeThreshold,function,"(serviceType: keyof typeof serviceChangeThresholds) -> number",170-172,false,3,1,retrieves change threshold
+      validateWatchConfig,function,"(config: Partial<WatchConfig>) -> string[]",177-201,false,25,1,validates watch config
+      mergeWatchConfig,function,"(base: WatchConfig, override: Partial<WatchConfig>) -> WatchConfig",206-211,false,6,1,merges watch config
   src/domain/chatAggregate.ts:
     functions[7]{name,kind,sig,loc,async,lines,cc,does}:
       ChatAggregate.apply,method,"(event: DomainEvent) -> void",16-26,false,11,1,apply
@@ -318,6 +498,406 @@ function_details:
       EventStore.project,method,"(projector: (events: DomainEvent[]) => T) -> T",109-111,false,3,1,project
       EventStore.size,method,() -> number,114-116,false,3,1,size
       EventStore.clear,method,() -> void,119-122,false,4,1,deletes
+  src/integration/autoWatchIntegration.ts:
+    functions[12]{name,kind,sig,loc,async,lines,cc,does}:
+      AutoWatchIntegration.constructor,method,"(watchManager: WatchManager, dbManager: DatabaseManager, config: AutoWatchConfig)",25-33,false,9,1,constructor
+      AutoWatchIntegration.processMessage,method,"(message: ChatMessage) -> Promise<void>",38-61,true,24,1,processes message
+      AutoWatchIntegration.extractIntentInfo,method,"(message: string) -> Promise<{\n    intent: string;\n    targetId?: string;\n    targetType?: 'device' | 'service';\n    confidence: number;\n  } | null>",66-123,true,58,1,parses intent info
+      AutoWatchIntegration.shouldAutoWatch,method,"(intentInfo: { intent: string; targetId?: string; targetType?: 'device' | 'service'; confidence: number }, message: ChatMessage) -> Promise<boolean>",128-170,true,43,1,checks auto watch
+      AutoWatchIntegration.hasRecentQuery,method,"(targetId: string, targetType: 'device' | 'service', intent: string, currentTime: Date) -> Promise<boolean>",175-204,true,30,1,checks recent query
+      AutoWatchIntegration.triggerAutoWatch,method,"(intentInfo: { intent: string; targetId?: string; targetType?: 'device' | 'service' }, message: ChatMessage) -> Promise<void>",209-237,true,29,1,trigger auto watch
+      AutoWatchIntegration.getOrCreateConversation,method,"(message: ChatMessage) -> Promise<string>",242-267,true,26,1,retrieves or create conversation
+      AutoWatchIntegration.getPollInterval,method,"(targetType: 'device' | 'service') -> number",272-281,false,10,1,retrieves poll interval
+      AutoWatchIntegration.getChangeThreshold,method,"(targetType: 'device' | 'service') -> number",286-295,false,10,1,retrieves change threshold
+      AutoWatchIntegration.updateConfig,method,"(newConfig: Partial<AutoWatchConfig>) -> void",300-303,false,4,1,updates config
+      AutoWatchIntegration.getConfig,method,() -> AutoWatchConfig,308-310,false,3,1,retrieves config
+      AutoWatchIntegration.getStats,method,"() -> Promise<{\n    totalAutoWatches: number;\n    activeAutoWatches: number;\n    recentQueries: number;\n    commonIntents: Array<{ intent: string; count: number }>;\n  }>",315-360,true,46,1,retrieves stats
+  src/reactive/watchManager.ts:
+    functions[22]{name,kind,sig,loc,async,lines,cc,does}:
+      WatchManager.constructor,method,"(config: WatchConfig, dbManager: DatabaseManager)",33-37,false,5,1,constructor
+      WatchManager.start,method,() -> Promise<void>,42-57,true,16,1,starts
+      WatchManager.stop,method,() -> Promise<void>,62-77,true,16,1,stops
+      WatchManager.createWatchRule,method,"(params: {\n    conversationId: string;\n    targetId: string;\n    targetType: 'device' | 'service';\n    intent: string;\n    durationMs?: number;\n    pollIntervalMs?: number;\n    changeThreshold?: number;\n  }) -> Promise<WatchRule>",82-121,true,40,1,creates watch rule
+      WatchManager.autoWatch,method,"(conversationId: string, targetId: string, targetType: 'device' | 'service', intent: string) -> Promise<void>",126-145,true,20,1,auto watch
+      WatchManager.cancelWatchRule,method,"(watchRuleId: string) -> Promise<void>",150-169,true,20,1,cancel watch rule
+      WatchManager.loadActiveWatches,method,() -> Promise<void>,174-205,true,32,1,retrieves active watches
+      WatchManager.startPolling,method,"(watchRule: DbWatchRule) -> void",210-220,false,11,1,starts polling
+      WatchManager.stopPolling,method,"(watchRuleId: string) -> void",225-231,false,7,1,stops polling
+      WatchManager.pollTarget,method,"(watchRule: DbWatchRule) -> Promise<void>",236-302,true,67,1,poll target
+      WatchManager.fetchTargetContent,method,"(targetId: string, targetType: 'device' | 'service') -> Promise<string | null>",307-329,true,23,1,retrieves target content
+      WatchManager.startCleanupInterval,method,() -> void,334-338,false,5,1,starts cleanup interval
+      WatchManager.cleanupExpiredWatches,method,() -> Promise<void>,343-365,true,23,1,cleanup expired watches
+      WatchManager.findRecentQuery,method,"(conversationId: string, targetId: string, targetType: 'device' | 'service', intent: string) -> Promise<boolean>",370-382,true,13,1,retrieves recent query
+      WatchManager.saveWatchRule,method,"(watchRule: DbWatchRule) -> Promise<void>",387-411,true,25,1,caches watch rule
+      WatchManager.updateWatchRule,method,"(watchRuleId: string, updates: Partial<DbWatchRule>) -> Promise<void>",416-444,true,29,1,updates watch rule
+      WatchManager.getWatchRule,method,"(watchRuleId: string) -> Promise<DbWatchRule | null>",449-475,true,27,1,retrieves watch rule
+      WatchManager.addEventListener,method,"(listener: (event: WatchManagerEvent) => void) -> void",480-482,false,3,1,creates event listener
+      WatchManager.removeEventListener,method,"(listener: (event: WatchManagerEvent) => void) -> void",487-492,false,6,1,deletes event listener
+      WatchManager.emitEvent,method,"(event: WatchManagerEvent) -> void",497-505,false,9,1,sends event
+      WatchManager.getStats,method,() -> PollingStats,510-512,false,3,1,retrieves stats
+      WatchManager.getActiveWatchCount,method,() -> number,517-519,false,3,1,retrieves active watch count
+  src/reactive/changeDetector.ts:
+    functions[10]{name,kind,sig,loc,async,lines,cc,does}:
+      ChangeDetector.constructor,method,"(dbManager: DatabaseManager)",16-18,false,3,1,constructor
+      ChangeDetector.detectChanges,method,"(targetId: string, targetType: 'device' | 'service', currentContent: string, contentType: string, changeThreshold: number) -> Promise<ChangeDetectionResult>",23-90,true,68,1,detect changes
+      ChangeDetector.getLatestSnapshot,method,"(targetId: string, targetType: 'device' | 'service') -> Promise<ContentSnapshot | null>",95-141,true,47,1,retrieves latest snapshot
+      ChangeDetector.createSnapshot,method,"(targetId: string, targetType: 'device' | 'service', content: string, contentType: string) -> Promise<ContentSnapshot>",146-185,true,40,1,creates snapshot
+      ChangeDetector.recordChangeHistory,method,"(targetId: string, targetType: 'device' | 'service', previousSnapshotId: string, currentSnapshotId: string, changeType: 'content' | 'status' | 'metadata', changeScore: number) -> Promise<void>",190-218,true,29,1,record change history
+      ChangeDetector.calculateChangeScore,method,"(previous: string, current: string) -> number",223-242,false,20,1,processes change score
+      ChangeDetector.determineChangeType,method,"(previous: string, current: string) -> 'content' | 'status' | 'metadata'",247-274,false,28,1,determine change type
+      ChangeDetector.generateChangeSummary,method,"(changeType: 'content' | 'status' | 'metadata', changeScore: number, previous: string, current: string) -> string",279-303,false,25,1,creates change summary
+      ChangeDetector.calculateHash,method,"(content: string) -> string",308-317,false,10,1,processes hash
+      ChangeDetector.getChangeHistory,method,"(targetId: string, targetType: 'device' | 'service', limit: number) -> Promise<ChangeHistory[]>",322-352,true,31,1,retrieves change history
+  src/plugins/discovery/serviceProbePlugin.ts:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      ServiceProbePlugin.initialize,method,"(context: PluginContext) -> Promise<void>",19-47,true,29,1,initializes
+      ServiceProbePlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",49-59,true,11,1,checks handle
+      ServiceProbePlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",61-123,true,63,1,starts
+      ServiceProbePlugin.extractTarget,method,"(input: string) -> string | null",125-158,false,34,1,parses target
+      ServiceProbePlugin.getDeviceId,method,"(target: string) -> Promise<string | null>",160-164,true,5,1,retrieves device id
+      ServiceProbePlugin.formatProbeResult,method,"(result: any, target: string) -> string",166-221,false,56,1,formats probe result
+      ServiceProbePlugin.dispose,method,() -> Promise<void>,223-229,true,7,1,dispose
+  src/plugins/discovery/networkScanPlugin.ts:
+    functions[5]{name,kind,sig,loc,async,lines,cc,does}:
+      NetworkScanPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",19-41,true,23,1,initializes
+      NetworkScanPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",43-51,true,9,1,checks handle
+      NetworkScanPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",53-89,true,37,1,starts
+      NetworkScanPlugin.formatScanResult,method,"(result: any) -> string",91-126,false,36,1,formats scan result
+      NetworkScanPlugin.dispose,method,() -> Promise<void>,128-134,true,7,1,dispose
+  src/plugins/http-browse/index.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      registerHttpBrowsePlugin,function,"(registry: PluginRegistry, options: HttpBrowsePluginOptions & {\n    tauriInvoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;\n  }) -> HttpBrowsePlugin",23-38,false,16,1,registers http browse plugin
+  src/plugins/http-browse/httpBrowse.test.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      createMockStrategy,function,"(name: string, priority: number, result?, shouldFail) -> FetchStrategy",13-31,false,19,1,creates mock strategy
+  src/plugins/http-browse/httpBrowsePlugin.ts:
+    functions[19]{name,kind,sig,loc,async,lines,cc,does}:
+      AllOriginsJsonStrategy.isAvailable,method,() -> boolean,57-59,false,3,1,checks available
+      AllOriginsJsonStrategy.fetch,method,"(url: string) -> Promise<FetchStrategyResult>",61-76,true,16,1,retrieves
+      AllOriginsRawStrategy.isAvailable,method,() -> boolean,83-85,false,3,1,checks available
+      AllOriginsRawStrategy.fetch,method,"(url: string) -> Promise<FetchStrategyResult>",87-99,true,13,1,retrieves
+      CorsProxyStrategy.isAvailable,method,() -> boolean,106-108,false,3,1,checks available
+      CorsProxyStrategy.fetch,method,"(url: string) -> Promise<FetchStrategyResult>",110-122,true,13,1,retrieves
+      JinaReaderStrategy.isAvailable,method,() -> boolean,129-131,false,3,1,checks available
+      JinaReaderStrategy.fetch,method,"(url: string) -> Promise<FetchStrategyResult>",133-147,true,15,1,retrieves
+      TauriFetchStrategy.constructor,method,"(invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>)",160-164,false,5,1,constructor
+      TauriFetchStrategy.isAvailable,method,() -> boolean,166-168,false,3,1,checks available
+      TauriFetchStrategy.fetch,method,"(url: string) -> Promise<FetchStrategyResult>",170-182,true,13,1,retrieves
+      DefaultContentExtractor.extract,method,"(html: string, _url: string) -> ExtractedContent",204-219,false,16,1,parses
+      HttpBrowsePlugin.constructor,method,"(options: HttpBrowsePluginOptions)",245-257,false,13,1,constructor
+      HttpBrowsePlugin.initialize,method,() -> Promise<void>,259-261,true,3,1,initializes
+      HttpBrowsePlugin.isAvailable,method,() -> Promise<boolean>,263-265,true,3,1,checks available
+      HttpBrowsePlugin.execute,method,"(query: PluginQuery) -> Promise<PluginResult>",267-330,true,64,1,starts
+      HttpBrowsePlugin.dispose,method,() -> Promise<void>,332-334,true,3,1,dispose
+      HttpBrowsePlugin.resolveUrl,method,"(query: PluginQuery) -> string",338-342,false,5,1,resolve url
+      HttpBrowsePlugin.addStrategy,method,"(strategy: FetchStrategy) -> void",348-351,false,4,1,creates strategy
+  src/plugins/rtsp-camera/rtspCameraPlugin.ts:
+    functions[22]{name,kind,sig,loc,async,lines,cc,does}:
+      blobToBase64,function,"(blob: Blob) -> Promise<string>",404-415,true,12,1,blob to base64
+      HttpSnapshotGrabber.isAvailable,method,() -> boolean,63-65,false,3,1,checks available
+      HttpSnapshotGrabber.capture,method,"(camera: CameraConfig) -> Promise<CapturedFrame>",67-86,true,20,1,capture
+      TauriRtspGrabber.constructor,method,"(invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>)",98-102,false,5,1,constructor
+      TauriRtspGrabber.isAvailable,method,() -> boolean,104-106,false,3,1,checks available
+      TauriRtspGrabber.capture,method,"(camera: CameraConfig) -> Promise<CapturedFrame>",108-126,true,19,1,capture
+      LlmSceneDescriber.constructor,method,"(describeImage: (\n      base64: string,\n      mimeType?: string,\n      prompt?: string,\n    ) => Promise<string>)",146-154,false,9,1,constructor
+      LlmSceneDescriber.describe,method,"(frame: CapturedFrame, prompt?) -> Promise<string>",156-167,true,12,1,describe
+      RtspCameraPlugin.constructor,method,"(options: RtspCameraPluginOptions)",193-199,false,7,1,constructor
+      RtspCameraPlugin.initialize,method,() -> Promise<void>,201-205,true,5,1,initializes
+      RtspCameraPlugin.isAvailable,method,() -> Promise<boolean>,207-209,true,3,1,checks available
+      RtspCameraPlugin.execute,method,"(query: PluginQuery) -> Promise<PluginResult>",211-224,true,14,1,starts
+      RtspCameraPlugin.captureFrame,method,"(target: string) -> Promise<ContentBlock>",228-238,true,11,1,capture frame
+      RtspCameraPlugin.describeScene,method,"(target: string, prompt?) -> Promise<string>",240-247,true,8,1,describe scene
+      RtspCameraPlugin.dispose,method,() -> Promise<void>,249-251,true,3,1,dispose
+      RtspCameraPlugin.handleList,method,"(start: number) -> PluginResult",255-272,false,18,1,handles list
+      RtspCameraPlugin.handleSnapshot,method,"(query: PluginQuery, start: number) -> Promise<PluginResult>",274-301,true,28,1,handles snapshot
+      RtspCameraPlugin.handleDescribe,method,"(query: PluginQuery, start: number) -> Promise<PluginResult>",303-347,true,45,1,handles describe
+      RtspCameraPlugin.resolveCamera,method,"(input: string) -> CameraConfig",351-368,false,18,1,resolve camera
+      RtspCameraPlugin.grabFrame,method,"(camera: CameraConfig) -> Promise<CapturedFrame>",370-382,true,13,1,grab frame
+      RtspCameraPlugin.meta,method,"(start: number) -> PluginResult[\"metadata\"]",384-390,false,7,1,meta
+      RtspCameraPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",392-399,false,8,1,error result
+  src/plugins/rtsp-camera/index.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      registerRtspCameraPlugin,function,"(registry: PluginRegistry, options: RegisterRtspCameraOptions) -> RtspCameraPlugin",28-58,false,31,1,registers rtsp camera plugin
+  src/plugins/mqtt/index.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      registerMqttPlugin,function,"(registry: PluginRegistry, config: MqttConfig, client: MqttClientAdapter) -> MqttPlugin",11-19,false,9,1,registers mqtt plugin
+  src/plugins/mqtt/mqttPlugin.ts:
+    functions[17]{name,kind,sig,loc,async,lines,cc,does}:
+      MqttPlugin.connected,method,() -> boolean,77-79,false,3,1,connected
+      MqttPlugin.constructor,method,"(config: MqttConfig, client: MqttClientAdapter)",81-84,false,4,1,constructor
+      MqttPlugin.initialize,method,() -> Promise<void>,86-119,true,34,1,initializes
+      MqttPlugin.isAvailable,method,() -> Promise<boolean>,121-123,true,3,1,checks available
+      MqttPlugin.execute,method,"(query: PluginQuery) -> Promise<PluginResult>",125-138,true,14,1,starts
+      MqttPlugin.subscribe,method,"(query: PluginQuery, onData: (block: ContentBlock) => void, onError: (error: Error) => void) -> () => void",142-166,false,25,1,handles
+      MqttPlugin.reconnect,method,() -> Promise<void>,170-173,true,4,1,reconnect
+      MqttPlugin.onDisconnect,method,"(handler: () => void) -> () => void",175-180,false,6,1,handles disconnect
+      MqttPlugin.dispose,method,() -> Promise<void>,182-189,true,8,1,dispose
+      MqttPlugin.handleList,method,"(start: number) -> PluginResult",193-216,false,24,1,handles list
+      MqttPlugin.handleRead,method,"(query: PluginQuery, start: number) -> PluginResult",218-255,false,38,1,handles read
+      MqttPlugin.handleSubscribeInfo,method,"(query: PluginQuery, start: number) -> PluginResult",257-271,false,15,1,handles subscribe info
+      MqttPlugin.extractTopic,method,"(query: PluginQuery) -> string",275-296,false,22,1,parses topic
+      MqttPlugin.findByPrefix,method,"(prefix: string) -> TopicValue | undefined",298-305,false,8,1,retrieves by prefix
+      MqttPlugin.getTopicLabel,method,"(topic: string) -> string",307-309,false,3,1,retrieves topic label
+      MqttPlugin.meta,method,"(start: number) -> PluginResult[\"metadata\"]",311-317,false,7,1,meta
+      MqttPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",319-326,false,8,1,error result
+  src/plugins/http/browsePlugin.ts:
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      HttpBrowsePlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",14-21,true,8,1,checks handle
+      HttpBrowsePlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",23-77,true,55,1,starts
+      HttpBrowsePlugin.initialize,method,"(context: PluginContext) -> Promise<void>",79-81,true,3,1,initializes
+      HttpBrowsePlugin.dispose,method,() -> Promise<void>,83-85,true,3,1,dispose
+  src/plugins/chat/chatPlugin.ts:
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      ChatLlmPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",13-16,true,4,1,checks handle
+      ChatLlmPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",18-70,true,53,1,starts
+      ChatLlmPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",72-74,true,3,1,initializes
+      ChatLlmPlugin.dispose,method,() -> Promise<void>,76-78,true,3,1,dispose
+  TODO/src/persistence/deviceRepository.ts:
+    functions[26]{name,kind,sig,loc,async,lines,cc,does}:
+      DeviceRepository.constructor,method,"(db: DbAdapter)",92-92,false,1,1,constructor
+      DeviceRepository.upsertDevice,method,"(device: Device) -> void",96-122,false,27,1,upsert device
+      DeviceRepository.getDevice,method,"(id: string) -> Device | null",124-130,false,7,1,retrieves device
+      DeviceRepository.getDeviceByIp,method,"(ip: string) -> Device | null",132-138,false,7,1,retrieves device by ip
+      DeviceRepository.getAllDevices,method,"() -> Device[]",140-144,false,5,1,retrieves all devices
+      DeviceRepository.getOnlineDevices,method,"() -> Device[]",146-150,false,5,1,retrieves online devices
+      DeviceRepository.getDevicesByType,method,"(type: DeviceType) -> Device[]",152-156,false,5,1,retrieves devices by type
+      DeviceRepository.markOffline,method,"(deviceId: string) -> void",158-163,false,6,1,mark offline
+      DeviceRepository.setDeviceName,method,"(deviceId: string, name: string) -> void",165-170,false,6,1,updates device name
+      DeviceRepository.upsertService,method,"(service: DeviceService) -> void",174-196,false,23,1,upsert service
+      DeviceRepository.getServicesForDevice,method,"(deviceId: string) -> DeviceService[]",198-205,false,8,1,retrieves services for device
+      DeviceRepository.getServicesByProtocol,method,"(protocol: ServiceProtocol) -> DeviceService[]",207-217,false,11,1,retrieves services by protocol
+      DeviceRepository.getCameras,method,"() -> Array<Device & { services: DeviceService[] }>",220-226,false,7,1,retrieves cameras
+      DeviceRepository.saveSnapshot,method,"(snapshot: ContentSnapshot) -> number",230-245,false,16,1,caches snapshot
+      DeviceRepository.getLatestSnapshot,method,"(endpointId: string) -> ContentSnapshot | null",247-255,false,9,1,retrieves latest snapshot
+      DeviceRepository.getSnapshots,method,"(endpointId: string, limit) -> ContentSnapshot[]",257-266,false,10,1,retrieves snapshots
+      DeviceRepository.pruneSnapshots,method,(keepPerEndpoint) -> number,269-281,false,13,1,prune snapshots
+      DeviceRepository.recordChange,method,"(change: ChangeRecord) -> number",285-303,false,19,1,record change
+      DeviceRepository.getUnacknowledgedChanges,method,"() -> ChangeRecord[]",305-313,false,9,1,retrieves unacknowledged changes
+      DeviceRepository.getChangesForEndpoint,method,"(endpointId: string, limit) -> ChangeRecord[]",315-324,false,10,1,retrieves changes for endpoint
+      DeviceRepository.acknowledgeChange,method,"(changeId: number) -> void",326-331,false,6,1,acknowledge change
+      DeviceRepository.acknowledgeAllForEndpoint,method,"(endpointId: string) -> void",333-338,false,6,1,acknowledge all for endpoint
+      DeviceRepository.mapDevice,method,"(row: any) -> Device",342-355,false,14,1,converts device
+      DeviceRepository.mapService,method,"(row: any) -> DeviceService",357-370,false,14,1,converts service
+      DeviceRepository.mapSnapshot,method,"(row: any) -> ContentSnapshot",372-382,false,11,1,converts snapshot
+      DeviceRepository.mapChange,method,"(row: any) -> ChangeRecord",384-397,false,14,1,converts change
+  TODO/src/persistence/database.ts:
+    functions[16]{name,kind,sig,loc,async,lines,cc,does}:
+      DatabaseManager.constructor,method,"(createAdapter: (path: string) => DbAdapter, basePath: string)",143-146,false,4,1,constructor
+      DatabaseManager.initialize,method,() -> Promise<void>,148-168,true,21,1,initializes
+      DatabaseManager.devices,method,() -> DbAdapter,170-173,false,4,1,devices
+      DatabaseManager.chat,method,() -> DbAdapter,175-178,false,4,1,chat
+      DatabaseManager.close,method,() -> void,180-185,false,6,1,stops
+      TauriSqliteAdapter.constructor,method,"(dbPath: string, invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>)",195-202,false,8,1,constructor
+      TauriSqliteAdapter.isOpen,method,() -> boolean,204-206,false,3,1,checks open
+      TauriSqliteAdapter.execute,method,"(sql: string, params: unknown[]) -> void",208-211,false,4,1,starts
+      TauriSqliteAdapter.query,method,"(sql: string, params: unknown[]) -> T[]",213-217,false,5,1,retrieves
+      TauriSqliteAdapter.queryOne,method,"(sql: string, params: unknown[]) -> T | null",219-221,false,3,1,retrieves one
+      TauriSqliteAdapter.close,method,() -> void,223-226,false,4,1,stops
+      InMemoryDbAdapter.isOpen,method,() -> boolean,236-238,false,3,1,checks open
+      InMemoryDbAdapter.execute,method,"(sql: string, _params: unknown[]) -> void",240-246,false,7,1,starts
+      InMemoryDbAdapter.query,method,"(sql: string, params: unknown[]) -> T[]",248-250,false,3,1,retrieves
+      InMemoryDbAdapter.queryOne,method,"(sql: string, params: unknown[]) -> T | null",252-255,false,4,1,retrieves one
+      InMemoryDbAdapter.close,method,() -> void,257-260,false,4,1,stops
+  TODO/src/persistence/chatRepository.ts:
+    functions[19]{name,kind,sig,loc,async,lines,cc,does}:
+      ChatRepository.constructor,method,"(db: DbAdapter)",51-51,false,1,1,constructor
+      ChatRepository.createConversation,method,"(conv: Conversation) -> void",55-61,false,7,1,creates conversation
+      ChatRepository.getConversation,method,"(id: string) -> Conversation | null",63-69,false,7,1,retrieves conversation
+      ChatRepository.getRecentConversations,method,"(limit) -> Conversation[]",71-78,false,8,1,retrieves recent conversations
+      ChatRepository.updateConversationTimestamp,method,"(id: string) -> void",80-85,false,6,1,updates conversation timestamp
+      ChatRepository.addMessage,method,"(message: ChatMessage) -> number",89-107,false,19,1,creates message
+      ChatRepository.getMessages,method,"(conversationId: string, limit) -> ChatMessage[]",109-118,false,10,1,retrieves messages
+      ChatRepository.getLastMessage,method,"(conversationId: string) -> ChatMessage | null",120-128,false,9,1,retrieves last message
+      ChatRepository.searchMessages,method,"(query: string, limit) -> ChatMessage[]",131-140,false,10,1,filters messages
+      ChatRepository.getRecentUserQueries,method,"(sinceMs: number, conversationId?) -> ChatMessage[]",143-163,false,21,1,retrieves recent user queries
+      ChatRepository.addWatchRule,method,"(rule: WatchRule) -> number",167-186,false,20,1,creates watch rule
+      ChatRepository.getActiveWatchRules,method,"() -> WatchRule[]",188-198,false,11,1,retrieves active watch rules
+      ChatRepository.getWatchRuleForEndpoint,method,"(endpointId: string) -> WatchRule | null",200-209,false,10,1,retrieves watch rule for endpoint
+      ChatRepository.updateWatchPollTime,method,"(ruleId: number) -> void",211-216,false,6,1,updates watch poll time
+      ChatRepository.deactivateWatchRule,method,"(ruleId: number) -> void",218-223,false,6,1,deactivate watch rule
+      ChatRepository.expireWatchRules,method,() -> number,226-233,false,8,1,expire watch rules
+      ChatRepository.mapConversation,method,"(row: any) -> Conversation",237-245,false,9,1,converts conversation
+      ChatRepository.mapMessage,method,"(row: any) -> ChatMessage",247-260,false,14,1,converts message
+      ChatRepository.mapWatchRule,method,"(row: any) -> WatchRule",262-276,false,15,1,converts watch rule
+  TODO/src/hooks/useWatchNotifications.ts:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      useWatchNotifications,function,"(watchManager: WatchManager | null, deviceRepo: DeviceRepository | null) -> UseWatchNotificationsReturn",44-141,false,98,1,use watch notifications
+      mapChangeToNotification,function,"(change: ChangeRecord) -> WatchNotification",145-154,false,10,1,converts change to notification
+  TODO/src/core/pluginRegistry.test.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      createMockPlugin,function,"(id: string, overrides: Partial<PluginCapabilities>) -> DataSourcePlugin",13-38,false,26,1,creates mock plugin
+  TODO/src/core/plugin.types.ts:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      isStreamable,function,"(plugin: DataSourcePlugin)",207-209,false,3,1,checks streamable
+      isVisual,function,"(plugin: DataSourcePlugin)",211-213,false,3,1,checks visual
+      isPersistent,function,"(plugin: DataSourcePlugin)",215-217,false,3,1,checks persistent
+  TODO/src/core/queryBus.ts:
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      cachingMiddleware,function,"(ttlMs: number) -> QueryMiddleware",93-110,false,18,1,caching middleware
+      QueryBus.register,method,"(queryType: string, handler: IQueryHandler<TQuery, TResult>) -> void",20-31,false,12,1,registers
+      QueryBus.unregister,method,"(queryType: string) -> void",33-35,false,3,1,unregister
+      QueryBus.use,method,"(middleware: QueryMiddleware) -> void",37-39,false,3,1,use
+      QueryBus.dispatch,method,"(query: IQuery<TResult>) -> Promise<TResult>",41-66,true,26,1,sends
+      QueryBus.registeredQueries,method,"() -> string[]",68-70,false,3,1,registered queries
+  TODO/src/core/pluginRegistry.ts:
+    functions[13]{name,kind,sig,loc,async,lines,cc,does}:
+      getDefaultRegistry,function,() -> PluginRegistry,164-169,false,6,1,retrieves default registry
+      resetDefaultRegistry,function,() -> void,172-174,false,3,1,reset default registry
+      PluginRegistry.register,method,"(plugin: DataSourcePlugin) -> void",33-43,false,11,1,registers
+      PluginRegistry.unregister,method,"(pluginId: PluginId) -> void",45-51,false,7,1,unregister
+      PluginRegistry.get,method,"(pluginId: PluginId) -> DataSourcePlugin | undefined",55-57,false,3,1,retrieves
+      PluginRegistry.getForIntent,method,"(intent: IntentName) -> DataSourcePlugin[]",63-67,false,5,1,retrieves for intent
+      PluginRegistry.getAvailableForIntent,method,"(intent: IntentName, isTauri: boolean) -> DataSourcePlugin[]",72-77,false,6,1,retrieves available for intent
+      PluginRegistry.listAll,method,"() -> readonly DataSourcePlugin[]",79-81,false,3,1,list all
+      PluginRegistry.size,method,() -> number,83-85,false,3,1,size
+      PluginRegistry.initializeAll,method,"() -> Promise<Map<PluginId, Error | null>>",93-112,true,20,1,initializes all
+      PluginRegistry.disposeAll,method,() -> Promise<void>,117-131,true,15,1,dispose all
+      PluginRegistry.onPluginEvent,method,"(handler: PluginEventHandler) -> () => void",135-140,false,6,1,handles plugin event
+      PluginRegistry.emit,method,"(type: PluginEventType, pluginId: PluginId, data?) -> void",142-157,false,16,1,sends
+  TODO/src/core/intentRouter.ts:
+    functions[5]{name,kind,sig,loc,async,lines,cc,does}:
+      buildQuery,function,"(intent: IntentName, rawInput: string, overrides: Partial<Omit<PluginQuery, \"intent\" | \"rawInput\">>) -> PluginQuery",222-238,false,17,1,creates query
+      IntentRouter.constructor,method,"(options: IntentRouterOptions)",103-109,false,7,1,constructor
+      IntentRouter.addRule,method,"(rule: IntentRule) -> void",115-118,false,4,1,creates rule
+      IntentRouter.detectIntent,method,"(rawInput: string) -> Promise<IntentName>",122-158,true,37,1,detect intent
+      IntentRouter.route,method,"(query: PluginQuery) -> Promise<PluginResult>",162-217,true,56,1,route
+  TODO/src/core/bootstrap.ts:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      bootstrapApp,function,"(config: AppConfig) -> Promise<AppContext>",92-250,true,159,1,initializes app
+      buildCamerasFromDb,function,"(deviceRepo: DeviceRepository) -> CameraConfig[]",254-272,false,19,1,creates cameras from db
+      deduplicateCameras,function,"(cameras: CameraConfig[]) -> CameraConfig[]",274-281,false,8,1,deduplicate cameras
+  TODO/src/core/intentRouter.test.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      createPlugin,function,"(id: string, overrides: Partial<PluginCapabilities>) -> DataSourcePlugin",6-31,false,26,1,creates plugin
+  TODO/src/core/commandBus.ts:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      loggingMiddleware,function,"(log: (msg: string) => void) -> CommandMiddleware",102-119,false,18,1,logging middleware
+      createPluginQueryCommand,function,"(rawInput: string, intent: string, source: \"voice\" | \"text\" | \"api\", resolvedTarget?) -> PluginQueryCommand",135-148,false,14,1,creates plugin query command
+      CommandBus.register,method,"(commandType: string, handler: ICommandHandler<TCommand, TResult>) -> void",31-45,false,15,1,registers
+      CommandBus.unregister,method,"(commandType: string) -> void",50-52,false,3,1,unregister
+      CommandBus.use,method,"(middleware: CommandMiddleware) -> void",57-59,false,3,1,use
+      CommandBus.dispatch,method,"(command: ICommand<TResult>) -> Promise<TResult>",65-92,true,28,1,sends
+      CommandBus.registeredCommands,method,"() -> string[]",94-96,false,3,1,registered commands
+  TODO/src/contexts/PluginContext.tsx:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      PluginProvider,function,(),54-82,false,29,1,plugin provider
+      usePlugins,function,() -> PluginContextValue,86-92,false,7,1,use plugins
+  TODO/src/reactive/watchManager.ts:
+    functions[15]{name,kind,sig,loc,async,lines,cc,does}:
+      WatchManager.constructor,method,"(chatRepo: ChatRepository, deviceRepo: DeviceRepository, config: Partial<WatchConfig>)",101-107,false,7,1,constructor
+      WatchManager.autoWatch,method,"(endpointId: string, intent: string, pluginId: string, queryText?) -> WatchRule | null",113-164,false,52,1,auto watch
+      WatchManager.createWatch,method,"(endpointId: string, intent: string, pluginId: string, durationMs: number, pollIntervalMs?) -> WatchRule",169-190,false,22,1,creates watch
+      WatchManager.getActiveWatches,method,"() -> WatchRule[]",193-196,false,4,1,retrieves active watches
+      WatchManager.stopWatch,method,"(endpointId: string) -> void",199-210,false,12,1,stops watch
+      WatchManager.onEvent,method,"(handler: WatchEventHandler) -> () => void",214-217,false,4,1,handles event
+      WatchManager.emit,method,"(event: WatchEvent) -> void",219-223,false,5,1,sends
+      ChangeDetector.constructor,method,"(router: IntentRouter, watchManager: WatchManager, deviceRepo: DeviceRepository, chatRepo: ChatRepository, config: { changeThreshold: number })",232-240,false,9,1,constructor
+      ChangeDetector.start,method,() -> void,246-253,false,8,1,starts
+      ChangeDetector.stop,method,() -> void,255-261,false,7,1,stops
+      ChangeDetector.tick,method,() -> Promise<void>,263-294,true,32,1,tick
+      ChangeDetector.pollEndpoint,method,"(rule: WatchRule) -> Promise<void>",296-393,true,98,1,poll endpoint
+      ChangeDetector.computeChangeRatio,method,"(oldText: string, newText: string) -> number",397-414,false,18,1,processes change ratio
+      ChangeDetector.describeChange,method,"(rule: WatchRule, changeRatio: number, _lastSnapshot: ContentSnapshot, newText: string, result: PluginResult) -> string",416-433,false,18,1,describe change
+      ChangeDetector.hashContent,method,"(text: string) -> Promise<string>",435-452,true,18,1,hash content
+  TODO/src/plugins/discovery/index.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      registerDiscoveryPlugin,function,"(registry: PluginRegistry, deviceRepo: DeviceRepository, options: {\n    tauriInvoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;\n    defaultSubnet?: string;\n  }) -> NetworkScannerPlugin",17-38,false,22,1,registers discovery plugin
+  TODO/src/plugins/discovery/networkScanner.ts:
+    functions[18]{name,kind,sig,loc,async,lines,cc,does}:
+      TauriScannerBackend.constructor,method,"(invoke: (\n      cmd: string,\n      args?: Record<string, unknown>,\n    ) => Promise<unknown>)",156-161,false,6,1,constructor
+      TauriScannerBackend.scanSubnet,method,"(subnet: string) -> Promise<DiscoveredHost[]>",163-165,true,3,1,scan subnet
+      TauriScannerBackend.probePort,method,"(ip: string, port: number, timeoutMs) -> Promise<ProbeResult>",167-173,true,7,1,probe port
+      BrowserScannerBackend.scanSubnet,method,"(_subnet: string) -> Promise<DiscoveredHost[]>",181-185,true,5,1,scan subnet
+      BrowserScannerBackend.probePort,method,"(ip: string, port: number, timeoutMs) -> Promise<ProbeResult>",187-217,true,31,1,probe port
+      NetworkScannerPlugin.constructor,method,"(options: NetworkScannerOptions)",248-254,false,7,1,constructor
+      NetworkScannerPlugin.initialize,method,() -> Promise<void>,256-258,true,3,1,initializes
+      NetworkScannerPlugin.isAvailable,method,() -> Promise<boolean>,260-262,true,3,1,checks available
+      NetworkScannerPlugin.execute,method,"(query: PluginQuery) -> Promise<PluginResult>",264-277,true,14,1,starts
+      NetworkScannerPlugin.dispose,method,() -> Promise<void>,279-279,true,1,1,dispose
+      NetworkScannerPlugin.handleScan,method,"(query: PluginQuery, start: number) -> Promise<PluginResult>",283-371,true,89,1,handles scan
+      NetworkScannerPlugin.handleList,method,"(start: number) -> PluginResult",375-413,false,39,1,handles list
+      NetworkScannerPlugin.handleProbe,method,"(query: PluginQuery, start: number) -> Promise<PluginResult>",417-457,true,41,1,handles probe
+      NetworkScannerPlugin.probeHost,method,"(host: DiscoveredHost) -> Promise<DeviceService[]>",461-487,true,27,1,probe host
+      NetworkScannerPlugin.classifyDevice,method,"(services: DeviceService[]) -> DeviceType",489-500,false,12,1,classify device
+      NetworkScannerPlugin.extractIp,method,"(input: string) -> string | null",502-505,false,4,1,parses ip
+      NetworkScannerPlugin.meta,method,"(start: number) -> PluginResult[\"metadata\"]",507-513,false,7,1,meta
+      NetworkScannerPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",515-522,false,8,1,error result
+  TODO/src/plugins/http-browse/index.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      registerHttpBrowsePlugin,function,"(registry: PluginRegistry, options: HttpBrowsePluginOptions & {\n    tauriInvoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;\n  }) -> HttpBrowsePlugin",23-38,false,16,1,registers http browse plugin
+  TODO/src/plugins/http-browse/httpBrowse.test.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      createMockStrategy,function,"(name: string, priority: number, result?, shouldFail) -> FetchStrategy",13-31,false,19,1,creates mock strategy
+  TODO/src/plugins/http-browse/httpBrowsePlugin.ts:
+    functions[19]{name,kind,sig,loc,async,lines,cc,does}:
+      AllOriginsJsonStrategy.isAvailable,method,() -> boolean,57-59,false,3,1,checks available
+      AllOriginsJsonStrategy.fetch,method,"(url: string) -> Promise<FetchStrategyResult>",61-76,true,16,1,retrieves
+      AllOriginsRawStrategy.isAvailable,method,() -> boolean,83-85,false,3,1,checks available
+      AllOriginsRawStrategy.fetch,method,"(url: string) -> Promise<FetchStrategyResult>",87-99,true,13,1,retrieves
+      CorsProxyStrategy.isAvailable,method,() -> boolean,106-108,false,3,1,checks available
+      CorsProxyStrategy.fetch,method,"(url: string) -> Promise<FetchStrategyResult>",110-122,true,13,1,retrieves
+      JinaReaderStrategy.isAvailable,method,() -> boolean,129-131,false,3,1,checks available
+      JinaReaderStrategy.fetch,method,"(url: string) -> Promise<FetchStrategyResult>",133-147,true,15,1,retrieves
+      TauriFetchStrategy.constructor,method,"(invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>)",160-164,false,5,1,constructor
+      TauriFetchStrategy.isAvailable,method,() -> boolean,166-168,false,3,1,checks available
+      TauriFetchStrategy.fetch,method,"(url: string) -> Promise<FetchStrategyResult>",170-182,true,13,1,retrieves
+      DefaultContentExtractor.extract,method,"(html: string, _url: string) -> ExtractedContent",204-219,false,16,1,parses
+      HttpBrowsePlugin.constructor,method,"(options: HttpBrowsePluginOptions)",245-257,false,13,1,constructor
+      HttpBrowsePlugin.initialize,method,() -> Promise<void>,259-261,true,3,1,initializes
+      HttpBrowsePlugin.isAvailable,method,() -> Promise<boolean>,263-265,true,3,1,checks available
+      HttpBrowsePlugin.execute,method,"(query: PluginQuery) -> Promise<PluginResult>",267-330,true,64,1,starts
+      HttpBrowsePlugin.dispose,method,() -> Promise<void>,332-334,true,3,1,dispose
+      HttpBrowsePlugin.resolveUrl,method,"(query: PluginQuery) -> string",338-342,false,5,1,resolve url
+      HttpBrowsePlugin.addStrategy,method,"(strategy: FetchStrategy) -> void",348-351,false,4,1,creates strategy
+  TODO/src/plugins/rtsp-camera/rtspCameraPlugin.ts:
+    functions[22]{name,kind,sig,loc,async,lines,cc,does}:
+      blobToBase64,function,"(blob: Blob) -> Promise<string>",404-415,true,12,1,blob to base64
+      HttpSnapshotGrabber.isAvailable,method,() -> boolean,63-65,false,3,1,checks available
+      HttpSnapshotGrabber.capture,method,"(camera: CameraConfig) -> Promise<CapturedFrame>",67-86,true,20,1,capture
+      TauriRtspGrabber.constructor,method,"(invoke: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>)",98-102,false,5,1,constructor
+      TauriRtspGrabber.isAvailable,method,() -> boolean,104-106,false,3,1,checks available
+      TauriRtspGrabber.capture,method,"(camera: CameraConfig) -> Promise<CapturedFrame>",108-126,true,19,1,capture
+      LlmSceneDescriber.constructor,method,"(describeImage: (\n      base64: string,\n      mimeType?: string,\n      prompt?: string,\n    ) => Promise<string>)",146-154,false,9,1,constructor
+      LlmSceneDescriber.describe,method,"(frame: CapturedFrame, prompt?) -> Promise<string>",156-167,true,12,1,describe
+      RtspCameraPlugin.constructor,method,"(options: RtspCameraPluginOptions)",193-199,false,7,1,constructor
+      RtspCameraPlugin.initialize,method,() -> Promise<void>,201-205,true,5,1,initializes
+      RtspCameraPlugin.isAvailable,method,() -> Promise<boolean>,207-209,true,3,1,checks available
+      RtspCameraPlugin.execute,method,"(query: PluginQuery) -> Promise<PluginResult>",211-224,true,14,1,starts
+      RtspCameraPlugin.captureFrame,method,"(target: string) -> Promise<ContentBlock>",228-238,true,11,1,capture frame
+      RtspCameraPlugin.describeScene,method,"(target: string, prompt?) -> Promise<string>",240-247,true,8,1,describe scene
+      RtspCameraPlugin.dispose,method,() -> Promise<void>,249-251,true,3,1,dispose
+      RtspCameraPlugin.handleList,method,"(start: number) -> PluginResult",255-272,false,18,1,handles list
+      RtspCameraPlugin.handleSnapshot,method,"(query: PluginQuery, start: number) -> Promise<PluginResult>",274-301,true,28,1,handles snapshot
+      RtspCameraPlugin.handleDescribe,method,"(query: PluginQuery, start: number) -> Promise<PluginResult>",303-347,true,45,1,handles describe
+      RtspCameraPlugin.resolveCamera,method,"(input: string) -> CameraConfig",351-368,false,18,1,resolve camera
+      RtspCameraPlugin.grabFrame,method,"(camera: CameraConfig) -> Promise<CapturedFrame>",370-382,true,13,1,grab frame
+      RtspCameraPlugin.meta,method,"(start: number) -> PluginResult[\"metadata\"]",384-390,false,7,1,meta
+      RtspCameraPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",392-399,false,8,1,error result
+  TODO/src/plugins/rtsp-camera/index.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      registerRtspCameraPlugin,function,"(registry: PluginRegistry, options: RegisterRtspCameraOptions) -> RtspCameraPlugin",28-58,false,31,1,registers rtsp camera plugin
+  TODO/src/plugins/mqtt/index.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      registerMqttPlugin,function,"(registry: PluginRegistry, config: MqttConfig, client: MqttClientAdapter) -> MqttPlugin",11-19,false,9,1,registers mqtt plugin
+  TODO/src/plugins/mqtt/mqttPlugin.ts:
+    functions[17]{name,kind,sig,loc,async,lines,cc,does}:
+      MqttPlugin.connected,method,() -> boolean,77-79,false,3,1,connected
+      MqttPlugin.constructor,method,"(config: MqttConfig, client: MqttClientAdapter)",81-84,false,4,1,constructor
+      MqttPlugin.initialize,method,() -> Promise<void>,86-119,true,34,1,initializes
+      MqttPlugin.isAvailable,method,() -> Promise<boolean>,121-123,true,3,1,checks available
+      MqttPlugin.execute,method,"(query: PluginQuery) -> Promise<PluginResult>",125-138,true,14,1,starts
+      MqttPlugin.subscribe,method,"(query: PluginQuery, onData: (block: ContentBlock) => void, onError: (error: Error) => void) -> () => void",142-166,false,25,1,handles
+      MqttPlugin.reconnect,method,() -> Promise<void>,170-173,true,4,1,reconnect
+      MqttPlugin.onDisconnect,method,"(handler: () => void) -> () => void",175-180,false,6,1,handles disconnect
+      MqttPlugin.dispose,method,() -> Promise<void>,182-189,true,8,1,dispose
+      MqttPlugin.handleList,method,"(start: number) -> PluginResult",193-216,false,24,1,handles list
+      MqttPlugin.handleRead,method,"(query: PluginQuery, start: number) -> PluginResult",218-255,false,38,1,handles read
+      MqttPlugin.handleSubscribeInfo,method,"(query: PluginQuery, start: number) -> PluginResult",257-271,false,15,1,handles subscribe info
+      MqttPlugin.extractTopic,method,"(query: PluginQuery) -> string",275-296,false,22,1,parses topic
+      MqttPlugin.findByPrefix,method,"(prefix: string) -> TopicValue | undefined",298-305,false,8,1,retrieves by prefix
+      MqttPlugin.getTopicLabel,method,"(topic: string) -> string",307-309,false,3,1,retrieves topic label
+      MqttPlugin.meta,method,"(start: number) -> PluginResult[\"metadata\"]",311-317,false,7,1,meta
+      MqttPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",319-326,false,8,1,error result
   src-tauri/src/main_changes.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       main,function,(),"-",false,1,1,main
@@ -413,6 +993,14 @@ function_details:
       preferred_input_config,function,"(device: &cpal::Device) -> Result<StreamConfig,","-",false,1,1,preferred input config
       base64_encode,function,"(data: &[u8]) -> String","-",false,1,1,base64 encode
       is_silence,function,"(state: &SharedRecordingState, threshold_seconds: f32, rms_threshold: f32) -> bool","-",false,1,1,checks silence
+  src-tauri/src/network.rs:
+    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
+      db_execute,function,"(db: String, sql: String, params: Vec<serde_json::Value>) -> Result<(),","-",false,1,1,db execute
+      db_query,function,"(db: String, sql: String, params: Vec<serde_json::Value>) -> Result<Vec<HashMap<String,","-",false,1,1,db query
+      db_close,function,"(db: String) -> Result<(),","-",false,1,1,db close
+      parse_cidr,function,"(cidr: &str) -> Result<(Ipv4Addr,","-",false,1,1,parses cidr
+      json_to_sqlite_param,function,"(value: &serde_json::Value) -> Box<dyn","-",false,1,1,json to sqlite param
+      sqlite_to_json,function,"(value: rusqlite::types::Value) -> serde_json::Value","-",false,1,1,sqlite to json
   src-tauri/src/useAudio.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       useAudio,function,"(options: UseAudioOptions) -> UseAudioReturn",71-212,false,142,1,use audio

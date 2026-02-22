@@ -1,3 +1,33 @@
+## [1.0.20] - 2026-02-22
+
+### Summary
+
+feat(tests): configuration management system
+
+### Docs
+
+- docs: update CAMERA_DISCOVERY_GUIDE.md
+
+### Test
+
+- update test_intent_routing.js
+- update test_network_scan.js
+
+### Build
+
+- deps: update package.json
+
+### Other
+
+- update project.functions.toon
+- update src/components/Chat.tsx
+- update src/components/WatchBadge.simple.tsx
+- update src/components/WatchBadge.tsx
+- update src/core/intentRouter.ts
+- update src/hooks/useWatchNotifications.ts
+- update src/persistence/databaseManager.ts
+
+
 ## [1.0.19] - 2026-02-22
 
 ### Summary

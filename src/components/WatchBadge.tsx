@@ -4,123 +4,20 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import type { ChangeDetectedEvent, WatchManagerEvent } from '../reactive/types';
+import { useWatchNotifications } from '../hooks/useWatchNotifications';
+import type { WatchManager } from '../reactive/watchManager';
 
 interface WatchBadgeProps {
-  onWatchEvent?: (event: WatchManagerEvent) => void;
+  watchManager?: WatchManager | null;
   className?: string;
 }
 
-interface Notification {
-  id: string;
-  type: 'change_detected' | 'watch_started' | 'watch_expired' | 'watch_cancelled';
-  message: string;
-  timestamp: Date;
-  details?: any;
-}
-
 export const WatchBadge: React.FC<WatchBadgeProps> = ({ 
-  onWatchEvent, 
+  watchManager, 
   className = '' 
 }) => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isVisible, setIsVisible] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // Simulate receiving watch events (in real implementation, this would come from WatchManager)
-  useEffect(() => {
-    // This would be replaced with actual event listener from WatchManager
-    const handleWatchEvent = (event: WatchManagerEvent) => {
-      const notification = createNotification(event);
-      if (notification) {
-        setNotifications(prev => [notification, ...prev].slice(0, 50)); // Keep last 50
-        setUnreadCount(prev => prev + 1);
-        
-        if (onWatchEvent) {
-          onWatchEvent(event);
-        }
-      }
-    };
-
-    // Simulate some events for demo
-    const demoEvents: WatchManagerEvent[] = [
-      {
-        type: 'watch_started',
-        timestamp: new Date(),
-        data: { targetId: 'camera-salon', targetType: 'service' }
-      },
-      {
-        type: 'change_detected',
-        timestamp: new Date(),
-        data: {
-          targetId: 'camera-salon',
-          targetType: 'service',
-          summary: 'Motion detected in living room',
-          changeScore: 0.75
-        } as ChangeDetectedEvent
-      }
-    ];
-
-    // Simulate receiving events
-    const timer = setTimeout(() => {
-      demoEvents.forEach(handleWatchEvent);
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [onWatchEvent]);
-
-  const createNotification = (event: WatchManagerEvent): Notification | null => {
-    switch (event.type) {
-      case 'change_detected':
-        const changeEvent = event.data as ChangeDetectedEvent;
-        return {
-          id: changeEvent.id,
-          type: 'change_detected',
-          message: `🔔 ${changeEvent.summary}`,
-          timestamp: changeEvent.detectedAt,
-          details: changeEvent
-        };
-
-      case 'watch_started':
-        return {
-          id: crypto.randomUUID(),
-          type: 'watch_started',
-          message: `👁️ Started watching ${event.data.targetType}:${event.data.targetId}`,
-          timestamp: event.timestamp,
-          details: event.data
-        };
-
-      case 'watch_expired':
-        return {
-          id: crypto.randomUUID(),
-          type: 'watch_expired',
-          message: `⏰ Watch expired for ${event.data.targetType}:${event.data.targetId}`,
-          timestamp: event.timestamp,
-          details: event.data
-        };
-
-      case 'watch_cancelled':
-        return {
-          id: crypto.randomUUID(),
-          type: 'watch_cancelled',
-          message: `🚫 Cancelled watch for ${event.data.targetType}:${event.data.targetId}`,
-          timestamp: event.timestamp,
-          details: event.data
-        };
-
-      default:
-        return null;
-    }
-  };
-
-  const markAsRead = () => {
-    setUnreadCount(0);
-  };
-
-  const clearNotifications = () => {
-    setNotifications([]);
-    setUnreadCount(0);
-  };
+  const { notifications, activeWatchCount, acknowledge, acknowledgeAll } = useWatchNotifications(watchManager || null);
 
   const formatTime = (date: Date): string => {
     const now = new Date();
@@ -139,16 +36,26 @@ export const WatchBadge: React.FC<WatchBadgeProps> = ({
 
   const getNotificationIcon = (type: string): string => {
     switch (type) {
-      case 'change_detected':
-        return '🔔';
-      case 'watch_started':
-        return '👁️';
-      case 'watch_expired':
-        return '⏰';
-      case 'watch_cancelled':
-        return '🚫';
+      case 'content':
+        return '📄';
+      case 'status':
+        return '🔄';
+      case 'metadata':
+        return '⚙️';
       default:
-        return '📢';
+        return '🔔';
+    }
+  };
+
+  const getSeverityColor = (severity: string): string => {
+    switch (severity) {
+      case 'alert':
+        return 'bg-red-500';
+      case 'warning':
+        return 'bg-yellow-500';
+      case 'info':
+      default:
+        return 'bg-blue-500';
     }
   };
 
@@ -158,12 +65,9 @@ export const WatchBadge: React.FC<WatchBadgeProps> = ({
       <button
         onClick={() => {
           setIsVisible(!isVisible);
-          if (!isVisible) {
-            markAsRead();
-          }
         }}
         className="relative p-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-        title="Watch Notifications"
+        title={`Watch Notifications (${activeWatchCount} active)`}
       >
         <svg
           className="w-5 h-5 text-gray-600"
@@ -180,9 +84,16 @@ export const WatchBadge: React.FC<WatchBadgeProps> = ({
         </svg>
         
         {/* Unread count indicator */}
-        {unreadCount > 0 && (
+        {notifications.length > 0 && (
           <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {notifications.length > 9 ? '9+' : notifications.length}
+          </span>
+        )}
+        
+        {/* Active watch count indicator */}
+        {activeWatchCount > 0 && (
+          <span className="absolute -bottom-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
+            {activeWatchCount}
           </span>
         )}
       </button>
@@ -192,20 +103,35 @@ export const WatchBadge: React.FC<WatchBadgeProps> = ({
         <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Watch Notifications</h3>
-              <button
-                onClick={clearNotifications}
-                className="text-sm text-gray-500 hover:text-gray-700"
-              >
-                Clear All
-              </button>
+              <h3 className="font-semibold text-gray-900">
+                Watch Notifications
+                {activeWatchCount > 0 && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    ({activeWatchCount} active)
+                  </span>
+                )}
+              </h3>
+              <div className="flex gap-2">
+                {notifications.length > 0 && (
+                  <button
+                    onClick={acknowledgeAll}
+                    className="text-sm text-blue-500 hover:text-blue-700"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
           <div className="max-h-96 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {notifications.length === 0 && activeWatchCount === 0 ? (
               <div className="p-4 text-center text-gray-500">
-                No notifications yet
+                No active watches or notifications
+              </div>
+            ) : notifications.length === 0 && activeWatchCount > 0 ? (
+              <div className="p-4 text-center text-gray-500">
+                {activeWatchCount} watches active, no changes detected yet
               </div>
             ) : (
               notifications.map((notification) => (
@@ -215,30 +141,39 @@ export const WatchBadge: React.FC<WatchBadgeProps> = ({
                 >
                   <div className="flex items-start space-x-3">
                     <span className="text-lg flex-shrink-0">
-                      {getNotificationIcon(notification.type)}
+                      {getNotificationIcon(notification.changeType)}
                     </span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900 break-words">
-                        {notification.message}
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-gray-900 truncate">
+                          {notification.targetType}:{notification.targetId}
+                        </p>
+                        <span className={`inline-block w-2 h-2 rounded-full ${getSeverityColor(notification.severity)}`}></span>
+                      </div>
+                      <p className="text-sm text-gray-600 break-words">
+                        {notification.description}
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {formatTime(notification.timestamp)}
-                      </p>
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-xs text-gray-500">
+                          {formatTime(notification.detectedAt)}
+                        </p>
+                        <button
+                          onClick={() => acknowledge(notification.id)}
+                          className="text-xs text-gray-400 hover:text-gray-600"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
                       
-                      {/* Additional details for change events */}
-                      {notification.type === 'change_detected' && notification.details && (
-                        <div className="mt-2 text-xs text-gray-600">
-                          <div>Change score: {((notification.details as ChangeDetectedEvent).changeScore * 100).toFixed(1)}%</div>
-                          {(notification.details as ChangeDetectedEvent).previousContent && (
-                            <div className="mt-1">
-                              <div className="font-medium">Previous:</div>
-                              <div className="truncate text-gray-500">
-                                {(notification.details as ChangeDetectedEvent).previousContent}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {/* Change score and preview */}
+                      <div className="mt-2 text-xs text-gray-600">
+                        <div>Change score: {(notification.changeScore * 100).toFixed(1)}%</div>
+                        {notification.preview && (
+                          <div className="mt-1 p-2 bg-gray-50 rounded text-gray-700 truncate">
+                            {notification.preview}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
