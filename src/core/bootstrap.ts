@@ -39,6 +39,9 @@ export async function bootstrapApp(config: {
 
   console.log(`✅ Plugin system initialized — ${pluginRegistry.getAll().length} plugins, scope: ${scopeRegistry.getActiveScope().id}`);
 
+  // Store the tauriInvoke for use in command bus
+  const sharedTauriInvoke = config.tauriInvoke;
+
   return {
     pluginRegistry,
     intentRouter,
@@ -49,6 +52,8 @@ export async function bootstrapApp(config: {
       commandBus.clear();
       scopeRegistry.persist();
     },
+    // Expose the tauriInvoke for command bus
+    tauriInvoke: sharedTauriInvoke,
   };
 }
 
@@ -183,14 +188,36 @@ async function registerCorePlugins(
 
   // ── Command bus ──────────────────────────────────────────────
 
+  // Store the tauriInvoke for use in command bus
+  const sharedTauriInvoke = config.tauriInvoke;
+
+  // Register command bus with access to tauriInvoke
   bus.register('plugins:ask', async (payload: string) => {
     const intent = await router.detect(payload);
     const activeScope = scopeRegistry.getActiveScope().id;
     const plugin = router.route(intent.intent, activeScope);
     if (!plugin) throw new Error(`No plugin found for intent: ${intent.intent}`);
+    
+    // Check if it's a DataSourcePlugin (new API) or Plugin (old API)
+    if ('capabilities' in plugin) {
+      const query = {
+        intent: intent.intent,
+        rawInput: payload,
+        params: { ...intent.entities, scope: activeScope },
+        metadata: {
+          timestamp: Date.now(),
+          source: 'text' as const,
+          locale: 'pl-PL',
+          scope: activeScope,
+        },
+      };
+      return await plugin.execute(query);
+    }
+    
+    // Legacy Plugin API - use the stored tauriInvoke
     return await plugin.execute(payload, {
-      isTauri: typeof window !== 'undefined' && !!(window as any).__TAURI__,
-      tauriInvoke: (window as any).__TAURI__?.core?.invoke,
+      isTauri: config.isTauri,
+      tauriInvoke: sharedTauriInvoke,
       scope: activeScope,
     } as PluginContext);
   });

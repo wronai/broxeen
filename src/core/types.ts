@@ -100,4 +100,5 @@ export interface AppContext {
   intentRouter: IntentRouter;
   commandBus: CommandBus;
   dispose(): Promise<void>;
+  tauriInvoke?: (command: string, args?: unknown) => Promise<unknown>;
 }

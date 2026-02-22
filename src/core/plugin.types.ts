@@ -33,6 +33,7 @@ export interface QueryMetadata {
   readonly source: "voice" | "text" | "api";
   readonly sessionId?: string;
   readonly locale: string;
+  readonly scope?: string;
 }
 
 /** Unified result returned by any plugin */
@@ -66,6 +67,7 @@ export interface ResultMetadata {
   readonly scanMethod?: string;
   readonly probeDuration?: number;
   readonly resolveType?: string;
+  readonly scope?: string;
 }
 
 // ─── Plugin Capabilities ────────────────────────────────────

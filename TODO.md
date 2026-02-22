@@ -140,11 +140,34 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 | MonitorPlugin | `monitor:logs` | `pokaż logi monitoringu` |
 | MonitorPlugin | `monitor:config` | `ustaw próg zmian 20%` |
 
+### 🌉 Protocol Bridge v2 (`src/plugins/protocol-bridge/`)
+
+| Protokół | Kierunek | Przykład użycia |
+|----------|----------|-----------------|
+| MQTT | ↔ dwukierunkowy | `bridge mqtt home/sensors/temperature` / `wyślij mqtt home/lights on` |
+| REST API | ↔ dwukierunkowy | `bridge rest GET https://api.example.com` / `wyślij rest POST https://url {}` |
+| WebSocket | ↔ dwukierunkowy | `bridge ws wss://echo.websocket.events` / `wyślij ws wss://url hello` |
+| SSE | → tylko odbiór | `bridge sse https://api.example.com/events` / `nasłuchuj na zdarzenia z https://...` |
+| GraphQL | ↔ dwukierunkowy | `bridge graphql https://url { users { name } }` / `zapytaj api https://url { ... }` |
+
+**Zarządzanie mostami:**
+- `dodaj bridge <protokół> <url>` — skonfiguruj most
+- `lista bridge` — pokaż skonfigurowane mosty
+- `bridge status` — status połączeń
+- `usuń bridge <id>` — usuń most
+
+**Język naturalny (PL):**
+- "połącz się z websocketem wss://..." → auto-detect WebSocket
+- "nasłuchuj na zdarzenia z https://..." → auto-detect SSE
+- "zapytaj api https://..." → auto-detect GraphQL
+
+**UX:** Każda odpowiedź zawiera sugerowane akcje (klikalne komendy), voice-friendly summary (TTS), auto-detekcję protokołu z URL.
+
 ### 🔑 Scopes (6)
 
-- **local** — tylko LAN: sieć, kamery, IoT, monitoring
-- **network** — LAN + internet: wszystko + marketplace
-- **internet** — tylko internet: browse, LLM, marketplace
+- **local** — tylko LAN: sieć, kamery, IoT, monitoring, protocol-bridge
+- **network** — LAN + internet: wszystko + marketplace + protocol-bridge
+- **internet** — tylko internet: browse, LLM, marketplace, protocol-bridge
 - **vpn** — VPN: pełny dostęp LAN + internet przez tunel
 - **tor** — Tor: anonimowe przeglądanie .onion + monitoring
 - **remote** — pluginy z marketplace
