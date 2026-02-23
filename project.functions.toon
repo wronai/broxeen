@@ -1,6 +1,6 @@
 project: broxeen
-generated: "2026-02-23T16:52:12.622493"
-modules[274]{path,lang,items}:
+generated: "2026-02-23T17:24:01.890761"
+modules[269]{path,lang,items}:
   test-parse-pdf.mjs,javascript,0
   phonetic.py,python,2
   vite.config.ts,typescript,1
@@ -12,13 +12,6 @@ modules[274]{path,lang,items}:
   playwright.config.ts,typescript,0
   src-tauri/build.rs,rust,1
   src-tauri/test_read.rs,rust,1
-  TODO/llm.rs,rust,1
-  TODO/database.rs,rust,3
-  TODO/query_engine.rs,rust,0
-  TODO/main.rs,rust,1
-  TODO/config.rs,rust,2
-  TODO/scene_buffer.rs,rust,0
-  TODO/pipeline.rs,rust,0
   src/main.tsx,typescript,0
   src/App.tsx,typescript,2
   src/vite-env.d.ts,typescript,0
@@ -46,7 +39,7 @@ modules[274]{path,lang,items}:
   src/persistence/historyRepository.test.ts,typescript,1
   src/persistence/deviceRepository.test.ts,typescript,0
   src/persistence/databaseManager.ts,typescript,21
-  src/persistence/configuredDeviceRepository.ts,typescript,13
+  src/persistence/configuredDeviceRepository.ts,typescript,15
   src/persistence/chatRepository.ts,typescript,7
   src/commands/copyContextCommand.ts,typescript,2
   src/commands/sendMessageCommand.ts,typescript,2
@@ -89,7 +82,7 @@ modules[274]{path,lang,items}:
   src/components/Settings.tsx,typescript,2
   src/components/NetworkHistorySelector.tsx,typescript,0
   src/components/CameraLiveInline.tsx,typescript,0
-  src/components/SetupWizardModal.tsx,typescript,4
+  src/components/SetupWizardModal.tsx,typescript,3
   src/components/MessageResultCard.tsx,typescript,0
   src/components/MicSettingsModal.tsx,typescript,2
   src/components/QuickCommands.tsx,typescript,0
@@ -142,6 +135,7 @@ modules[274]{path,lang,items}:
   src/discovery/networkScanner.ts,typescript,16
   src/contexts/CqrsContext.tsx,typescript,1
   src/contexts/pluginContext.tsx,typescript,2
+  src/plugins/monitoringPlugin.ts,typescript,5
   src/queries/getSettingsQuery.ts,typescript,1
   src/queries/getMessagesQuery.ts,typescript,4
   src/config/appConfig.ts,typescript,1
@@ -174,6 +168,7 @@ modules[274]{path,lang,items}:
   src/plugins/network/arpPlugin.ts,typescript,7
   src/plugins/network/pingPlugin.ts,typescript,7
   src/plugins/network/portScanPlugin.ts,typescript,8
+  src/plugins/files/fileSearchPlugin.test.ts,typescript,0
   src/plugins/files/fileSearchPlugin.ts,typescript,15
   src/plugins/system/diskInfoPlugin.test.ts,typescript,0
   src/plugins/system/processesPlugin.ts,typescript,2
@@ -251,7 +246,7 @@ modules[274]{path,lang,items}:
   src-tauri/src/vision_llm.rs,rust,1
   src-tauri/src/main.rs,rust,13
   src-tauri/src/vision_movement.rs,rust,4
-  src-tauri/src/motion_detection.rs,rust,3
+  src-tauri/src/motion_detection.rs,rust,7
   src-tauri/src/logging.rs,rust,6
   src-tauri/src/autostart.rs,rust,7
   src-tauri/src/test_read.rs,rust,1
@@ -308,21 +303,6 @@ function_details:
   src-tauri/test_read.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       main,function,(),"-",false,1,1,main
-  TODO/llm.rs:
-    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      parse_object_response,function,"(raw: &str, fallback: &str) -> ObjectDescription","-",false,1,1,parses object response
-  TODO/database.rs:
-    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
-      cam_filter,function,"(camera_id: Option<&str>) -> String","-",false,1,1,cam filter
-      time_filter,function,"(hours: u32) -> String","-",false,1,1,time filter
-      parse_dt,function,"(s: String) -> DateTime<Utc>","-",false,1,1,parses dt
-  TODO/main.rs:
-    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      print_startup_info,function,"(cfg: &config::AppConfig)","-",false,1,1,logs startup info
-  TODO/config.rs:
-    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      load_config,function,() -> Result<AppConfig>,"-",false,1,1,retrieves config
-      default_config,function,() -> AppConfig,"-",false,1,1,default config
   src/App.tsx:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       persistSettings,function,"(next: AudioSettings)",342-345,true,4,1,caches settings
@@ -490,20 +470,22 @@ function_details:
       DatabaseManager.close,method,() -> Promise<void>,223-228,true,6,1,stops
       DatabaseManager.isReady,method,() -> boolean,230-232,false,3,1,checks ready
   src/persistence/configuredDeviceRepository.ts:
-    functions[13]{name,kind,sig,loc,async,lines,cc,does}:
-      rowToDevice,function,"(r: ConfiguredDeviceRow) -> ConfiguredDevice",50-52,false,3,1,row to device
-      genId,function,() -> string,56-58,false,3,1,gen id
-      ConfiguredDeviceRepository.constructor,method,"(db: DbAdapter)",61-61,false,1,1,constructor
-      ConfiguredDeviceRepository.save,method,"(input: Partial<ConfiguredDeviceInput> & { label: string; ip: string }) -> Promise<string>",64-113,true,50,1,caches
-      ConfiguredDeviceRepository.listAll,method,"() -> Promise<ConfiguredDevice[]>",116-125,true,10,1,list all
-      ConfiguredDeviceRepository.listMonitored,method,"() -> Promise<ConfiguredDevice[]>",128-137,true,10,1,list monitored
-      ConfiguredDeviceRepository.getById,method,"(id: string) -> Promise<ConfiguredDevice | null>",140-150,true,11,1,retrieves by id
-      ConfiguredDeviceRepository.getByIp,method,"(ip: string) -> Promise<ConfiguredDevice | null>",153-163,true,11,1,retrieves by ip
-      ConfiguredDeviceRepository.listByIp,method,"(ip: string) -> Promise<ConfiguredDevice[]>",166-176,true,11,1,list by ip
-      ConfiguredDeviceRepository.remove,method,"(id: string) -> Promise<void>",179-186,true,8,1,deletes
-      ConfiguredDeviceRepository.setMonitorEnabled,method,"(id: string, enabled: boolean) -> Promise<void>",189-199,true,11,1,updates monitor enabled
-      ConfiguredDeviceRepository.updateLastSnapshot,method,"(id: string) -> Promise<void>",202-212,true,11,1,updates last snapshot
-      ConfiguredDeviceRepository.count,method,() -> Promise<number>,215-222,true,8,1,count
+    functions[15]{name,kind,sig,loc,async,lines,cc,does}:
+      rowToDevice,function,"(r: ConfiguredDeviceRow) -> ConfiguredDevice",52-54,false,3,1,row to device
+      genId,function,() -> string,58-60,false,3,1,gen id
+      ConfiguredDeviceRepository.constructor,method,"(db: DbAdapter)",63-63,false,1,1,constructor
+      ConfiguredDeviceRepository.save,method,"(input: Partial<ConfiguredDeviceInput> & { label: string; ip: string }) -> Promise<string>",66-117,true,52,1,caches
+      ConfiguredDeviceRepository.listAll,method,"() -> Promise<ConfiguredDevice[]>",120-129,true,10,1,list all
+      ConfiguredDeviceRepository.listMonitored,method,"() -> Promise<ConfiguredDevice[]>",132-141,true,10,1,list monitored
+      ConfiguredDeviceRepository.getById,method,"(id: string) -> Promise<ConfiguredDevice | null>",144-154,true,11,1,retrieves by id
+      ConfiguredDeviceRepository.getByIp,method,"(ip: string) -> Promise<ConfiguredDevice | null>",157-167,true,11,1,retrieves by ip
+      ConfiguredDeviceRepository.listByIp,method,"(ip: string) -> Promise<ConfiguredDevice[]>",170-180,true,11,1,list by ip
+      ConfiguredDeviceRepository.remove,method,"(id: string) -> Promise<void>",183-190,true,8,1,deletes
+      ConfiguredDeviceRepository.setMonitorEnabled,method,"(id: string, enabled: boolean) -> Promise<void>",193-203,true,11,1,updates monitor enabled
+      ConfiguredDeviceRepository.setMonitorIntervalMs,method,"(id: string, intervalMs: number) -> Promise<void>",205-215,true,11,1,updates monitor interval ms
+      ConfiguredDeviceRepository.setMonitorChangeThreshold,method,"(id: string, threshold: number) -> Promise<void>",217-227,true,11,1,updates monitor change threshold
+      ConfiguredDeviceRepository.updateLastSnapshot,method,"(id: string) -> Promise<void>",230-240,true,11,1,updates last snapshot
+      ConfiguredDeviceRepository.count,method,() -> Promise<number>,243-250,true,8,1,count
   src/persistence/chatRepository.ts:
     functions[7]{name,kind,sig,loc,async,lines,cc,does}:
       ChatRepository.constructor,method,"(db: DbAdapter)",13-13,false,1,1,constructor
@@ -675,11 +657,10 @@ function_details:
       update,function,"(partial: Partial<AudioSettings>)",158-162,false,5,1,updates
       handleSave,function,(),164-179,true,16,1,handles save
   src/components/SetupWizardModal.tsx:
-    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
-      toggleAutostart,function,(),85-101,true,17,1,toggle autostart
-      handleSave,function,(),103-111,false,9,1,handles save
-      testApiKey,function,(),126-151,true,26,1,checks api key
-      canProceed,function,(),153-156,false,4,1,checks proceed
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      toggleAutostart,function,(),67-83,true,17,1,toggle autostart
+      handleSave,function,(),85-93,false,9,1,handles save
+      canProceed,function,(),95-98,false,4,1,checks proceed
   src/components/MicSettingsModal.tsx:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       update,function,"(partial: Partial<AudioSettings>)",99-102,false,4,1,updates
@@ -805,20 +786,20 @@ function_details:
       PluginRegistry.disposeAll,method,() -> Promise<void>,82-93,true,12,1,dispose all
   src/core/intentRouter.ts:
     functions[9]{name,kind,sig,loc,async,lines,cc,does}:
-      buildQuery,function,"(intent: string, rawInput: string, overrides: Partial<Omit<PluginQuery, 'intent' | 'rawInput'>>) -> PluginQuery",706-722,false,17,1,creates query
+      buildQuery,function,"(intent: string, rawInput: string, overrides: Partial<Omit<PluginQuery, 'intent' | 'rawInput'>>) -> PluginQuery",755-771,false,17,1,creates query
       IntentRouter.constructor,method,(),13-15,false,3,1,constructor
-      IntentRouter.initializeDefaultPatterns,method,() -> void,17-521,false,505,1,initializes default patterns
-      IntentRouter.registerPlugin,method,"(plugin: Plugin) -> void",523-525,false,3,1,registers plugin
-      IntentRouter.registerDataSourcePlugin,method,"(plugin: DataSourcePlugin) -> void",527-529,false,3,1,registers data source plugin
-      IntentRouter.detect,method,"(input: string) -> Promise<IntentDetection>",531-558,true,28,1,detect
-      IntentRouter.route,method,"(intent: string, scope?) -> Plugin | DataSourcePlugin | null",560-574,false,15,1,route
-      IntentRouter.calculateConfidence,method,"(input: string, intent: string) -> number",576-614,false,39,1,processes confidence
-      IntentRouter.extractEntities,method,"(input: string, intent: string) -> Record<string, unknown>",616-690,false,75,1,parses entities
+      IntentRouter.initializeDefaultPatterns,method,() -> void,17-570,false,554,1,initializes default patterns
+      IntentRouter.registerPlugin,method,"(plugin: Plugin) -> void",572-574,false,3,1,registers plugin
+      IntentRouter.registerDataSourcePlugin,method,"(plugin: DataSourcePlugin) -> void",576-578,false,3,1,registers data source plugin
+      IntentRouter.detect,method,"(input: string) -> Promise<IntentDetection>",580-607,true,28,1,detect
+      IntentRouter.route,method,"(intent: string, scope?) -> Plugin | DataSourcePlugin | null",609-623,false,15,1,route
+      IntentRouter.calculateConfidence,method,"(input: string, intent: string) -> number",625-663,false,39,1,processes confidence
+      IntentRouter.extractEntities,method,"(input: string, intent: string) -> Record<string, unknown>",665-739,false,75,1,parses entities
   src/core/bootstrap.ts:
     functions[3]{name,kind,sig,loc,async,lines,cc,does}:
       bootstrapApp,function,"(config: {\n  isTauri: boolean;\n  tauriInvoke?: (command: string, args?: any) => Promise<any>;\n  cameras?: import('./types').CameraConfig[];\n  mqtt?: import('./types').MqttConfig;\n  describeImage?: (imageUrl: string) => Promise<string>;\n}) -> Promise<AppContext>",15-95,true,81,1,initializes app
       safeRegister,function,"(registry: PluginRegistry, router: IntentRouter, plugin: any, label: string) -> void",97-109,false,13,1,safe register
-      registerCorePlugins,function,"(registry: PluginRegistry, router: IntentRouter, bus: CommandBus, isTauri: boolean, tauriInvoke?) -> Promise<void>",111-343,true,233,1,registers core plugins
+      registerCorePlugins,function,"(registry: PluginRegistry, router: IntentRouter, bus: CommandBus, isTauri: boolean, tauriInvoke?) -> Promise<void>",111-352,true,242,1,registers core plugins
   src/core/systemContext.ts:
     functions[9]{name,kind,sig,loc,async,lines,cc,does}:
       detectOs,function,() -> OsPlatform,39-48,false,10,1,detect os
@@ -911,6 +892,13 @@ function_details:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       PluginProvider,function,(),56-146,false,91,1,plugin provider
       usePlugins,function,() -> PluginContextValue,150-156,false,7,1,use plugins
+  src/plugins/monitoringPlugin.ts:
+    functions[5]{name,kind,sig,loc,async,lines,cc,does}:
+      formatQueryResult,function,"(result: VisionQueryResult, elapsedMs: number) -> string",133-183,false,51,1,formats query result
+      MonitoringPlugin.initialize,method,() -> Promise<void>,45-47,true,3,1,initializes
+      MonitoringPlugin.isAvailable,method,() -> Promise<boolean>,49-51,true,3,1,checks available
+      MonitoringPlugin.execute,method,"(query: PluginQuery) -> Promise<PluginResult>",53-126,true,74,1,starts
+      MonitoringPlugin.dispose,method,() -> Promise<void>,128-128,true,1,1,dispose
   src/queries/getSettingsQuery.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       GetSettingsQuery.execute,method,() -> Promise<AudioSettings>,16-32,true,17,1,starts
@@ -1147,13 +1135,13 @@ function_details:
       FileSearchPlugin.buildGridResult,method,"(response: FileSearchResponse, start: number) -> PluginResult",248-282,false,35,1,creates grid result
       FileSearchPlugin.buildListResult,method,"(response: FileSearchResponse, start: number) -> PluginResult",284-316,false,33,1,creates list result
       FileSearchPlugin.buildClarificationResult,method,"(response: FileSearchResponse, query: string, start: number) -> PluginResult",318-363,false,46,1,creates clarification result
-      FileSearchPlugin.parseSearchParams,method,"(input: string) -> {\n    query: string;\n    searchPath: string | null;\n    extensions: string[];\n  }",365-457,false,93,1,parses search params
-      FileSearchPlugin.extractFilePath,method,"(input: string) -> string | null",459-474,false,16,1,parses file path
-      FileSearchPlugin.browserFallback,method,"(start: number, query?, extensions?) -> PluginResult",476-502,false,27,1,browser fallback
-      FileSearchPlugin.formatBytes,method,"(bytes: number) -> string",504-509,false,6,1,formats bytes
-      FileSearchPlugin.errorResult,method,"(msg: string, start: number) -> PluginResult",511-518,false,8,1,error result
-      FileSearchPlugin.initialize,method,"(_context: PluginContext) -> Promise<void>",520-522,true,3,1,initializes
-      FileSearchPlugin.dispose,method,() -> Promise<void>,524-526,true,3,1,dispose
+      FileSearchPlugin.parseSearchParams,method,"(input: string) -> {\n    query: string;\n    searchPath: string | null;\n    extensions: string[];\n  }",365-479,false,115,1,parses search params
+      FileSearchPlugin.extractFilePath,method,"(input: string) -> string | null",481-496,false,16,1,parses file path
+      FileSearchPlugin.browserFallback,method,"(start: number, query?, extensions?) -> PluginResult",498-524,false,27,1,browser fallback
+      FileSearchPlugin.formatBytes,method,"(bytes: number) -> string",526-531,false,6,1,formats bytes
+      FileSearchPlugin.errorResult,method,"(msg: string, start: number) -> PluginResult",533-540,false,8,1,error result
+      FileSearchPlugin.initialize,method,"(_context: PluginContext) -> Promise<void>",542-544,true,3,1,initializes
+      FileSearchPlugin.dispose,method,() -> Promise<void>,546-548,true,3,1,dispose
   src/plugins/system/processesPlugin.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       ProcessesPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",10-22,true,13,1,checks handle
@@ -1213,47 +1201,47 @@ function_details:
       MotionDetectionPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",505-511,false,7,1,error result
   src/plugins/monitor/monitorPlugin.ts:
     functions[41]{name,kind,sig,loc,async,lines,cc,does}:
-      MonitorPlugin.buildDbConflictPrompt,method,() -> string,96-111,false,16,1,creates db conflict prompt
-      MonitorPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",113-148,true,36,1,checks handle
-      MonitorPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",150-182,true,33,1,starts
-      MonitorPlugin.parseToggleMonitoring,method,"(input: string) -> { action: 'enable' | 'disable'; identifier: string } | null",184-192,false,9,1,parses toggle monitoring
-      MonitorPlugin.handleToggleMonitoring,method,"(action: 'enable' | 'disable', identifier: string, context: PluginContext, start: number) -> Promise<PluginResult>",194-308,true,115,1,handles toggle monitoring
-      MonitorPlugin.handleStart,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",312-570,true,259,1,handles start
-      MonitorPlugin.handleStop,method,"(input: string, start: number) -> Promise<PluginResult>",574-684,true,111,1,handles stop
-      MonitorPlugin.handleList,method,"(start: number) -> PluginResult",688-745,false,58,1,handles list
-      MonitorPlugin.handleLogs,method,"(input: string, start: number) -> PluginResult",749-864,false,116,1,handles logs
-      MonitorPlugin.handleConfig,method,"(input: string, start: number) -> PluginResult",868-926,false,59,1,handles config
-      MonitorPlugin.handleExplain,method,"(start: number) -> PluginResult",930-995,false,66,1,handles explain
-      MonitorPlugin.poll,method,"(target: MonitorTarget, context: PluginContext) -> Promise<void>",999-1139,true,141,1,poll
-      MonitorPlugin.emitUiEvent,method,"(detail: MonitorUiEventDetail) -> void",1141-1148,false,8,1,sends ui event
-      MonitorPlugin.isNoSignificantChangeSummary,method,"(summary: string) -> boolean",1150-1156,false,7,1,checks no significant change summary
-      MonitorPlugin.captureCameraSnapshot,method,"(target: MonitorTarget, context: PluginContext) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1158-1326,true,169,1,capture camera snapshot
-      MonitorPlugin.resolveDeviceIp,method,"(parsed: { id: string; type: MonitorTarget['type']; name: string }, context: PluginContext) -> Promise<string | null>",1328-1356,true,29,1,resolve device ip
-      MonitorPlugin.proxyUrl,method,"(url: string) -> string",1358-1370,false,13,1,proxy url
-      MonitorPlugin.fetchHttpSnapshot,method,"(url: string, captureStart: number, attempts: string[]) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1372-1405,true,34,1,retrieves http snapshot
-      MonitorPlugin.summarizeCaptureFailure,method,"(attempts: string[], _context: PluginContext) -> string",1407-1426,false,20,1,summarize capture failure
-      MonitorPlugin.ensureApiToken,method,"(target: MonitorTarget) -> Promise<string | null>",1428-1460,true,33,1,ensure api token
-      MonitorPlugin.detectResolution,method,"(base64: string, mimeType: string) -> Promise<string | undefined>",1462-1471,true,10,1,detect resolution
-      MonitorPlugin.describeCameraChange,method,"(prevBase64: string, currBase64: string, mimeType: 'image/jpeg' | 'image/png') -> Promise<string>",1473-1485,true,13,1,describe camera change
-      MonitorPlugin.formatCaptureDetails,method,"(capture: CaptureMetadata) -> string",1487-1495,false,9,1,formats capture details
-      MonitorPlugin.computeImageChangeScore,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1497-1521,true,25,1,processes image change score
-      MonitorPlugin.pixelDiff,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1528-1568,true,41,1,pixel diff
-      MonitorPlugin.createThumbnail,method,"(base64: string, mimeType: 'image/jpeg' | 'image/png', maxWidth: number) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null>",1570-1606,true,37,1,creates thumbnail
-      MonitorPlugin.loadBase64Image,method,"(base64: string, mimeType: string) -> Promise<HTMLImageElement>",1608-1615,false,8,1,retrieves base64 image
-      MonitorPlugin.blobToBase64,method,"(blob: Blob) -> Promise<string>",1617-1625,true,9,1,blob to base64
-      MonitorPlugin.parseTarget,method,"(input: string) -> {\n    id: string; type: MonitorTarget['type']; name: string;\n    address?: string; intervalMs: number; threshold: number;\n    rtspUsername?: string; rtspPassword?: string;\n  } | null",1629-1724,false,96,1,parses target
-      MonitorPlugin.simulateContent,method,"(target: MonitorTarget) -> string",1726-1734,false,9,1,simulate content
-      MonitorPlugin.quickDiff,method,"(a: string, b: string) -> number",1736-1744,false,9,1,quick diff
-      MonitorPlugin.formatTargetLogs,method,"(target: MonitorTarget, start: number) -> PluginResult",1746-1830,false,85,1,formats target logs
-      MonitorPlugin.logIcon,method,"(type: MonitorLogEntry['type']) -> string",1832-1842,false,11,1,logs icon
-      MonitorPlugin.buildMonitoringConfigPrompt,method,() -> ConfigPromptData,1846-1881,false,36,1,creates monitoring config prompt
-      MonitorPlugin.formatDuration,method,"(ms: number) -> string",1883-1890,false,8,1,formats duration
-      MonitorPlugin.verifyCredentials,method,"(ip: string, username: string, password: string, context: PluginContext) -> Promise<boolean>",1892-1940,true,49,1,validates credentials
-      MonitorPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",1942-1948,false,7,1,error result
-      MonitorPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",1950-1988,true,39,1,initializes
-      MonitorPlugin.loadMonitoredDevices,method,"(context: PluginContext) -> Promise<void>",1991-2056,true,66,1,retrieves monitored devices
-      MonitorPlugin.handleResolveDbConflict,method,"(keepId: string, context: PluginContext, start: number) -> Promise<PluginResult>",2058-2145,true,88,1,handles resolve db conflict
-      MonitorPlugin.dispose,method,() -> Promise<void>,2147-2159,true,13,1,dispose
+      MonitorPlugin.buildDbConflictPrompt,method,() -> string,98-113,false,16,1,creates db conflict prompt
+      MonitorPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",115-150,true,36,1,checks handle
+      MonitorPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",152-184,true,33,1,starts
+      MonitorPlugin.parseToggleMonitoring,method,"(input: string) -> { action: 'enable' | 'disable'; identifier: string } | null",186-194,false,9,1,parses toggle monitoring
+      MonitorPlugin.handleToggleMonitoring,method,"(action: 'enable' | 'disable', identifier: string, context: PluginContext, start: number) -> Promise<PluginResult>",196-313,true,118,1,handles toggle monitoring
+      MonitorPlugin.handleStart,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",317-576,true,260,1,handles start
+      MonitorPlugin.handleStop,method,"(input: string, start: number) -> Promise<PluginResult>",580-694,true,115,1,handles stop
+      MonitorPlugin.handleList,method,"(start: number) -> PluginResult",698-755,false,58,1,handles list
+      MonitorPlugin.handleLogs,method,"(input: string, start: number) -> PluginResult",759-874,false,116,1,handles logs
+      MonitorPlugin.handleConfig,method,"(input: string, start: number) -> PluginResult",878-986,false,109,1,handles config
+      MonitorPlugin.handleExplain,method,"(start: number) -> PluginResult",990-1055,false,66,1,handles explain
+      MonitorPlugin.poll,method,"(target: MonitorTarget, context: PluginContext) -> Promise<void>",1059-1199,true,141,1,poll
+      MonitorPlugin.emitUiEvent,method,"(detail: MonitorUiEventDetail) -> void",1201-1208,false,8,1,sends ui event
+      MonitorPlugin.isNoSignificantChangeSummary,method,"(summary: string) -> boolean",1210-1216,false,7,1,checks no significant change summary
+      MonitorPlugin.captureCameraSnapshot,method,"(target: MonitorTarget, context: PluginContext) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1218-1386,true,169,1,capture camera snapshot
+      MonitorPlugin.resolveDeviceIp,method,"(parsed: { id: string; type: MonitorTarget['type']; name: string }, context: PluginContext) -> Promise<string | null>",1388-1416,true,29,1,resolve device ip
+      MonitorPlugin.proxyUrl,method,"(url: string) -> string",1418-1430,false,13,1,proxy url
+      MonitorPlugin.fetchHttpSnapshot,method,"(url: string, captureStart: number, attempts: string[]) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1432-1465,true,34,1,retrieves http snapshot
+      MonitorPlugin.summarizeCaptureFailure,method,"(attempts: string[], _context: PluginContext) -> string",1467-1486,false,20,1,summarize capture failure
+      MonitorPlugin.ensureApiToken,method,"(target: MonitorTarget) -> Promise<string | null>",1488-1520,true,33,1,ensure api token
+      MonitorPlugin.detectResolution,method,"(base64: string, mimeType: string) -> Promise<string | undefined>",1522-1531,true,10,1,detect resolution
+      MonitorPlugin.describeCameraChange,method,"(prevBase64: string, currBase64: string, mimeType: 'image/jpeg' | 'image/png') -> Promise<string>",1533-1545,true,13,1,describe camera change
+      MonitorPlugin.formatCaptureDetails,method,"(capture: CaptureMetadata) -> string",1547-1555,false,9,1,formats capture details
+      MonitorPlugin.computeImageChangeScore,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1557-1581,true,25,1,processes image change score
+      MonitorPlugin.pixelDiff,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1588-1628,true,41,1,pixel diff
+      MonitorPlugin.createThumbnail,method,"(base64: string, mimeType: 'image/jpeg' | 'image/png', maxWidth: number) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null>",1630-1666,true,37,1,creates thumbnail
+      MonitorPlugin.loadBase64Image,method,"(base64: string, mimeType: string) -> Promise<HTMLImageElement>",1668-1675,false,8,1,retrieves base64 image
+      MonitorPlugin.blobToBase64,method,"(blob: Blob) -> Promise<string>",1677-1685,true,9,1,blob to base64
+      MonitorPlugin.parseTarget,method,"(input: string) -> {\n    id: string; type: MonitorTarget['type']; name: string;\n    address?: string; intervalMs: number; threshold: number;\n    rtspUsername?: string; rtspPassword?: string;\n  } | null",1689-1784,false,96,1,parses target
+      MonitorPlugin.simulateContent,method,"(target: MonitorTarget) -> string",1786-1794,false,9,1,simulate content
+      MonitorPlugin.quickDiff,method,"(a: string, b: string) -> number",1796-1804,false,9,1,quick diff
+      MonitorPlugin.formatTargetLogs,method,"(target: MonitorTarget, start: number) -> PluginResult",1806-1890,false,85,1,formats target logs
+      MonitorPlugin.logIcon,method,"(type: MonitorLogEntry['type']) -> string",1892-1902,false,11,1,logs icon
+      MonitorPlugin.buildMonitoringConfigPrompt,method,() -> ConfigPromptData,1906-1941,false,36,1,creates monitoring config prompt
+      MonitorPlugin.formatDuration,method,"(ms: number) -> string",1943-1950,false,8,1,formats duration
+      MonitorPlugin.verifyCredentials,method,"(ip: string, username: string, password: string, context: PluginContext) -> Promise<boolean>",1952-2000,true,49,1,validates credentials
+      MonitorPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",2002-2008,false,7,1,error result
+      MonitorPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",2010-2050,true,41,1,initializes
+      MonitorPlugin.loadMonitoredDevices,method,"(context: PluginContext) -> Promise<void>",2053-2118,true,66,1,retrieves monitored devices
+      MonitorPlugin.handleResolveDbConflict,method,"(keepId: string, context: PluginContext, start: number) -> Promise<PluginResult>",2120-2208,true,89,1,handles resolve db conflict
+      MonitorPlugin.dispose,method,() -> Promise<void>,2210-2222,true,13,1,dispose
   src/plugins/monitor/motionDetectionPlugin.test.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       makeTauriCtx,function,(invokeImpl?),39-43,false,5,1,creates tauri ctx
@@ -1310,25 +1298,25 @@ function_details:
       NetworkScanPlugin.handleDeviceFilter,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",115-199,true,85,1,handles device filter
       NetworkScanPlugin.handleDeviceStatus,method,"(context: PluginContext, start: number) -> Promise<PluginResult>",201-266,true,66,1,handles device status
       NetworkScanPlugin.handleExport,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",268-340,true,73,1,handles export
-      NetworkScanPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",342-466,true,125,1,starts
-      NetworkScanPlugin.browserFallback,method,"(isCameraQuery: boolean, start: number, userSpecifiedSubnet: string | null, context?) -> Promise<PluginResult>",468-676,true,209,1,browser fallback
-      NetworkScanPlugin.detectSubnet,method,"(context?) -> Promise<{ localIp: string | null; subnet: string; detectionMethod: string }>",685-771,true,87,1,detect subnet
-      NetworkScanPlugin.getCommonSubnets,method,"() -> string[]",773-775,false,3,1,retrieves common subnets
-      NetworkScanPlugin.detectLocalIpViaWebRTC,method,() -> Promise<string | null>,777-844,false,68,1,detect local ip via web rtc
-      NetworkScanPlugin.probeGateways,method,"(subnets: string[]) -> Promise<string | null>",846-881,true,36,1,probe gateways
-      NetworkScanPlugin.probeGateway,method,"(subnet: string) -> Promise<boolean>",883-903,false,21,1,probe gateway
-      NetworkScanPlugin.isPrivateIp,method,"(ip: string) -> boolean",905-909,false,5,1,checks private ip
-      NetworkScanPlugin.isValidCandidateIp,method,"(ip: string) -> boolean",911-916,false,6,1,checks valid candidate ip
-      NetworkScanPlugin.interfaceScore,method,"(ifaceName: string, ip: string) -> number",918-934,false,17,1,interface score
-      NetworkScanPlugin.pickBestInterface,method,"(interfaces: Array<[string, string]>) -> [string, string] | null",936-945,false,10,1,pick best interface
-      NetworkScanPlugin.formatRaspberryPiResult,method,"(result: NetworkScanResult) -> string",947-975,false,29,1,formats raspberry pi result
-      NetworkScanPlugin.formatScanResult,method,"(result: NetworkScanResult, isCameraQuery, scanStats?) -> string",977-1072,false,96,1,formats scan result
-      NetworkScanPlugin.persistDevices,method,"(devices: NetworkDevice[], context: PluginContext) -> Promise<void>",1075-1116,true,42,1,caches devices
-      NetworkScanPlugin.determineScanStrategy,method,"(userSpecifiedSubnet: string | null, context: PluginContext) -> Promise<{\n    type: 'full' | 'incremental' | 'targeted';\n    subnet: string;\n    targetRanges?: string[];\n    triggeredBy: 'manual' | 'scheduled' | 'auto';\n  }>",1119-1162,true,44,1,determine scan strategy
-      NetworkScanPlugin.calculateIncrementalRanges,method,"(subnet: string, lastScan: any, context: PluginContext) -> Promise<string[]>",1165-1247,true,83,1,processes incremental ranges
-      NetworkScanPlugin.trackScanResults,method,"(scanId: string, subnet: string, scanType: 'full' | 'incremental' | 'targeted', result: NetworkScanResult, scanStart: number, triggeredBy: 'manual' | 'scheduled' | 'auto', context: PluginContext) -> Promise<{\n    devicesFound: number;\n    devicesUpdated: number;\n    newDevices: number;\n    scanDuration: number;\n    efficiency: string;\n  }>",1250-1324,true,75,1,track scan results
-      NetworkScanPlugin.getDefaultSubnet,method,"(context: PluginContext) -> Promise<string>",1327-1364,true,38,1,retrieves default subnet
-      NetworkScanPlugin.dispose,method,() -> Promise<void>,1366-1368,true,3,1,dispose
+      NetworkScanPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",342-470,true,129,1,starts
+      NetworkScanPlugin.browserFallback,method,"(isCameraQuery: boolean, start: number, userSpecifiedSubnet: string | null, context?) -> Promise<PluginResult>",472-680,true,209,1,browser fallback
+      NetworkScanPlugin.detectSubnet,method,"(context?) -> Promise<{ localIp: string | null; subnet: string; detectionMethod: string }>",689-775,true,87,1,detect subnet
+      NetworkScanPlugin.getCommonSubnets,method,"() -> string[]",777-779,false,3,1,retrieves common subnets
+      NetworkScanPlugin.detectLocalIpViaWebRTC,method,() -> Promise<string | null>,781-848,false,68,1,detect local ip via web rtc
+      NetworkScanPlugin.probeGateways,method,"(subnets: string[]) -> Promise<string | null>",850-885,true,36,1,probe gateways
+      NetworkScanPlugin.probeGateway,method,"(subnet: string) -> Promise<boolean>",887-907,false,21,1,probe gateway
+      NetworkScanPlugin.isPrivateIp,method,"(ip: string) -> boolean",909-913,false,5,1,checks private ip
+      NetworkScanPlugin.isValidCandidateIp,method,"(ip: string) -> boolean",915-920,false,6,1,checks valid candidate ip
+      NetworkScanPlugin.interfaceScore,method,"(ifaceName: string, ip: string) -> number",922-938,false,17,1,interface score
+      NetworkScanPlugin.pickBestInterface,method,"(interfaces: Array<[string, string]>) -> [string, string] | null",940-949,false,10,1,pick best interface
+      NetworkScanPlugin.formatRaspberryPiResult,method,"(result: NetworkScanResult) -> string",951-979,false,29,1,formats raspberry pi result
+      NetworkScanPlugin.formatScanResult,method,"(result: NetworkScanResult, isCameraQuery, scanStats?) -> string",981-1076,false,96,1,formats scan result
+      NetworkScanPlugin.persistDevices,method,"(devices: NetworkDevice[], context: PluginContext) -> Promise<void>",1079-1120,true,42,1,caches devices
+      NetworkScanPlugin.determineScanStrategy,method,"(userSpecifiedSubnet: string | null, context: PluginContext) -> Promise<{\n    type: 'full' | 'incremental' | 'targeted';\n    subnet: string;\n    targetRanges?: string[];\n    triggeredBy: 'manual' | 'scheduled' | 'auto';\n  }>",1123-1166,true,44,1,determine scan strategy
+      NetworkScanPlugin.calculateIncrementalRanges,method,"(subnet: string, lastScan: any, context: PluginContext) -> Promise<string[]>",1169-1251,true,83,1,processes incremental ranges
+      NetworkScanPlugin.trackScanResults,method,"(scanId: string, subnet: string, scanType: 'full' | 'incremental' | 'targeted', result: NetworkScanResult, scanStart: number, triggeredBy: 'manual' | 'scheduled' | 'auto', context: PluginContext) -> Promise<{\n    devicesFound: number;\n    devicesUpdated: number;\n    newDevices: number;\n    scanDuration: number;\n    efficiency: string;\n  }>",1254-1328,true,75,1,track scan results
+      NetworkScanPlugin.getDefaultSubnet,method,"(context: PluginContext) -> Promise<string>",1331-1368,true,38,1,retrieves default subnet
+      NetworkScanPlugin.dispose,method,() -> Promise<void>,1370-1372,true,3,1,dispose
   src/plugins/discovery/autoScanScheduler.ts:
     functions[13]{name,kind,sig,loc,async,lines,cc,does}:
       AutoScanScheduler.constructor,method,"(config: Partial<AutoScanConfig>, onStatusChange?)",41-44,false,4,1,constructor
@@ -1350,13 +1338,13 @@ function_details:
       DeviceConfigPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",35-61,true,27,1,checks handle
       DeviceConfigPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",63-90,true,28,1,starts
       DeviceConfigPlugin.listConfiguredDevices,method,"(start: number) -> Promise<PluginResult>",92-174,true,83,1,list configured devices
-      DeviceConfigPlugin.addDevice,method,"(input: string, start: number) -> Promise<PluginResult>",176-260,true,85,1,creates device
-      DeviceConfigPlugin.saveDevice,method,"(input: string, start: number) -> Promise<PluginResult>",262-265,true,4,1,caches device
-      DeviceConfigPlugin.configureDevice,method,"(input: string, start: number) -> Promise<PluginResult>",267-341,true,75,1,initializes device
-      DeviceConfigPlugin.showHelp,method,"(start: number) -> PluginResult",343-366,false,24,1,show help
-      DeviceConfigPlugin.parseAddCommand,method,"(input: string) -> {\n    ip: string | null;\n    label: string | null;\n    rtspUrl: string | null;\n    httpUrl: string | null;\n    username: string | null;\n    password: string | null;\n    streamPath: string | null;\n    deviceType: 'camera' | 'server' | 'sensor' | 'other';\n  }",368-439,false,72,1,parses add command
-      DeviceConfigPlugin.parseConfigureCommand,method,"(input: string) -> {\n    identifier: string | null;\n  }",441-457,false,17,1,parses configure command
-      DeviceConfigPlugin.getDeviceTypeLabel,method,"(type: string) -> string",459-467,false,9,1,retrieves device type label
+      DeviceConfigPlugin.addDevice,method,"(input: string, start: number) -> Promise<PluginResult>",176-261,true,86,1,creates device
+      DeviceConfigPlugin.saveDevice,method,"(input: string, start: number) -> Promise<PluginResult>",263-266,true,4,1,caches device
+      DeviceConfigPlugin.configureDevice,method,"(input: string, start: number) -> Promise<PluginResult>",268-342,true,75,1,initializes device
+      DeviceConfigPlugin.showHelp,method,"(start: number) -> PluginResult",344-367,false,24,1,show help
+      DeviceConfigPlugin.parseAddCommand,method,"(input: string) -> {\n    ip: string | null;\n    label: string | null;\n    rtspUrl: string | null;\n    httpUrl: string | null;\n    username: string | null;\n    password: string | null;\n    streamPath: string | null;\n    deviceType: 'camera' | 'server' | 'sensor' | 'other';\n  }",369-440,false,72,1,parses add command
+      DeviceConfigPlugin.parseConfigureCommand,method,"(input: string) -> {\n    identifier: string | null;\n  }",442-458,false,17,1,parses configure command
+      DeviceConfigPlugin.getDeviceTypeLabel,method,"(type: string) -> string",460-468,false,9,1,retrieves device type label
   src/plugins/http-browse/index.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       registerHttpBrowsePlugin,function,"(registry: PluginRegistry, options: HttpBrowsePluginOptions & {\n    tauriInvoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;\n  }) -> HttpBrowsePlugin",23-38,false,16,1,registers http browse plugin
@@ -1748,10 +1736,14 @@ function_details:
       analyse_movement,function,"(track: &CompletedTrack) -> MovementSummary","-",false,1,1,analyse movement
       movement_tag,function,"(summary: &MovementSummary, class: &str) -> String","-",false,1,1,movement tag
   src-tauri/src/motion_detection.rs:
-    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
       now_ms,function,() -> u64,"-",false,1,1,now ms
       resolve_db_path,function,"(db_path: &str) -> String","-",false,1,1,resolve db path
       resolve_script_path,function,"(script: &str) -> String","-",false,1,1,resolve script path
+      nl_to_sql,function,"(question: &str, new_schema: bool) -> String","-",false,1,1,nl to sql
+      extract_date_filter,function,"(q: &str, new_schema: bool) -> String","-",false,1,1,parses date filter
+      extract_label_filter,function,"(q: &str) -> String","-",false,1,1,parses label filter
+      extract_limit,function,"(q: &str) -> Option<u32>","-",false,1,1,parses limit
   src-tauri/src/logging.rs:
     functions[6]{name,kind,sig,loc,async,lines,cc,does}:
       resolve_log_dir,function,() -> PathBuf,"-",false,1,1,resolve log dir

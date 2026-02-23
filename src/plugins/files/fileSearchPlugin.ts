@@ -372,6 +372,8 @@ export class FileSearchPlugin implements Plugin {
     const extensions: string[] = [];
     const ctx = getSystemContext();
 
+    const looksLikeInvoiceQuery = /(faktur|faktura|fv\b|invoice|rachun)/i.test(input);
+
     // 1. Resolve semantic path references to actual system paths
     const semanticPaths: Array<{ pattern: RegExp; resolve: () => string }> = [
       { pattern: /(folder|katalog|pliki?)\s+(usera|u[żz]ytkownika|domowy|home)/i, resolve: () => ctx.homeDir },
@@ -414,6 +416,11 @@ export class FileSearchPlugin implements Plugin {
       searchPath = ctx.homeDir;
     }
 
+    // 3b. For invoice-like queries, default to Documents when path is not specified
+    if (!searchPath && looksLikeInvoiceQuery) {
+      searchPath = `${ctx.homeDir}/${ctx.os === 'windows' ? 'Documents' : 'Dokumenty'}`;
+    }
+
     // Extract extensions: ".pdf", "pdf", "pliki pdf"
     const extPatterns = [
       /\.(\w{2,5})\b/g,
@@ -429,6 +436,21 @@ export class FileSearchPlugin implements Plugin {
           if (!extensions.includes(ext)) extensions.push(ext);
         }
       }
+    }
+
+    // Also detect standalone extension tokens like "pdf" (without ".pdf" or "pliki pdf")
+    // Keep this conservative to avoid accidental matches (e.g. "go" as verb).
+    if (extensions.length === 0) {
+      const tokenExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'csv', 'txt'];
+      for (const ext of tokenExts) {
+        const tokenRe = new RegExp(`\\b${ext}\\b`, 'i');
+        if (tokenRe.test(input)) extensions.push(ext);
+      }
+    }
+
+    // If user asked about invoices but didn't specify extension, narrow to common invoice formats
+    if (looksLikeInvoiceQuery && extensions.length === 0) {
+      extensions.push('pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx');
     }
 
     // Clean up query — remove command words

@@ -378,9 +378,16 @@ export class IntentRouter implements IIntentRouter {
     ]);
 
     // Disk info intents
+    // Note: avoid matching every query that merely contains the word "dysk",
+    // otherwise file-search queries like "znajdź dokumenty ... na dysku" get misrouted.
     this.intentPatterns.set('disk:info', [
-      /dysk/i,
-      /disk/i,
+      /poka[żz]\s+dysk/i,
+      /poka[żz]\s+dyski/i,
+      /sprawd[źz]\s+dysk/i,
+      /u[żz]ycie\s+dysku/i,
+      /disk\s+usage/i,
+      /disk\s+space/i,
+      /disk\s+info/i,
       /partycj/i,
       /partition/i,
       /ile.*miejsca/i,
@@ -393,9 +400,6 @@ export class IntentRouter implements IIntentRouter {
       /pojemność.*dysk/i,
       /pojemnosc.*dysk/i,
       /miejsce.*na.*dysku/i,
-      /disk.*usage/i,
-      /disk.*space/i,
-      /disk.*info/i,
     ]);
 
     // SSH intents
@@ -440,6 +444,13 @@ export class IntentRouter implements IIntentRouter {
       /znajd[źz]\s*dokument/i,
       /wyszukaj\s*dokument/i,
       /szukaj\s*dokument/i,
+      // Invoice-like queries without the word "plik/dokument"
+      /znajd[źz]\s+faktur/i,
+      /wyszukaj\s+faktur/i,
+      /szukaj\s+faktur/i,
+      /\bfv\b/i,
+      /invoice/i,
+      /rachun/i,
       /plik[iy]?\s+na\s+dysku/i,
       /dokument[yów]?\s+na\s+dysku/i,
       /plik[iy]?\s+w\s+folderze/i,
@@ -461,7 +472,7 @@ export class IntentRouter implements IIntentRouter {
       /zawarto[śs][ćc]\s+(folderu|katalogu)/i,
       /(folder|katalog)\s+(usera|u[żz]ytkownika|domowy|home)/i,
       /plik[iy]?\s+(usera|u[żz]ytkownika)/i,
-      /ls\s+(~|\/home|\/)/i,
+      /ls\s+(~|\/home|\/)$/i,
       /list\s+(files|directory|folder)/i,
       /przejrzyj\s+(pliki|folder|katalog)/i,
       /wy[śs]wietl\s+plik/i,

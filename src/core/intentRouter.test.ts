@@ -251,6 +251,11 @@ describe('IntentRouter', () => {
     expect(r3.entities.path).toBe('/var/log');
   });
 
+  it('should not misroute invoice file searches to disk:info', async () => {
+    const r = await router.detect('znajdz dokumenty faktury na dysku');
+    expect(r.intent).toBe('file:search');
+  });
+
   it('should detect ssh intents and extract host/user entities', async () => {
     const r1 = await router.detect('ssh 192.168.1.100 uptime');
     expect(r1.intent).toBe('ssh:execute');

@@ -1012,13 +1012,20 @@ export class NetworkScanPlugin implements Plugin {
       content += `Nie znaleziono żadnych urządzeń w sieci.\n`;
     } else {
       const relevantDevices = isCameraQuery
-        ? devices.filter(d =>
-            d.device_type === 'camera' ||
-            d.hostname?.toLowerCase().includes('cam') ||
-            d.vendor?.toLowerCase().includes('hikvision') ||
-            d.vendor?.toLowerCase().includes('dahua') ||
-            d.open_ports.some(p => [554, 8554].includes(p))
-          )
+        ? devices.filter(d => {
+            const ports = d.open_ports ?? [];
+            const hasRtsp = ports.some(p => [554, 8554, 10554].includes(p));
+            const hasWeb = ports.some(p => [80, 81, 82, 83, 443, 8080, 8081, 8443, 8888].includes(p));
+            const hasHikLike = ports.some(p => [8000, 8899].includes(p));
+            return (
+              d.device_type === 'camera' ||
+              d.hostname?.toLowerCase().includes('cam') ||
+              d.vendor?.toLowerCase().includes('hikvision') ||
+              d.vendor?.toLowerCase().includes('dahua') ||
+              hasRtsp ||
+              (hasHikLike && hasWeb)
+            );
+          })
         : devices;
 
       if (isCameraQuery && relevantDevices.length === 0) {

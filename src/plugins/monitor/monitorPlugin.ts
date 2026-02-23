@@ -29,6 +29,8 @@ export interface MonitorTarget {
   configuredDeviceId?: string;
   intervalMs: number;
   threshold: number;
+  thresholdIsOverride?: boolean;
+  intervalIsOverride?: boolean;
   active: boolean;
   startedAt: number;
   lastChecked?: number;
@@ -255,6 +257,7 @@ export class MonitorPlugin implements Plugin {
     if (!this.targets.has(targetId)) {
       const startedAt = Date.now();
       const defaultThreshold = configStore.get<number>('monitor.defaultChangeThreshold') || 0.15;
+      const defaultIntervalMs = configStore.get<number>('monitor.defaultIntervalMs') || 3000;
       const target: MonitorTarget = {
         id: targetId,
         configuredDeviceId: device.id,
@@ -262,7 +265,9 @@ export class MonitorPlugin implements Plugin {
         name: device.label,
         address: device.ip,
         intervalMs: device.monitor_interval_ms,
-        threshold: defaultThreshold,
+        threshold: device.monitor_change_threshold ?? defaultThreshold,
+        thresholdIsOverride: (device.monitor_change_threshold ?? defaultThreshold) !== defaultThreshold,
+        intervalIsOverride: device.monitor_interval_ms !== defaultIntervalMs,
         active: true,
         startedAt,
         changeCount: 0,
@@ -587,7 +592,7 @@ export class MonitorPlugin implements Plugin {
       }
       
       const stoppedTargets: string[] = [];
-      for (const t of this.targets.values()) {
+      for (const t of Array.from(this.targets.values())) {
         const timer = this.timers.get(t.id);
         if (timer) clearInterval(timer);
         this.timers.delete(t.id);
@@ -600,15 +605,19 @@ export class MonitorPlugin implements Plugin {
         stoppedTargets.push(t.name);
         
         // Update database to disable monitoring for configured devices
-        if (this.configuredDeviceRepo && t.id.startsWith('configured-')) {
+        if (this.configuredDeviceRepo && t.configuredDeviceId) {
           try {
-            const deviceId = t.id.replace('configured-', '');
-            await this.configuredDeviceRepo.setMonitorEnabled(deviceId, false);
+            await this.configuredDeviceRepo.setMonitorEnabled(t.configuredDeviceId, false);
           } catch (err) {
             console.warn(`Failed to disable monitoring for ${t.name} in database:`, err);
           }
         }
+
+        processRegistry.remove(`monitor:${t.id}`);
       }
+
+      this.targets.clear();
+      this.timers.clear();
       
       return {
         pluginId: this.id,
@@ -885,14 +894,22 @@ export class MonitorPlugin implements Plugin {
             t.name.toLowerCase().includes(targetScope.toLowerCase()) ||
             (t.address ? t.address.includes(targetScope) : false);
           if (!matches) continue;
+        } else {
+          // global change should not override per-target overrides
+          if (t.thresholdIsOverride) continue;
         }
 
         t.threshold = newThreshold;
+        if (targetScope) t.thresholdIsOverride = true;
         updated++;
 
         if (this.configuredDeviceRepo && t.configuredDeviceId) {
           void this.configuredDeviceRepo.setMonitorChangeThreshold(t.configuredDeviceId, newThreshold);
         }
+      }
+
+      if (!targetScope) {
+        configStore.set('monitor.defaultChangeThreshold', newThreshold);
       }
       return {
         pluginId: this.id,
@@ -922,9 +939,13 @@ export class MonitorPlugin implements Plugin {
             t.name.toLowerCase().includes(targetScope.toLowerCase()) ||
             (t.address ? t.address.includes(targetScope) : false);
           if (!matches) continue;
+        } else {
+          // global change should not override per-target overrides
+          if (t.intervalIsOverride) continue;
         }
 
         t.intervalMs = ms;
+        if (targetScope) t.intervalIsOverride = true;
         // Restart timer
         const oldTimer = this.timers.get(t.id);
         if (oldTimer) clearInterval(oldTimer);
@@ -935,6 +956,10 @@ export class MonitorPlugin implements Plugin {
         if (this.configuredDeviceRepo && t.configuredDeviceId) {
           void this.configuredDeviceRepo.setMonitorIntervalMs(t.configuredDeviceId, ms);
         }
+      }
+
+      if (!targetScope) {
+        configStore.set('monitor.defaultIntervalMs', ms);
       }
       return {
         pluginId: this.id,
@@ -1991,6 +2016,7 @@ export class MonitorPlugin implements Plugin {
         const v = typeof value === 'number' ? value : Number(value);
         if (!Number.isFinite(v)) return;
         for (const t of this.targets.values()) {
+          if (t.thresholdIsOverride) continue;
           t.threshold = v;
         }
       }
@@ -1999,6 +2025,7 @@ export class MonitorPlugin implements Plugin {
         const v = typeof value === 'number' ? value : Number(value);
         if (!Number.isFinite(v) || v <= 0) return;
         for (const t of this.targets.values()) {
+          if (t.intervalIsOverride) continue;
           t.intervalMs = v;
           const oldTimer = this.timers.get(t.id);
           if (oldTimer) clearInterval(oldTimer);

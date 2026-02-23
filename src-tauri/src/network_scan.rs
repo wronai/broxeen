@@ -1190,7 +1190,7 @@ pub async fn scan_network(args: Option<ScanNetworkArgs>) -> Result<NetworkScanRe
     ));
 
     let camera_ports: Vec<u16> = vec![
-        80, 81, 82, 83, 443, 554, 8000, 8080, 8081, 8443, 8554, 8888, 9000,
+        80, 81, 82, 83, 443, 554, 8000, 8080, 8081, 8443, 8554, 8888, 8899, 9000, 10554,
     ];
 
     // Build host list
@@ -1361,7 +1361,19 @@ fn detect_local_subnet() -> String {
 }
 
 fn classify_device(ports: &[u16]) -> String {
-    if ports.contains(&554) || ports.contains(&8554) {
+    let has_rtsp = ports.contains(&554) || ports.contains(&8554) || ports.contains(&10554);
+    let has_web = ports.contains(&80)
+        || ports.contains(&81)
+        || ports.contains(&82)
+        || ports.contains(&83)
+        || ports.contains(&443)
+        || ports.contains(&8080)
+        || ports.contains(&8081)
+        || ports.contains(&8443)
+        || ports.contains(&8888);
+    let has_hik_like = ports.contains(&8000) || ports.contains(&8899);
+
+    if has_rtsp || (has_hik_like && has_web) {
         "camera".to_string()
     } else if ports.contains(&1883) || ports.contains(&9001) {
         "iot-broker".to_string()

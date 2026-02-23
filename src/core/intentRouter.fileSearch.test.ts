@@ -48,4 +48,9 @@ describe('IntentRouter - file:search intent detection', () => {
     const result = await router.detect('list files in home directory');
     expect(result.intent).toBe('file:search');
   });
+
+  it('detects "znajdz faktury" as file:search', async () => {
+    const result = await router.detect('znajdz faktury');
+    expect(result.intent).toBe('file:search');
+  });
 });
