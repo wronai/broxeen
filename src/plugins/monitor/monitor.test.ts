@@ -398,7 +398,7 @@ describe('MonitorPlugin', () => {
 
     it('returns error when nothing to stop', async () => {
       const result = await plugin.execute('stop monitoring xyz', browserCtx);
-      expect(result.status).toBe('error');
+      expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('Brak aktywnych');
     });
   });

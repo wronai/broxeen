@@ -441,7 +441,12 @@ export class MonitorPlugin implements Plugin {
     // Handle "stop wszystkie monitoringi"
     if (targetName === 'wszystkie' || targetName === 'all' || targetName === '') {
       if (this.targets.size === 0) {
-        return this.errorResult('Brak aktywnych monitoringów do zatrzymania.', start);
+        return {
+          pluginId: this.id,
+          status: 'success',
+          content: [{ type: 'text', data: 'ℹ️ Brak aktywnych monitoringów do zatrzymania.' }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+        };
       }
       
       const stoppedTargets: string[] = [];
@@ -492,7 +497,12 @@ export class MonitorPlugin implements Plugin {
 
     if (!found) {
       if (this.targets.size === 0) {
-        return this.errorResult('Brak aktywnych monitoringów do zatrzymania.', start);
+        return {
+          pluginId: this.id,
+          status: 'success',
+          content: [{ type: 'text', data: 'ℹ️ Brak aktywnych monitoringów do zatrzymania.' }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+        };
       }
       const names = Array.from(this.targets.values()).map(t => `- ${t.name}`).join('\n');
       return this.errorResult(`Nie znaleziono monitoringu: "${targetName}"\n\nAktywne:\n${names}`, start);

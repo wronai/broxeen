@@ -93,6 +93,100 @@ describe('AutoScanScheduler', () => {
     scheduler.stop();
   });
 
+  it('stops retryTimer on stop()', () => {
+    const scheduler = new AutoScanScheduler({ intervalMs: 60_000, retryOfflineMs: 10_000 });
+    const ctx = makeTauriCtx();
+    scheduler.start(ctx as any);
+    expect(scheduler.isRunning).toBe(true);
+    scheduler.stop();
+    expect(scheduler.isRunning).toBe(false);
+  });
+
+  it('retries offline devices after retryOfflineMs', async () => {
+    const invoke = vi.fn(async (cmd: string) => {
+      if (cmd === 'list_network_interfaces') return [['wlan0', '192.168.1.23']];
+      if (cmd === 'scan_network') return { devices: [], scan_duration: 10, scan_method: 'tcp', subnet: '192.168.1' };
+      return null;
+    });
+    const ctx = { isTauri: true, tauriInvoke: invoke, databaseManager: null };
+
+    const onStatusChange = vi.fn();
+    const scheduler = new AutoScanScheduler({ intervalMs: 60_000, retryOfflineMs: 500 });
+    scheduler.setStatusChangeCallback(onStatusChange);
+
+    // Seed a known-offline device by simulating a previous full scan
+    (scheduler as any).knownStatuses.set('192.168.1.50', 'offline');
+
+    scheduler.start(ctx as any);
+    await vi.advanceTimersByTimeAsync(600);
+
+    // Should have called scan_network for the offline device retry
+    expect(invoke).toHaveBeenCalledWith('scan_network', expect.objectContaining({
+      args: expect.objectContaining({
+        incremental: true,
+        target_ranges: expect.arrayContaining(['50']),
+      }),
+    }));
+
+    scheduler.stop();
+  });
+
+  it('does not retry when no offline devices', async () => {
+    const invoke = vi.fn(async (cmd: string) => {
+      if (cmd === 'list_network_interfaces') return [['wlan0', '192.168.1.23']];
+      if (cmd === 'scan_network') return { devices: [], scan_duration: 10, scan_method: 'tcp', subnet: '192.168.1' };
+      return null;
+    });
+    const ctx = { isTauri: true, tauriInvoke: invoke, databaseManager: null };
+    const scheduler = new AutoScanScheduler({ intervalMs: 60_000, retryOfflineMs: 500 });
+    scheduler.start(ctx as any);
+
+    await vi.advanceTimersByTimeAsync(600);
+
+    // No offline devices → scan_network should NOT be called by retry timer
+    expect(invoke).not.toHaveBeenCalledWith('scan_network', expect.anything());
+
+    scheduler.stop();
+  });
+
+  it('offlineDeviceCount returns correct count', () => {
+    const scheduler = new AutoScanScheduler();
+    expect(scheduler.offlineDeviceCount).toBe(0);
+    (scheduler as any).knownStatuses.set('192.168.1.1', 'offline');
+    (scheduler as any).knownStatuses.set('192.168.1.2', 'online');
+    (scheduler as any).knownStatuses.set('192.168.1.3', 'offline');
+    expect(scheduler.offlineDeviceCount).toBe(2);
+  });
+
+  it('fires onStatusChange when offline device comes back online', async () => {
+    const onStatusChange = vi.fn();
+    const invoke = vi.fn(async (cmd: string) => {
+      if (cmd === 'list_network_interfaces') return [['wlan0', '192.168.1.23']];
+      if (cmd === 'scan_network') return {
+        devices: [{ ip: '192.168.1.50', open_ports: [80], response_time: 5, last_seen: new Date().toISOString(), device_type: 'camera' }],
+        scan_duration: 10, scan_method: 'tcp', subnet: '192.168.1',
+      };
+      return null;
+    });
+    const ctx = { isTauri: true, tauriInvoke: invoke, databaseManager: null };
+    const scheduler = new AutoScanScheduler({ intervalMs: 60_000, retryOfflineMs: 500 });
+    scheduler.setStatusChangeCallback(onStatusChange);
+
+    // Seed as offline
+    (scheduler as any).knownStatuses.set('192.168.1.50', 'offline');
+
+    scheduler.start(ctx as any);
+    await vi.advanceTimersByTimeAsync(600);
+
+    expect(onStatusChange).toHaveBeenCalledWith(expect.objectContaining({
+      ip: '192.168.1.50',
+      previousStatus: 'offline',
+      currentStatus: 'online',
+    }));
+
+    scheduler.stop();
+  });
+
   it('skips tick when previous tick still running', async () => {
     let resolveFirst: (() => void) | null = null;
     let scanCallCount = 0;

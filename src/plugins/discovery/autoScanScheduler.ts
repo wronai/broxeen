@@ -14,12 +14,14 @@ const schedLogger = logger.scope('auto-scan:scheduler');
 export interface AutoScanConfig {
   intervalMs: number;       // How often to run (default: 5 min)
   offlineThresholdMs: number; // Mark offline after N ms without scan (default: 30 min)
+  retryOfflineMs: number;   // How often to retry known-offline devices (default: 60 s)
   enabled: boolean;
 }
 
 const DEFAULT_CONFIG: AutoScanConfig = {
   intervalMs: 5 * 60 * 1000,       // 5 min
   offlineThresholdMs: 30 * 60 * 1000, // 30 min
+  retryOfflineMs: 60 * 1000,        // 60 s
   enabled: true,
 };
 
@@ -27,9 +29,11 @@ export type DeviceStatusChangeCallback = (change: DeviceStatusChange) => void;
 
 export class AutoScanScheduler {
   private timer: ReturnType<typeof setInterval> | null = null;
+  private retryTimer: ReturnType<typeof setInterval> | null = null;
   private context: PluginContext | null = null;
   private config: AutoScanConfig;
   private running = false;
+  private retryRunning = false;
   private lastScanAt = 0;
   private knownStatuses = new Map<string, 'online' | 'offline'>();
   private onStatusChange: DeviceStatusChangeCallback | null = null;
@@ -48,17 +52,25 @@ export class AutoScanScheduler {
     if (this.timer) return;
 
     this.context = context;
-    schedLogger.info('AutoScanScheduler started', { intervalMs: this.config.intervalMs });
+    schedLogger.info('AutoScanScheduler started', { intervalMs: this.config.intervalMs, retryOfflineMs: this.config.retryOfflineMs });
 
     this.timer = setInterval(() => {
       void this.tick();
     }, this.config.intervalMs);
+
+    this.retryTimer = setInterval(() => {
+      void this.retryOfflineDevices();
+    }, this.config.retryOfflineMs);
   }
 
   stop(): void {
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;
+    }
+    if (this.retryTimer) {
+      clearInterval(this.retryTimer);
+      this.retryTimer = null;
     }
     this.context = null;
     schedLogger.info('AutoScanScheduler stopped');
@@ -182,6 +194,62 @@ export class AutoScanScheduler {
     } catch {
       return [];
     }
+  }
+
+  /** Retry only known-offline IPs with a targeted scan */
+  private async retryOfflineDevices(): Promise<void> {
+    if (this.retryRunning) return;
+    if (!this.context?.tauriInvoke || !this.context.isTauri) return;
+
+    const offlineIps = [...this.knownStatuses.entries()]
+      .filter(([, s]) => s === 'offline')
+      .map(([ip]) => ip);
+
+    if (offlineIps.length === 0) return;
+
+    this.retryRunning = true;
+    schedLogger.debug('Retrying offline devices', { count: offlineIps.length });
+
+    try {
+      const subnet = await this.detectSubnet();
+      if (!subnet) return;
+
+      // Build targeted ranges from offline IPs only
+      const offlineOctets = offlineIps
+        .filter(ip => ip.startsWith(`${subnet}.`))
+        .map(ip => parseInt(ip.split('.')[3], 10))
+        .filter(n => n >= 1 && n <= 254);
+
+      if (offlineOctets.length === 0) return;
+
+      const targetRanges = offlineOctets.map(o => `${o}`);
+
+      const result = await this.context.tauriInvoke('scan_network', {
+        args: {
+          subnet,
+          timeout: 2000,
+          incremental: true,
+          target_ranges: targetRanges,
+        },
+      }) as { devices: Array<{ ip: string; open_ports: number[]; response_time: number; last_seen: string; device_type: string }> };
+
+      if (result?.devices) {
+        this.detectStatusChanges(result.devices);
+        if (this.context.databaseManager && result.devices.length > 0) {
+          await this.persistResults(subnet, result.devices, Date.now());
+        }
+      }
+
+      schedLogger.debug('Offline retry complete', { recovered: result?.devices?.length ?? 0 });
+    } catch (err) {
+      schedLogger.debug('Offline retry failed', err);
+    } finally {
+      this.retryRunning = false;
+    }
+  }
+
+  get offlineDeviceCount(): number {
+    return [...this.knownStatuses.values()].filter(s => s === 'offline').length;
   }
 
   private detectStatusChanges(

@@ -1,3 +1,28 @@
+## [1.0.65] - 2026-02-23
+
+### Summary
+
+refactor(tests): configuration management system
+
+### Docs
+
+- docs: update TODO.md
+
+### Other
+
+- update project.functions.toon
+- update src-tauri/Cargo.lock
+- update src-tauri/Cargo.toml
+- update src/App.tsx
+- update src/components/Chat.tsx
+- update src/components/DeviceStrip.tsx
+- update src/components/SetupWizardModal.tsx
+- update src/plugins/discovery/autoScanScheduler.test.ts
+- update src/plugins/discovery/autoScanScheduler.ts
+- update src/plugins/monitor/monitor.test.ts
+- ... and 1 more
+
+
 ## [1.0.64] - 2026-02-23
 
 ### Summary

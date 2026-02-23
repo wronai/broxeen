@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   X,
@@ -8,18 +8,23 @@ import {
   Key,
   Brain,
   Network,
-  Camera,
+  Mic,
+  Volume2,
+  Activity,
   Eye,
   EyeOff,
-  Power,
 } from "lucide-react";
 import { configStore } from "../config/configStore";
-import { CONFIG_CATEGORIES } from "../config/appConfig";
 import { isTauriRuntime } from "../lib/runtime";
+import { chat } from "../lib/llmClient";
 
 interface SetupWizardModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenMicSettings?: () => void;
+  onOpenTtsSettings?: () => void;
+  onOpenDiagnostics?: () => void;
+  onOpenDeviceDashboard?: () => void;
 }
 
 const MODELS = [
@@ -38,7 +43,14 @@ const STEPS = [
   { id: "summary", label: "Gotowe", icon: Check },
 ];
 
-export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalProps) {
+export default function SetupWizardModal({
+  isOpen,
+  onClose,
+  onOpenMicSettings,
+  onOpenTtsSettings,
+  onOpenDiagnostics,
+  onOpenDeviceDashboard,
+}: SetupWizardModalProps) {
   const [step, setStep] = useState(0);
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -48,6 +60,11 @@ export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalPr
   const [autostartEnabled, setAutostartEnabled] = useState(false);
   const [autostartLoading, setAutostartLoading] = useState(false);
 
+  const [apiKeyTestLoading, setApiKeyTestLoading] = useState(false);
+  const [apiKeyTestResult, setApiKeyTestResult] = useState<
+    { ok: boolean; message: string } | null
+  >(null);
+
   useEffect(() => {
     if (!isOpen) return;
     setStep(0);
@@ -55,6 +72,7 @@ export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalPr
     setApiKey(configStore.get<string>("llm.apiKey") || "");
     setModel(configStore.get<string>("llm.model") || "google/gemini-2.0-flash");
     setSubnet(configStore.get<string>("network.defaultSubnet") || "192.168.1");
+    setApiKeyTestResult(null);
 
     // Check autostart status
     if (isTauriRuntime()) {
@@ -90,6 +108,46 @@ export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalPr
     });
     setSaved(true);
     setStep(3);
+  };
+
+  const runtimeIsTauri = isTauriRuntime();
+  const configStatus = useMemo(() => configStore.getConfigStatus(), [saved]);
+  const hasSpeechRecognition =
+    typeof window !== "undefined" &&
+    !!(window.SpeechRecognition || (window as any).webkitSpeechRecognition);
+  const hasSpeechSynthesis =
+    typeof window !== "undefined" && !!(window as any).speechSynthesis;
+
+  const apiKeyTrimmed = apiKey.trim();
+  const apiKeyLooksValid =
+    apiKeyTrimmed.length > 0 &&
+    (apiKeyTrimmed.startsWith("sk-or-v1-") || apiKeyTrimmed.startsWith("sk-"));
+
+  const testApiKey = async () => {
+    const key = apiKey.trim();
+    if (!key) return;
+
+    setApiKeyTestLoading(true);
+    setApiKeyTestResult(null);
+    try {
+      await chat(
+        [
+          {
+            role: "system",
+            content:
+              "Odpowiedz jednym krótkim słowem: OK. Nie dodawaj nic więcej.",
+          },
+          { role: "user", content: "test" },
+        ],
+        { apiKey: key, model },
+      );
+      setApiKeyTestResult({ ok: true, message: "Połączenie OK" });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setApiKeyTestResult({ ok: false, message: msg });
+    } finally {
+      setApiKeyTestLoading(false);
+    }
   };
 
   const canProceed = () => {
@@ -181,11 +239,35 @@ export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalPr
                     </button>
                   </div>
                 </label>
-                {apiKey.trim() && !apiKey.trim().startsWith("sk-") && (
+                {apiKeyTrimmed && !apiKeyLooksValid && (
                   <p className="text-xs text-yellow-300">
                     ⚠️ Klucz OpenRouter zazwyczaj zaczyna się od <code>sk-or-v1-</code>
                   </p>
                 )}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void testApiKey()}
+                    disabled={!apiKeyTrimmed || apiKeyTestLoading}
+                    className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-white transition hover:bg-gray-600 disabled:opacity-50"
+                  >
+                    {apiKeyTestLoading ? "Testuję…" : "Testuj klucz"}
+                  </button>
+                  {apiKeyTestResult && (
+                    <span
+                      className={
+                        "text-xs " +
+                        (apiKeyTestResult.ok
+                          ? "text-green-400"
+                          : "text-yellow-300")
+                      }
+                    >
+                      {apiKeyTestResult.ok
+                        ? `✓ ${apiKeyTestResult.message}`
+                        : `⚠ ${apiKeyTestResult.message}`}
+                    </span>
+                  )}
+                </div>
                 {!apiKey.trim() && (
                   <p className="text-xs text-gray-500">
                     Utwórz klucz na{" "}
@@ -205,6 +287,36 @@ export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalPr
                   ✓ Klucz API jest już zapisany — możesz go zaktualizować lub pominąć.
                 </p>
               )}
+
+              <div className="rounded-xl bg-gray-800/30 p-3 text-xs text-gray-400 space-y-1.5">
+                <div className="font-medium text-gray-300">Status</div>
+                <div className="flex items-center justify-between">
+                  <span>Runtime</span>
+                  <span className="font-mono text-gray-200">
+                    {runtimeIsTauri ? "tauri" : "browser"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>SpeechRecognition</span>
+                  <span className={hasSpeechRecognition ? "text-green-400" : "text-yellow-300"}>
+                    {hasSpeechRecognition ? "dostępne" : "brak"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>SpeechSynthesis</span>
+                  <span className={hasSpeechSynthesis ? "text-green-400" : "text-yellow-300"}>
+                    {hasSpeechSynthesis ? "dostępne" : "brak"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Braki konfiguracji</span>
+                  <span className={configStatus.missingFields.length === 0 ? "text-green-400" : "text-yellow-300"}>
+                    {configStatus.missingFields.length === 0
+                      ? "brak"
+                      : configStatus.missingFields.join(", ")}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
 
@@ -355,6 +467,37 @@ export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalPr
                 <div>• Wpisz <code className="text-broxeen-300">skanuj sieć</code> — znajdź urządzenia</div>
                 <div>• Wpisz <code className="text-broxeen-300">pomoc</code> — lista komend</div>
                 <div>• Kliknij ikonę <strong>⚙</strong> aby zmienić ustawienia w dowolnym momencie</div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => onOpenMicSettings?.()}
+                  disabled={!onOpenMicSettings}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gray-800 px-3 py-2 text-xs text-gray-200 transition hover:bg-gray-700 disabled:opacity-50"
+                >
+                  <Mic size={14} /> Mikrofon / STT
+                </button>
+                <button
+                  onClick={() => onOpenTtsSettings?.()}
+                  disabled={!onOpenTtsSettings}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gray-800 px-3 py-2 text-xs text-gray-200 transition hover:bg-gray-700 disabled:opacity-50"
+                >
+                  <Volume2 size={14} /> Głośnik / TTS
+                </button>
+                <button
+                  onClick={() => onOpenDiagnostics?.()}
+                  disabled={!onOpenDiagnostics}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gray-800 px-3 py-2 text-xs text-gray-200 transition hover:bg-gray-700 disabled:opacity-50"
+                >
+                  <Activity size={14} /> Diagnostyka
+                </button>
+                <button
+                  onClick={() => onOpenDeviceDashboard?.()}
+                  disabled={!onOpenDeviceDashboard}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-gray-800 px-3 py-2 text-xs text-gray-200 transition hover:bg-gray-700 disabled:opacity-50"
+                >
+                  <Network size={14} /> Urządzenia
+                </button>
               </div>
             </div>
           )}

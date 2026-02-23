@@ -506,6 +506,22 @@ export default function App() {
       <SetupWizardModal
         isOpen={setupWizardOpen}
         onClose={() => setSetupWizardOpen(false)}
+        onOpenMicSettings={() => {
+          setSetupWizardOpen(false);
+          setMicSettingsOpen(true);
+        }}
+        onOpenTtsSettings={() => {
+          setSetupWizardOpen(false);
+          setTtsSettingsOpen(true);
+        }}
+        onOpenDiagnostics={() => {
+          setSetupWizardOpen(false);
+          setDiagnosticsOpen(true);
+        }}
+        onOpenDeviceDashboard={() => {
+          setSetupWizardOpen(false);
+          setDeviceDashboardOpen(true);
+        }}
       />
 
       {/* Device dashboard modal */}

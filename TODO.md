@@ -43,7 +43,7 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 ### 🔍 Inteligentne Skanowanie
 - [x] **Skanowanie przyrostowe** - tylko nowe urządzenia (`calculateIncrementalRanges()`, `determineScanStrategy()`) ✅
 - [x] **Historia skanowań** - zapamiętaj co znaleziono (`ScanHistoryRepository`, `scan_history` table) ✅
-- [ ] **Automatyczne ponawianie** - periodiczne sprawdzanie statusu
+- [x] **Automatyczne ponawianie** - periodiczne sprawdzanie statusu
 - [ ] **Filtrowanie wyników** - tylko kamery, tylko konkretne typy
 
 ### 💬 Ulepszenia Chat UI
@@ -72,7 +72,7 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 
 ### 📊 Analiza i Monitorowanie
 - [x] **Dashboard urządzeń** - podsumowanie stanu sieci ✅ (`DeviceDashboardModal.tsx`, filtr: kamery/online/offline)
-- [ ] **Alerty o zmianach** - automatyczne powiadomienia
+- [x] **Alerty o zmianach** - automatyczne powiadomienia (`AlertBridge` + `useAlertBridge` + `AlertBridgeComponent`) ✅
 - [ ] **Statystyki użycia** - najczęściej używane funkcje
 - [ ] **Export danych** - CSV, JSON raporty
 

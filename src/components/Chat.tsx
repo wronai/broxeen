@@ -108,6 +108,7 @@ export default function Chat({ settings }: ChatProps) {
   const [discoveredCameras, setDiscoveredCameras] = useState<CameraPreviewProps['camera'][]>([]);
   const [selectedCamera, setSelectedCamera] = useState<CameraPreviewProps['camera'] | null>(null);
   const [currentScope, setCurrentScope] = useState<QueryScope>('local');
+  const currentScopeRef = useRef<QueryScope>('local');
   const [showScopeSelector, setShowScopeSelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastSpeechSubmitRef = useRef<string>("");
@@ -408,9 +409,13 @@ export default function Chat({ settings }: ChatProps) {
   }, [messages]);
 
   useEffect(() => {
+    currentScopeRef.current = currentScope;
+  }, [currentScope]);
+
+  useEffect(() => {
     const handler = (ev: Event) => {
       const custom = ev as CustomEvent<{
-        mode: "prefill" | "execute";
+        mode: "prefill" | "execute" | "execute_silent";
         text: string;
       }>;
       const detail = custom.detail;
@@ -427,6 +432,11 @@ export default function Chat({ settings }: ChatProps) {
             inputElement.selectionStart = inputElement.selectionEnd = detail.text.length;
           }
         }, 0);
+        return;
+      }
+
+      if (detail.mode === "execute_silent") {
+        void ask(detail.text, "text", currentScopeRef.current).catch(() => undefined);
         return;
       }
 

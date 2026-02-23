@@ -71,7 +71,7 @@ export default function DeviceStrip({ devicesDb, onDeviceClick, onAddDevice }: D
     );
   }
 
-  const dispatchChatAction = (mode: "prefill" | "execute", text: string) => {
+  const dispatchChatAction = (mode: "prefill" | "execute" | "execute_silent", text: string) => {
     window.dispatchEvent(
       new CustomEvent("broxeen:chat_action", {
         detail: { mode, text },
@@ -94,7 +94,7 @@ export default function DeviceStrip({ devicesDb, onDeviceClick, onAddDevice }: D
     try {
       // Stop monitoring first (in-memory MonitorPlugin)
       if (device.monitor_enabled) {
-        dispatchChatAction("execute", `stop monitoring ${device.ip}`);
+        dispatchChatAction("execute_silent", `stop monitoring ${device.ip}`);
       }
 
       const repo = new ConfiguredDeviceRepository(devicesDb);
