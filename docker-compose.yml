@@ -1,4 +1,21 @@
 services:
+  # ── Mailpit — local mail server for testing ────────
+  # SMTP: localhost:1025  POP3: localhost:1110  Web UI: http://localhost:8025
+  # REST API: http://localhost:8025/api/v1/messages
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: broxeen-mailpit
+    ports:
+      - "1025:1025"   # SMTP (no auth, no TLS)
+      - "1110:1110"   # POP3
+      - "8025:8025"   # Web UI + REST API
+    environment:
+      - MP_SMTP_AUTH_ACCEPT_ANY=1
+      - MP_SMTP_AUTH_ALLOW_INSECURE=1
+    restart: unless-stopped
+    profiles:
+      - mail
+
   # ── Production (static build served by 'serve') ────
   broxeen:
     build:

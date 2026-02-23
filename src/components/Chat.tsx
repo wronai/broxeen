@@ -1773,7 +1773,9 @@ ${analysis}`,
                   data-testid="message"
                 >
                   <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                    className={`${
+                      (msg.type === "image" || msg.type === "camera_live") ? "w-full" : "max-w-[85%]"
+                    } rounded-2xl px-4 py-3 ${
                       msg.role === "user"
                         ? "bg-broxeen-600 text-white cursor-pointer transition-colors hover:bg-broxeen-500"
                         : msg.role === "system"
@@ -1821,7 +1823,7 @@ ${analysis}`,
                         </div>
                       )}
                       {msg.role === "assistant" && msg.type === "image" && msg.text && (
-                        <div className="shrink-0 w-full max-w-sm rounded-lg border border-gray-700 bg-black/50 overflow-hidden">
+                        <div className="shrink-0 w-full rounded-lg border border-gray-700 bg-black/50 overflow-hidden">
                           {msg.title && (
                             <div className="px-3 py-1.5 text-xs text-gray-400 border-b border-gray-700 truncate">
                               📷 {msg.title}
@@ -1839,7 +1841,7 @@ ${analysis}`,
                         </div>
                       )}
                       {msg.role === "assistant" && msg.type === "camera_live" && msg.live && (
-                        <div className="shrink-0 w-full max-w-sm rounded-lg border border-gray-700 bg-black/50 overflow-hidden p-3">
+                        <div className="shrink-0 w-full rounded-lg border border-gray-700 bg-black/50 overflow-hidden p-3">
                           <CameraLiveInline
                             url={msg.live.url}
                             cameraId={msg.live.cameraId}

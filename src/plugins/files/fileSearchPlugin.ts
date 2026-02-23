@@ -277,7 +277,6 @@ export class FileSearchPlugin implements Plugin {
         duration_ms: Date.now() - start, 
         cached: false, 
         truncated: false,
-        configPrompt: actions.join('\n'),
       },
     };
   }
@@ -312,7 +311,6 @@ export class FileSearchPlugin implements Plugin {
         duration_ms: Date.now() - start, 
         cached: false, 
         truncated: false,
-        configPrompt: actions.join('\n'),
       },
     };
   }
@@ -360,7 +358,6 @@ export class FileSearchPlugin implements Plugin {
         duration_ms: Date.now() - start,
         cached: false,
         truncated: true,
-        configPrompt: actions.join('\n'),
       },
     };
   }
@@ -500,7 +497,6 @@ export class FileSearchPlugin implements Plugin {
         duration_ms: Date.now() - start, 
         cached: false, 
         truncated: false,
-        configPrompt: actions.join('\n'),
       },
     };
   }

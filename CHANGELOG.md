@@ -1,3 +1,22 @@
+## [1.0.55] - 2026-02-23
+
+### Summary
+
+feat(examples): CLI interface improvements
+
+### Other
+
+- update .env.example
+- update scripts/chat-cli.mjs
+- update scripts/test-email.mjs
+- update src/components/CameraLiveInline.tsx
+- update src/components/Chat.tsx
+- update src/core/plugin.types.ts
+- update src/plugins/files/fileSearchPlugin.ts
+- update src/plugins/monitor/monitorPlugin.ts
+- update src/plugins/system/diskInfoPlugin.ts
+
+
 ## [1.0.54] - 2026-02-23
 
 ### Summary

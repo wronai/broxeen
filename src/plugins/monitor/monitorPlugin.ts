@@ -91,6 +91,10 @@ export class MonitorPlugin implements Plugin {
       /ustaw.*prog/i.test(lower) ||
       /ustaw.*interwał/i.test(lower) ||
       /ustaw.*interwal/i.test(lower) ||
+      /zmien.*interwał/i.test(lower) ||
+      /zmien.*interwal/i.test(lower) ||
+      /zmień.*interwał/i.test(lower) ||
+      /zmień.*interwal/i.test(lower) ||
       /monitor.*flag/i.test(lower) ||
       /watch/i.test(lower) && /start|stop|list|log/i.test(lower);
   }
@@ -108,7 +112,7 @@ export class MonitorPlugin implements Plugin {
     if (/logi.*monitor|historia.*zmian|pokaż.*logi|pokaz.*logi|log.*monitor/i.test(lower)) {
       return this.handleLogs(input, start);
     }
-    if (/ustaw.*próg|ustaw.*prog|ustaw.*interwał|ustaw.*interwal/i.test(lower)) {
+    if (/ustaw.*próg|ustaw.*prog|ustaw.*interwał|ustaw.*interwal|zmien.*interwał|zmien.*interwal|zmień.*interwał|zmień.*interwal/i.test(lower)) {
       return this.handleConfig(input, start);
     }
 
@@ -437,9 +441,42 @@ export class MonitorPlugin implements Plugin {
 
     let data = `📋 **Logi monitoringu** — ostatnie ${recent.length} wpisów\n\n`;
     for (const log of recent) {
-      const time = new Date(log.timestamp).toLocaleString('pl-PL');
+      const time = new Date(log.timestamp).toLocaleString('pl-PL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
       const icon = this.logIcon(log.type);
-      data += `${icon} **${time}** [${log.targetName}] ${log.message}`;
+      
+      // Formatowanie wiadomości - skróć długie błędy
+      let message = log.message;
+      if (message.includes('ffmpeg exited:')) {
+        // Wyodrębnij kluczową informację z błędu ffmpeg
+        const authMatch = message.match(/401 (Unauthorized|authorization failed)/);
+        const timeoutMatch = message.match(/timeout|Connection timed out/i);
+        const connMatch = message.match(/Connection refused|No route to host/i);
+        const notFoundMatch = message.match(/404 Not Found|No such file/i);
+        
+        if (authMatch) {
+          message = '❌ Błąd autentykacji RTSP (sprawdź hasło)';
+        } else if (timeoutMatch) {
+          message = '⏰ Przekroczenie czasu połączenia';
+        } else if (connMatch) {
+          message = '🔌 Błąd połączenia z kamerą';
+        } else if (notFoundMatch) {
+          message = '🔍 Nie znaleziono zasobu (sprawdź URL)';
+        } else {
+          message = '❌ Błąd pobierania snapshotu';
+        }
+      } else if (message.includes('Brak snapshotu')) {
+        message = '⚪ Brak snapshotu (pomijam)';
+      } else if (message.includes('Zmiana wykryta')) {
+        message = '🔔 Zmiana wykryta';
+      } else if (message.includes('Brak zmian')) {
+        message = '✅ Brak zmian';
+      }
+      
+      data += `${icon} **${time}** \`${log.targetName}\` ${message}`;
       if (log.changeScore != null) data += ` (zmiana: ${(log.changeScore * 100).toFixed(1)}%)`;
       data += '\n';
     }
@@ -477,8 +514,8 @@ export class MonitorPlugin implements Plugin {
       };
     }
 
-    // Parse interval: "ustaw interwał 60s"
-    const intervalMatch = lower.match(/(?:interwał|interwal)\s*(\d+)\s*(s|m|min)/);
+    // Parse interval: "ustaw interwał 60s", "zmien interwał co 10s", "zmień interwał na 5m"
+    const intervalMatch = lower.match(/(?:ustaw|zmien|zmień)\s+(?:interwał|interwal)\s+(?:co\s+)?(\d+)\s*(s|m|min)/);
     if (intervalMatch) {
       const value = parseInt(intervalMatch[1]);
       const unit = intervalMatch[2];
@@ -508,7 +545,8 @@ export class MonitorPlugin implements Plugin {
       'Nierozpoznana konfiguracja. Przykłady:\n' +
       '- "ustaw próg zmian 20%"\n' +
       '- "ustaw interwał 60s"\n' +
-      '- "ustaw interwał 5m"',
+      '- "zmien interwał co 10s"\n' +
+      '- "zmień interwał na 5m"',
       start,
     );
   }
@@ -912,9 +950,42 @@ export class MonitorPlugin implements Plugin {
     const recent = target.logs.slice(-20).reverse();
     let data = `📋 **Logi: ${target.name}** — ${recent.length} wpisów\n\n`;
     for (const log of recent) {
-      const time = new Date(log.timestamp).toLocaleString('pl-PL');
+      const time = new Date(log.timestamp).toLocaleString('pl-PL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
       const icon = this.logIcon(log.type);
-      data += `${icon} **${time}** ${log.message}`;
+      
+      // Formatowanie wiadomości - skróć długie błędy
+      let message = log.message;
+      if (message.includes('ffmpeg exited:')) {
+        // Wyodrębnij kluczową informację z błędu ffmpeg
+        const authMatch = message.match(/401 (Unauthorized|authorization failed)/);
+        const timeoutMatch = message.match(/timeout|Connection timed out/i);
+        const connMatch = message.match(/Connection refused|No route to host/i);
+        const notFoundMatch = message.match(/404 Not Found|No such file/i);
+        
+        if (authMatch) {
+          message = '❌ Błąd autentykacji RTSP (sprawdź hasło)';
+        } else if (timeoutMatch) {
+          message = '⏰ Przekroczenie czasu połączenia';
+        } else if (connMatch) {
+          message = '🔌 Błąd połączenia z kamerą';
+        } else if (notFoundMatch) {
+          message = '🔍 Nie znaleziono zasobu (sprawdź URL)';
+        } else {
+          message = '❌ Błąd pobierania snapshotu';
+        }
+      } else if (message.includes('Brak snapshotu')) {
+        message = '⚪ Brak snapshotu (pomijam)';
+      } else if (message.includes('Zmiana wykryta')) {
+        message = '🔔 Zmiana wykryta';
+      } else if (message.includes('Brak zmian')) {
+        message = '✅ Brak zmian';
+      }
+      
+      data += `${icon} **${time}** ${message}`;
       if (log.changeScore != null) data += ` (${(log.changeScore * 100).toFixed(1)}%)`;
       data += '\n';
     }

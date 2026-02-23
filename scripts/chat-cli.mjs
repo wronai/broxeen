@@ -206,6 +206,13 @@ function showHelp() {
     '  .config                 — pokaż bieżącą konfigurację',
     '  .config set <k> <v>     — ustaw wartość konfiguracji',
     '',
+    col('Email:', 'bold'),
+    '  .email test              — test SMTP+IMAP',
+    '  .email send <to> [...]   — wyślij email',
+    '  .email inbox [max]       — skrzynka odbiorcza',
+    '  .email config            — konfiguracja',
+    '  .email help              — szczegółowa pomoc',
+    '',
     col('Specjalne:', 'bold'),
     '  .scope <id>             — zmień scope (local|network|internet)',
     '  .compare                — CLI vs App side-by-side',
@@ -379,6 +386,273 @@ function handleConfig(args) {
   return lines.join('\n');
 }
 
+// ── Email helpers (direct Python, no Tauri needed) ────────────────────────────
+
+import { writeFileSync, unlinkSync } from 'fs';
+
+function getEmailConfig() {
+  return {
+    smtp_host: process.env.BROXEEN_SMTP_HOST     || 'localhost',
+    smtp_port: process.env.BROXEEN_SMTP_PORT     || '1025',
+    smtp_user: process.env.BROXEEN_SMTP_USER     || 'test@broxeen.local',
+    smtp_pass: process.env.BROXEEN_SMTP_PASSWORD || 'test',
+    imap_host: process.env.BROXEEN_IMAP_HOST     || 'localhost',
+    imap_port: process.env.BROXEEN_IMAP_PORT     || '1143',
+    from_addr: process.env.BROXEEN_EMAIL_FROM    || 'broxeen@broxeen.local',
+    use_tls:   (process.env.BROXEEN_EMAIL_TLS || 'false') !== 'false'
+               && (process.env.BROXEEN_EMAIL_TLS || 'false') !== '0',
+  };
+}
+
+function runPythonScript(script, stdinFile) {
+  const tmpScript = `/tmp/broxeen_py_${Date.now()}.py`;
+  try {
+    writeFileSync(tmpScript, script);
+    const cmd = stdinFile
+      ? `python3 ${tmpScript} < ${stdinFile}`
+      : `python3 ${tmpScript}`;
+    const out = run(cmd, 15000);
+    try { unlinkSync(tmpScript); } catch {}
+    return out;
+  } catch (e) {
+    try { unlinkSync(tmpScript); } catch {}
+    return null;
+  }
+}
+
+function handleEmailTest() {
+  const c = getEmailConfig();
+  const lines = [col('📧 Test konfiguracji email:', 'bold', 'cyan')];
+  lines.push(`  SMTP: ${c.smtp_host}:${c.smtp_port}  user=${c.smtp_user}  tls=${c.use_tls}`);
+  lines.push(`  IMAP: ${c.imap_host}:${c.imap_port}`);
+  lines.push('');
+
+  const noauth = !c.smtp_user || c.smtp_user === 'test@broxeen.local';
+  const script = `
+import smtplib, imaplib, json, sys
+results = {'smtp': False, 'imap': False, 'smtp_error': '', 'imap_error': ''}
+try:
+    s = smtplib.SMTP('${c.smtp_host}', ${c.smtp_port}, timeout=8)
+    s.ehlo()
+    ${c.use_tls ? 's.starttls(); s.ehlo()' : '# no TLS'}
+    ${noauth ? '# no auth' : `s.login('${c.smtp_user}', '${c.smtp_pass}')`}
+    s.quit()
+    results['smtp'] = True
+except Exception as e:
+    results['smtp_error'] = str(e)
+try:
+    ${c.use_tls
+      ? `m = imaplib.IMAP4_SSL('${c.imap_host}', ${c.imap_port})`
+      : `m = imaplib.IMAP4('${c.imap_host}', ${c.imap_port})`}
+    ${noauth ? '# no auth' : `m.login('${c.smtp_user}', '${c.smtp_pass}')`}
+    m.logout()
+    results['imap'] = True
+except Exception as e:
+    results['imap_error'] = str(e)
+print(json.dumps(results))
+`;
+
+  const out = runPythonScript(script);
+  if (!out) { lines.push(col('❌ python3 niedostępny lub timeout', 'red')); return lines.join('\n'); }
+  try {
+    const r = JSON.parse(out);
+    lines.push(r.smtp ? col('✅ SMTP: OK', 'green') : col(`❌ SMTP: ${r.smtp_error}`, 'red'));
+    lines.push(r.imap ? col('✅ IMAP: OK', 'green') : col(`❌ IMAP: ${r.imap_error}`, 'red'));
+    if (r.smtp && r.imap) {
+      lines.push(''); lines.push(col('✅ Konfiguracja poprawna — możesz wysyłać i odbierać email.', 'green'));
+    } else if (r.smtp_error && r.smtp_error.includes('Connection refused')) {
+      lines.push(''); lines.push(col('💡 Uruchom Mailpit: ', 'yellow') + col('docker compose --profile mail up -d', 'bold'));
+    }
+  } catch { lines.push(col(`❌ Błąd parsowania: ${out}`, 'red')); }
+  return lines.join('\n');
+}
+
+function handleEmailSend(args) {
+  const to = args[0];
+  const subject = args[1] || 'Test z Broxeen CLI';
+  const body = args.slice(2).join(' ') || `Wiadomość testowa z Broxeen CLI.\nCzas: ${new Date().toISOString()}`;
+
+  if (!to || !to.includes('@')) return col('Użycie: .email send <adres@email> [temat] [treść]', 'yellow');
+
+  const c = getEmailConfig();
+  const noauth = !c.smtp_user || c.smtp_user === 'test@broxeen.local';
+  const emlFile = `/tmp/broxeen_msg_${Date.now()}.eml`;
+  const emailContent = [
+    `From: ${c.from_addr}`, `To: ${to}`, `Subject: ${subject}`,
+    `MIME-Version: 1.0`, `Content-Type: text/plain; charset=utf-8`,
+    `Content-Transfer-Encoding: 8bit`, ``, body,
+  ].join('\r\n');
+
+  const script = `
+import smtplib, sys
+msg = open('${emlFile}', 'rb').read()
+try:
+    s = smtplib.SMTP('${c.smtp_host}', ${c.smtp_port}, timeout=10)
+    s.ehlo()
+    ${c.use_tls ? 's.starttls(); s.ehlo()' : '# no TLS'}
+    ${noauth ? '# no auth' : `s.login('${c.smtp_user}', '${c.smtp_pass}')`}
+    s.sendmail('${c.from_addr}', ['${to}'], msg)
+    s.quit()
+    print('OK')
+except Exception as e:
+    print(f'ERROR: {e}', file=sys.stderr)
+    sys.exit(1)
+`;
+
+  try {
+    writeFileSync(emlFile, emailContent);
+    const out = runPythonScript(script);
+    try { unlinkSync(emlFile); } catch {}
+    if (out !== null && out.trim() === 'OK') {
+      return [
+        col('✅ Email wysłany!', 'green'),
+        `  Do: ${to}`, `  Temat: ${subject}`,
+        `  SMTP: ${c.smtp_host}:${c.smtp_port}`, '',
+        col(`  🌐 Podgląd: http://localhost:8025`, 'cyan'),
+      ].join('\n');
+    }
+    return col(`❌ Błąd wysyłki: ${out || 'timeout/brak odpowiedzi'}`, 'red');
+  } catch (e) {
+    try { unlinkSync(emlFile); } catch {}
+    return col(`❌ Błąd: ${e.message}`, 'red');
+  }
+}
+
+function handleEmailInbox(args) {
+  const max = parseInt(args[0]) || 10;
+  const c = getEmailConfig();
+
+  // For local Mailpit: use REST API (no IMAP needed)
+  if (c.smtp_host === 'localhost' || c.smtp_host === '127.0.0.1') {
+    const apiUrl = `http://localhost:8025/api/v1/messages?limit=${max}`;
+    const out = run(`curl -sf "${apiUrl}"`, 8000);
+    if (!out) {
+      return [
+        col('❌ Mailpit REST API niedostępna', 'red'),
+        `  Sprawdź czy Mailpit działa: ${col('docker compose --profile mail up -d mailpit', 'bold')}`,
+        `  Oczekiwany URL: http://localhost:8025`,
+      ].join('\n');
+    }
+    try {
+      const r = JSON.parse(out);
+      const msgs = r.messages || [];
+      const total = r.total ?? msgs.length;
+      const lines = [
+        col(`📪 Skrzynka Mailpit (http://localhost:8025)`, 'bold', 'cyan'),
+        `  Łącznie: ${total} wiadomości`, '',
+      ];
+      if (msgs.length === 0) {
+        lines.push(col('  📭 Skrzynka pusta', 'dim'));
+      } else {
+        msgs.forEach((msg, i) => {
+          lines.push(`  ${i + 1}. 📩 ${col(msg.Subject || '(brak tematu)', 'bold')}`);
+          lines.push(`     Do: ${msg.To?.map(t => t.Address).join(', ') || '?'}`);
+          lines.push(`     Od: ${msg.From?.Address || '?'}`);
+          lines.push(`     ${col(msg.Created || '', 'dim')}`);
+          lines.push('');
+        });
+      }
+      lines.push(col('  🌐 Web UI: http://localhost:8025', 'cyan'));
+      return lines.join('\n');
+    } catch { return col(`❌ Błąd parsowania odpowiedzi API: ${out.slice(0, 100)}`, 'red'); }
+  }
+
+  // For remote IMAP servers: use Python imaplib
+  const noauth = !c.smtp_user;
+  const script = `
+import imaplib, email, json, sys
+from email.header import decode_header
+
+def dec(s):
+    if not s: return ''
+    parts = []
+    for part, cs in decode_header(s):
+        if isinstance(part, bytes):
+            parts.append(part.decode(cs or 'utf-8', errors='replace'))
+        else:
+            parts.append(str(part))
+    return ' '.join(parts)
+
+try:
+    ${c.use_tls
+      ? `m = imaplib.IMAP4_SSL('${c.imap_host}', ${c.imap_port})`
+      : `m = imaplib.IMAP4('${c.imap_host}', ${c.imap_port})`}
+    ${noauth ? '# no auth' : `m.login('${c.smtp_user}', '${c.smtp_pass}')`}
+    m.select('INBOX')
+    _, all_data = m.search(None, 'ALL')
+    all_ids = all_data[0].split() if all_data[0] else []
+    _, unseen_data = m.search(None, 'UNSEEN')
+    unseen_ids = unseen_data[0].split() if unseen_data[0] else []
+    fetch_ids = list(reversed(all_ids[-${max}:] if len(all_ids) > ${max} else all_ids))
+    msgs = []
+    for mid in fetch_ids:
+        _, data = m.fetch(mid, '(FLAGS BODY.PEEK[HEADER])')
+        if not data or not data[0]: continue
+        raw = data[0][1]
+        msg = email.message_from_bytes(raw)
+        flags = str(data[0][0])
+        msgs.append({
+            'id': mid.decode(),
+            'from': dec(msg.get('From', '')),
+            'subject': dec(msg.get('Subject', '(brak tematu)')),
+            'date': msg.get('Date', ''),
+            'is_read': '\\\\Seen' in flags,
+        })
+    m.close(); m.logout()
+    print(json.dumps({'total': len(all_ids), 'unread': len(unseen_ids), 'messages': msgs}))
+except Exception as e:
+    print(json.dumps({'error': str(e)}), file=sys.stderr)
+    sys.exit(1)
+`;
+
+  const out = runPythonScript(script);
+  if (!out) return col('❌ python3 niedostępny lub timeout', 'red');
+  try {
+    const r = JSON.parse(out);
+    if (r.error) return col(`❌ IMAP błąd: ${r.error}`, 'red');
+    const lines = [
+      col(`📪 Skrzynka IMAP (${c.imap_host}:${c.imap_port})`, 'bold', 'cyan'),
+      `  Łącznie: ${r.total} | Nieprzeczytane: ${r.unread}`, '',
+    ];
+    if (!r.messages || r.messages.length === 0) {
+      lines.push(col('  📭 Skrzynka pusta', 'dim'));
+    } else {
+      r.messages.forEach((msg, i) => {
+        const icon = msg.is_read ? '📭' : col('📩', 'yellow');
+        lines.push(`  ${i + 1}. ${icon} ${col(msg.subject, 'bold')}`);
+        lines.push(`     Od: ${msg.from}`);
+        lines.push(`     ${col(msg.date, 'dim')}`);
+        lines.push('');
+      });
+    }
+    return lines.join('\n');
+  } catch { return col(`❌ Błąd parsowania: ${out}`, 'red'); }
+}
+
+function showEmailHelp() {
+  return [
+    col('Komendy email:', 'bold'),
+    '  .email test                       — test połączenia SMTP+IMAP',
+    '  .email send <to> [temat] [treść]  — wyślij email',
+    '  .email inbox [max=10]             — pokaż skrzynkę odbiorczą',
+    '  .email config                     — pokaż konfigurację',
+    '',
+    col('Zmienne środowiskowe:', 'bold'),
+    '  BROXEEN_SMTP_HOST     (domyślnie: localhost)',
+    '  BROXEEN_SMTP_PORT     (domyślnie: 1025)',
+    '  BROXEEN_SMTP_USER     (domyślnie: test@broxeen.local)',
+    '  BROXEEN_SMTP_PASSWORD',
+    '  BROXEEN_IMAP_HOST     (domyślnie: localhost)',
+    '  BROXEEN_IMAP_PORT     (domyślnie: 1143)',
+    '  BROXEEN_EMAIL_FROM',
+    '  BROXEEN_EMAIL_TLS     (domyślnie: false)',
+    '',
+    col('Lokalny serwer testowy (Mailpit):', 'bold'),
+    '  docker compose --profile mail up -d',
+    '  Web UI: http://localhost:8025',
+  ].join('\n');
+}
+
 // ── App API integration ───────────────────────────────────────────────────────
 const APP_URL = process.env.BROXEEN_URL || 'http://localhost:5173';
 
@@ -473,6 +747,32 @@ rl.on('line', async line => {
     const s = input.split(/\s+/)[1];
     if (s) { currentScope = s; console.log(`\n✅ Scope → ${s}`); }
     else console.log(`\nScope: ${currentScope}`);
+    showPrompt(); return;
+  }
+
+  if (input.startsWith('.email')) {
+    const parts = input.split(/\s+/);
+    const sub = parts[1];
+    const rest = parts.slice(2);
+    if (!sub || sub === 'help') {
+      console.log('\n' + showEmailHelp());
+    } else if (sub === 'test') {
+      console.log('\n' + handleEmailTest());
+    } else if (sub === 'send') {
+      console.log('\n' + handleEmailSend(rest));
+    } else if (sub === 'inbox') {
+      console.log('\n' + handleEmailInbox(rest));
+    } else if (sub === 'config') {
+      const c = getEmailConfig();
+      console.log('\n' + col('⚙️  Email config:', 'bold', 'cyan'));
+      console.log(`  SMTP: ${c.smtp_host}:${c.smtp_port}  (tls=${c.use_tls})`);
+      console.log(`  IMAP: ${c.imap_host}:${c.imap_port}`);
+      console.log(`  User: ${c.smtp_user}`);
+      console.log(`  From: ${c.from_addr}`);
+      console.log(`  Pass: ${c.smtp_pass ? '***' : col('(nie ustawione)', 'dim')}`);
+    } else {
+      console.log('\n' + col(`Nieznana komenda: .email ${sub}. Użyj .email help`, 'yellow'));
+    }
     showPrompt(); return;
   }
 

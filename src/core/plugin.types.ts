@@ -57,7 +57,7 @@ export interface ResultMetadata {
   readonly cached: boolean;
   readonly truncated: boolean;
   readonly scope?: string;
-  readonly configPrompt?: string; // Active action suggestions for follow-up commands
+  readonly configPrompt?: import('../components/ChatConfigPrompt').ConfigPromptData; // Active action suggestions for follow-up commands
   // Legacy compatibility
   readonly executionTime?: number;
   readonly deviceCount?: number;
