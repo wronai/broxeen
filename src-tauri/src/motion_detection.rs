@@ -794,7 +794,12 @@ fn nl_to_sql(question: &str, new_schema: bool) -> String {
         } else if q.contains("wczoraj") || q.contains("yesterday") {
             if new_schema { "AND local_date = date('now','-1 day','localtime')" } else { "AND date(timestamp) = date('now','-1 day')" }
         } else {
-            ""
+            // Check for time-based filters like "10 minut", "5 minut", etc.
+            let filter = extract_date_filter(&q, new_schema);
+            return format!(
+                "SELECT COUNT(*) as count, MIN(timestamp) as first_seen, MAX(timestamp) as last_seen \
+                 FROM detections WHERE label='person' {}", filter
+            );
         };
         return format!(
             "SELECT COUNT(*) as count, MIN(timestamp) as first_seen, MAX(timestamp) as last_seen \
