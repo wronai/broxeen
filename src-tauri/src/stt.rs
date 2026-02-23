@@ -23,7 +23,7 @@ pub async fn transcribe_wav_base64(
         return Err("OPENROUTER_API_KEY not set — STT requires cloud transcription".into());
     }
 
-    let default_model = env::var("STT_MODEL").unwrap_or_else(|_| env::var("VITE_STT_MODEL").unwrap_or_else(|_| "openai/whisper-1".to_string()));
+    let default_model = env::var("STT_MODEL").unwrap_or_else(|_| env::var("VITE_STT_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string()));
     let model = model_override
         .map(|s| s.trim().to_string())
         .filter(|value| !value.is_empty())
@@ -40,7 +40,7 @@ pub async fn transcribe_wav_base64(
                 "content": [
                     {
                         "type": "text",
-                        "text": format!("ZADANIE: Wykonaj DOKŁADNĄ transkrypcję audio na język {}.\n\nZASADY:\n1. ZWRÓĆ TYLKO SŁOWA USŁYSZANE NA NAGRANIU - słowo po słowie\n2. NIE DODAWAJ NICZEGO - żadnych wstępów, komentarzy, wyjaśnień, opisów\n3. NIE TWÓRZ TEKSTÓW KTÓRYCH NIE BYŁO NA NAGRANIU - to jest BŁĄD HALUCYNACJI\n4. Jeśli nagranie jest puste lub niezrozumiałe - zwróć pusty string\"\"\n5. NIE ODPOWIADAJ NA TREŚĆ - tylko przepisz co usłyszałeś\n\nPRZYKŁAD BŁĘDU (TEGO NIE RÓB):\nUżytkownik mówi: \"kamera\"\nTwój błędny wynik: \"W dzisiejszym materiale przedstawię Wam trzy rzeczy...\"\nPOPRAWNY wynik: \"kamera\"\n\nTwoja transkrypcja:", lang)
+                        "text": format!("Transkrybuj dokładnie audio na język {}. Zwróć tylko słowa usłyszone w nagraniu, bez dodatkowych komentarzy.", lang)
                     },
                     {
                         "type": "input_audio",
@@ -51,8 +51,7 @@ pub async fn transcribe_wav_base64(
                     }
                 ]
             }
-        ],
-        "response_format": {"type": "text"}
+        ]
     });
 
     let client = reqwest::Client::new();
@@ -90,13 +89,12 @@ pub async fn transcribe_wav_base64(
         return Err("STT: pusty wynik transkrypcji (za cicho?)".into());
     }
 
-    // Hallucination detection - reject obvious LLM hallucinations
+    // Technical artifact detection - reject obvious audio processing errors
     let words: Vec<&str> = text.split_whitespace().collect();
     let total_words = words.len();
     
-    // Check 1: If response is very long (>100 words) for typical voice command, likely hallucination
-    if total_words > 100 {
-        // Check for repetitive patterns (same word repeated many times)
+    // Check 1: Repetitive artifacts (same word repeated many times - audio glitch)
+    if total_words > 10 {
         let mut word_counts = std::collections::HashMap::new();
         for word in &words {
             let normalized = word.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "");
@@ -105,31 +103,12 @@ pub async fn transcribe_wav_base64(
             }
         }
         
-        // Find most common word
+        // If same word appears >50% of text, it's likely audio processing error
         if let Some((most_common, count)) = word_counts.iter().max_by_key(|(_, count)| *count) {
-            // If same word appears >30 times or >40% of text, it's likely hallucination
-            if *count > 30 || (*count as f32 / total_words as f32) > 0.4 {
+            if (*count as f32 / total_words as f32) > 0.5 {
                 return Err(format!(
-                    "STT: wykryto halucynację (słowo '{}' powtórzone {} razy z {} słów)",
+                    "STT: błąd przetwarzania audio (słowo '{}' powtórzone {} razy z {} słów)",
                     most_common, count, total_words
-                ));
-            }
-        }
-        
-        // Check 2: Generic essay patterns that indicate model made up content
-        let generic_starts = [
-            "w dzisiejszych czasach",
-            "w dzisiejszym świecie", 
-            "w dzisiejszym materiale",
-            "kamera może przyjąć",
-            "technologia stale się rozwija",
-        ];
-        let lower_text = text.to_lowercase();
-        for pattern in &generic_starts {
-            if lower_text.starts_with(pattern) && total_words > 50 {
-                return Err(format!(
-                    "STT: wykryto halucynację (generyczny tekst nie związany z mową, {} słów)",
-                    total_words
                 ));
             }
         }
@@ -155,5 +134,12 @@ pub async fn stt_transcribe(
 
     // For other formats (webm, ogg), try anyway — Whisper handles many formats
     transcribe_wav_base64(&audio_base64, lang, None, None).await
+}
+
+fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD
+        .decode(input)
+        .map_err(|e| format!("Base64 decode error: {e}"))
 }
 
