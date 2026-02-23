@@ -17,11 +17,10 @@ import {
 export class AdvancedPortScanPlugin implements Plugin {
   readonly id = 'advanced-port-scan';
   readonly name = 'Advanced Port Scanner';
-  readonly version = '1.0.0';
   readonly description = 'Deep port scanning with camera vendor detection and authentication methods';
   readonly supportedIntents = ['network:port-scan', 'network:deep-scan', 'camera:detect'];
 
-  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
+  canHandle(input: string): boolean {
     const lower = input.toLowerCase();
     return /skanuj.*porty|scan.*ports|wykryj.*kamery.*szczegół|deep.*scan|zaawansowane.*skanowanie/i.test(lower);
   }

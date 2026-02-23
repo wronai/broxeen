@@ -279,6 +279,19 @@ export function useTts(options: Partial<TtsOptions> = {}) {
             return;
           }
 
+          // Preempt any previous backend speech, so only one message is spoken at a time.
+          // Mirrors speechSynthesis.cancel() behavior in browser mode.
+          clearBackendProgress();
+          try {
+            if (backendModeRef.current === "native") {
+              void invoke("backend_tts_stop");
+            } else if (backendModeRef.current === "legacy") {
+              void invoke("tts_stop");
+            }
+          } catch {
+            // Best-effort; speaking will still be attempted.
+          }
+
           setIsSpeaking(true);
           setIsPaused(false);
 

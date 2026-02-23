@@ -224,6 +224,56 @@ describe("useSpeech", () => {
     expect(result.current.isListening).toBe(false);
   });
 
+  it("enableAutoListen() uruchamia recognition z continuous=true", () => {
+    const { result } = renderHook(() => useSpeech());
+    act(() => {
+      result.current.enableAutoListen();
+    });
+    expect(mockRecognition.continuous).toBe(true);
+  });
+
+  it("auto-listen: finalny wynik trafia do finalTranscript", () => {
+    const { result } = renderHook(() => useSpeech());
+    act(() => {
+      result.current.enableAutoListen();
+      mockRecognition.onstart?.();
+    });
+    act(() => {
+      mockRecognition.onresult?.({
+        resultIndex: 0,
+        results: [
+          Object.assign([{ transcript: "monitoruj kamerę" }], {
+            isFinal: true,
+            length: 1,
+          }),
+        ],
+      });
+    });
+    expect(result.current.finalTranscript).toBe("monitoruj kamerę");
+  });
+
+  it("auto-listen: po onend robi auto-restart (start ponownie)", async () => {
+    vi.useFakeTimers();
+    const { result } = renderHook(() => useSpeech());
+    act(() => {
+      result.current.enableAutoListen();
+      mockRecognition.onstart?.();
+    });
+
+    // Simulate recognition session ended
+    act(() => {
+      mockRecognition.onend?.();
+    });
+
+    // Auto-restart is scheduled with 250ms
+    act(() => {
+      vi.advanceTimersByTime(260);
+    });
+
+    expect(mockRecognition.start).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
   it("używa webkitSpeechRecognition jako fallback", () => {
     Object.defineProperty(window, "SpeechRecognition", {
       value: undefined,

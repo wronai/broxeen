@@ -21,7 +21,7 @@ const SUBNET_RE = /\b(\d{1,3}\.\d{1,3}\.\d{1,3})\.0\/24\b/;
 
 // ── Keyword matchers ────────────────────────────────────────
 
-const CAMERA_KEYWORDS = /kamer[aąęy]|camera|rtsp|onvif|podgląd|preview|snapshot|live/i;
+const CAMERA_KEYWORDS = /kamer[aąęyoi]?\b|camera|rtsp|onvif|podgląd|preview|snapshot|live/i;
 const NETWORK_KEYWORDS = /sieć|sieci|network|skanow|scan|urządze[nń]|device|host|interfejs/i;
 const SCAN_RESULT_KEYWORDS = /znaleziono|discovered|found|wykryto|online|active|port\s+\d/i;
 const BROWSE_KEYWORDS = /strona|stron[ęy]|website|browse|przeglądaj|http|url|tytuł/i;
@@ -45,9 +45,10 @@ export function resolveQuickActions(msg: ChatMessage): QuickActionSet | null {
   const text = msg.text;
   const actions: ConfigAction[] = [];
 
-  // Extract IPs found in the message
+  // Extract IPs found in the message (filter broadcast/network addresses)
   const ips = [...new Set(Array.from(text.matchAll(IP_RE), m => m[1]))].filter(
-    ip => !ip.startsWith('0.') && !ip.startsWith('255.') && ip !== '0.0.0.0',
+    ip => !ip.startsWith('0.') && !ip.startsWith('255.') && ip !== '0.0.0.0'
+      && !ip.endsWith('.0') && !ip.endsWith('.255'),
   );
 
   // Extract URLs

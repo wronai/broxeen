@@ -16,13 +16,6 @@ export interface AutoWatchConfig {
   excludePatterns: string[];
 }
 
-export interface AutoWatchStats {
-  totalAutoWatches: number;
-  activeAutoWatches: number;
-  recentQueries: number;
-  commonIntents: string[];
-}
-
 export class AutoWatchIntegration {
   private watchManager: WatchManager;
   private dbManager: DatabaseManager;
@@ -358,9 +351,9 @@ export class AutoWatchIntegration {
     );
 
     return {
-      totalAutoWatches: watchStats?.total ?? 0,
-      activeAutoWatches: watchStats?.active ?? 0,
-      recentQueries: recentQueries?.count ?? 0,
+      totalAutoWatches: watchStats.total,
+      activeAutoWatches: watchStats.active,
+      recentQueries: recentQueries.count,
       commonIntents: []
     };
   }

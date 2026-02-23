@@ -65,11 +65,15 @@ export function useSpeech(lang: string = "pl-PL") {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
+  const [finalTranscript, setFinalTranscript] = useState("");
   const [isSupported, setIsSupported] = useState(false);
   const [unsupportedReason, setUnsupportedReason] = useState<string | null>(
     null,
   );
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const autoListenEnabledRef = useRef(false);
+  const stopRequestedRef = useRef(false);
+  const restartTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const runtimeIsTauri = isTauriRuntime();
@@ -99,6 +103,10 @@ export function useSpeech(lang: string = "pl-PL") {
 
   useEffect(() => {
     return () => {
+      if (restartTimerRef.current !== null) {
+        window.clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
       if (recognitionRef.current) {
         speechLogger.debug(
           "Unmount cleanup: aborting active speech recognition instance",
@@ -107,6 +115,22 @@ export function useSpeech(lang: string = "pl-PL") {
         recognitionRef.current = null;
       }
     };
+  }, []);
+
+  const clearFinalTranscript = useCallback(() => {
+    setFinalTranscript("");
+  }, []);
+
+  const disableAutoListen = useCallback(() => {
+    autoListenEnabledRef.current = false;
+    stopRequestedRef.current = true;
+    if (restartTimerRef.current !== null) {
+      window.clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
   }, []);
 
   const startListening = useCallback(() => {
@@ -138,14 +162,17 @@ export function useSpeech(lang: string = "pl-PL") {
           recognitionRef.current.abort();
         }
 
+        stopRequestedRef.current = false;
+
+        const continuous = autoListenEnabledRef.current;
         speechLogger.info("Starting speech recognition session", {
           lang,
           interimResults: true,
-          continuous: false,
+          continuous,
         });
 
         const recognition = new SpeechRecognition();
-        recognition.continuous = false;
+        recognition.continuous = continuous;
         recognition.interimResults = true;
         recognition.lang = lang;
 
@@ -154,6 +181,7 @@ export function useSpeech(lang: string = "pl-PL") {
           setIsListening(true);
           setTranscript("");
           setInterimTranscript("");
+          setFinalTranscript("");
         };
 
         recognition.onresult = (event: SpeechRecognitionEvent) => {
@@ -177,9 +205,15 @@ export function useSpeech(lang: string = "pl-PL") {
             speechLogger.debug("Final transcript captured", {
               finalLength: final_.length,
             });
-            setTranscript((prev) =>
-              prev ? `${prev} ${final_}`.trim() : final_,
-            );
+
+            if (autoListenEnabledRef.current) {
+              // In auto-listen mode we treat each final chunk as a separate utterance.
+              setFinalTranscript(final_.trim());
+            } else {
+              setTranscript((prev) =>
+                prev ? `${prev} ${final_}`.trim() : final_,
+              );
+            }
           }
 
           speechLogger.debug("Interim transcript captured", {
@@ -200,6 +234,23 @@ export function useSpeech(lang: string = "pl-PL") {
           speechLogger.info("Speech recognition ended");
           setIsListening(false);
           recognitionRef.current = null;
+
+          if (
+            autoListenEnabledRef.current &&
+            !stopRequestedRef.current
+          ) {
+            // Auto-restart to achieve continuous hands-free interaction.
+            // Use a small backoff to avoid tight loops on some browsers.
+            if (restartTimerRef.current !== null) {
+              window.clearTimeout(restartTimerRef.current);
+              restartTimerRef.current = null;
+            }
+            restartTimerRef.current = window.setTimeout(() => {
+              restartTimerRef.current = null;
+              speechLogger.info("Auto-restarting speech recognition (auto_listen)");
+              startListening();
+            }, 250);
+          }
         };
 
         recognitionRef.current = recognition;
@@ -215,13 +266,18 @@ export function useSpeech(lang: string = "pl-PL") {
     );
 
     runStartListening();
-  }, [lang]);
+  }, [lang, clearFinalTranscript]);
 
   const stopListening = useCallback(() => {
     const runStopListening = logSyncDecorator(
       "speech:recognition",
       "stopListening",
       () => {
+        stopRequestedRef.current = true;
+        if (restartTimerRef.current !== null) {
+          window.clearTimeout(restartTimerRef.current);
+          restartTimerRef.current = null;
+        }
         if (recognitionRef.current) {
           speechLogger.info("Stopping speech recognition manually");
           recognitionRef.current.stop();
@@ -235,13 +291,23 @@ export function useSpeech(lang: string = "pl-PL") {
     runStopListening();
   }, []);
 
+  const enableAutoListen = useCallback(() => {
+    autoListenEnabledRef.current = true;
+    stopRequestedRef.current = false;
+    startListening();
+  }, [startListening]);
+
   return {
     isListening,
     transcript,
     interimTranscript,
+    finalTranscript,
     isSupported,
     unsupportedReason,
     startListening,
     stopListening,
+    enableAutoListen,
+    disableAutoListen,
+    clearFinalTranscript,
   };
 }

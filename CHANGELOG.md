@@ -1,3 +1,66 @@
+## [1.0.44] - 2026-02-23
+
+### Summary
+
+feat(docs): deep code analysis engine with 6 supporting modules
+
+### Docs
+
+- docs: update README
+- docs: update TODO.md
+
+### Other
+
+- update img_1.png
+- update src-tauri/src/audio_commands.rs
+- update src-tauri/src/stt.rs
+- update src/components/Chat.tsx
+- update src/hooks/useSpeech.test.ts
+- update src/hooks/useSpeech.ts
+- update src/hooks/useStt.ts
+- update src/hooks/useTts.ts
+- update src/integration/autoWatchIntegration.ts
+- update src/plugins/discovery/advancedPortScanPlugin.ts
+- ... and 6 more
+
+
+## [1.0.44] - 2026-02-23
+
+### Summary
+
+feat(ux): context-aware quick-action buttons on assistant messages + interactive welcome screen
+
+### Features
+
+- **MessageQuickActions** (`src/components/MessageQuickActions.tsx`): renders contextual action buttons at the bottom of each assistant message
+- **quickActionResolver** (`src/utils/quickActionResolver.ts`): analyzes message content (IPs, URLs, keywords) and generates up to 5 relevant follow-up actions
+  - Network scan → ping, port scan, rescan
+  - Camera detected → live preview, snapshot, monitor
+  - Ping result → port scan, SSH
+  - Port scan → SSH (port 22), browse (port 80/443), monitor
+  - Browse result → refresh, search more
+  - SSH result → disk usage, processes
+  - Monitor → logs, active list
+  - Help → scan, cameras, browse, config
+- **Interactive welcome screen**: 6 clickable action cards (scan network, find cameras, browse, config, monitor, help) replacing the old text-only welcome
+- Three action modes: **execute** (instant), **prefill** (fills input), **link** (opens URL)
+- Executed actions get a ✓ checkmark and become disabled
+
+### Fixes
+
+- `CAMERA_KEYWORDS` regex now matches Polish `kamer` without suffix (all declensions)
+- IP extraction filters out `.0` and `.255` broadcast/network addresses
+
+### Tests
+
+- 19 new tests for `quickActionResolver` covering all action categories, deduplication, and limits
+- Total: **614 tests across 41 files**, all passing
+
+### Other
+
+- Updated TODO.md with completed interaction items and new future tasks
+
+
 ## [1.0.43] - 2026-02-23
 
 ### Summary

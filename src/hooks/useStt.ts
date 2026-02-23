@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { isTauriRuntime } from "../lib/runtime";
 import { logger, logAsyncDecorator, logSyncDecorator } from "../lib/logger";
 import { transcribeAudio, type SttAudioFormat } from "../lib/sttClient";
+import { configStore } from "../config/configStore";
 
 const sttLogger = logger.scope("speech:stt:ui");
 const STT_TAURI_BACKEND_REASON =
@@ -334,12 +335,15 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
             setError(null);
 
             try {
+              const cfg = configStore.getAll();
               const transcriptValue = await invoke<string>("stt_stop", {
                 language: lang.split("-")[0],
+                apiKey: cfg.llm.apiKey,
+                model: cfg.stt.model,
               });
               const normalized = (transcriptValue || "").trim();
+              setTranscript(normalized);
               if (normalized) {
-                setTranscript(normalized);
                 sttLogger.info("Native STT transcription received", {
                   length: normalized.length,
                 });
@@ -386,7 +390,12 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   useEffect(() => {
     return () => {
       if (modeRef.current === "tauri" && isRecordingRef.current) {
-        invoke("stt_stop", { language: lang.split("-")[0] }).catch(
+        const cfg = configStore.getAll();
+        invoke("stt_stop", {
+          language: lang.split("-")[0],
+          apiKey: cfg.llm.apiKey,
+          model: cfg.stt.model,
+        }).catch(
           () => undefined,
         );
       }

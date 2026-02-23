@@ -467,7 +467,7 @@ export class NetworkScanPlugin implements Plugin {
 
         pc.createOffer()
           .then((offer: RTCSessionDescriptionInit) => pc.setLocalDescription(offer))
-          .catch((err: unknown) => { 
+          .catch((err) => { 
             console.error(`[NetworkScanPlugin] WebRTC createOffer failed:`, err);
             clearTimeout(timeout); 
             resolve(null); 

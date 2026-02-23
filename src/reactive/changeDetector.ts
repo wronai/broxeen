@@ -345,8 +345,8 @@ export class ChangeDetector {
       ORDER BY detected_at DESC 
       LIMIT ?
     `;
-
-    const rows = await db.query<any>(query, [targetId, limit]);
+    
+    const rows = db.prepare(query).all(targetId, limit) as any[];
     
     return rows.map(row => ({
       id: row.id,

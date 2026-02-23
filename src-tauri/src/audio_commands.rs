@@ -92,6 +92,8 @@ pub async fn stt_stop(
     recording_state: tauri::State<'_, SharedRecordingState>,
     active_stream: tauri::State<'_, ActiveStream>,
     language: Option<String>,
+    api_key: Option<String>,
+    model: Option<String>,
 ) -> Result<String, String> {
     crate::backend_info("Command stt_stop invoked");
 
@@ -119,7 +121,13 @@ pub async fn stt_stop(
     ));
 
     // Send to OpenRouter Whisper for transcription
-    let transcript = stt::transcribe_wav_base64(&wav_base64, lang).await?;
+    let transcript = stt::transcribe_wav_base64(
+        &wav_base64,
+        lang,
+        api_key.as_deref(),
+        model.as_deref(),
+    )
+    .await?;
 
     crate::backend_info(format!(
         "STT transcript ready (len={})",

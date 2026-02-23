@@ -8,13 +8,26 @@ const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/audio/transcriptions"
 /// Transcribe WAV audio (base64-encoded) using OpenRouter Whisper.
 ///
 /// Called by audio_commands::stt_stop after native recording finishes.
-pub async fn transcribe_wav_base64(wav_base64: &str, lang: &str) -> Result<String, String> {
-    let api_key = env::var("OPENROUTER_API_KEY").unwrap_or_default();
+pub async fn transcribe_wav_base64(
+    wav_base64: &str,
+    lang: &str,
+    api_key_override: Option<&str>,
+    model_override: Option<&str>,
+) -> Result<String, String> {
+    let api_key_from_env = env::var("OPENROUTER_API_KEY").unwrap_or_default();
+    let api_key = api_key_override
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(api_key_from_env.trim());
     if api_key.is_empty() {
         return Err("OPENROUTER_API_KEY not set — STT requires cloud transcription".into());
     }
 
-    let model = env::var("STT_MODEL").unwrap_or_else(|_| "openai/whisper-large-v3".into());
+    let default_model = env::var("STT_MODEL").unwrap_or_else(|_| "openai/whisper-large-v3".into());
+    let model = model_override
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .unwrap_or(default_model.trim());
 
     println!("[stt] Sending {}KB of audio to {model}", wav_base64.len() / 1024);
 

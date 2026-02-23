@@ -28,16 +28,16 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 ## 🚀 NOWE ULEPSZENIA SYSTEMU (v2.0+)
 
 ### 🤖 Inteligentny Asystent z Propozycjami
-- [ ] **System proponowania akcji** - gdy użytkownik nie jest pewien, system proponuje dostępne opcje
-- [ ] **Kontekstowe sugestie** - na podstawie historii i aktualnego stanu
-- [ ] **Interaktywne wybieranie** - klikalne opcje zamiast tylko tekst
-- [ ] **Uczenie się preferencji** - system zapamiętuje wybory użytkownika
+- [x] **System proponowania akcji** — `MessageQuickActions` + `quickActionResolver` — kontekstowe przyciski na dole każdej odpowiedzi asystenta ✅
+- [x] **Kontekstowe sugestie** — auto-detekcja IP, URL, kamer, portów, SSH w treści wiadomości → odpowiednie akcje ✅
+- [x] **Interaktywne wybieranie** — klikalne karty na ekranie powitalnym (6 akcji) + inline buttons na wiadomościach ✅
+- [ ] **Uczenie się preferencji** - system zapamiętuje wybory użytkownika i promuje najczęstsze
 
 ### 📺 Podgląd Kamier i Urządzeń
 - [x] **Live preview kamer** - podgląd wideo (1 FPS dla oszczędności)
 - [x] **RTSP kompatybilność Tauri (cameraId/camera_id)** - spójne argumenty `rtsp_capture_frame` + testy regresyjne
 - [ ] **Status urządzeń** - online/offline, ostatnia aktywność
-- [ ] **Szybkie akcje** - kliknij aby zobaczyć szczegóły
+- [x] **Szybkie akcje** — kliknij przycisk na wiadomości → ping, porty, SSH, monitor, live kamera ✅
 - [ ] **Galeria znalezionych** - przeglądaj wszystkie odkryte urządzenia
 
 ### 🔍 Inteligentne Skanowanie
@@ -47,12 +47,22 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [ ] **Filtrowanie wyników** - tylko kamery, tylko konkretne typy
 
 ### 💬 Ulepszenia Chat UI
-- [ ] **Sugerowane komendy** - popularne akcje dostępne jednym kliknięciem
+- [x] **Sugerowane komendy** — ekran powitalny z 6 kartami akcji + `ActionSuggestions` z uczeniem się ✅
 - [ ] **Historia z kategoriami** - sieciowe, przeglądanie, chat
-- [ ] **Szybkie odpowiedzi** - predefiniowane odpowiedzi
+- [x] **Szybkie odpowiedzi** — `MessageQuickActions` generuje predefiniowane follow-up komendy per wiadomość ✅
 - [ ] **Wizualizacja wyników** - karty, ikony, statusy
 - [x] **Pływające przyciski diagnostyki/błędów** - przeniesione na prawą stronę nad scope i skompresowane do jednej linii
 - [ ] **Responsywność pływających przycisków** - dopasowanie na bardzo wąskich oknach (opcjonalne skrócone etykiety)
+
+### 🎯 Interakcja i Wsparcie Użytkownika
+- [x] **Quick-start welcome screen** — 6 klikalnych kart akcji na ekranie powitalnym (skanuj, kamery, przeglądaj, konfiguracja, monitoruj, pomoc) ✅
+- [x] **Context-aware message actions** — `quickActionResolver` analizuje treść → generuje do 5 akcji (ping, porty, SSH, browse, monitor, snapshot) ✅
+- [x] **Execute/Prefill/Link actions** — trzy tryby akcji: execute (natychmiast), prefill (wstaw do inputa), link (otwórz URL) ✅
+- [ ] **Wizard konfiguracyjny** — step-by-step setup: API key → model → podsieć → kamery
+- [ ] **Onboarding flow** — pierwszy start z interaktywnym tutorialem
+- [ ] **Feedback na akcjach** — animacja sukcesu/błędu po kliknięciu przycisku
+- [ ] **Drag & drop reorder** — użytkownik sortuje ulubione akcje na ekranie powitalnym
+- [ ] **Keyboard shortcuts** — Ctrl+1..6 dla szybkich akcji z welcome screen
 
 ### 🌐 Wieloplatformowość
 - [ ] **Android tablet/smartphone** - responsywny UI

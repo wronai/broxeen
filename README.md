@@ -1,5 +1,7 @@
 ![img.png](img.png)
 
+![img_1.png](img_1.png)
+
 # ⚡ Broxeen v2.1 — AI Camera Monitoring & Network Discovery
 
 Desktopowa aplikacja **Tauri 2 + React** do monitoringu kamer AI i odkrywania sieci z wbudowanym TTS (Text-to-Speech) i rozpoznawaniem mowy.
@@ -76,7 +78,7 @@ npm run test:watch
 npm run test:coverage
 ```
 
-Aktualny wynik: **595 testów, 0 błędów**.
+Aktualny wynik: **614 testów, 0 błędów**.
 
 ## Architektura
 
@@ -130,10 +132,39 @@ broxeen/
 | `browse` | `url: string` | Pobiera stronę i ekstrahuje tekst |
 | `get_settings` | — | Wczytuje ustawienia z `~/.config/broxeen/settings.json` |
 | `save_settings` | `settings: AudioSettings` | Zapisuje ustawienia audio |
-| `rtsp_capture_frame` | `url: string`, `camera_id: string` | Zrzuca pojedynczą klatkę z RTSP (JPEG base64). Frontend wysyła też `cameraId` dla kompatybilności |
+| `rtsp_capture_frame` | `url: string`, `camera_id: string` | Zrzuca pojedynczą klatkę z RTSP (JPEG base64). Zwraca też `frame_age_ms` i `frame_count` jako metryki |
+| `rtsp_worker_stats` | — | Zwraca statystyki wszystkich aktywnych workerów RTSP (camera_id, url, frame_count, uptime_ms, last_error) |
 | `db_execute` | `db_path: string`, `sql: string`, `params: any[]` | Wykonuje SQL (gdy `params` puste, obsługuje multi-statement przez `execute_batch`) |
 | `db_query` | `db_path: string`, `sql: string`, `params: any[]` | Zapytania SELECT do SQLite |
 | `db_close` | `db_path: string` | Zamknięcie połączenia do SQLite |
+
+## Interaktywny UX
+
+### Ekran powitalny
+Po uruchomieniu użytkownik widzi **6 klikalnych kart akcji**:
+| Akcja | Opis | Tryb |
+|-------|------|------|
+| 🔍 Skanuj sieć | Znajdź urządzenia w LAN | execute |
+| 📷 Znajdź kamery | Odkryj kamery IP | execute |
+| 🌍 Przeglądaj stronę | Otwórz dowolny URL | prefill |
+| ⚙️ Konfiguracja | Ustaw AI, sieć, SSH | execute |
+| 👁️ Monitoruj | Obserwuj zmiany | prefill |
+| ❓ Pomoc | Co mogę zrobić? | execute |
+
+### Kontekstowe akcje na wiadomościach
+Każda odpowiedź asystenta automatycznie otrzymuje **przyciski szybkich akcji** na dole wiadomości, dopasowane do treści:
+
+| Kontekst wiadomości | Generowane akcje |
+|---------------------|-----------------|
+| Wynik skanowania sieci + IP | Ping, Porty, Skanuj ponownie |
+| Znaleziona kamera + IP | ▶ Live, Snapshot, Monitoruj |
+| Wynik ping + IP | Skanuj porty, SSH |
+| Wynik skanowania portów (22, 80, 443) | SSH, Otwórz w przeglądarce, Monitoruj |
+| Wynik SSH | Dyski (df -h), Procesy (top) |
+| Monitoring aktywny | Logi, Aktywne monitoringi |
+| Przeglądanie strony | Odśwież, Szukaj więcej |
+
+Trzy tryby akcji: **execute** (natychmiastowe wykonanie), **prefill** (wstaw do inputa), **link** (otwórz URL).
 
 ## Pipeline rozwiązywania URL
 

@@ -46,6 +46,7 @@ import { errorReporting, capturePluginError, captureNetworkError } from "../util
 import { useDatabaseManager } from "../hooks/useDatabaseManager";
 import { useHistoryPersistence } from "../hooks/useHistoryPersistence";
 import { isTauriRuntime } from "../lib/runtime";
+import { MessageQuickActions } from "./MessageQuickActions";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -91,6 +92,8 @@ export default function Chat({ settings }: ChatProps) {
   const [currentScope, setCurrentScope] = useState<QueryScope>('local');
   const [showScopeSelector, setShowScopeSelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const statusNoticeRef = useRef<Record<string, string>>({});
+  const statusNoticeIdRef = useRef(1000000);
   const chatLogger = logger.scope("chat:ui");
 
   // Scope options configuration
@@ -243,10 +246,14 @@ export default function Chat({ settings }: ChatProps) {
     isListening,
     transcript,
     interimTranscript,
+    finalTranscript,
     isSupported: speechSupported,
     unsupportedReason: speechUnsupportedReason,
     startListening,
     stopListening,
+    enableAutoListen,
+    disableAutoListen,
+    clearFinalTranscript,
   } = useSpeech(settings.tts_lang);
 
   const stt = useStt({ lang: settings.tts_lang });
@@ -258,6 +265,53 @@ export default function Chat({ settings }: ChatProps) {
     voice: settings.tts_voice,
     lang: settings.tts_lang,
   });
+
+  useEffect(() => {
+    const appendStatusNotice = (key: string, text: string) => {
+      const prev = statusNoticeRef.current[key];
+      if (prev === text) return;
+
+      statusNoticeRef.current[key] = text;
+      statusNoticeIdRef.current += 1;
+      eventStore.append({
+        type: "message_added",
+        payload: {
+          id: statusNoticeIdRef.current,
+          role: "system",
+          text,
+        },
+      });
+    };
+
+    if (settings.mic_enabled && !speechSupported) {
+      if (speechUnsupportedReason && !stt.isSupported) {
+        appendStatusNotice("speech_unsupported", `ℹ️ ${speechUnsupportedReason}`);
+      }
+      if (stt.isSupported) {
+        appendStatusNotice(
+          "stt_fallback",
+          "ℹ️ STT w tym runtime używa transkrypcji w chmurze (OpenRouter).",
+        );
+      }
+      if (stt.error) {
+        appendStatusNotice("stt_error", `ℹ️ Błąd STT: ${stt.error}`);
+      }
+    }
+
+    if (settings.tts_enabled && !tts.isSupported && tts.unsupportedReason) {
+      appendStatusNotice("tts_unsupported", `ℹ️ ${tts.unsupportedReason}`);
+    }
+  }, [
+    eventStore,
+    settings.mic_enabled,
+    settings.tts_enabled,
+    speechSupported,
+    speechUnsupportedReason,
+    stt.isSupported,
+    stt.error,
+    tts.isSupported,
+    tts.unsupportedReason,
+  ]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -272,6 +326,42 @@ export default function Chat({ settings }: ChatProps) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcript, isListening]);
+
+  useEffect(() => {
+    if (finalTranscript) {
+      chatLogger.info("Applying auto-listen speech transcript", {
+        transcriptLength: finalTranscript.length,
+      });
+      handleSubmit(finalTranscript);
+      clearFinalTranscript();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finalTranscript]);
+
+  useEffect(() => {
+    if (!settings.mic_enabled) {
+      disableAutoListen();
+      return;
+    }
+
+    if (!settings.auto_listen) {
+      return;
+    }
+
+    if (!speechSupported) {
+      // Auto-listen currently supported only for Web Speech API path.
+      return;
+    }
+
+    enableAutoListen();
+    return () => disableAutoListen();
+  }, [
+    settings.mic_enabled,
+    settings.auto_listen,
+    speechSupported,
+    enableAutoListen,
+    disableAutoListen,
+  ]);
 
   useEffect(() => {
     if (stt.transcript && !stt.isRecording && !stt.isTranscribing) {
@@ -1371,20 +1461,50 @@ ${analysis}`,
 
               {messages.length === 0 && !showCommandHistory && (
                 <>
-                  <div className="flex mt-20 flex-col items-center justify-center text-center fade-in">
-                    <h1 className="mb-4 text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-broxeen-400 to-emerald-400 sm:text-5xl">
+                  <div className="flex mt-16 flex-col items-center justify-center text-center fade-in">
+                    <h1 className="mb-3 text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-broxeen-400 to-emerald-400 sm:text-5xl">
                       Witaj w Broxeen
                     </h1>
-                    <p className="max-w-xl text-lg text-gray-400">
-                      Wpisz adres URL, zapytaj o coś lub kliknij ikonę mikrofonu,
-                      aby zacząć.
+                    <p className="max-w-xl text-base text-gray-400 mb-6">
+                      Kliknij akcję poniżej, wpisz komendę lub użyj mikrofonu 🎤
                     </p>
-                    <button
-                      onClick={() => setShowCommandHistory(true)}
-                      className="mt-4 px-4 py-2 bg-gray-700 text-gray-300 rounded-lg hover:bg-gray-600 transition-colors"
-                    >
-                      Pokaż historię komend
-                    </button>
+
+                    {/* Quick-start action cards */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-2xl w-full mb-6">
+                      {[
+                        { icon: '🔍', label: 'Skanuj sieć', desc: 'Znajdź urządzenia w LAN', query: 'skanuj sieć', color: 'from-blue-600/20 to-blue-800/10 border-blue-500/30 hover:border-blue-400/50' },
+                        { icon: '📷', label: 'Znajdź kamery', desc: 'Odkryj kamery IP', query: 'znajdź kamery w sieci', color: 'from-purple-600/20 to-purple-800/10 border-purple-500/30 hover:border-purple-400/50' },
+                        { icon: '🌍', label: 'Przeglądaj stronę', desc: 'Otwórz dowolny URL', query: '', prefill: 'przeglądaj ', color: 'from-green-600/20 to-green-800/10 border-green-500/30 hover:border-green-400/50' },
+                        { icon: '⚙️', label: 'Konfiguracja', desc: 'Ustaw AI, sieć, SSH', query: 'konfiguracja', color: 'from-amber-600/20 to-amber-800/10 border-amber-500/30 hover:border-amber-400/50' },
+                        { icon: '👁️', label: 'Monitoruj', desc: 'Obserwuj zmiany', query: '', prefill: 'monitoruj ', color: 'from-red-600/20 to-red-800/10 border-red-500/30 hover:border-red-400/50' },
+                        { icon: '❓', label: 'Pomoc', desc: 'Co mogę zrobić?', query: 'pomoc', color: 'from-gray-600/20 to-gray-800/10 border-gray-500/30 hover:border-gray-400/50' },
+                      ].map((card) => (
+                        <button
+                          key={card.label}
+                          onClick={() => {
+                            if (card.query) {
+                              handleSubmit(card.query);
+                            } else if (card.prefill) {
+                              setInput(card.prefill);
+                            }
+                          }}
+                          className={`group relative flex flex-col items-start gap-1 rounded-xl border bg-gradient-to-br p-4 text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${card.color}`}
+                        >
+                          <span className="text-2xl mb-1">{card.icon}</span>
+                          <span className="text-sm font-semibold text-gray-200 group-hover:text-white">{card.label}</span>
+                          <span className="text-[11px] text-gray-400 group-hover:text-gray-300">{card.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setShowCommandHistory(true)}
+                        className="px-3 py-1.5 bg-gray-800 text-gray-400 text-xs rounded-lg hover:bg-gray-700 hover:text-gray-200 transition-colors"
+                      >
+                        📜 Historia komend
+                      </button>
+                    </div>
                   </div>
                   
                   {/* Action Suggestions */}
@@ -1879,6 +1999,15 @@ ${analysis}`,
                             ))}
                           </div>
                         )}
+
+                        {/* Contextual quick actions */}
+                        {msg.role === "assistant" && !msg.loading && msg.type !== "config_prompt" && (
+                          <MessageQuickActions
+                            message={msg}
+                            onExecute={(query) => handleSubmit(query)}
+                            onPrefill={(text) => setInput(text)}
+                          />
+                        )}
                       </div>
                     </div>
 
@@ -2047,34 +2176,6 @@ ${analysis}`,
               </div>
             </div>
 
-            {settings.mic_enabled &&
-              !speechSupported &&
-              speechUnsupportedReason &&
-              !stt.isSupported && (
-                <p className="mt-2 text-xs text-amber-300">
-                  ℹ️ {speechUnsupportedReason}
-                </p>
-              )}
-
-            {settings.mic_enabled && !speechSupported && stt.isSupported && (
-              <p className="mt-2 text-xs text-amber-300">
-                ℹ️ STT w tym runtime używa transkrypcji w chmurze (OpenRouter).
-              </p>
-            )}
-
-            {settings.mic_enabled && !speechSupported && stt.error && (
-              <p className="mt-2 text-xs text-amber-300">
-                ℹ️ Błąd STT: {stt.error}
-              </p>
-            )}
-
-            {settings.tts_enabled &&
-              !tts.isSupported &&
-              tts.unsupportedReason && (
-                <p className="mt-1 text-xs text-amber-300">
-                  ℹ️ {tts.unsupportedReason}
-                </p>
-              )}
           </div>
         </div>
       </div>

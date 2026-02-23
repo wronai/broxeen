@@ -168,93 +168,6 @@ export class WatchManager {
     console.log(`🚫 Cancelled watch rule: ${watchRuleId}`);
   }
 
-  private async saveWatchRule(watchRule: DbWatchRule): Promise<void> {
-    if (!this.dbManager.isReady()) {
-      throw new Error('Database not ready');
-    }
-
-    const db = this.dbManager.getChatDb();
-    await db.execute(
-      `
-      INSERT INTO watch_rules (
-        id, conversation_id, target_id, target_type, intent,
-        started_at, expires_at, poll_interval_ms, change_threshold,
-        is_active, last_polled, last_change_detected
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-      [
-        watchRule.id,
-        watchRule.conversationId,
-        watchRule.targetId,
-        watchRule.targetType,
-        watchRule.intent,
-        watchRule.startedAt instanceof Date ? watchRule.startedAt.getTime() : new Date(watchRule.startedAt).getTime(),
-        watchRule.expiresAt instanceof Date ? watchRule.expiresAt.getTime() : new Date(watchRule.expiresAt).getTime(),
-        watchRule.pollIntervalMs,
-        watchRule.changeThreshold,
-        watchRule.isActive ? 1 : 0,
-        watchRule.lastPolled ? (watchRule.lastPolled instanceof Date ? watchRule.lastPolled.getTime() : new Date(watchRule.lastPolled).getTime()) : null,
-        watchRule.lastChangeDetected ? (watchRule.lastChangeDetected instanceof Date ? watchRule.lastChangeDetected.getTime() : new Date(watchRule.lastChangeDetected).getTime()) : null,
-      ],
-    );
-  }
-
-  private async updateWatchRule(watchRuleId: string, updates: Partial<DbWatchRule>): Promise<void> {
-    if (!this.dbManager.isReady()) {
-      return;
-    }
-
-    const db = this.dbManager.getChatDb();
-    const setParts: string[] = [];
-    const params: any[] = [];
-
-    const set = (col: string, value: any) => {
-      setParts.push(`${col} = ?`);
-      params.push(value);
-    };
-
-    if (updates.conversationId !== undefined) set('conversation_id', updates.conversationId);
-    if (updates.targetId !== undefined) set('target_id', updates.targetId);
-    if (updates.targetType !== undefined) set('target_type', updates.targetType);
-    if (updates.intent !== undefined) set('intent', updates.intent);
-    if (updates.startedAt !== undefined) set('started_at', updates.startedAt instanceof Date ? updates.startedAt.getTime() : new Date(updates.startedAt as any).getTime());
-    if (updates.expiresAt !== undefined) set('expires_at', updates.expiresAt instanceof Date ? updates.expiresAt.getTime() : new Date(updates.expiresAt as any).getTime());
-    if (updates.pollIntervalMs !== undefined) set('poll_interval_ms', updates.pollIntervalMs);
-    if (updates.changeThreshold !== undefined) set('change_threshold', updates.changeThreshold);
-    if (updates.isActive !== undefined) set('is_active', updates.isActive ? 1 : 0);
-    if (updates.lastPolled !== undefined) set('last_polled', updates.lastPolled ? (updates.lastPolled instanceof Date ? updates.lastPolled.getTime() : new Date(updates.lastPolled as any).getTime()) : null);
-    if (updates.lastChangeDetected !== undefined) set('last_change_detected', updates.lastChangeDetected ? (updates.lastChangeDetected instanceof Date ? updates.lastChangeDetected.getTime() : new Date(updates.lastChangeDetected as any).getTime()) : null);
-
-    if (setParts.length === 0) return;
-    params.push(watchRuleId);
-    await db.execute(`UPDATE watch_rules SET ${setParts.join(', ')} WHERE id = ?`, params);
-  }
-
-  private async getWatchRule(watchRuleId: string): Promise<DbWatchRule | null> {
-    if (!this.dbManager.isReady()) {
-      return null;
-    }
-
-    const db = this.dbManager.getChatDb();
-    const row = await db.queryOne<any>('SELECT * FROM watch_rules WHERE id = ?', [watchRuleId]);
-    if (!row) return null;
-
-    return {
-      id: row.id,
-      conversationId: row.conversation_id,
-      targetId: row.target_id,
-      targetType: row.target_type,
-      intent: row.intent,
-      startedAt: new Date(row.started_at),
-      expiresAt: new Date(row.expires_at),
-      pollIntervalMs: row.poll_interval_ms,
-      changeThreshold: row.change_threshold,
-      isActive: Boolean(row.is_active),
-      lastPolled: row.last_polled ? new Date(row.last_polled) : undefined,
-      lastChangeDetected: row.last_change_detected ? new Date(row.last_change_detected) : undefined,
-    };
-  }
-
   /**
    * Load active watch rules from database
    */
@@ -472,6 +385,25 @@ export class WatchManager {
     
     // This would involve querying the messages table for relevant queries
     return true; // Simplified - always auto-watch for demo
+    
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      conversationId: row.conversation_id,
+      targetId: row.target_id,
+      targetType: row.target_type,
+      intent: row.intent,
+      startedAt: new Date(row.started_at),
+      expiresAt: new Date(row.expires_at),
+      pollIntervalMs: row.poll_interval_ms,
+      changeThreshold: row.change_threshold,
+      isActive: Boolean(row.is_active),
+      lastPolled: row.last_polled ? new Date(row.last_polled) : undefined,
+      lastChangeDetected: row.last_change_detected ? new Date(row.last_change_detected) : undefined
+    };
   }
 
   /**
