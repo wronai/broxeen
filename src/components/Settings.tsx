@@ -58,6 +58,9 @@ export default function Settings({
     lang: settings.tts_lang,
   });
 
+  const shouldUseWebSpeech =
+    settings.stt_engine === "webspeech" && speech.isSupported;
+
   const [testTtsText, setTestTtsText] = useState(
     "Test dźwięku. Jeśli to słyszysz, TTS działa.",
   );
@@ -353,7 +356,7 @@ export default function Settings({
 
                   <button
                     onClick={() => {
-                      if (speech.isSupported) {
+                      if (shouldUseWebSpeech) {
                         speech.isListening
                           ? speech.stopListening()
                           : speech.startListening();
@@ -367,11 +370,11 @@ export default function Settings({
                     }}
                     disabled={
                       !settings.mic_enabled ||
-                      (!speech.isSupported && !stt.isSupported)
+                      (!shouldUseWebSpeech && !stt.isSupported)
                     }
                     className="rounded-lg bg-broxeen-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-broxeen-500 disabled:opacity-50"
                   >
-                    {speech.isSupported
+                    {shouldUseWebSpeech
                       ? speech.isListening
                         ? "Zatrzymaj nasłuch"
                         : "Test STT (nasłuch)"

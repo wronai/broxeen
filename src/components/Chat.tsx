@@ -307,6 +307,9 @@ export default function Chat({ settings }: ChatProps) {
 
   const stt = useStt({ lang: settings.tts_lang });
 
+  const shouldUseWebSpeech =
+    settings.stt_engine === "webspeech" && speechSupported;
+
   const autocompleteSuggestions = useMemo(() => {
     const q = input.trim().toLowerCase();
     if (!inputFocused) return [];
@@ -374,18 +377,18 @@ export default function Chat({ settings }: ChatProps) {
       });
     };
 
-    if (settings.mic_enabled && !speechSupported) {
+    if (settings.mic_enabled && settings.stt_engine === "webspeech" && !speechSupported) {
       if (speechUnsupportedReason && !stt.isSupported) {
-        appendStatusNotice("speech_unsupported", `ℹ️ ${speechUnsupportedReason}`);
+        appendStatusNotice(
+          "speech_unsupported",
+          `ℹ️ ${speechUnsupportedReason}`,
+        );
       }
       if (stt.isSupported) {
         appendStatusNotice(
-          "stt_fallback",
-          "ℹ️ STT w tym runtime używa transkrypcji w chmurze (OpenRouter).",
+          "speech_unsupported",
+          `ℹ️ ${speechUnsupportedReason}`,
         );
-      }
-      if (stt.error) {
-        appendStatusNotice("stt_error", `ℹ️ Błąd STT: ${stt.error}`);
       }
     }
 
@@ -395,6 +398,7 @@ export default function Chat({ settings }: ChatProps) {
   }, [
     eventStore,
     settings.mic_enabled,
+    settings.stt_engine,
     settings.tts_enabled,
     speechSupported,
     speechUnsupportedReason,
@@ -531,7 +535,7 @@ export default function Chat({ settings }: ChatProps) {
       return;
     }
 
-    if (!speechSupported) {
+    if (!shouldUseWebSpeech) {
       // Auto-listen currently supported only for Web Speech API path.
       return;
     }
@@ -541,7 +545,7 @@ export default function Chat({ settings }: ChatProps) {
   }, [
     settings.mic_enabled,
     settings.auto_listen,
-    speechSupported,
+    shouldUseWebSpeech,
     enableAutoListen,
     disableAutoListen,
   ]);
@@ -554,7 +558,7 @@ export default function Chat({ settings }: ChatProps) {
     const shouldRun =
       settings.mic_enabled &&
       settings.auto_listen &&
-      !speechSupported &&
+      !shouldUseWebSpeech &&
       stt.isSupported;
 
     if (!shouldRun) {
@@ -636,7 +640,7 @@ export default function Chat({ settings }: ChatProps) {
     settings.mic_enabled,
     settings.auto_listen,
     settings.auto_listen_silence_ms,
-    speechSupported,
+    shouldUseWebSpeech,
     stt.isSupported,
     stt.isRecording,
     stt.isTranscribing,
@@ -660,7 +664,7 @@ export default function Chat({ settings }: ChatProps) {
       return;
     }
 
-    if (!speechSupported && speechUnsupportedReason) {
+    if (settings.stt_engine === "webspeech" && !speechSupported && speechUnsupportedReason) {
       chatLogger.warn("Native STT (Web Speech API) is unavailable", {
         reason: speechUnsupportedReason,
         cloudFallbackSupported: stt.isSupported,
@@ -674,6 +678,7 @@ export default function Chat({ settings }: ChatProps) {
     }
   }, [
     settings.mic_enabled,
+    settings.stt_engine,
     speechSupported,
     speechUnsupportedReason,
     stt.isSupported,
@@ -1830,7 +1835,7 @@ ${analysis}`,
   };
 
   const toggleMic = () => {
-    if (speechSupported) {
+    if (shouldUseWebSpeech) {
       if (isListening) {
         chatLogger.info("Microphone toggle -> stop listening (native)");
         stopListening();

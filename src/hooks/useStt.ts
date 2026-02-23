@@ -157,22 +157,25 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   const streamRef = useRef<MediaStream | null>(null);
   const modeRef = useRef<"media" | "tauri" | "none">("none");
   const isRecordingRef = useRef(false);
+  const startInFlightRef = useRef(false);
+  const stopInFlightRef = useRef(false);
 
   useEffect(() => {
     const reason = getUnsupportedReason();
     const runtime = isTauriRuntime() ? "tauri" : "browser";
     const browserMediaSupported = !reason;
 
-    if (browserMediaSupported) {
-      modeRef.current = "media";
-      setMode("media");
-      setIsSupported(true);
-      setUnsupportedReason(null);
-    } else if (runtime === "tauri") {
+    // In Tauri, always prefer native backend for better compatibility
+    if (runtime === "tauri") {
       modeRef.current = "tauri";
       setMode("tauri");
       setIsSupported(true);
       setUnsupportedReason(STT_TAURI_BACKEND_REASON);
+    } else if (browserMediaSupported) {
+      modeRef.current = "media";
+      setMode("media");
+      setIsSupported(true);
+      setUnsupportedReason(null);
     } else {
       modeRef.current = "none";
       setMode("none");
@@ -205,25 +208,36 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   }, []);
 
   const startTauriRecording = useCallback(() => {
-    // Prevent duplicate stt_start calls
-    if (isRecordingRef.current) {
-      sttLogger.warn("STT start called while already recording, ignoring");
+    if (startInFlightRef.current) {
+      sttLogger.debug("Tauri STT start ignored — start already in-flight");
       return;
     }
+
+    if (isRecordingRef.current) {
+      sttLogger.debug("Tauri STT start ignored — already recording");
+      return;
+    }
+
+    startInFlightRef.current = true;
+    isRecordingRef.current = true;
+    setIsRecording(true);
 
     const runBackendStart = logAsyncDecorator(
       "speech:stt:ui",
       "startRecordingTauriBackend",
       async () => {
         await invoke("stt_start");
-        setIsRecording(true);
+        stopInFlightRef.current = false;
         sttLogger.info("Native Tauri STT recording started");
       },
     );
 
-    void runBackendStart().catch((e: unknown) => {
+    const promise = runBackendStart();
+    void promise.catch((e: unknown) => {
       const msg = e instanceof Error ? e.message : String(e);
       sttLogger.error("Failed to start Tauri STT recording", { error: msg });
+      isRecordingRef.current = false;
+      startInFlightRef.current = false;
       setIsSupported(false);
       setUnsupportedReason(
         `${STT_TAURI_BACKEND_UNAVAILABLE_REASON} ${msg}`.trim(),
@@ -235,6 +249,10 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
       });
       setIsRecording(false);
     });
+
+    void promise.finally(() => {
+      startInFlightRef.current = false;
+    });
   }, [lang]);
 
   const startRecording = useCallback(() => {
@@ -242,6 +260,11 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
       setError(null);
       setLastErrorDetails(null);
       setTranscript("");
+
+      if (isRecordingRef.current) {
+        sttLogger.debug("STT start ignored — already recording");
+        return;
+      }
 
       if (modeRef.current === "tauri") {
         startTauriRecording();
@@ -307,6 +330,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
           };
 
           recorder.start();
+          isRecordingRef.current = true;
           setIsRecording(true);
           sttLogger.info("MediaRecorder started");
         })
@@ -349,6 +373,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
           }
 
           setError(details.message);
+          isRecordingRef.current = false;
           setIsRecording(false);
           stopTracks();
         });
@@ -364,11 +389,19 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
           "speech:stt:ui",
           "stopRecordingTauriBackend",
           async () => {
-            if (!isRecording) {
+            if (stopInFlightRef.current) {
+              sttLogger.debug("Tauri STT stop ignored — stop already in-flight");
+              return;
+            }
+
+            if (!isRecordingRef.current) {
               sttLogger.debug("Tauri STT stop ignored — not recording");
               return;
             }
 
+            stopInFlightRef.current = true;
+
+            isRecordingRef.current = false;
             setIsRecording(false);
             setIsTranscribing(true);
             setError(null);
@@ -396,6 +429,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
               });
               setError(msg);
             } finally {
+              stopInFlightRef.current = false;
               setIsTranscribing(false);
             }
           },
@@ -408,6 +442,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
       const rec = recorderRef.current;
       if (!rec) {
         sttLogger.debug("No recorder instance to stop");
+        isRecordingRef.current = false;
         setIsRecording(false);
         stopTracks();
         return;
@@ -416,6 +451,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
         rec.stop();
       } catch (e) {
         sttLogger.warn("Recorder stop threw", { error: e });
+        isRecordingRef.current = false;
       }
     });
 
