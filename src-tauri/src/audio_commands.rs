@@ -58,6 +58,12 @@ pub struct ActiveTts(pub Arc<Mutex<Option<(rodio::OutputStream, rodio::Sink)>>>)
 unsafe impl Send for ActiveTts {}
 unsafe impl Sync for ActiveTts {}
 
+/// Active wake word listening stream
+pub struct ActiveWakeWordStream(pub Arc<Mutex<Option<cpal::Stream>>>);
+
+unsafe impl Send for ActiveWakeWordStream {}
+unsafe impl Sync for ActiveWakeWordStream {}
+
 // ── STT Commands ─────────────────────────────────────
 
 /// Start recording from microphone.
@@ -340,5 +346,64 @@ pub async fn piper_install() -> Result<String, String> {
 #[tauri::command]
 pub fn piper_is_installed() -> bool {
     tts_backend::piper_is_installed()
+}
+
+// ── Wake Word Commands ─────────────────────────────
+
+use crate::wake_word::{self, SharedWakeWordState};
+
+/// Start wake word listening for "heyken"
+#[tauri::command]
+pub fn wake_word_start(
+    wake_word_state: tauri::State<SharedWakeWordState>,
+    active_wake_word_stream: tauri::State<ActiveWakeWordStream>,
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    crate::backend_info("Command wake_word_start invoked");
+
+    // Check if already listening
+    {
+        let s = wake_word_state.lock().unwrap();
+        if s.is_listening {
+            crate::backend_warn("wake_word_start rejected: already listening");
+            return Err("Already listening for wake word".into());
+        }
+    }
+
+    let stream = wake_word::start_wake_word_listening(&wake_word_state, app_handle)?;
+
+    // Store stream to keep it alive
+    {
+        let mut active = active_wake_word_stream.0.lock().unwrap();
+        *active = Some(stream);
+    }
+
+    Ok("Wake word listening started".into())
+}
+
+/// Stop wake word listening
+#[tauri::command]
+pub fn wake_word_stop(
+    wake_word_state: tauri::State<SharedWakeWordState>,
+    active_wake_word_stream: tauri::State<ActiveWakeWordStream>,
+) -> Result<String, String> {
+    crate::backend_info("Command wake_word_stop invoked");
+    
+    // Drop the stream to stop listening
+    {
+        let mut active = active_wake_word_stream.0.lock().unwrap();
+        *active = None;
+    }
+    
+    wake_word::stop_wake_word_listening(&wake_word_state);
+    Ok("Wake word listening stopped".into())
+}
+
+/// Check if wake word was detected (polling approach)
+#[tauri::command]
+pub fn wake_word_check_triggered(
+    wake_word_state: tauri::State<SharedWakeWordState>,
+) -> Result<bool, String> {
+    Ok(wake_word::check_wake_word_triggered(&wake_word_state))
 }
 

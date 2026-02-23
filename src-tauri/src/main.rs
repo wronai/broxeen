@@ -23,6 +23,7 @@ mod ssh;
 mod stt;
 mod tts;
 mod tts_backend;
+mod wake_word;
 
 #[cfg(feature = "vision")]
 mod vision_capture;
@@ -48,6 +49,7 @@ mod vision_scene_buffer;
 mod vision_tracker;
 
 use audio_capture::SharedRecordingState;
+use wake_word::SharedWakeWordState;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 
@@ -452,12 +454,16 @@ fn main() {
     );
 
     let recording_state: SharedRecordingState = Arc::new(Mutex::new(audio_capture::RecordingState::new()));
+    let wake_word_state: SharedWakeWordState = Arc::new(Mutex::new(wake_word::WakeWordState::new()));
     let active_stream = audio_commands::ActiveStream(Arc::new(Mutex::new(None)));
+    let active_wake_word_stream = audio_commands::ActiveWakeWordStream(Arc::new(Mutex::new(None)));
     let active_tts = audio_commands::ActiveTts(Arc::new(Mutex::new(None)));
 
     if let Err(err) = tauri::Builder::default()
         .manage(recording_state)
+        .manage(wake_word_state)
         .manage(active_stream)
+        .manage(active_wake_word_stream)
         .manage(active_tts)
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![
@@ -523,6 +529,10 @@ fn main() {
             autostart::autostart_enable,
             autostart::autostart_disable,
             autostart::autostart_status,
+            audio_commands::wake_word_start,
+            audio_commands::wake_word_stop,
+            audio_commands::wake_word_check_triggered,
+            wake_word::wake_word_get_level,
         ])
         .run(tauri::generate_context!())
     {

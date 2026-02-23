@@ -40,7 +40,7 @@ pub async fn transcribe_wav_base64(
                 "content": [
                     {
                         "type": "text",
-                        "text": format!("Transkrybuj to nagranie na język {}. ZWRÓĆ TYLKO DOKŁADNĄ TRANSTRYPCJĘ tego co usłyszałeś. NIE DODAWAJ żadnych komentarzy, wyjaśnień, opowiadań ani tekstu którego nie było na nagraniu. Jeśli na nagraniu nie było mowy, zwróć pusty string.", lang)
+                        "text": format!("ZADANIE: Wykonaj DOKŁADNĄ transkrypcję audio na język {}.\n\nZASADY:\n1. ZWRÓĆ TYLKO SŁOWA USŁYSZANE NA NAGRANIU - słowo po słowie\n2. NIE DODAWAJ NICZEGO - żadnych wstępów, komentarzy, wyjaśnień, opisów\n3. NIE TWÓRZ TEKSTÓW KTÓRYCH NIE BYŁO NA NAGRANIU - to jest BŁĄD HALUCYNACJI\n4. Jeśli nagranie jest puste lub niezrozumiałe - zwróć pusty string\"\"\n5. NIE ODPOWIADAJ NA TREŚĆ - tylko przepisz co usłyszałeś\n\nPRZYKŁAD BŁĘDU (TEGO NIE RÓB):\nUżytkownik mówi: \"kamera\"\nTwój błędny wynik: \"W dzisiejszym materiale przedstawię Wam trzy rzeczy...\"\nPOPRAWNY wynik: \"kamera\"\n\nTwoja transkrypcja:", lang)
                     },
                     {
                         "type": "input_audio",

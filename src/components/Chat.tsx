@@ -360,23 +360,24 @@ export default function Chat({ settings }: ChatProps) {
     }
   }, [micPhase, tts]);
 
+  // Helper to append status notices to chat
+  const appendStatusNotice = useCallback((key: string, text: string) => {
+    const prev = statusNoticeRef.current[key];
+    if (prev === text) return;
+
+    statusNoticeRef.current[key] = text;
+    statusNoticeIdRef.current += 1;
+    eventStore.append({
+      type: "message_added",
+      payload: {
+        id: statusNoticeIdRef.current,
+        role: "system",
+        text,
+      },
+    });
+  }, [eventStore]);
+
   useEffect(() => {
-    const appendStatusNotice = (key: string, text: string) => {
-      const prev = statusNoticeRef.current[key];
-      if (prev === text) return;
-
-      statusNoticeRef.current[key] = text;
-      statusNoticeIdRef.current += 1;
-      eventStore.append({
-        type: "message_added",
-        payload: {
-          id: statusNoticeIdRef.current,
-          role: "system",
-          text,
-        },
-      });
-    };
-
     if (settings.mic_enabled && settings.stt_engine === "webspeech" && !speechSupported) {
       if (speechUnsupportedReason && !stt.isSupported) {
         appendStatusNotice(
@@ -410,6 +411,7 @@ export default function Chat({ settings }: ChatProps) {
     stt.error,
     tts.isSupported,
     tts.unsupportedReason,
+    appendStatusNotice,
   ]);
 
   useEffect(() => {
@@ -754,6 +756,55 @@ export default function Chat({ settings }: ChatProps) {
       unsub2();
     };
   }, [eventStore, settings.tts_enabled, tts, chatLogger]);
+
+  // Listen for wake word detection from backend and auto-start STT
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    if (!settings.mic_enabled) return;
+    if (!stt.isSupported) return;
+
+    let unlisten: (() => void) | null = null;
+
+    const setupWakeWordListener = async () => {
+      try {
+        const { listen } = await import("@tauri-apps/api/event");
+        unlisten = await listen("wake-word-detected", (event) => {
+          const payload = event.payload as { confidence: number; timestamp: number };
+          chatLogger.info("Wake word 'heyken' detected!", {
+            confidence: payload.confidence,
+            timestamp: payload.timestamp,
+          });
+
+          // Auto-start STT if not already recording
+          if (!stt.isRecording && !stt.isTranscribing) {
+            chatLogger.info("Auto-starting STT after wake word detection");
+            try {
+              stt.startRecording();
+              // Add visual feedback
+              appendStatusNotice("wake_word", "🎤 'Heyken' wykryte - słucham...");
+            } catch (e) {
+              chatLogger.warn("Failed to auto-start STT after wake word", { error: e });
+            }
+          }
+        });
+        chatLogger.info("Wake word listener registered");
+      } catch (err) {
+        chatLogger.warn("Failed to setup wake word listener", { error: err });
+      }
+    };
+
+    setupWakeWordListener();
+
+    return () => {
+      if (unlisten) {
+        try {
+          unlisten();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, [settings.mic_enabled, stt.isSupported, stt.isRecording, stt.isTranscribing, stt.startRecording, chatLogger]);
 
   // Input focus and quick history logic
   useEffect(() => {
