@@ -120,18 +120,25 @@ describe("browseGateway", () => {
   });
 
   it("falls back to AllOrigins RAW when AllOrigins JSON and corsproxy fail", async () => {
+    // Each proxy fetcher retries up to 2 times on 500 (transient).
+    // So allorigins:get uses 3 calls, corsproxy uses 3 calls,
+    // and then allorigins:raw succeeds on the first attempt.
+    const fail500 = () => ({
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+    });
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: "Internal Server Error",
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: "Internal Server Error",
-      })
+      // allorigins:get — 1 original + 2 retries = 3 calls
+      .mockResolvedValueOnce(fail500())
+      .mockResolvedValueOnce(fail500())
+      .mockResolvedValueOnce(fail500())
+      // corsproxy — 1 original + 2 retries = 3 calls
+      .mockResolvedValueOnce(fail500())
+      .mockResolvedValueOnce(fail500())
+      .mockResolvedValueOnce(fail500())
+      // allorigins:raw — succeeds
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -156,7 +163,7 @@ describe("browseGateway", () => {
 
     const result = await executeBrowseCommand("https://example.com", false);
 
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
     expect(result.title).toBe("Fallback title");
     expect(result.content).toContain(
       "fallback content from AllOrigins RAW endpoint",
@@ -164,23 +171,29 @@ describe("browseGateway", () => {
   });
 
   it("falls back to Jina proxy when AllOrigins endpoints fail", async () => {
+    // Each proxy fetcher retries up to 2 times on 500 (transient).
+    // allorigins:get=3 + corsproxy=3 + allorigins:raw=3 = 9 failures,
+    // then Jina succeeds on first attempt = 10 total.
+    const fail500 = () => ({
+      ok: false,
+      status: 500,
+      statusText: "Internal Server Error",
+    });
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: "Internal Server Error",
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: "Internal Server Error",
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: "Internal Server Error",
-      })
+      // allorigins:get — 3 calls
+      .mockResolvedValueOnce(fail500())
+      .mockResolvedValueOnce(fail500())
+      .mockResolvedValueOnce(fail500())
+      // corsproxy — 3 calls
+      .mockResolvedValueOnce(fail500())
+      .mockResolvedValueOnce(fail500())
+      .mockResolvedValueOnce(fail500())
+      // allorigins:raw — 3 calls
+      .mockResolvedValueOnce(fail500())
+      .mockResolvedValueOnce(fail500())
+      .mockResolvedValueOnce(fail500())
+      // jina — succeeds
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
@@ -197,7 +210,7 @@ describe("browseGateway", () => {
 
     const result = await executeBrowseCommand("https://example.com", false);
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(10);
     expect(result.url).toBe("https://example.com");
     expect(result.title).toBe("Untitled");
     expect(result.content).toContain("Jina fallback plain text content");

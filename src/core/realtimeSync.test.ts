@@ -13,9 +13,9 @@ describe('RealtimeSync', () => {
       postMessage: vi.fn(),
       close: vi.fn(),
     });
-    
+
     mockBroadcastChannel = createMockBroadcastChannel();
-    
+
     global.BroadcastChannel = vi.fn((name: string) => {
       if (name === 'test') {
         // For checkSupport() - make it work by default
@@ -23,7 +23,7 @@ describe('RealtimeSync', () => {
       }
       return mockBroadcastChannel;
     }) as any;
-    
+
     // Mock localStorage
     const localStorageMock = {
       getItem: vi.fn(),
@@ -33,14 +33,14 @@ describe('RealtimeSync', () => {
       removeEventListener: vi.fn(),
     };
     global.localStorage = localStorageMock as any;
-    
+
     // Mock window
     const windowMock = {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     };
     global.window = windowMock as any;
-    
+
     realtimeSync = new RealtimeSync(DEFAULT_SYNC_CONFIG);
   });
 
@@ -57,18 +57,31 @@ describe('RealtimeSync', () => {
   it('should fallback to localStorage when BroadcastChannel fails', () => {
     // Dispose the existing instance first
     realtimeSync.dispose();
-    
+
     // Make BroadcastChannel throw during both checkSupport and initialization
     global.BroadcastChannel = vi.fn(() => {
       throw new Error('Not supported');
     }) as any;
 
+    // Reset window mock so we can assert on freshly captured calls
+    (global.window.addEventListener as any).mockClear();
+
     const sync = new RealtimeSync(DEFAULT_SYNC_CONFIG);
-    
+
     expect(global.window.addEventListener).toHaveBeenCalledWith('storage', expect.any(Function));
     sync.dispose();
-    
+
     // Recreate the default instance for other tests
+    // Restore BroadcastChannel first
+    const createMockBC = () => ({
+      addEventListener: vi.fn(),
+      postMessage: vi.fn(),
+      close: vi.fn(),
+    });
+    global.BroadcastChannel = vi.fn((name: string) => {
+      if (name === 'test') return createMockBC();
+      return createMockBC();
+    }) as any;
     realtimeSync = new RealtimeSync(DEFAULT_SYNC_CONFIG);
   });
 
@@ -150,7 +163,7 @@ describe('RealtimeSync', () => {
 
   it('should provide statistics', () => {
     const stats = realtimeSync.getStats();
-    
+
     expect(stats).toEqual({
       enabled: true,
       supported: true,
@@ -184,11 +197,14 @@ describe('RealtimeSync', () => {
   it('should handle storage events for fallback', () => {
     // Dispose the existing instance first
     realtimeSync.dispose();
-    
+
     // Create a sync instance that uses localStorage fallback
     global.BroadcastChannel = vi.fn(() => {
       throw new Error('Not supported');
     }) as any;
+
+    // Reset window mock so mock.calls[0] captures the storage handler
+    (global.window.addEventListener as any).mockClear();
 
     const sync = new RealtimeSync(DEFAULT_SYNC_CONFIG);
     const handler = vi.fn();
@@ -216,14 +232,23 @@ describe('RealtimeSync', () => {
 
     expect(handler).toHaveBeenCalledWith(event);
     sync.dispose();
-    
+
     // Recreate the default instance for other tests
+    const createMockBC = () => ({
+      addEventListener: vi.fn(),
+      postMessage: vi.fn(),
+      close: vi.fn(),
+    });
+    global.BroadcastChannel = vi.fn((name: string) => {
+      if (name === 'test') return createMockBC();
+      return createMockBC();
+    }) as any;
     realtimeSync = new RealtimeSync(DEFAULT_SYNC_CONFIG);
   });
 
   it('should cleanup properly', () => {
     realtimeSync.dispose();
-    
+
     expect(mockBroadcastChannel.close).toHaveBeenCalled();
     // window cleanup only happens when fallback is used
   });

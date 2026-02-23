@@ -36,8 +36,8 @@ export class RealtimeSync {
     this.config = config;
     this.sourceId = this.generateSourceId();
     this.isSupported = this.checkSupport();
-    
-    if (this.isSupported && config.enabled) {
+
+    if (config.enabled) {
       this.initialize();
     }
   }
@@ -87,31 +87,31 @@ export class RealtimeSync {
 
   private handleBroadcastMessage(event: MessageEvent): void {
     if (event.data.type !== 'sync_event') return;
-    
+
     const message = event.data as SyncMessage;
     if (message.sourceId === this.sourceId) return; // Ignore own messages
-    
-    syncLogger.debug('Received broadcast event', { 
-      type: message.event.type, 
-      source: message.sourceId 
+
+    syncLogger.debug('Received broadcast event', {
+      type: message.event.type,
+      source: message.sourceId
     });
-    
+
     this.processSyncEvent(message.event);
   }
 
   private handleStorageEvent(event: StorageEvent): void {
     if (event.key !== this.config.channelName) return;
     if (!event.newValue) return;
-    
+
     try {
       const message: SyncMessage = JSON.parse(event.newValue);
       if (message.sourceId === this.sourceId) return; // Ignore own messages
-      
-      syncLogger.debug('Received storage event', { 
-        type: message.event.type, 
-        source: message.sourceId 
+
+      syncLogger.debug('Received storage event', {
+        type: message.event.type,
+        source: message.sourceId
       });
-      
+
       this.processSyncEvent(message.event);
     } catch (error) {
       syncLogger.error('Failed to parse storage event', error);
@@ -121,7 +121,7 @@ export class RealtimeSync {
   private processSyncEvent(event: DomainEvent): void {
     // Only process events that are configured for sync
     if (!this.config.syncEvents.includes(event.type)) return;
-    
+
     // Notify local handlers
     const handlers = this.eventHandlers.get(event.type);
     if (handlers) {
@@ -141,7 +141,7 @@ export class RealtimeSync {
   broadcast(event: DomainEvent): void {
     if (!this.config.enabled) return;
     if (!this.config.syncEvents.includes(event.type)) return;
-    
+
     const message: SyncMessage = {
       type: 'sync_event',
       event,
@@ -183,10 +183,10 @@ export class RealtimeSync {
     if (!this.eventHandlers.has(type)) {
       this.eventHandlers.set(type, new Set());
     }
-    
+
     this.eventHandlers.get(type)!.add(handler as (event: DomainEvent) => void);
     syncLogger.debug('Handler added for sync event', { type });
-    
+
     return () => {
       this.eventHandlers.get(type)?.delete(handler as (event: DomainEvent) => void);
       syncLogger.debug('Handler removed for sync event', { type });
@@ -218,10 +218,10 @@ export class RealtimeSync {
       this.broadcastChannel.close();
       this.broadcastChannel = null;
     }
-    
+
     window.removeEventListener('storage', this.handleStorageEvent.bind(this));
     this.eventHandlers.clear();
-    
+
     syncLogger.info('Real-time sync disposed');
   }
 }

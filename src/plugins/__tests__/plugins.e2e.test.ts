@@ -193,7 +193,13 @@ describe('IntentRouter — scope-aware routing', () => {
 describe('NetworkScanPlugin', () => {
   let plugin: NetworkScanPlugin;
 
-  beforeEach(() => { plugin = new NetworkScanPlugin(); });
+  beforeEach(() => {
+    // Delete network-scan caches to prevent stale state from prior tests
+    const { CacheFactory } = require('../../core/cache');
+    CacheFactory.delete('network-scan');
+    CacheFactory.delete('device-filter');
+    plugin = new NetworkScanPlugin();
+  });
 
   it('handles camera query in browser mode (no tauriInvoke)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(null));

@@ -77,7 +77,7 @@ export const ACTION_SCHEMAS: readonly ActionSchema[] = [
     label: 'Status kamer',
     description: 'Sprawdź czy kamery są online i działają poprawnie',
     icon: '🩺',
-    keywords: ['status', 'stan', 'zdrowie', 'health', 'działa', 'online', 'sprawdź', 'kamera', 'kamer', 'kamery'],
+    keywords: ['status', 'stan', 'zdrowie', 'health', 'działa', 'online', 'kamera', 'kamer', 'kamery'],
     examples: ['status kamer', 'sprawdź kamerę', 'czy kamery działają'],
     executeQuery: 'sprawdź status kamer',
   },
