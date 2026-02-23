@@ -83,6 +83,15 @@ const baseProps = {
   voices: defaultVoices,
 };
 
+function stubMediaDevices() {
+  const nav: any = navigator as any;
+  if (!nav.mediaDevices) {
+    nav.mediaDevices = {};
+  }
+  nav.mediaDevices.enumerateDevices = vi.fn().mockResolvedValue([]);
+  nav.mediaDevices.getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
+}
+
 async function renderSettings(props: Partial<typeof baseProps> = {}) {
   await act(async () => {
     render(<Settings {...baseProps} {...props} />);
@@ -106,11 +115,7 @@ describe("Settings — widoczność", () => {
       auto_listen: false,
     });
 
-    const enumerateDevices = vi.fn().mockResolvedValue([]);
-    const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
-    
-    // Use vi.stubGlobal to properly mock mediaDevices
-    vi.stubGlobal('mediaDevices', { enumerateDevices, getUserMedia });
+    stubMediaDevices();
   });
 
   it("nie renderuje gdy isOpen=false", async () => {
@@ -146,11 +151,7 @@ describe("Settings — ładowanie ustawień", () => {
     vi.clearAllMocks();
     vi.mocked(isTauriRuntime).mockReturnValue(true);
 
-    const enumerateDevices = vi.fn().mockResolvedValue([]);
-    const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
-    
-    // Use vi.stubGlobal to properly mock mediaDevices
-    vi.stubGlobal('mediaDevices', { enumerateDevices, getUserMedia });
+    stubMediaDevices();
   });
 
   it("ładuje ustawienia przez invoke przy otwarciu", async () => {

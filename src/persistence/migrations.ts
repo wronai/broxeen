@@ -73,28 +73,6 @@ export const devicesDbMigrations: Migration[] = [
         )
       `);
 
-      // Scan history table
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS scan_history (
-          id TEXT PRIMARY KEY,
-          timestamp INTEGER NOT NULL,
-          scope TEXT NOT NULL,
-          subnet TEXT NOT NULL,
-          device_count INTEGER NOT NULL,
-          duration_ms INTEGER NOT NULL,
-          success INTEGER NOT NULL DEFAULT 1,
-          error TEXT,
-          metadata TEXT, -- JSON
-          created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
-        )
-      `);
-
-      // Indexes for scan_history
-      db.exec(`
-        CREATE INDEX IF NOT EXISTS idx_scan_history_timestamp ON scan_history(timestamp DESC);
-        CREATE INDEX IF NOT EXISTS idx_scan_history_scope ON scan_history(scope);
-      `);
-
       // Indexes for performance
       db.exec(`
         CREATE INDEX IF NOT EXISTS idx_devices_ip ON devices(ip);

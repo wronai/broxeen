@@ -38,6 +38,8 @@ export interface MonitorTarget {
   rtspPassword?: string;
   lastSnapshot?: string; // base64 image data
   snapshotUrl?: string; // HTTP snapshot URL
+  apiToken?: string; // Reolink/API session token
+  apiTokenExpiry?: number; // token expiry timestamp
   needsCredentials?: boolean;
 }
 
@@ -936,7 +938,32 @@ export class MonitorPlugin implements Plugin {
       }
     }
 
-    // ── 3. Auto-probe HTTP snapshot URLs (vendor database) ──
+    // ── 3. Reolink token-based API snapshot ──
+    if (target.address && target.rtspUsername) {
+      try {
+        const token = await this.ensureApiToken(target);
+        if (token) {
+          const url = `http://${target.address}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=broxeen&token=${token}`;
+          attempts.push(`Reolink API: ${url}`);
+          try {
+            const result = await this.fetchHttpSnapshot(url, captureStart, attempts);
+            if (result) {
+              target.snapshotUrl = url;
+              return result;
+            }
+          } catch (err) {
+            attempts.push(`  → Reolink fail: ${err instanceof Error ? err.message : String(err)}`);
+            // Token might be expired, clear it
+            target.apiToken = undefined;
+            target.apiTokenExpiry = undefined;
+          }
+        }
+      } catch (err) {
+        attempts.push(`Reolink login fail: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // ── 4. Auto-probe HTTP snapshot URLs (vendor database) ──
     if (target.address) {
       try {
         const { detectCameraVendor, getVendorInfo } = await import('../camera/cameraVendorDatabase');
@@ -1058,6 +1085,39 @@ export class MonitorPlugin implements Plugin {
     if (text.includes('brak Tauri'))
       return 'Tryb przeglądarkowy — uruchom Tauri (make tauri-dev) lub podaj HTTP snapshot URL kamery.';
     return 'Wszystkie metody pobierania snapshotu nie powiodły się.';
+  }
+
+  private async ensureApiToken(target: MonitorTarget): Promise<string | null> {
+    // Return cached token if still valid (with 60s margin)
+    if (target.apiToken && target.apiTokenExpiry && Date.now() < target.apiTokenExpiry - 60_000) {
+      return target.apiToken;
+    }
+
+    if (!target.address || !target.rtspUsername) return null;
+
+    try {
+      const loginPayload = JSON.stringify([{
+        cmd: 'Login',
+        param: { User: { userName: target.rtspUsername, password: target.rtspPassword || '' } },
+      }]);
+
+      const resp = await fetch(`http://${target.address}/api.cgi?cmd=Login`, {
+        method: 'POST',
+        body: loginPayload,
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      const tokenObj = data?.[0]?.value?.Token;
+      if (!tokenObj?.name) return null;
+
+      target.apiToken = tokenObj.name;
+      target.apiTokenExpiry = Date.now() + (tokenObj.leaseTime || 3600) * 1000;
+      return target.apiToken;
+    } catch {
+      return null;
+    }
   }
 
   private async detectResolution(base64: string, mimeType: string): Promise<string | undefined> {

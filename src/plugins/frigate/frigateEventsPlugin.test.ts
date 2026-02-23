@@ -17,14 +17,29 @@ const tauriCtx = (overrides?: Partial<PluginContext>): PluginContext => ({
 });
 
 describe('FrigateEventsPlugin', () => {
+  let originalWindow: any;
+  let originalCustomEvent: any;
+  let originalFetch: any;
+  let originalFileReader: any;
+
   beforeEach(() => {
     vi.restoreAllMocks();
     unlistenSpy.mockClear();
     listenMock.mockImplementation(async () => unlistenSpy);
+
+    originalWindow = (globalThis as any).window;
+    originalCustomEvent = (globalThis as any).CustomEvent;
+    originalFetch = (globalThis as any).fetch;
+    originalFileReader = (globalThis as any).FileReader;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+
+    (globalThis as any).window = originalWindow;
+    (globalThis as any).CustomEvent = originalCustomEvent;
+    (globalThis as any).fetch = originalFetch;
+    (globalThis as any).FileReader = originalFileReader;
   });
 
   it('filters non-new events and does not call LLM', async () => {
@@ -53,7 +68,7 @@ describe('FrigateEventsPlugin', () => {
     expect(emitSpy).not.toHaveBeenCalled();
   });
 
-  it('applies cooldown per camera+label and emits only once', async () => {
+  it('deduplicates by event id (LLM once per incident id)', async () => {
     const plugin = new FrigateEventsPlugin();
 
     const describeSpy = vi.spyOn(llmClient, 'describeImageChange').mockResolvedValue('Ktoś wszedł.');
@@ -96,20 +111,17 @@ describe('FrigateEventsPlugin', () => {
       timestamp: Date.now(),
     });
 
-    // Second event: within cooldown but now has previous snapshot -> should be blocked by cooldown
+    // Second event: same incident id -> should be ignored (no fetch, no LLM)
     await (plugin as any).handleMqttEvent({
       topic: 'frigate/events',
-      payload: JSON.stringify({ type: 'new', after: { label: 'person', camera: 'front', id: 'e2' } }),
+      payload: JSON.stringify({ type: 'new', after: { label: 'person', camera: 'front', id: 'e1' } }),
       timestamp: Date.now(),
     });
 
     expect(describeSpy).not.toHaveBeenCalled();
     expect(emitSpy).not.toHaveBeenCalled();
 
-    // Force cooldown to pass by mutating internal map
-    (plugin as any).lastAlertAtByKey.set('front:person', Date.now() - 999999);
-
-    // Third event: should now call LLM and emit (previous snapshot exists)
+    // Third event: new incident id -> should now call LLM and emit (previous snapshot exists)
     await (plugin as any).handleMqttEvent({
       topic: 'frigate/events',
       payload: JSON.stringify({ type: 'new', after: { label: 'person', camera: 'front', id: 'e3' } }),

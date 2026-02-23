@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { MonitorPlugin } from './monitorPlugin';
 import { BUILTIN_SCOPES, ScopeRegistry } from '../scope/scopeRegistry';
 import type { PluginContext } from '../../core/types';
+import { DeviceRepository } from '../../persistence/deviceRepository';
 
 const browserCtx: PluginContext = { isTauri: false };
 
@@ -67,6 +68,31 @@ describe('MonitorPlugin', () => {
       const result = await plugin.execute('monitoruj', browserCtx);
       expect(result.status).toBe('error');
       expect(result.content[0].data).toContain('cel monitoringu');
+    });
+
+    it('resolves Raspberry Pi target from persisted devices when user says "monitoruj rpi"', async () => {
+      vi.spyOn(DeviceRepository.prototype, 'listDevices').mockResolvedValue([
+        {
+          id: 'rpi-1',
+          ip: '192.168.50.10',
+          hostname: 'raspberrypi',
+          mac: 'AA:BB:CC:DD:EE:FF',
+          vendor: 'Raspberry Pi',
+          last_seen: Date.now(),
+        },
+      ]);
+
+      const ctx = {
+        isTauri: false,
+        databaseManager: {
+          isReady: () => true,
+          getDevicesDb: () => ({}) as any,
+        },
+      } as any as PluginContext;
+
+      const result = await plugin.execute('monitoruj rpi co 60s', ctx);
+      expect(result.status).toBe('success');
+      expect(result.content[0].data).toContain('192.168.50.10');
     });
   });
 
