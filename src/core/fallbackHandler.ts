@@ -17,6 +17,7 @@ import {
   type ActionSchema,
 } from './actionSchema';
 import type { ConfigPromptData, ConfigAction } from '../components/ChatConfigPrompt';
+import { preferenceLearning } from './preferenceLearning';
 import { logger } from '../lib/logger';
 
 const fallbackLogger = logger.scope('fallback');
@@ -149,6 +150,52 @@ Zawsze odpowiadaj po polsku. Zwróć TYLKO JSON.`;
   }
 }
 
+// ── Preference-based ranking ────────────────────────────────
+
+/**
+ * Re-sort actions by user preference history. Actions the user has
+ * clicked before get boosted; others keep their original order.
+ */
+function rankByPreference(actions: ConfigAction[]): ConfigAction[] {
+  return [...actions].sort((a, b) => {
+    const scoreA = preferenceLearning.score(a.id, a.executeQuery || a.prefillText).combined;
+    const scoreB = preferenceLearning.score(b.id, b.executeQuery || b.prefillText).combined;
+    return scoreB - scoreA; // higher preference first
+  });
+}
+
+/**
+ * Inject top user favorites (from history) into an action list if they
+ * are not already present. Returns at most `limit` actions.
+ */
+function injectFavorites(actions: ConfigAction[], limit = 6): ConfigAction[] {
+  const topPrefs = preferenceLearning.getTopPreferences(3);
+  if (topPrefs.length === 0) return actions.slice(0, limit);
+
+  const existingKeys = new Set(actions.map(a => (a.executeQuery || a.prefillText || a.id).toLowerCase()));
+  const schemaMap = new Map(ACTION_SCHEMAS.map(s => [s.intent, s]));
+
+  for (const pref of topPrefs) {
+    if (existingKeys.has(pref.key)) continue;
+    // Try to find matching schema to build a proper action
+    const schema = schemaMap.get(pref.key);
+    if (schema) {
+      actions.push({
+        id: `fav-${schema.intent}`,
+        label: `⭐ ${schema.label}`,
+        description: `Często używane (${pref.count}x)`,
+        icon: schema.icon,
+        type: 'execute',
+        executeQuery: schema.executeQuery,
+        variant: 'primary',
+      });
+      existingKeys.add(pref.key);
+    }
+  }
+
+  return actions.slice(0, limit);
+}
+
 // ── Keyword-based fallback ──────────────────────────────────
 
 function keywordFallback(options: FallbackOptions): FallbackResult {
@@ -157,7 +204,7 @@ function keywordFallback(options: FallbackOptions): FallbackResult {
   // 1. Try domain-based matching first (e.g. "użyj kamery" → camera domain)
   const domainSchemas = findDomainSchemas(query);
   if (domainSchemas.length > 0) {
-    const actions = schemasToConfigActions(domainSchemas.slice(0, 6));
+    const actions = rankByPreference(schemasToConfigActions(domainSchemas.slice(0, 6)));
     const domainLabel = domainSchemas[0]?.domain || 'system';
     const domainNames: Record<string, string> = {
       camera: 'kamer',
@@ -189,7 +236,7 @@ function keywordFallback(options: FallbackOptions): FallbackResult {
   // 2. Try keyword scoring
   const scored = findMatchingSchemas(query, 5);
   if (scored.length > 0) {
-    const actions = schemasToConfigActions(scored);
+    const actions = rankByPreference(schemasToConfigActions(scored));
 
     fallbackLogger.info('Keyword fallback: scored match', {
       topScore: scored[0]?.score,
@@ -218,11 +265,14 @@ function keywordFallback(options: FallbackOptions): FallbackResult {
     { id: 'fb-help', label: 'Pomoc', icon: '❓', type: 'execute', executeQuery: 'pomoc', variant: 'secondary', description: 'Zobacz wszystkie komendy' },
   ];
 
+  // Inject learned favorites into generic suggestions
+  const finalActions = injectFavorites(rankByPreference(genericActions));
+
   return {
     text: `Nie rozpoznałem polecenia: **"${query}"**\n\nWybierz jedną z dostępnych akcji lub wpisz bardziej szczegółowe zapytanie:`,
     configPrompt: {
       title: 'Dostępne akcje',
-      actions: genericActions,
+      actions: finalActions,
       layout: 'cards',
     },
   };

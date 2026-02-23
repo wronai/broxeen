@@ -6,6 +6,7 @@
 import { Settings, ChevronRight, Check, X } from 'lucide-react';
 import { configStore } from '../config/configStore';
 import { CONFIG_FIELD_META, type ConfigFieldMeta } from '../config/appConfig';
+import { preferenceLearning } from '../core/preferenceLearning';
 import { useState } from 'react';
 
 // ── Types ───────────────────────────────────────────────────
@@ -60,9 +61,24 @@ interface ChatConfigPromptProps {
 
 export function ChatConfigPrompt({ data, onPrefill, onExecute, className = '' }: ChatConfigPromptProps) {
   const [completedActions, setCompletedActions] = useState<Set<string>>(new Set());
+  const [clickedActions, setClickedActions] = useState<Set<string>>(new Set());
   const [editValues, setEditValues] = useState<Record<string, string>>({});
 
   const handleAction = (action: ConfigAction) => {
+    // Track user choice for preference learning
+    preferenceLearning.recordChoice({
+      intent: action.id,
+      executeQuery: action.executeQuery || action.prefillText,
+      label: action.label,
+    });
+
+    // Trigger click animation
+    setClickedActions(prev => new Set(prev).add(action.id));
+    setTimeout(() => {
+      setClickedActions(prev => { const n = new Set(prev); n.delete(action.id); return n; });
+      setCompletedActions(prev => new Set(prev).add(action.id));
+    }, 600);
+
     switch (action.type) {
       case 'prefill':
         if (action.prefillText) {
@@ -73,7 +89,6 @@ export function ChatConfigPrompt({ data, onPrefill, onExecute, className = '' }:
       case 'set_config':
         if (action.configPath !== undefined && action.configValue !== undefined) {
           configStore.set(action.configPath, action.configValue);
-          setCompletedActions(prev => new Set(prev).add(action.id));
         }
         break;
 
@@ -185,20 +200,25 @@ export function ChatConfigPrompt({ data, onPrefill, onExecute, className = '' }:
         <div className="flex flex-wrap gap-2">
           {data.actions.map(action => {
             const isCompleted = completedActions.has(action.id);
+            const isClicked = clickedActions.has(action.id);
             return (
               <button
                 key={action.id}
                 onClick={() => handleAction(action)}
-                disabled={isCompleted}
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-                  isCompleted
+                disabled={isCompleted || isClicked}
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-300 ${
+                  isClicked
+                    ? 'bg-green-500/30 border-green-500/50 text-green-200 scale-95 animate-pulse'
+                    : isCompleted
                     ? 'bg-green-600/20 border-green-600/30 text-green-300 opacity-60 cursor-default'
                     : getVariantClasses(action.variant)
                 }`}
                 title={action.description || action.label}
                 data-testid={`config-action-${action.id}`}
               >
-                {isCompleted ? (
+                {isClicked ? (
+                  <Check size={12} className="animate-bounce" />
+                ) : isCompleted ? (
                   <Check size={12} />
                 ) : action.icon ? (
                   <span>{action.icon}</span>
@@ -217,13 +237,16 @@ export function ChatConfigPrompt({ data, onPrefill, onExecute, className = '' }:
         <div className="space-y-2">
           {data.actions.map(action => {
             const isCompleted = completedActions.has(action.id);
+            const isClicked = clickedActions.has(action.id);
             return (
               <button
                 key={action.id}
                 onClick={() => handleAction(action)}
-                disabled={isCompleted}
-                className={`w-full text-left p-3 rounded-lg border transition group ${
-                  isCompleted
+                disabled={isCompleted || isClicked}
+                className={`w-full text-left p-3 rounded-lg border transition-all duration-300 group ${
+                  isClicked
+                    ? 'bg-green-500/20 border-green-500/40 scale-[0.98] ring-1 ring-green-500/30'
+                    : isCompleted
                     ? 'bg-green-600/10 border-green-600/20 opacity-60 cursor-default'
                     : 'bg-gray-700 border-gray-600 hover:bg-gray-600 hover:border-gray-500'
                 }`}
@@ -231,17 +254,21 @@ export function ChatConfigPrompt({ data, onPrefill, onExecute, className = '' }:
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {action.icon && <span className="text-lg">{action.icon}</span>}
+                    {action.icon && <span className={`text-lg transition-transform duration-300 ${isClicked ? 'scale-125' : ''}`}>{action.icon}</span>}
                     <div>
-                      <div className={`font-medium text-sm ${isCompleted ? 'text-green-300' : 'text-gray-200 group-hover:text-broxeen-400'}`}>
+                      <div className={`font-medium text-sm transition-colors duration-300 ${
+                        isClicked ? 'text-green-300' : isCompleted ? 'text-green-300' : 'text-gray-200 group-hover:text-broxeen-400'
+                      }`}>
                         {action.label}
                       </div>
                       {action.description && (
-                        <div className="text-xs text-gray-400 mt-0.5">{action.description}</div>
+                        <div className={`text-xs mt-0.5 transition-colors duration-300 ${isClicked ? 'text-green-400/70' : 'text-gray-400'}`}>{action.description}</div>
                       )}
                     </div>
                   </div>
-                  {isCompleted ? (
+                  {isClicked ? (
+                    <Check size={16} className="text-green-400 animate-bounce" />
+                  ) : isCompleted ? (
                     <Check size={16} className="text-green-400" />
                   ) : (
                     <ChevronRight size={16} className="text-gray-400 group-hover:text-broxeen-400" />
@@ -258,19 +285,25 @@ export function ChatConfigPrompt({ data, onPrefill, onExecute, className = '' }:
         <div className="flex items-center gap-1.5 flex-wrap">
           {data.actions.map(action => {
             const isCompleted = completedActions.has(action.id);
+            const isClicked = clickedActions.has(action.id);
             return (
               <button
                 key={action.id}
                 onClick={() => handleAction(action)}
-                disabled={isCompleted}
-                className={`rounded-md px-2.5 py-1 text-xs transition ${
-                  isCompleted
+                disabled={isCompleted || isClicked}
+                className={`rounded-md px-2.5 py-1 text-xs transition-all duration-300 ${
+                  isClicked
+                    ? 'bg-green-500/30 text-green-200 scale-95'
+                    : isCompleted
                     ? 'bg-green-600/20 text-green-300 opacity-60 cursor-default'
                     : 'bg-gray-700/80 text-gray-300 hover:bg-gray-600 hover:text-white'
                 }`}
               >
-                {action.icon && <span className="mr-1">{action.icon}</span>}
-                {action.label}
+                {isClicked ? (
+                  <><Check size={10} className="inline mr-1 animate-bounce" />{action.label}</>
+                ) : (
+                  <>{action.icon && <span className="mr-1">{action.icon}</span>}{action.label}</>
+                )}
               </button>
             );
           })}

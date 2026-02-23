@@ -5,14 +5,10 @@ mod audio_commands;
 mod browse_rendered;
 mod content_cleaning;
 mod content_extraction;
-mod disk_info;
 mod llm;
 mod logging;
-mod network;
-mod network_info;
 mod network_scan;
 mod settings;
-mod ssh;
 mod stt;
 mod tts;
 mod tts_backend;
@@ -152,7 +148,7 @@ async fn get_app_version() -> Result<String, String> {
 }
 
 #[tauri::command]
-async fn browse(url: String, headers: Option<std::collections::HashMap<String, String>>) -> Result<BrowseResult, String> {
+async fn browse(url: String) -> Result<BrowseResult, String> {
     backend_info(format!("Command browse invoked for URL: {}", url));
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(15))
@@ -163,17 +159,7 @@ async fn browse(url: String, headers: Option<std::collections::HashMap<String, S
             e.to_string()
         })?;
 
-    let mut request = client.get(&url);
-    
-    // Add headers if provided
-    if let Some(headers) = headers {
-        for (key, value) in headers {
-            request = request.header(&key, &value);
-            backend_info(format!("Adding header: {}: {}", key, value));
-        }
-    }
-
-    let response = request.send().await.map_err(|e| {
+    let response = client.get(&url).send().await.map_err(|e| {
         backend_error(format!("HTTP request failed for {}: {}", url, e));
         e.to_string()
     })?;
@@ -403,7 +389,7 @@ fn main() {
     }
 
     backend_info(
-        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network, get_disk_info, get_disk_usage, ssh_execute, ssh_test_connection, ssh_list_known_hosts, db_execute, db_query, db_close",
+        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network",
     );
 
     let recording_state: SharedRecordingState = Arc::new(Mutex::new(audio_capture::RecordingState::new()));
@@ -425,7 +411,6 @@ fn main() {
             audio_commands::stt_start,
             audio_commands::stt_stop,
             audio_commands::stt_status,
-            audio_commands::stt_is_silence,
             audio_commands::backend_tts_speak,
             audio_commands::backend_tts_stop,
             audio_commands::backend_tts_pause,
@@ -444,24 +429,11 @@ fn main() {
             network_scan::discover_onvif_cameras,
             network_scan::discover_mdns,
             network_scan::scan_network,
-            network_info::get_local_network_info,
-            network_info::list_network_interfaces,
-            disk_info::get_disk_info,
-            disk_info::get_disk_usage,
-            ssh::ssh_execute,
-            ssh::ssh_test_connection,
-            ssh::ssh_list_known_hosts,
-            network_scan::rtsp_capture_frame,
-            network_scan::rtsp_worker_stats,
-            network_scan::http_fetch_base64,
-            network::db_execute,
-            network::db_query,
-            network::db_close,
         ])
         .run(tauri::generate_context!())
     {
         backend_error(format!("Error while running Broxeen: {}", err));
-        panic!("error while running broxeen");
+        panic!("error while running Broxeen");
     }
 
     backend_info("Broxeen backend stopped gracefully");

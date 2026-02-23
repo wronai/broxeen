@@ -48,6 +48,7 @@ import { useDatabaseManager } from "../hooks/useDatabaseManager";
 import { useHistoryPersistence } from "../hooks/useHistoryPersistence";
 import { isTauriRuntime } from "../lib/runtime";
 import { MessageQuickActions } from "./MessageQuickActions";
+import { MessageResultCard } from "./MessageResultCard";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -1813,6 +1814,7 @@ ${analysis}`,
                                 {msg.pageTitle}
                               </div>
                             )}
+                            <MessageResultCard text={msg.text} msgType={msg.type}>
                             <div className="prose prose-invert max-w-none prose-sm">
                               <ReactMarkdown 
                                 remarkPlugins={[remarkGfm]}
@@ -1868,6 +1870,7 @@ ${analysis}`,
                               {msg.text}
                             </ReactMarkdown>
                             </div>
+                            </MessageResultCard>
                           </div>
                         )}
 

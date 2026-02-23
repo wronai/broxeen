@@ -31,7 +31,7 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [x] **System proponowania akcji** — `MessageQuickActions` + `quickActionResolver` — kontekstowe przyciski na dole każdej odpowiedzi asystenta ✅
 - [x] **Kontekstowe sugestie** — auto-detekcja IP, URL, kamer, portów, SSH w treści wiadomości → odpowiednie akcje ✅
 - [x] **Interaktywne wybieranie** — klikalne karty na ekranie powitalnym (6 akcji) + inline buttons na wiadomościach ✅
-- [ ] **Uczenie się preferencji** - system zapamiętuje wybory użytkownika i promuje najczęstsze
+- [x] **Uczenie się preferencji** — `PreferenceLearningStore` + tracking w `ChatConfigPrompt` + ranking w `fallbackHandler` ✅
 
 ### 📺 Podgląd Kamier i Urządzeń
 - [x] **Live preview kamer** - podgląd wideo (1 FPS dla oszczędności)
@@ -50,7 +50,7 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [x] **Sugerowane komendy** — ekran powitalny z 6 kartami akcji + `ActionSuggestions` z uczeniem się ✅
 - [ ] **Historia z kategoriami** - sieciowe, przeglądanie, chat
 - [x] **Szybkie odpowiedzi** — `MessageQuickActions` generuje predefiniowane follow-up komendy per wiadomość ✅
-- [ ] **Wizualizacja wyników** - karty, ikony, statusy
+- [x] **Wizualizacja wyników** — `MessageResultCard` auto-detects domain → colored border + icon badge + status pill ✅
 - [x] **Pływające przyciski diagnostyki/błędów** - przeniesione na prawą stronę nad scope i skompresowane do jednej linii
 - [ ] **Responsywność pływających przycisków** - dopasowanie na bardzo wąskich oknach (opcjonalne skrócone etykiety)
 
@@ -60,7 +60,7 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [x] **Execute/Prefill/Link actions** — trzy tryby akcji: execute (natychmiast), prefill (wstaw do inputa), link (otwórz URL) ✅
 - [ ] **Wizard konfiguracyjny** — step-by-step setup: API key → model → podsieć → kamery
 - [ ] **Onboarding flow** — pierwszy start z interaktywnym tutorialem
-- [ ] **Feedback na akcjach** — animacja sukcesu/błędu po kliknięciu przycisku
+- [x] **Feedback na akcjach** — animacja sukcesu (green pulse + bounce checkmark 600ms) w `ChatConfigPrompt` dla buttons/cards/inline ✅
 - [ ] **Drag & drop reorder** — użytkownik sortuje ulubione akcje na ekranie powitalnym
 - [ ] **Keyboard shortcuts** — Ctrl+1..6 dla szybkich akcji z welcome screen
 
@@ -77,6 +77,7 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [ ] **Export danych** - CSV, JSON raporty
 
 ### 🔧 Techniczne Ulepszenia
+- [x] **Action Schema + Fallback Handler** — `actionSchema.ts` (25+ schemas) + `fallbackHandler.ts` (LLM/keyword/generic) + scope fix (`chat-llm` w `local`) ✅
 - [x] **Plugin system v2** - dynamiczne ładowanie pluginów ✅ v2.0.0
 - [x] **Scoped plugins** - foldery per scope (local-network, cameras, marketplace) ✅ v2.0.0
 - [x] **Marketplace** - zdalne ładowanie pluginów community ✅ v2.0.0

@@ -13,8 +13,6 @@ export interface AudioSettings {
   mic_device_id: string;
   speaker_device_id: string;
   auto_listen: boolean;
-  /** How long silence must last (ms) before auto-listen stops recording and sends the transcript. */
-  auto_listen_silence_ms: number;
 }
 
 export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
@@ -32,7 +30,6 @@ export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
   mic_device_id: "default",
   speaker_device_id: "default",
   auto_listen: false,
-  auto_listen_silence_ms: 1000,
 };
 
 export function withAudioSettingsDefaults(

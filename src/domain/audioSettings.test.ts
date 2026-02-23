@@ -33,20 +33,4 @@ describe("audioSettings domain", () => {
     expect(merged.tts_lang).toBe("en-US");
     expect(merged.mic_enabled).toBe(false);
   });
-
-  it("keeps explicit values over defaults with new field", () => {
-    const merged = withAudioSettingsDefaults({
-      tts_enabled: true,
-      tts_lang: "pl-PL",
-      mic_enabled: true,
-      auto_listen: false,
-      auto_listen_silence_ms: 1000,
-    });
-
-    expect(merged.tts_enabled).toBe(true);
-    expect(merged.tts_lang).toBe("pl-PL");
-    expect(merged.mic_enabled).toBe(true);
-    expect(merged.auto_listen).toBe(false);
-    expect(merged.auto_listen_silence_ms).toBe(1000);
-  });
 });

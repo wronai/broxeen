@@ -52,7 +52,6 @@ describe("Settings — widoczność", () => {
       mic_device_id: "default",
       speaker_device_id: "default",
       auto_listen: false,
-      auto_listen_silence_ms: 1000,
     });
   });
 
@@ -110,7 +109,6 @@ describe("Settings — ładowanie ustawień", () => {
       mic_device_id: "default",
       speaker_device_id: "default",
       auto_listen: false,
-      auto_listen_silence_ms: 1000,
     });
 
     render(<Settings {...baseProps} />);
@@ -146,7 +144,6 @@ describe("Settings — kontrolki TTS", () => {
       mic_device_id: "default",
       speaker_device_id: "default",
       auto_listen: false,
-      auto_listen_silence_ms: 1000,
     });
   });
 
