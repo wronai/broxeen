@@ -67,6 +67,8 @@ pokaż logi monitoringu 192.168.0.100
 ### Automatyczne sugestie
 System automatycznie wykrywa sugestie w odpowiedziach i renderuje je jako przyciski:
 
+Od teraz surowa lista `- "..." — ...` nie jest pokazywana w treści wiadomości (markdown) — `Chat.tsx` ucina tekst w miejscu markera `Sugerowane akcje` i pokazuje przyciski pod spodem.
+
 **Format w tekście:**
 ```
 - "komenda" — Opis akcji
@@ -99,6 +101,20 @@ System automatycznie wykrywa sugestie w odpowiedziach i renderuje je jako przyci
 - "aktywne monitoringi" — Lista wszystkich
 ```
 
+#### Kamera znaleziona w skanie
+Przykładowe przyciski generowane dla kamery (z RTSP):
+```
+💡 **Sugerowane akcje:**
+- "pokaż live 192.168.0.100" — Podgląd na żywo z kamery
+- "monitoruj 192.168.0.100" — Rozpocznij monitoring kamery
+- "pokaż logi monitoringu 192.168.0.100" — Logi zmian dla tej kamery
+- "stop monitoring 192.168.0.100" — Zatrzymaj monitoring tej kamery
+- "ustaw próg zmian 10%" — Większa czułość (globalnie)
+- "zmień interwał co 10s" — Częstsze sprawdzanie (globalnie)
+- "jak działa monitoring" — Wyjaśnij pipeline i diagnostykę
+- "test streams 192.168.0.100 user:admin admin:HASŁO" — Sprawdź warianty RTSP
+```
+
 #### Protocol Bridge
 ```
 💡 Sugerowane akcje:
@@ -116,10 +132,16 @@ System automatycznie wykrywa sugestie w odpowiedziach i renderuje je jako przyci
 2. **no-cors Fetch** - opaque response = host żywy
 3. **WebSocket Probe** - TCP handshake timing
 
+**Uwaga o snapshotach HTTP (CORS):**
+Jeśli snapshot kamery po HTTP jest blokowany przez CORS w przeglądarce, dev-serwer udostępnia proxy:
+```
+GET /api/camera-proxy?url=http://USER:PASS@192.168.0.10/snapshot.jpg
+```
+
 **Wykrywane podsieci:**
 - WebRTC ICE candidates (Chrome/Firefox)
 - Gateway probe (192.168.1.1, 192.168.0.1, etc.)
-- Fallback: 192.168.1.0/24
+- Fallback: `network.defaultSubnet` z konfiguracji (domyślnie 192.168.1, ale może być np. 192.168.188)
 
 **Skanowane IP:**
 - Gateway: .1
@@ -136,7 +158,15 @@ System automatycznie wykrywa sugestie w odpowiedziach i renderuje je jako przyci
 - ✅ ONVIF discovery
 - ✅ mDNS/Bonjour
 - ✅ Pełny zakres portów
-- ✅ Brak ograniczeń CORS
+- ✅ Brak ograniczeń CORS (RTSP przez backend)
+
+**Uwaga (DEV / Vite):**
+- W trybie development HTTP snapshoty z LAN mogą być blokowane przez CORS po stronie WebView.
+- Repo zawiera dev-proxy: `GET /api/camera-proxy?url=http://IP/...` (Vite middleware), używany automatycznie przez monitoring w DEV.
+
+**Tryb incremental (szybsze skany):**
+W trybie desktop (Tauri) skaner może działać w trybie `incremental` i skanować tylko wybrane hosty na podstawie historii.
+Parametr `target_ranges` przyjmuje listę zakresów last-octet, np. `"100-150"` albo pełne `"192.168.0.100-150"`.
 
 **Uruchom:**
 ```bash
@@ -220,6 +250,10 @@ monitoruj kamerę wejściową co 30s
 2. **Podaj IP bezpośrednio:** `monitoruj 192.168.0.100`
 3. **Sprawdź router:** kliknij "⚡ Pobierz stronę routera"
 4. **Uruchom Tauri:** pełne skanowanie bez ograniczeń
+
+### Problem: `ENOSPC: System limit for number of file watchers reached`
+
+Jeśli `make dev`/Vite pada na `ENOSPC`, zwiększ limity inotify albo użyj dev-konfiguracji z polling (w tym repo jest już ustawione ignorowanie `venv/` i polling watch).
 
 ### Problem: Monitoring nie wykrywa zmian
 

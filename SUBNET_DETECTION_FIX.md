@@ -171,13 +171,17 @@ if (gatewayResult) {
 
 ### 3. Default (ostateczny fallback)
 ```typescript
-return { localIp: null, subnet: '192.168.1', detectionMethod: 'domyślna' };
+const fallbackSubnet = configStore.get<string>('network.defaultSubnet');
+return { localIp: null, subnet: fallbackSubnet, detectionMethod: 'domyślna' };
 ```
 
 **Używane gdy:**
 - WebRTC nie działa
 - Żaden gateway nie odpowiada
 - Timeout wszystkich prób
+
+> W trybie Tauri priorytetem jest odczyt interfejsów z backendu (`list_network_interfaces`) i wybór najlepszego interfejsu.
+> Dopiero jeśli backend nie jest dostępny lub zwróci pustą listę, używany jest fallback z konfiguracji.
 
 ## Testowanie
 

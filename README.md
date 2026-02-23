@@ -83,6 +83,30 @@ npm run test:coverage
 
 Aktualny wynik: **614 testów, 0 błędów**.
 
+## Troubleshooting (dev)
+
+### ENOSPC: System limit for number of file watchers reached
+
+Jeśli `make dev`/Vite kończy się błędem `ENOSPC`, to oznacza zbyt niski limit inotify (typowe na Linux).
+
+Szybkie obejścia:
+
+1. Upewnij się, że w repo nie jest watchowany `venv/` i podobne katalogi (w tym repo Vite ma ustawione `server.watch.ignored`).
+2. Jeśli dalej występuje problem, zwiększ limity inotify:
+   ```bash
+   sudo sysctl -w fs.inotify.max_user_watches=524288
+   sudo sysctl -w fs.inotify.max_user_instances=1024
+   ```
+
+### Port 5173 is already in use
+
+Jeśli Vite zgłasza, że port `5173` jest zajęty:
+
+```bash
+lsof -nP -iTCP:5173 -sTCP:LISTEN
+kill <PID>
+```
+
 ## Architektura
 
 ```
@@ -135,6 +159,7 @@ broxeen/
 | `browse` | `url: string` | Pobiera stronę i ekstrahuje tekst |
 | `get_settings` | — | Wczytuje ustawienia z `~/.config/broxeen/settings.json` |
 | `save_settings` | `settings: AudioSettings` | Zapisuje ustawienia audio |
+| `scan_network` | `args?: { subnet?: string; timeout?: number; incremental?: boolean; target_ranges?: string[] }` | Skanuje podsieć (desktop/Tauri). `incremental` + `target_ranges` pozwala skanować tylko wybrane hosty (np. zakresy last-octet `"100-150"`). |
 | `rtsp_capture_frame` | `url: string`, `camera_id: string` | Zrzuca pojedynczą klatkę z RTSP (JPEG base64). Zwraca też `frame_age_ms` i `frame_count` jako metryki |
 | `rtsp_worker_stats` | — | Zwraca statystyki wszystkich aktywnych workerów RTSP (camera_id, url, frame_count, uptime_ms, last_error) |
 | `db_execute` | `db_path: string`, `sql: string`, `params: any[]` | Wykonuje SQL (gdy `params` puste, obsługuje multi-statement przez `execute_batch`) |
@@ -209,6 +234,23 @@ Ustawienia zapisywane w `~/.config/broxeen/settings.json`:
 | `speaker_device_id` | `default` | ID urządzenia wyjściowego |
 | `auto_listen` | `false` | Auto-nasłuchiwanie po odpowiedzi |
 
+### Diagnostyka audio (Ustawienia)
+
+W `Ustawienia → Diagnostyka` znajdziesz panel, który pomaga ustalić dlaczego STT/TTS nie działa (np. runtime, uprawnienia mikrofonu, liczba wykrytych urządzeń, dostępność Web Speech vs fallback). Panel zawiera też szybkie testy: **Test TTS** oraz **Test STT**.
+
+### Status audio w topbarze
+
+W topbarze aplikacja pokazuje bieżący stan audio:
+
+- **Mikrofon**
+  - wskaźnik aktywności (czy wykrywa poziom dźwięku)
+  - pasek poziomu (RMS, live meter)
+- **Głośnik**
+  - głośność z ustawień (`tts_volume`)
+  - informacja czy TTS aktualnie mówi (`speaking`)
+
+Po najechaniu na panel pojawia się tooltip z detalami (wybrane urządzenia, poziom mikrofonu, TTS speaking).
+
 ## Rozwiązywanie problemów
 
 | Problem | Rozwiązanie |
@@ -221,6 +263,7 @@ Ustawienia zapisywane w `~/.config/broxeen/settings.json`:
 | Mikrofon nie działa | Aplikacja prosi o uprawnienia przy starcie; sprawdź ustawienia systemowe |
 | `libwebkit2gtk` brak | `sudo apt install libwebkit2gtk-4.1-dev` |
 | Live RTSP nie działa / brak klatki | Upewnij się, że w systemie jest dostępne `ffmpeg`. Live RTSP w Tauri używa long-lived worker/cache (ffmpeg uruchamiany w tle per kamera/url) i zwraca ostatnią klatkę. Niektóre buildy ffmpeg nie wspierają flag timeout (`-stimeout`, `-rw_timeout`) — w razie potrzeby usuń te flagi lub użyj builda z pełnym wsparciem |
+| Monitoring HTTP snapshot w DEV zwraca `Load failed` / `Failed to fetch` | To zwykle CORS/mixed-content. W trybie development używany jest Vite dev-proxy: `/api/camera-proxy?url=http://IP/...` (działa tylko gdy uruchomiony jest Vite dev). Alternatywnie uruchom Tauri i użyj RTSP przez backend. |
 
 Diagnostyka i raport błędów są dostępne z pływających przycisków po prawej stronie — nad selektorem zakresu (scope).
 

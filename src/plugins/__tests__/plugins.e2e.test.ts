@@ -217,7 +217,9 @@ describe('NetworkScanPlugin', () => {
     const invoke = vi.fn().mockResolvedValue(mockResult);
     const result = await plugin.execute('skanuj sieć', makeTauriCtx(invoke));
 
-    expect(invoke).toHaveBeenCalledWith('scan_network', expect.objectContaining({ timeout: 5000, incremental: expect.any(Boolean) }));
+    expect(invoke).toHaveBeenCalledWith('scan_network', expect.objectContaining({
+      args: expect.objectContaining({ timeout: 5000, incremental: expect.any(Boolean) }),
+    }));
     expect(result.status).toBe('success');
     expect(result.content[0].data).toContain('192.168.1.100');
     expect(result.metadata.deviceCount).toBe(2);

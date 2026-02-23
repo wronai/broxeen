@@ -16,7 +16,7 @@ docker0: inet 172.17.0.1/16        # Docker
 
 System automatycznie wykrywa wszystkie interfejsy i:
 1. **Jeden interfejs** → używa go automatycznie
-2. **Wiele interfejsów** → pyta użytkownika, który wybrać
+2. **Wiele interfejsów** → automatycznie wybiera najlepszy (preferuje prywatne IP + fizyczne/WiFi, odrzuca docker/tun)
 
 ## Jak to działa
 
@@ -53,26 +53,9 @@ pokaż kamery
   - docker0: 172.17.0.1
 ```
 
-**Wynik:**
+**Wynik (auto):**
 ```
-🌐 **Wykryto wiele interfejsów sieciowych**
-
-Wybierz interfejs do skanowania:
-
-**1. wlp90s0** — 192.168.188.152 (podsieć: 192.168.188.0/24)
-   💬 Skanuj: "skanuj 192.168.188" lub "pokaż kamery 192.168.188"
-
-**2. enp91s0** — 192.168.1.100 (podsieć: 192.168.1.0/24)
-   💬 Skanuj: "skanuj 192.168.1" lub "pokaż kamery 192.168.1"
-
-**3. docker0** — 172.17.0.1 (podsieć: 172.17.0/24)
-   💬 Skanuj: "skanuj 172.17.0" lub "pokaż kamery 172.17.0"
-
----
-💡 **Sugerowane akcje:**
-- "pokaż kamery 192.168.188" — Skanuj wlp90s0 (192.168.188.152)
-- "pokaż kamery 192.168.1" — Skanuj enp91s0 (192.168.1.100)
-- "pokaż kamery 172.17.0" — Skanuj docker0 (172.17.0.1)
+🌐 Podsieć: 192.168.188.0/24 (wykryta: Tauri (wlp90s0))
 ```
 
 ### 3. Bezpośredni wybór podsieci
@@ -98,6 +81,8 @@ pokaż kamery 192.168.188
 
 Wszystkie sugestie są **klikalne** dzięki Inline Action Hints:
 
+`Chat.tsx` renderuje przyciski pod wiadomością, a surowa lista `- "..." — ...` nie jest pokazywana w treści markdown (tekst jest ucinany w miejscu markera `Sugerowane akcje`).
+
 ```
 💡 Sugerowane akcje:
 - "pokaż kamery 192.168.188" — Skanuj wlp90s0 (192.168.188.152)
@@ -107,6 +92,10 @@ Renderowane jako:
 ```
 [⚡ Skanuj wlp90s0 (192.168.188.152)] ← klikalny przycisk
 ```
+
+Uwagi:
+- maksymalnie renderuje się 10 przycisków
+- jeśli komenda wygląda na szablon (np. zawiera `HASŁO`), kliknięcie prefilluje input
 
 ## Implementacja
 

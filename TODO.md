@@ -36,13 +36,13 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 ### 📺 Podgląd Kamier i Urządzeń
 - [x] **Live preview kamer** - podgląd wideo (1 FPS dla oszczędności)
 - [x] **RTSP kompatybilność Tauri (cameraId/camera_id)** - spójne argumenty `rtsp_capture_frame` + testy regresyjne
-- [ ] **Status urządzeń** - online/offline, ostatnia aktywność
+- [ ] **Status urządzeń** - online/offline, ostatnia aktywność → `device_status` w DeviceRepository + ping-based health check
 - [x] **Szybkie akcje** — kliknij przycisk na wiadomości → ping, porty, SSH, monitor, live kamera ✅
 - [ ] **Galeria znalezionych** - przeglądaj wszystkie odkryte urządzenia
 
 ### 🔍 Inteligentne Skanowanie
-- [ ] **Skanowanie przyrostowe** - tylko nowe urządzenia
-- [ ] **Historia skanowań** - zapamiętaj co znaleziono
+- [x] **Skanowanie przyrostowe** - tylko nowe urządzenia (`calculateIncrementalRanges()`, `determineScanStrategy()`) ✅
+- [x] **Historia skanowań** - zapamiętaj co znaleziono (`ScanHistoryRepository`, `scan_history` table) ✅
 - [ ] **Automatyczne ponawianie** - periodiczne sprawdzanie statusu
 - [ ] **Filtrowanie wyników** - tylko kamery, tylko konkretne typy
 

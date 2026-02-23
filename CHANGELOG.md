@@ -1,3 +1,29 @@
+## [1.0.60] - 2026-02-23
+
+### Added
+- **Incremental network scan** (`src-tauri/src/network_scan.rs`): `scan_network` command now accepts optional `incremental` + `target_ranges` args; scans only specified IP ranges when incremental mode is active; logs host count per mode.
+- **`parse_target_range()`** (Rust): parses range formats `x-y`, `a.b.c.x-y`, single IP — used by incremental scan.
+- **`ScanHistoryRepository`** (`src/persistence/scanHistoryRepository.ts`): added `shouldUseIncrementalScan()` and `getLastSuccessfulBySubnet()` — recommends incremental scan if last successful scan was < 15 min ago.
+- **`scan_history` table** (`src/persistence/migrations.ts`): new migration v2 for `devices.db` with indexes on `timestamp`, `subnet`, `scope`, `success`.
+- **DB-aware `calculateIncrementalRanges()`** (`src/plugins/discovery/networkScanPlugin.ts`): builds scan windows `±4` around known device IPs from `devices.db`, merges overlapping ranges, caps at 100 hosts.
+- **`trackScanResults()`**: saves scan stats to `scan_history` after each Tauri scan.
+- **Frigate MQTT tests** (`src/plugins/frigate/frigateEventsPlugin.test.ts`): expanded from 4 to 11 tests — `execute` status/start/stop, non-Tauri error, `end` event clearing active key, cooldown fallback without id, no snapshot → no LLM/emit.
+- **Monitor diagnostics** (`src/plugins/monitor/monitorPlugin.ts`): DEV-aware suggestions in `summarizeCaptureFailure()` and log hints; `proxyUrl()` routes HTTP snapshot requests through Vite `/api/camera-proxy` in browser dev mode; auto-load stored camera credentials from `configStore`.
+- **`handleExplain()`** in MonitorPlugin: "jak działa monitoring" command with pipeline diagram, current config, and interactive ConfigPrompt buttons.
+- **Raspberry Pi shortcut** in MonitorPlugin: `monitoruj rpi` resolves IP from `devices.db` via `resolveDeviceIp()`.
+
+### Fixed
+- `scan_network` frontend args mismatch with Rust backend (removed unsupported `incremental`/`targetRanges` fields, then re-added after backend support was implemented).
+- `ensureApiToken()` return type `string | undefined` → `string | null`.
+- E2E test `plugins.e2e.test.ts`: updated `scan_network` assertion to match new `{ args: {...} }` wrapper structure.
+- `plugins.e2e.test.ts`: fixed failing test after `scan_network` signature change.
+
+### Changed
+- `getDefaultSubnet()` now handles both tuple `[name, ip]` and object `{ name, ip }` formats from `list_network_interfaces`; falls back to `configStore.get('network.defaultSubnet')`.
+- `captureCameraSnapshot()` rewritten with 3-tier fallback: RTSP (Tauri) → configured HTTP → auto-probe vendor URLs; returns `CaptureMetadata` with every result.
+- `computeImageChangeScore()` uses canvas pixel-level diff (200px downscale, RGB per-pixel threshold 30/255); falls back to base64 heuristic when no canvas.
+- Log formatting in `formatTargetLogs()` and `formatAllLogs()` now shows capture method, resolution, frame size, diff %, threshold, and diagnostic hints.
+
 ## [1.0.59] - 2026-02-23
 
 ### Summary
