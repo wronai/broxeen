@@ -32,32 +32,27 @@ export class DeviceConfigPlugin implements Plugin {
     }
   }
 
-  async canHandle(input: string, context: PluginContext): Promise<boolean> {
-    const lowerInput = input.toLowerCase();
-    const addKeywords = [
-      'dodaj kamerę', 'dodaj kamere', 'dodaj urządzenie', 'dodaj urzadzenie',
-      'add camera', 'add device', 'nowa kamera', 'nowe urządzenie'
-    ];
-    
-    const saveKeywords = [
-      'zapisz kamerę', 'zapisz kamere', 'zapisz urządzenie', 'zapisz urzadzenie',
-      'save camera', 'save device', 'zachowaj kamerę', 'zachowaj urządzenie'
-    ];
+  private static readonly ROUTE_TABLE: ReadonlyArray<[string, readonly string[]]> = [
+    ['add',       ['dodaj kamerę', 'dodaj kamere', 'dodaj urządzenie', 'dodaj urzadzenie',
+                   'add camera', 'add device', 'nowa kamera', 'nowe urządzenie']],
+    ['save',      ['zapisz kamerę', 'zapisz kamere', 'zapisz urządzenie', 'zapisz urzadzenie',
+                   'save camera', 'save device', 'zachowaj kamerę', 'zachowaj urządzenie']],
+    ['configure', ['konfiguruj kamerę', 'konfiguruj kamere', 'konfiguruj urządzenie',
+                   'configure camera', 'configure device', 'ustaw kamerę', 'ustaw urządzenie']],
+    ['list',      ['lista skonfigurowanych', 'skonfigurowane urządzenia', 'skonfigurowane kamery',
+                   'configured devices', 'configured cameras', 'moje urządzenia', 'moje kamery']],
+  ];
 
-    const configureKeywords = [
-      'konfiguruj kamerę', 'konfiguruj kamere', 'konfiguruj urządzenie',
-      'configure camera', 'configure device', 'ustaw kamerę', 'ustaw urządzenie'
-    ];
+  private static resolveRoute(input: string): string | null {
+    const lower = input.toLowerCase();
+    for (const [key, keywords] of DeviceConfigPlugin.ROUTE_TABLE) {
+      if (keywords.some(kw => lower.includes(kw))) return key;
+    }
+    return null;
+  }
 
-    const listKeywords = [
-      'lista skonfigurowanych', 'skonfigurowane urządzenia', 'skonfigurowane kamery',
-      'configured devices', 'configured cameras', 'moje urządzenia', 'moje kamery'
-    ];
-    
-    return addKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           saveKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           configureKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           listKeywords.some(keyword => lowerInput.includes(keyword));
+  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
+    return DeviceConfigPlugin.resolveRoute(input) !== null;
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {

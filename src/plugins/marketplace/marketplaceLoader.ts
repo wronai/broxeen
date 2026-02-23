@@ -124,39 +124,36 @@ export class MarketplacePlugin implements Plugin {
 
   private catalog: MarketplaceEntry[] = [...DEMO_CATALOG];
 
-  async canHandle(input: string, context: PluginContext): Promise<boolean> {
+  /** Data-driven route table: [route_key, patterns] */
+  private static readonly ROUTE_TABLE: ReadonlyArray<[string, readonly RegExp[]]> = [
+    ['install',   [/zainstaluj.*plugin/i, /install.*plugin/i]],
+    ['uninstall', [/odinstaluj.*plugin/i, /uninstall.*plugin/i, /usun.*plugin/i, /usuń.*plugin/i]],
+    ['search',    [/szukaj.*plugin/i, /wyszukaj.*plugin/i]],
+    ['browse',    [/marketplace/i, /plugin.*store/i, /lista.*plugin/i, /dostępne.*plugin/i, /dostepne.*plugin/i]],
+  ];
+
+  private static resolveRoute(input: string): string | null {
     const lower = input.toLowerCase();
-    return /marketplace/i.test(lower) ||
-      /plugin.*store/i.test(lower) ||
-      /zainstaluj.*plugin/i.test(lower) ||
-      /install.*plugin/i.test(lower) ||
-      /lista.*plugin/i.test(lower) ||
-      /dostępne.*plugin/i.test(lower) ||
-      /dostepne.*plugin/i.test(lower) ||
-      /szukaj.*plugin/i.test(lower) ||
-      /wyszukaj.*plugin/i.test(lower) ||
-      /odinstaluj.*plugin/i.test(lower) ||
-      /uninstall.*plugin/i.test(lower) ||
-      /usun.*plugin/i.test(lower) ||
-      /usuń.*plugin/i.test(lower);
+    for (const [key, patterns] of MarketplacePlugin.ROUTE_TABLE) {
+      if (patterns.some(p => p.test(lower))) return key;
+    }
+    return null;
   }
 
-  async execute(input: string, context: PluginContext): Promise<PluginResult> {
+  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
+    return MarketplacePlugin.resolveRoute(input) !== null;
+  }
+
+  async execute(input: string, _context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
-    const lower = input.toLowerCase();
+    const route = MarketplacePlugin.resolveRoute(input);
 
-    if (/zainstaluj|install/i.test(lower)) {
-      return this.handleInstall(input, start);
+    switch (route) {
+      case 'install':   return this.handleInstall(input, start);
+      case 'uninstall': return this.handleUninstall(input, start);
+      case 'search':    return this.handleSearch(input, start);
+      default:          return this.handleBrowse(start);
     }
-    if (/odinstaluj|uninstall|usun|usuń/i.test(lower)) {
-      return this.handleUninstall(input, start);
-    }
-    if (/szukaj|wyszukaj|search/i.test(lower)) {
-      return this.handleSearch(input, start);
-    }
-
-    // Default: browse catalog
-    return this.handleBrowse(start);
   }
 
   private handleBrowse(start: number): PluginResult {

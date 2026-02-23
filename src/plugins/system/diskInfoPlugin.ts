@@ -15,20 +15,14 @@ export class DiskInfoPlugin implements Plugin {
   readonly version = '1.0.0';
   readonly supportedIntents = ['disk:info', 'disk:usage', 'disk:partitions'];
 
+  private static readonly CAN_HANDLE_KEYWORDS: readonly string[] = [
+    'dysk', 'disk', 'partycj', 'partition', 'miejsce', 'wolne',
+    'storage', 'ile zajęte', 'ile wolnego', 'df ',
+  ];
+
   async canHandle(input: string, _context: PluginContext): Promise<boolean> {
     const lower = input.toLowerCase();
-    return (
-      lower.includes('dysk') ||
-      lower.includes('disk') ||
-      lower.includes('partycj') ||
-      lower.includes('partition') ||
-      lower.includes('miejsce') ||
-      lower.includes('wolne') ||
-      lower.includes('storage') ||
-      lower.includes('ile zajęte') ||
-      lower.includes('ile wolnego') ||
-      lower.includes('df ')
-    );
+    return DiskInfoPlugin.CAN_HANDLE_KEYWORDS.some(kw => lower.includes(kw));
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {

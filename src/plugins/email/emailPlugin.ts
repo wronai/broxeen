@@ -51,97 +51,57 @@ export class EmailPlugin implements Plugin {
   private pollIntervalMs: number = 10 * 60 * 1000; // 10 minutes default
   private pollCallback: ((summary: string) => void) | null = null;
 
-  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
+  /** Data-driven route table: [route_key, patterns] */
+  private static readonly ROUTE_TABLE: ReadonlyArray<[string, readonly RegExp[]]> = [
+    ['config', [
+      /konfiguruj\s*(email|e-mail|poczt)/i, /config.*email/i,
+      /ustaw\s*(email|e-mail|poczt)/i, /email.*config/i,
+      /testuj\s*(email|e-mail|poczt)/i,
+    ]],
+    ['send', [
+      /wyślij/i, /wyslij/i, /send/i, /prześlij/i, /przeslij/i,
+      /mail.*plik/i, /plik.*mail/i,
+    ]],
+    ['inbox', [
+      /skrzynk/i, /inbox/i, /poczta/i, /poczt/i, /wiadomoś/i, /wiadomos/i,
+      /sprawdź\s*email/i, /sprawdz\s*email/i, /odczytaj\s*email/i,
+      /check\s*email/i, /co\s+w\s+email/i, /nowe\s+email/i, /nowe\s+wiadom/i,
+    ]],
+    ['email', [
+      /email/i, /e-mail/i, /\bmail\b/i,
+    ]],
+  ];
+
+  /** Resolve route key for a given input */
+  private static resolveRoute(input: string): string | null {
     const lower = input.toLowerCase();
-    return (
-      lower.includes('email') ||
-      lower.includes('e-mail') ||
-      lower.includes('mail') ||
-      lower.includes('wyślij') && (lower.includes('plik') || lower.includes('mail')) ||
-      lower.includes('wyslij') && (lower.includes('plik') || lower.includes('mail')) ||
-      lower.includes('skrzynk') ||
-      lower.includes('inbox') ||
-      lower.includes('poczta') ||
-      lower.includes('poczt') ||
-      lower.includes('wiadomoś') ||
-      lower.includes('wiadomos') ||
-      /konfiguruj\s*(email|e-mail|poczt)/i.test(lower) ||
-      /sprawdź\s*(email|e-mail|poczt|skrzynk)/i.test(lower) ||
-      /sprawdz\s*(email|e-mail|poczt|skrzynk)/i.test(lower)
-    );
+    for (const [key, patterns] of EmailPlugin.ROUTE_TABLE) {
+      if (patterns.some(p => p.test(lower))) return key;
+    }
+    return null;
+  }
+
+  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
+    return EmailPlugin.resolveRoute(input) !== null;
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
-    const lower = input.toLowerCase();
+    const route = EmailPlugin.resolveRoute(input);
 
     try {
-      // Determine which email action to perform
-      if (this.isConfigRequest(lower)) {
-        return this.handleConfig(input, start);
+      switch (route) {
+        case 'config': return this.handleConfig(input, start);
+        case 'send':   return await this.handleSend(input, context, start);
+        case 'inbox':  return await this.handleInbox(context, start);
+        default:       return await this.handleInbox(context, start);
       }
-
-      if (this.isSendRequest(lower)) {
-        return await this.handleSend(input, context, start);
-      }
-
-      if (this.isPollConfigRequest(lower)) {
-        return this.handlePollConfig(input, start);
-      }
-
-      if (this.isInboxRequest(lower)) {
-        return await this.handleInbox(context, start);
-      }
-
-      // Default: show inbox
-      return await this.handleInbox(context, start);
     } catch (err) {
       return this.errorResult(
         `Błąd email: ${err instanceof Error ? err.message : String(err)}`,
         start,
       );
     }
-  }
-
-  // ── Request classification ──────────────────────────────────
-
-  private isConfigRequest(lower: string): boolean {
-    return (
-      /konfiguruj\s*(email|e-mail|poczt)/i.test(lower) ||
-      /config.*email/i.test(lower) ||
-      /ustaw\s*(email|e-mail|poczt)/i.test(lower) ||
-      /email.*config/i.test(lower) ||
-      /testuj\s*(email|e-mail|poczt)/i.test(lower)
-    );
-  }
-
-  private isSendRequest(lower: string): boolean {
-    return (
-      lower.includes('wyślij') ||
-      lower.includes('wyslij') ||
-      lower.includes('send') ||
-      lower.includes('prześlij') ||
-      lower.includes('przeslij') ||
-      (lower.includes('mail') && lower.includes('plik'))
-    );
-  }
-
-  private isInboxRequest(lower: string): boolean {
-    return (
-      lower.includes('skrzynk') ||
-      lower.includes('inbox') ||
-      lower.includes('poczta') ||
-      lower.includes('poczt') ||
-      lower.includes('wiadomoś') ||
-      lower.includes('wiadomos') ||
-      lower.includes('sprawdź email') ||
-      lower.includes('sprawdz email') ||
-      lower.includes('odczytaj email') ||
-      lower.includes('check email') ||
-      lower.includes('co w email') ||
-      lower.includes('nowe email') ||
-      lower.includes('nowe wiadom')
-    );
   }
 
   private isPollConfigRequest(lower: string): boolean {

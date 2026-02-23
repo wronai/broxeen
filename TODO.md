@@ -55,6 +55,164 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [ ] **Vitest: "Worker exited unexpectedly"** — zdiagnozować crash tinypool/worker i dodać stabilny tryb uruchamiania testów (np. pool/config)
 - [ ] **React tests: warning act(...)** — uspokoić warningi w `Chat.test.tsx` (wrap state updates w `act` lub `await` na asynchroniczne efekty)
 
+### 📌 Kamera live — follow-up
+- [x] **Typowanie payload `camera_live`** — usunięto `any` dla `initialBase64/initialMimeType`, ujednolicono typy w `chatEvents.ts` i `Chat.tsx`
+- [x] **`camera_id` jako cache/metrics tag** — dodano `frame_count`, `frame_age_ms`, `started_at` do `LiveFrameCache` + komenda `rtsp_worker_stats` + wyświetlanie w `CameraLiveInline`
+
+---
+
+## 🧠 REFAKTORYZACJA: Hardcoded NL → LLM + Schema
+
+**Cel:** Zastąpić wszystkie hardkodowane wzorce text/regex centralnym systemem LLM + Schema,
+wzorowanym na architekturze `nlp2cmd`. Każdy krok zachowuje fallback na keyword-matching
+gdy LLM niedostępny.
+
+**Architektura docelowa:**
+```
+User NL Query
+  → LLM Intent Classifier (schema-constrained, temperature=0)
+    → { intent, entities, confidence }
+      → Plugin Router (by intent)
+        → Plugin.execute(input, entities, context)
+```
+
+**Już zrobione:**
+- [x] **R0: Rust text-to-SQL** — `query_schema.rs` + `llm_query.rs` + `vision_query` LLM-first z fallback
+- [x] **R1: MonitorPlugin** — `COMMAND_ROUTES` + `CAN_HANDLE_PATTERNS` data-driven tables
+- [x] **R2: motion_detection.rs** — `LABEL_MAP`, generic `extract_time_filter`, `extract_limit`
+
+### Faza 1: Centralny LLM Intent Classifier (WYSOKI PRIORYTET)
+
+- [ ] **R3: `src/core/intentRouter.ts` — LLM-first intent detection**
+  - ~550 linii hardkodowanych regex (19+ intent grup, ~200 wzorców)
+  - Zastąpić `initializeDefaultPatterns()` + `detect()` wywołaniem LLM z ACTION_SCHEMAS jako kontekstem
+  - LLM zwraca `{ intent: string, entities: Record<string,unknown>, confidence: number }`
+  - Fallback: obecne regex-matching gdy LLM niedostępny
+  - `calculateConfidence()` i `extractEntities()` — usunąć hardkodowane mapy, LLM wyciąga entities
+  - **Plik:** `src/core/intentRouter.ts:17-570` (initializeDefaultPatterns)
+  - **Plik:** `src/core/intentRouter.ts:625-739` (calculateConfidence + extractEntities)
+
+- [ ] **R4: `src/core/actionSchema.ts` — zunifikowany schema jako LLM context**
+  - `findDomainSchemas()` — hardkodowana mapa `domainHints` (60+ słów kluczowych) → LLM
+  - `scoreMatch()` — keyword counting → LLM confidence
+  - ACTION_SCHEMAS.keywords już istnieją — użyć ich jako kontekstu LLM zamiast ręcznego dopasowania
+  - **Plik:** `src/core/actionSchema.ts:409-504`
+
+### Faza 2: Plugin canHandle → schema-driven (WYSOKI PRIORYTET)
+
+- [x] **R5: `src/plugins/discovery/networkScanPlugin.ts` — canHandle + isStatusQuery**
+  - 6 tablic keyword arrays (scan/camera/rpi/status/filter/export) ~40 stringów
+  - Zastąpić deklaratywną definicją w schema → router decyduje, plugin nie sprawdza
+  - **Plik:** `src/plugins/discovery/networkScanPlugin.ts:27-82`
+
+- [ ] **R6: `src/plugins/system/sshPlugin.ts` — canHandle + TEXT2SSH_PATTERNS**
+  - `canHandle`: 7 hardkodowanych `lower.includes()` + regex
+  - `TEXT2SSH_PATTERNS`: 14 entries mapping NL → shell commands
+  - `resolveCommand()`: regex-matching NL do komend
+  - `looksLikeShellCommand()`: hardkodowane shell indicators
+  - Zastąpić: LLM + schema generuje command z opisu NL
+  - **Plik:** `src/plugins/system/sshPlugin.ts:14-85` (TEXT2SSH_PATTERNS)
+  - **Plik:** `src/plugins/system/sshPlugin.ts:93-105` (canHandle)
+  - **Plik:** `src/plugins/system/sshPlugin.ts:252-297` (resolveCommand + looksLikeShellCommand)
+
+- [x] **R7: `src/plugins/email/emailPlugin.ts` — canHandle + request classification**
+  - `canHandle`: 10+ `lower.includes()` + regex
+  - `isConfigRequest`, `isSendRequest`, `isInboxRequest`, `isPollConfigRequest`: 4 metody z regex
+  - **Plik:** `src/plugins/email/emailPlugin.ts:54-145`
+
+- [ ] **R8: `src/plugins/files/fileSearchPlugin.ts` — canHandle**
+  - 20+ `lower.includes()` + 15 regex patterns
+  - **Plik:** `src/plugins/files/fileSearchPlugin.ts:50-96`
+
+- [ ] **R9: `src/plugins/protocol-bridge/protocolBridgePlugin.ts` — canHandle + execute routing**
+  - `canHandle`: 20+ regex tests
+  - `execute`: 8 regex-based if/else routing blocks
+  - `detectProtocolFromInput`: hardkodowane NL cues
+  - `handleAdd`: regex protocol detection
+  - **Plik:** `src/plugins/protocol-bridge/protocolBridgePlugin.ts:123-270`
+
+- [ ] **R10: `src/plugins/discovery/deviceConfigPlugin.ts` — canHandle**
+  - 4 keyword arrays (add/save/configure/list) ~20 stringów
+  - **Plik:** `src/plugins/discovery/deviceConfigPlugin.ts:35-61`
+
+- [ ] **R11: `src/plugins/discovery/serviceProbePlugin.ts` — canHandle**
+  - 7 hardkodowanych probe keywords + URL scheme detection
+  - **Plik:** `src/plugins/discovery/serviceProbePlugin.ts:22-32`
+
+- [x] **R12: `src/plugins/marketplace/marketplaceLoader.ts` — canHandle + execute routing**
+  - `canHandle`: 12 regex tests
+  - `execute`: 3 regex-based routing (install/uninstall/search)
+  - **Plik:** `src/plugins/marketplace/marketplaceLoader.ts:127-160`
+
+- [x] **R13: `src/plugins/system/diskInfoPlugin.ts` — canHandle**
+  - 10 `lower.includes()` patterns
+  - **Plik:** `src/plugins/system/diskInfoPlugin.ts:18-32`
+
+- [x] **R14: `src/plugins/system/processesPlugin.ts` — canHandle + execute routing**
+  - 8 `lower.startsWith()` patterns
+  - Execute: 4 `lower.startsWith()` for stop routing
+  - **Plik:** `src/plugins/system/processesPlugin.ts:10-33`
+
+- [ ] **R15: `src/plugins/camera/cameraLivePlugin.ts` — canHandle**
+  - 4 regex patterns + credential pattern + test streams
+  - **Plik:** `src/plugins/camera/cameraLivePlugin.ts:10-34`
+
+- [x] **R16: `src/plugins/frigate/frigateEventsPlugin.ts` — canHandle + execute routing**
+  - `canHandle`: regex `frigate` + `status|start|stop`
+  - `execute`: 2 `lower.includes()` for stop/start routing
+  - **Plik:** `src/plugins/frigate/frigateEventsPlugin.ts:100-157`
+
+- [ ] **R17: `src/plugins/authBrowse/authBrowsePlugin.ts` — canHandle**
+  - 6 browse keywords + URL match + auth indicators regex
+  - **Plik:** `src/plugins/authBrowse/authBrowsePlugin.ts:34-54`
+
+- [ ] **R18: `src/plugins/monitor/monitorPlugin.ts` — COMMAND_ROUTES wewnętrzny routing**
+  - Już data-driven ale regex → zastąpić LLM sub-classification
+  - `parseToggleMonitoring`: regex extraction
+  - **Plik:** `src/plugins/monitor/monitorPlugin.ts:118-197`
+
+### Faza 3: Chat.tsx config commands (ŚREDNI PRIORYTET)
+
+- [ ] **R19: `src/components/Chat.tsx` — handleConfigCommand**
+  - 6 hardkodowanych regex bloków: monitor config, config overview, AI config, network config, reset, help
+  - **Plik:** `src/components/Chat.tsx:1291-1379`
+
+### Faza 4: Rust backend keyword routing (ŚREDNI PRIORYTET)
+
+- [ ] **R20: `src-tauri/src/query_schema.rs` — detect_data_source**
+  - 30+ `q.contains()` keyword checks to route to Monitoring/Devices/Chat data source
+  - Już ma LLM text-to-SQL, ale routing jest keyword-based
+  - **Plik:** `src-tauri/src/query_schema.rs:197-233`
+
+- [ ] **R21: `src-tauri/src/motion_detection.rs` — nl_to_sql fallback**
+  - `nl_to_sql`: 4 `q.contains()` blocks → counting/stats/camera/default queries
+  - `extract_time_filter`: 10+ keyword/regex patterns
+  - `extract_label_filter`: `LABEL_MAP` lookup
+  - `extract_limit`: 2 regex patterns
+  - **Plik:** `src-tauri/src/motion_detection.rs:812-951`
+
+- [ ] **R22: `src-tauri/src/network_scan.rs` — classify_device**
+  - Port-based device classification (camera/iot-broker/server/web-device/unknown)
+  - Nie NL ale heurystyka — schema mógłby zdefiniować device signatures
+  - **Plik:** `src-tauri/src/network_scan.rs:1423-1448`
+
+### Faza 5: Infrastruktura wspólna
+
+- [x] **R23: Stwórz `src/core/llmIntentClassifier.ts`**
+  - Moduł wywołujący LLM z ACTION_SCHEMAS jako kontekstem
+  - Constrained output: `{ intent, entities, confidence }`
+  - Cache: ten sam input → ten sam intent (memoize)
+  - Timeout + fallback na regex
+
+- [x] **R24: Stwórz `src/core/intentSchema.ts`**
+  - Zunifikowany schema format łączący ACTION_SCHEMAS + intent patterns
+  - Każdy plugin deklaruje swoje intenty w jednym obiekcie schema
+  - Plugin.intentSchema zamiast Plugin.canHandle
+
+- [ ] **R25: Testy regresji dla refaktoryzacji**
+  - Dla każdego R3-R22: test że te same inputy dają te same intenty/wyniki
+  - Property: LLM path i fallback path dają identyczny routing
+
 ---
 
 ## 🎯 PRIORYTETY NA NAJBLIŻSZY CZAS

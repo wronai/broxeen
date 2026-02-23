@@ -97,14 +97,27 @@ export class FrigateEventsPlugin implements Plugin {
     this.started = false;
   }
 
-  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
+  private static readonly ROUTE_TABLE: ReadonlyArray<[string, RegExp]> = [
+    ['stop',   /frigate.*stop|stop.*frigate/i],
+    ['start',  /frigate.*start|start.*frigate/i],
+    ['status', /frigate.*status|status.*frigate/i],
+  ];
+
+  private static resolveRoute(input: string): string | null {
     const lower = input.toLowerCase();
-    return /frigate/.test(lower) && (/status|start|stop/.test(lower));
+    for (const [key, pattern] of FrigateEventsPlugin.ROUTE_TABLE) {
+      if (pattern.test(lower)) return key;
+    }
+    return null;
+  }
+
+  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
+    return FrigateEventsPlugin.resolveRoute(input) !== null;
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
-    const lower = input.toLowerCase();
+    const route = FrigateEventsPlugin.resolveRoute(input);
 
     if (!context.isTauri || !context.tauriInvoke) {
       return {
@@ -115,7 +128,7 @@ export class FrigateEventsPlugin implements Plugin {
       };
     }
 
-    if (lower.includes("stop")) {
+    if (route === 'stop') {
       await context.tauriInvoke("frigate_mqtt_stop");
       this.started = false;
       return {
@@ -126,7 +139,7 @@ export class FrigateEventsPlugin implements Plugin {
       };
     }
 
-    if (lower.includes("start")) {
+    if (route === 'start') {
       await this.initialize(context);
       return {
         pluginId: this.id,

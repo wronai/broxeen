@@ -7,18 +7,19 @@ export class ProcessesPlugin implements Plugin {
   readonly version = '1.0.0';
   readonly supportedIntents = ['system:processes'];
 
+  private static readonly STOP_PATTERNS: readonly RegExp[] = [
+    /^stop\s+proces\s/i, /^stop\s+process\s/i,
+    /^zatrzymaj\s+proces\s/i, /^zatrzymaj\s+process\s/i,
+  ];
+
+  private static readonly LIST_PATTERNS: readonly RegExp[] = [
+    /^procesy$/i, /^procesy\s/i, /^processes$/i, /^processes\s/i,
+  ];
+
   async canHandle(input: string, _context: PluginContext): Promise<boolean> {
     const lower = input.toLowerCase().trim();
-    return (
-      lower === 'procesy' ||
-      lower.startsWith('procesy ') ||
-      lower === 'processes' ||
-      lower.startsWith('processes ') ||
-      lower.startsWith('stop proces ') ||
-      lower.startsWith('stop process ') ||
-      lower.startsWith('zatrzymaj proces ') ||
-      lower.startsWith('zatrzymaj process ')
-    );
+    return ProcessesPlugin.LIST_PATTERNS.some(p => p.test(lower)) ||
+           ProcessesPlugin.STOP_PATTERNS.some(p => p.test(lower));
   }
 
   async execute(input: string, _context: PluginContext): Promise<PluginResult> {
@@ -26,12 +27,7 @@ export class ProcessesPlugin implements Plugin {
     const trimmed = input.trim();
     const lower = trimmed.toLowerCase();
 
-    if (
-      lower.startsWith('stop proces ') ||
-      lower.startsWith('stop process ') ||
-      lower.startsWith('zatrzymaj proces ') ||
-      lower.startsWith('zatrzymaj process ')
-    ) {
+    if (ProcessesPlugin.STOP_PATTERNS.some(p => p.test(lower))) {
       const id = trimmed.split(/\s+/).slice(2).join(' ').trim();
       if (!id) {
         return {
