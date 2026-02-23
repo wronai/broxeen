@@ -8,6 +8,7 @@ import { processRegistry } from '../../core/processRegistry';
 import { configStore } from '../../config/configStore';
 import { DeviceRepository } from '../../persistence/deviceRepository';
 import { ScanHistoryRepository } from '../../persistence/scanHistoryRepository';
+import { createEvent } from '../../domain/chatEvents';
 
 export class NetworkScanPlugin implements Plugin {
   readonly id = 'network-scan';
@@ -425,6 +426,18 @@ export class NetworkScanPlugin implements Plugin {
           const cameraConfigPrompt = isCameraQuery
             ? this.buildCameraActionsPrompt(result.devices)
             : null;
+
+          // Emit network_scan_completed event for real-time sync
+          const scanCompletedEvent = createEvent('network_scan_completed', {
+            subnet: result.subnet,
+            deviceCount: result.devices.length,
+            duration: result.scan_duration,
+            scanType: effectiveScanType || 'full',
+          });
+
+          if (context.eventStore) {
+            context.eventStore.append(scanCompletedEvent);
+          }
 
           return {
             pluginId: this.id,
@@ -1183,6 +1196,29 @@ export class NetworkScanPlugin implements Plugin {
         vendor: d.vendor,
       }));
       await repo.saveDevices(mapped);
+
+      // Emit device_discovered events for real-time sync
+      for (const device of devices) {
+        const event = createEvent('device_discovered', {
+          id: device.mac || device.ip,
+          ip: device.ip,
+          hostname: device.hostname,
+          vendor: device.vendor,
+          deviceType: device.device_type,
+          services: device.open_ports.map(port => ({
+            type: port === 554 || port === 8554 ? 'rtsp'
+              : port === 1883 ? 'mqtt'
+              : port === 22 ? 'ssh'
+              : 'http',
+            port,
+          })),
+        });
+        
+        // Emit through context if available (for EventStore integration)
+        if (context.eventStore) {
+          context.eventStore.append(event);
+        }
+      }
 
       // Update device status to 'online' for discovered devices
       for (const device of mapped) {

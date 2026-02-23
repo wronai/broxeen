@@ -21,6 +21,7 @@ export interface PluginContext {
   describeImage?: (imageUrl: string) => Promise<string>;
   scope?: string; // Add scope to plugin context
   databaseManager?: import('../persistence/databaseManager').DatabaseManager;
+  eventStore?: import('../domain/eventStore').EventStore;
 }
 
 export interface CameraConfig {
@@ -101,6 +102,7 @@ export interface AppContext {
   intentRouter: IntentRouter;
   commandBus: CommandBus;
   databaseManager: import('../persistence/databaseManager').DatabaseManager;
+  eventStore: import('../domain/eventStore').EventStore;
   autoScanScheduler: import('../plugins/discovery/autoScanScheduler').AutoScanScheduler | null;
   dispose(): Promise<void>;
   tauriInvoke?: (command: string, args?: unknown) => Promise<unknown>;

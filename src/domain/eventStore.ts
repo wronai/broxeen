@@ -1,5 +1,6 @@
 import { createScopedLogger } from "../lib/logger";
 import type { DomainEvent } from "./chatEvents";
+import { getRealtimeSync } from "../core/realtimeSync";
 
 const esLogger = createScopedLogger("domain:eventStore");
 
@@ -24,6 +25,17 @@ export class EventStore {
       type: event.type,
       totalEvents: this.events.length,
     });
+
+    // Broadcast to other tabs/instances for real-time sync
+    try {
+      const realtimeSync = getRealtimeSync();
+      realtimeSync.broadcast(event);
+    } catch (error) {
+      esLogger.warn("Failed to broadcast event for real-time sync", {
+        type: event.type,
+        error,
+      });
+    }
 
     // Notify type-specific subscribers
     const handlers = this.subscribers.get(event.type);
@@ -119,5 +131,22 @@ export class EventStore {
   clear(): void {
     this.events = [];
     esLogger.debug("Event store cleared");
+  }
+
+  /** Subscribe to real-time synchronized events from other tabs/instances */
+  onSyncedEvent<T extends DomainEvent["type"]>(
+    type: T,
+    handler: (event: Extract<DomainEvent, { type: T }>) => void,
+  ): () => void {
+    try {
+      const realtimeSync = getRealtimeSync();
+      return realtimeSync.on(type, handler);
+    } catch (error) {
+      esLogger.warn("Failed to subscribe to synced events", {
+        type,
+        error,
+      });
+      return () => {}; // Return no-op unsubscribe function
+    }
   }
 }

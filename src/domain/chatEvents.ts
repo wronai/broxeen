@@ -120,6 +120,40 @@ export type DomainEvent =
       type: "settings_changed";
       payload: Partial<AudioSettings>;
       timestamp: number;
+    }
+  // Device/Network events
+  | {
+      type: "device_discovered";
+      payload: {
+        id: string;
+        ip: string;
+        hostname?: string;
+        vendor?: string;
+        deviceType?: string;
+        services: Array<{ type: string; port: number }>;
+      };
+      timestamp: number;
+    }
+  | {
+      type: "device_status_changed";
+      payload: {
+        id: string;
+        ip: string;
+        oldStatus: "online" | "offline" | "unknown";
+        newStatus: "online" | "offline" | "unknown";
+        lastSeen: number;
+      };
+      timestamp: number;
+    }
+  | {
+      type: "network_scan_completed";
+      payload: {
+        subnet: string;
+        deviceCount: number;
+        duration: number;
+        scanType: "full" | "incremental" | "targeted";
+      };
+      timestamp: number;
     };
 
 /** Create a timestamped domain event */

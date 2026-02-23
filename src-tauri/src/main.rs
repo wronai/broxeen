@@ -463,6 +463,8 @@ fn main() {
             network_scan::scan_network,
             network_scan::rtsp_capture_frame,
             network_scan::rtsp_worker_stats,
+            network_scan::rtsp_stop_worker,
+            network_scan::rtsp_stop_all_workers,
             network_scan::http_fetch_base64,
             network_scan::camera_health_check,
             network_info::get_local_network_info,

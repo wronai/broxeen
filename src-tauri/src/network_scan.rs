@@ -12,10 +12,11 @@ use std::time::{Duration, Instant};
 use std::process::Command;
 use std::process::Stdio;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::logging::{backend_info, backend_warn};
 
-use lazy_static::lazy_static;
+use std::sync::OnceLock;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CapturedFrame {
@@ -62,10 +63,13 @@ struct RtspWorker {
     cache: LiveFrameCache,
     url: String,
     camera_id: String,
+    shutdown: Arc<AtomicBool>,
 }
 
-lazy_static! {
-    static ref RTSP_WORKERS: Mutex<HashMap<String, RtspWorker>> = Mutex::new(HashMap::new());
+static RTSP_WORKERS: OnceLock<Mutex<HashMap<String, RtspWorker>>> = OnceLock::new();
+
+fn rtsp_workers() -> &'static Mutex<HashMap<String, RtspWorker>> {
+    RTSP_WORKERS.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
 fn find_jpeg_frame(buffer: &[u8]) -> Option<(usize, usize)> {
@@ -85,7 +89,7 @@ fn find_jpeg_frame(buffer: &[u8]) -> Option<(usize, usize)> {
 
 fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
     let worker_key = format!("{}|{}", camera_id, url);
-    let mut workers = RTSP_WORKERS.lock().expect("RTSP_WORKERS lock poisoned");
+    let mut workers = rtsp_workers().lock().expect("RTSP_WORKERS lock poisoned");
     if let Some(existing) = workers.get(&worker_key) {
         return existing.cache.clone();
     }
@@ -98,6 +102,8 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
         started_at: Arc::new(Mutex::new(None)),
     };
 
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let shutdown_for_thread = Arc::clone(&shutdown);
     let cache_for_thread = cache.clone();
     let camera_id_for_thread = camera_id.to_string();
     let url_for_thread = url.to_string();
@@ -181,6 +187,10 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
             let mut buf: Vec<u8> = Vec::with_capacity(1024 * 256);
             let mut tmp = [0u8; 8192];
             loop {
+                if shutdown_for_thread.load(Ordering::Relaxed) {
+                    let _ = child.kill();
+                    return Ok(());
+                }
                 use std::io::Read;
                 match stdout.read(&mut tmp) {
                     Ok(0) => break,
@@ -293,8 +303,36 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
         }
     });
 
-    workers.insert(worker_key, RtspWorker { cache: cache.clone(), url: url.to_string(), camera_id: camera_id.to_string() });
+    workers.insert(
+        worker_key,
+        RtspWorker {
+            cache: cache.clone(),
+            url: url.to_string(),
+            camera_id: camera_id.to_string(),
+            shutdown,
+        },
+    );
     cache
+}
+
+#[tauri::command]
+pub fn rtsp_stop_worker(camera_id: String, url: String) -> Result<(), String> {
+    let worker_key = format!("{}|{}", camera_id, url);
+    let mut workers = rtsp_workers().lock().map_err(|e| e.to_string())?;
+    if let Some(worker) = workers.remove(&worker_key) {
+        worker.shutdown.store(true, Ordering::Relaxed);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn rtsp_stop_all_workers() -> Result<(), String> {
+    let mut workers = rtsp_workers().lock().map_err(|e| e.to_string())?;
+    for worker in workers.values() {
+        worker.shutdown.store(true, Ordering::Relaxed);
+    }
+    workers.clear();
+    Ok(())
 }
 
 #[tauri::command]
@@ -382,7 +420,7 @@ pub struct RtspWorkerStat {
 
 #[tauri::command]
 pub fn rtsp_worker_stats() -> Vec<RtspWorkerStat> {
-    let workers = RTSP_WORKERS.lock().expect("RTSP_WORKERS lock poisoned");
+    let workers = rtsp_workers().lock().expect("RTSP_WORKERS lock poisoned");
     workers
         .values()
         .map(|w| {
