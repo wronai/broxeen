@@ -38,6 +38,7 @@ struct LiveFrameCache {
 
 struct RtspWorker {
     cache: LiveFrameCache,
+    url: String,
     camera_id: String,
 }
 
@@ -186,6 +187,13 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
                             *last = Some(frame);
                         }
                         {
+                            let mut count = cache_for_thread
+                                .frame_count
+                                .lock()
+                                .expect("frame_count lock poisoned");
+                            *count += 1;
+                        }
+                        {
                             let mut ts = cache_for_thread
                                 .last_update_ms
                                 .lock()
@@ -198,6 +206,13 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
                                 .lock()
                                 .expect("last_error lock poisoned");
                             *err = None;
+                        }
+                        {
+                            let mut fc = cache_for_thread
+                                .frame_count
+                                .lock()
+                                .expect("frame_count lock poisoned");
+                            *fc += 1;
                         }
 
                         // Drop consumed bytes, keep remainder.
@@ -254,7 +269,7 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
         ));
     });
 
-    workers.insert(worker_key, RtspWorker { cache: cache.clone(), camera_id: camera_id.to_string() });
+    workers.insert(worker_key, RtspWorker { cache: cache.clone(), url: url.to_string(), camera_id: camera_id.to_string() });
     cache
 }
 
@@ -282,10 +297,24 @@ pub async fn rtsp_capture_frame(url: String, camera_id: String) -> Result<Captur
             .expect("last_jpeg lock poisoned")
             .clone()
         {
+            let frame_age_ms = cache
+                .last_update_ms
+                .lock()
+                .expect("last_update_ms lock poisoned")
+                .map(|v| v as u64);
+            let frame_count = Some(
+                *cache
+                    .frame_count
+                    .lock()
+                    .expect("frame_count lock poisoned"),
+            );
+
             return Ok(CapturedFrame {
                 base64: general_purpose::STANDARD.encode(&jpeg),
                 width: 1920,
                 height: 1080,
+                frame_age_ms,
+                frame_count,
             });
         }
 
@@ -300,6 +329,45 @@ pub async fn rtsp_capture_frame(url: String, camera_id: String) -> Result<Captur
 
         tokio::time::sleep(Duration::from_millis(40)).await;
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RtspWorkerStat {
+    pub camera_id: String,
+    pub url: String,
+    pub frame_count: u64,
+    pub uptime_ms: Option<u64>,
+    pub last_error: Option<String>,
+}
+
+#[tauri::command]
+pub fn rtsp_worker_stats() -> Vec<RtspWorkerStat> {
+    let workers = RTSP_WORKERS.lock().expect("RTSP_WORKERS lock poisoned");
+    workers
+        .values()
+        .map(|w| {
+            let frame_count = *w.cache.frame_count.lock().expect("frame_count lock");
+            let uptime_ms = w
+                .cache
+                .started_at
+                .lock()
+                .expect("started_at lock")
+                .map(|t| t.elapsed().as_millis() as u64);
+            let last_error = w
+                .cache
+                .last_error
+                .lock()
+                .expect("last_error lock")
+                .clone();
+            RtspWorkerStat {
+                camera_id: w.camera_id.clone(),
+                url: w.url.clone(),
+                frame_count,
+                uptime_ms,
+                last_error,
+            }
+        })
+        .collect()
 }
 
 #[derive(Debug, Serialize, Deserialize)]

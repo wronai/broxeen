@@ -76,7 +76,7 @@ npm run test:watch
 npm run test:coverage
 ```
 
-Aktualny wynik: **577 testów, 0 błędów**.
+Aktualny wynik: **595 testów, 0 błędów**.
 
 ## Architektura
 
@@ -186,7 +186,7 @@ Ustawienia zapisywane w `~/.config/broxeen/settings.json`:
 | TTS nie działa | Sprawdź czy przeglądarka/WebView obsługuje `speechSynthesis`; na Linux wymagany `espeak` lub głosy systemowe |
 | Mikrofon nie działa | Aplikacja prosi o uprawnienia przy starcie; sprawdź ustawienia systemowe |
 | `libwebkit2gtk` brak | `sudo apt install libwebkit2gtk-4.1-dev` |
-| Live RTSP nie działa / brak klatki | Upewnij się, że w systemie jest dostępne `ffmpeg`. Niektóre buildy ffmpeg nie wspierają flag timeout (`-stimeout`, `-rw_timeout`) — backend automatycznie retry bez nich |
+| Live RTSP nie działa / brak klatki | Upewnij się, że w systemie jest dostępne `ffmpeg`. Live RTSP w Tauri używa long-lived worker/cache (ffmpeg uruchamiany w tle per kamera/url) i zwraca ostatnią klatkę. Niektóre buildy ffmpeg nie wspierają flag timeout (`-stimeout`, `-rw_timeout`) — w razie potrzeby usuń te flagi lub użyj builda z pełnym wsparciem |
 
 Diagnostyka i raport błędów są dostępne z pływających przycisków po prawej stronie — nad selektorem zakresu (scope).
 

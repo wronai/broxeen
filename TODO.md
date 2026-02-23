@@ -82,7 +82,7 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 
 ### 📌 Kamera live — follow-up
 - [x] **Typowanie payload `camera_live`** — usunięto `any` dla `initialBase64/initialMimeType`, ujednolicono typy w `chatEvents.ts` i `Chat.tsx`
-- [ ] **`camera_id` jako cache/metrics tag** — rozważyć cache ostatniej klatki per kamera / metryki opóźnień w backendzie
+- [x] **`camera_id` jako cache/metrics tag** — dodano `frame_count`, `frame_age_ms`, `started_at` do `LiveFrameCache` + komenda `rtsp_worker_stats` + wyświetlanie w `CameraLiveInline`
 
 ---
 

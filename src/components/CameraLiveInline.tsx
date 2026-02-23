@@ -23,6 +23,9 @@ export function CameraLiveInline(props: {
   });
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(true);
+  const [lastFrameAt, setLastFrameAt] = useState<number | null>(null);
+  const [effectiveFps, setEffectiveFps] = useState<number | null>(null);
+  const [backendFrameCount, setBackendFrameCount] = useState<number | null>(null);
 
   const timerRef = useRef<number | null>(null);
   const inFlightRef = useRef(false);
@@ -45,12 +48,24 @@ export function CameraLiveInline(props: {
           url: props.url,
           cameraId: props.cameraId,
           camera_id: props.cameraId,
-        })) as { base64?: string };
+        })) as { base64?: string; frame_count?: number; frame_age_ms?: number };
 
         if (!cancelled && res?.base64) {
           const next = { base64: res.base64, mimeType: "image/jpeg" };
           setFrame(next);
           FRAME_CACHE.set(cacheKey, { ...next, ts: Date.now() });
+          if (typeof res.frame_count === 'number') setBackendFrameCount(res.frame_count);
+          const now = Date.now();
+          setLastFrameAt((prev) => {
+            if (typeof prev === 'number' && prev > 0) {
+              const dt = now - prev;
+              if (dt > 0) {
+                const nextFps = 1000 / dt;
+                setEffectiveFps((old) => (typeof old === 'number' ? old * 0.7 + nextFps * 0.3 : nextFps));
+              }
+            }
+            return now;
+          });
           setError(null);
         }
       } catch (e) {
@@ -79,7 +94,7 @@ export function CameraLiveInline(props: {
     <div className={props.className}>
       <div className="flex items-center justify-between gap-3 mb-2">
         <div className="text-xs text-gray-400 truncate">
-          Live {fps}fps — {props.cameraId}
+          Live {fps}fps{typeof effectiveFps === 'number' ? ` (${effectiveFps.toFixed(1)})` : ''}{typeof backendFrameCount === 'number' ? ` #${backendFrameCount}` : ''} — {props.cameraId}
         </div>
         <button
           className="text-xs px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-200"

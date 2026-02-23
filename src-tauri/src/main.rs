@@ -451,6 +451,7 @@ fn main() {
             ssh::ssh_test_connection,
             ssh::ssh_list_known_hosts,
             network_scan::rtsp_capture_frame,
+            network_scan::rtsp_worker_stats,
             network_scan::http_fetch_base64,
             network::db_execute,
             network::db_query,

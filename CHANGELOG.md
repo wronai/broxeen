@@ -1,8 +1,32 @@
+## [1.0.42] - 2026-02-23
+
+### Summary
+
+feat(docs): deep code analysis engine with 4 supporting modules
+
+### Docs
+
+- docs: update README
+- docs: update TODO.md
+
+### Other
+
+- update src-tauri/src/main.rs
+- update src-tauri/src/network_scan.rs
+- update src/components/CameraLiveInline.tsx
+
+
 ## [1.0.41] - 2026-02-23
 
 ### Summary
 
-feat(src-tauri): deep code analysis engine
+fix(src-tauri): RTSP live worker metadata + clean build
+
+### Fixes
+
+- rtsp: include `frame_age_ms` and `frame_count` metadata in `rtsp_capture_frame` results
+- rtsp: increment frame counter in RTSP worker cache
+- build: remove unused field in RTSP worker to eliminate Rust warning
 
 ### Other
 
@@ -13,7 +37,14 @@ feat(src-tauri): deep code analysis engine
 
 ### Summary
 
-feat(docs): deep code analysis engine with 4 supporting modules
+feat(camera/live): better live UX + cached RTSP worker
+
+### Fixes
+
+- rtsp: `rtsp_capture_frame` now uses a long-lived ffmpeg worker (per camera/url) and returns cached JPEG quickly
+- ui: full-screen `camera_live` overlay can start from an initial preview frame
+- camera: prefer last known working RTSP URL from config when user pasted a full RTSP URL previously
+- types: remove `any` around `camera_live` payload (`initialBase64`/`initialMimeType`)
 
 ### Docs
 
