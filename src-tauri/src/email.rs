@@ -29,14 +29,6 @@ pub struct EmailMessage {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct EmailSendRequest {
-    pub to: Vec<String>,
-    pub subject: String,
-    pub body: String,
-    pub attachments: Option<Vec<String>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct InboxSummary {
     pub total_messages: usize,
     pub unread_count: usize,

@@ -1,3 +1,15 @@
+## [1.0.52] - 2026-02-23
+
+### Summary
+
+feat(config): core module improvements
+
+### Other
+
+- update src-tauri/src/email.rs
+- update vite.config.ts
+
+
 ## [1.0.51] - 2026-02-23
 
 ### Summary
