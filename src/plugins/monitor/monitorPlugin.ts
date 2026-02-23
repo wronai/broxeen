@@ -2224,6 +2224,204 @@ export class MonitorPlugin implements Plugin {
     };
   }
 
+  // ── Vision Pipeline Handler ─────────────────────────────────
+
+  private async handleVisionPipeline(input: string, context: PluginContext, start: number): Promise<PluginResult> {
+    const lower = input.toLowerCase();
+
+    // Handle vision pipeline status
+    if (/status.*vision|vision.*status/i.test(lower)) {
+      return await this.handleVisionStatus(context, start);
+    }
+
+    // Handle vision pipeline stop
+    if (/stop.*vision|zatrzymaj.*vision|wy[łl]ącz.*vision/i.test(lower)) {
+      return await this.handleVisionStop(input, context, start);
+    }
+
+    // Default: start vision pipeline
+    return await this.handleVisionStart(input, context, start);
+  }
+
+  private async handleVisionStatus(context: PluginContext, start: number): Promise<PluginResult> {
+    if (!context.tauriInvoke) {
+      return this.errorResult('Vision pipeline status wymaga środowiska Tauri', start);
+    }
+
+    try {
+      const status = await context.tauriInvoke('motion_pipeline_status');
+      
+      let data = '🤖 **Status Vision Pipeline**\n\n';
+      
+      if (Array.isArray(status) && status.length === 0) {
+        data += '❌ **Brak aktywnych vision pipeline**\n\n';
+        data += '💡 **Uruchom vision pipeline:**\n';
+        data += '- "vision pipeline start rtsp://IP:554/stream"\n';
+        data += '- "ai monitoring dla kamery wejściowej"\n';
+        data += '- "uruchom detekcję AI dla 192.168.1.100"\n';
+      } else {
+        data += `✅ **Aktywne vision pipeline:** ${status.length}\n\n`;
+        for (const pipeline of status) {
+          data += `### 🟢 ${pipeline.camera_id}\n`;
+          data += `- **RTSP:** ${pipeline.rtsp_url}\n`;
+          data += `- **Baza:** ${pipeline.db_path}\n`;
+          data += `- **Próg LLM:** ${pipeline.llm_threshold || 0.5}\n`;
+          data += `- **Co N klatek:** ${pipeline.process_every || 4}\n`;
+          data += `- **Start:** ${pipeline.started_at}\n\n`;
+        }
+      }
+
+      data += '\n🎯 **Korzyści Vision Pipeline:**\n';
+      data += '- ✅ Detekcja obiektów YOLO (20 klas)\n';
+      data += '- ✅ Liczenie osób, pojazdów, rowerów\n';
+      data += '- ✅ Analiza ruchu (prędkość, kierunek)\n';
+      data += '- ✅ LLM weryfikacja dla niskiej pewności\n';
+      data += '- ✅ Strukturalna baza danych z etykietami\n';
+      data += '- ✅ Precyzyjne zapytania SQL o osoby\n';
+
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    } catch (error) {
+      return this.errorResult(`Błąd sprawdzania statusu vision pipeline: ${error}`, start);
+    }
+  }
+
+  private async handleVisionStop(input: string, context: PluginContext, start: number): Promise<PluginResult> {
+    if (!context.tauriInvoke) {
+      return this.errorResult('Vision pipeline wymaga środowiska Tauri', start);
+    }
+
+    // Extract camera ID from input
+    const cameraId = input.replace(/^.*(?:stop|zatrzymaj|wy[łl]ącz)\s*(?:vision\s*)?/i, '').trim() || 'all';
+
+    try {
+      if (cameraId === 'all' || cameraId === 'wszystkie' || cameraId === 'wszystkich') {
+        await context.tauriInvoke('motion_pipeline_stop', { cameraId: '' });
+        return {
+          pluginId: this.id,
+          status: 'success',
+          content: [{
+            type: 'text',
+            data: '🛑 **Zatrzymano wszystkie vision pipeline**\n\n' +
+              'Wszystkie procesy AI zostały zatrzymane.\n' +
+              'Baza danych z detekcjami pozostaje zachowana.',
+          }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+        };
+      } else {
+        await context.tauriInvoke('motion_pipeline_stop', { cameraId });
+        return {
+          pluginId: this.id,
+          status: 'success',
+          content: [{
+            type: 'text',
+            data: `🛑 **Zatrzymano vision pipeline:** **${cameraId}**\n\n` +
+              `Proces AI dla kamery ${cameraId} został zatrzymany.\n` +
+              `Baza danych z detekcjami pozostaje zachowana.`,
+          }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+        };
+      }
+    } catch (error) {
+      return this.errorResult(`Błąd zatrzymywania vision pipeline: ${error}`, start);
+    }
+  }
+
+  private async handleVisionStart(input: string, context: PluginContext, start: number): Promise<PluginResult> {
+    if (!context.tauriInvoke) {
+      return this.errorResult('Vision pipeline wymaga środowiska Tauri', start);
+    }
+
+    // Parse RTSP URL and camera ID from input
+    const rtspMatch = input.match(/rtsp:\/\/[^\s]+/i);
+    const ipMatch = input.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
+    
+    let rtspUrl = '';
+    let cameraId = '';
+
+    if (rtspMatch) {
+      rtspUrl = rtspMatch[0];
+      cameraId = `camera-${rtspUrl.match(/(\d+\.\d+\.\d+\.\d+)/)?.[1] || 'unknown'}`;
+    } else if (ipMatch) {
+      const ip = ipMatch[0];
+      rtspUrl = `rtsp://${ip}:554/stream`;
+      cameraId = `camera-${ip}`;
+    } else {
+      // Try to get from active monitors
+      const activeTargets = Array.from(this.targets.values());
+      if (activeTargets.length > 0) {
+        const target = activeTargets[0]; // Use first active monitor
+        rtspUrl = target.address;
+        cameraId = target.id;
+      } else {
+        return this.errorResult(
+          'Podaj adres RTSP lub IP kamery, np.:\n' +
+          '- "vision pipeline start rtsp://192.168.1.100:554/stream"\n' +
+          '- "ai monitoring dla 192.168.1.100"\n' +
+          '- "uruchom detekcję AI dla kamery wejściowej"',
+          start
+        );
+      }
+    }
+
+    try {
+      const request = {
+        cameraId,
+        rtspUrl,
+        dbPath: 'monitoring.db',
+        llmThreshold: 0.6,
+        processEvery: 4,
+        varThreshold: 40,
+        bgHistory: 500,
+        cooldownSec: 2.0,
+        maxCropPx: 640,
+      };
+
+      await context.tauriInvoke('motion_pipeline_start', request);
+
+      let data = `🤖 **Uruchomiono Vision Pipeline**\n\n`;
+      data += `### 🟢 ${cameraId}\n`;
+      data += `- **RTSP:** ${rtspUrl}\n`;
+      data += `- **Baza danych:** monitoring.db\n`;
+      data += `- **Próg detekcji:** 60%\n`;
+      data += `- **Przetwarzanie:** co 4 klatki\n\n`;
+      
+      data += `🎯 **Co teraz?**\n`;
+      data += `1. **Poczekaj** na pierwsze detekcje (kilka sekund)\n`;
+      data += `2. **Sprawdź status:** "status vision"\n`;
+      data += `3. **Query osoby:** "ile osób było w pomieszczeniu w ostatnich 10 minutach"\n`;
+      data += `4. **Sprawdź logi:** "logi monitoringu"\n\n`;
+      
+      data += `🧠 **Możliwości AI:**\n`;
+      data += `- ✅ Detekcja 20 klas obiektów (osoby, samochody, rowery...)\n`;
+      data += `- ✅ Analiza ruchu i prędkości\n`;
+      data += `- ✅ Śledzenie stref wejścia/wyjścia\n`;
+      data += `- ✅ LLM weryfikacja niepewnych detekcji\n`;
+      data += `- ✅ Precyzyjne zapytania SQL o liczbę osób`;
+
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    } catch (error) {
+      if (error.toString().includes('vision')) {
+        return this.errorResult(
+          `Vision pipeline nie jest dostępny. Zbuduj z vision feature:\n` +
+          `\`cd src-tauri && cargo build --features vision\`\n\n` +
+          `Błąd: ${error}`,
+          start
+        );
+      }
+      return this.errorResult(`Błąd uruchamiania vision pipeline: ${error}`, start);
+    }
+  }
+
   async dispose(): Promise<void> {
     for (const timer of this.timers.values()) clearInterval(timer);
     this.timers.clear();
