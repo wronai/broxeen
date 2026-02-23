@@ -29,7 +29,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "/home/tom/.nvm/versions/node/v20.19.5/bin/node node_modules/.bin/vite",
+    command: "corepack npm run dev",
     url: "http://localhost:5173",
     reuseExistingServer: !process.env.CI,
     timeout: 30000,

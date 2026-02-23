@@ -29,17 +29,18 @@ pub struct CapturedFrame {
 }
 
 fn infer_vendor_from_ports(ports: &[u16]) -> Option<String> {
-    let has_rtsp = ports.contains(&554) || ports.contains(&8554) || ports.contains(&10554);
-    let has_web = ports.contains(&80)
-        || ports.contains(&81)
-        || ports.contains(&82)
-        || ports.contains(&83)
-        || ports.contains(&443)
-        || ports.contains(&8080)
-        || ports.contains(&8081)
-        || ports.contains(&8443)
-        || ports.contains(&8888);
-    let has_hik_like = ports.contains(&8000) || ports.contains(&8899);
+    use std::collections::HashSet;
+
+    const RTSP_PORTS: &[u16] = &[554, 8554, 10554];
+    const HIK_LIKE_PORTS: &[u16] = &[8000, 8899];
+    const WEB_PORTS: &[u16] = &[80, 81, 82, 83, 443, 8080, 8081, 8443, 8888];
+
+    let set: HashSet<u16> = ports.iter().copied().collect();
+    let has_any = |list: &[u16]| list.iter().any(|p| set.contains(p));
+
+    let has_rtsp = has_any(RTSP_PORTS);
+    let has_web = has_any(WEB_PORTS);
+    let has_hik_like = has_any(HIK_LIKE_PORTS);
 
     if has_hik_like && (has_web || has_rtsp) {
         return Some("Annke (Hikvision OEM)".to_string());
@@ -1382,25 +1383,26 @@ fn detect_local_subnet() -> String {
 }
 
 fn classify_device(ports: &[u16]) -> String {
-    let has_rtsp = ports.contains(&554) || ports.contains(&8554) || ports.contains(&10554);
-    let has_web = ports.contains(&80)
-        || ports.contains(&81)
-        || ports.contains(&82)
-        || ports.contains(&83)
-        || ports.contains(&443)
-        || ports.contains(&8080)
-        || ports.contains(&8081)
-        || ports.contains(&8443)
-        || ports.contains(&8888);
-    let has_hik_like = ports.contains(&8000) || ports.contains(&8899);
+    use std::collections::HashSet;
+
+    const RTSP_PORTS: &[u16] = &[554, 8554, 10554];
+    const HIK_LIKE_PORTS: &[u16] = &[8000, 8899];
+    const WEB_PORTS: &[u16] = &[80, 81, 82, 83, 443, 8080, 8081, 8443, 8888];
+
+    let set: HashSet<u16> = ports.iter().copied().collect();
+    let has_any = |list: &[u16]| list.iter().any(|p| set.contains(p));
+
+    let has_rtsp = has_any(RTSP_PORTS);
+    let has_web = has_any(WEB_PORTS);
+    let has_hik_like = has_any(HIK_LIKE_PORTS);
 
     if has_rtsp || (has_hik_like && has_web) {
         "camera".to_string()
-    } else if ports.contains(&1883) || ports.contains(&9001) {
+    } else if set.contains(&1883) || set.contains(&9001) {
         "iot-broker".to_string()
-    } else if ports.contains(&22) {
+    } else if set.contains(&22) {
         "server".to_string()
-    } else if ports.contains(&80) || ports.contains(&443) {
+    } else if has_web {
         "web-device".to_string()
     } else {
         "unknown".to_string()

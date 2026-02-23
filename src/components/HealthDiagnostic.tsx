@@ -153,14 +153,15 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
 
   if (!isVisible) {
     return (
-      <div className="fixed bottom-24 right-4 flex flex-nowrap items-center gap-1 z-50">
+      <div className="fixed bottom-24 right-4 flex flex-wrap items-center gap-1 z-50 max-w-[200px] sm:max-w-none">
         {onOpenErrorReport && (
           <button
             onClick={onOpenErrorReport}
             className="bg-red-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-red-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
             title="Pokaż raport błędów"
           >
-            🚨 Błędy
+            <span className="hidden sm:inline">🚨 Błędy</span>
+            <span className="sm:hidden">🚨</span>
           </button>
         )}
         <button
@@ -168,14 +169,16 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
           className="bg-orange-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-orange-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
           title="Kopiuj błędy do schowka (Ctrl+Shift+E)"
         >
-          📋 Kopiuj błędy
+          <span className="hidden sm:inline">📋 Kopiuj błędy</span>
+          <span className="sm:hidden">📋</span>
         </button>
         <button
           onClick={() => setIsVisible(true)}
           className="bg-blue-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
           title="Pokaż diagnostykę systemu"
         >
-          🏥 Diagnostyka
+          <span className="hidden sm:inline">🏥 Diagnostyka</span>
+          <span className="sm:hidden">🏥</span>
         </button>
       </div>
     );
