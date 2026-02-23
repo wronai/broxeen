@@ -42,6 +42,18 @@ fix(tests): configuration management system
 - `captureCameraSnapshot()` rewritten with 3-tier fallback: RTSP (Tauri) → configured HTTP → auto-probe vendor URLs; returns `CaptureMetadata` with every result.
 - `computeImageChangeScore()` uses canvas pixel-level diff (200px downscale, RGB per-pixel threshold 30/255); falls back to base64 heuristic when no canvas.
 - Log formatting in `formatTargetLogs()` and `formatAllLogs()` now shows capture method, resolution, frame size, diff %, threshold, and diagnostic hints.
+- `NetworkScanPlugin.canHandle()` extended with `statusKeywords` and `filterKeywords` groups.
+- `NetworkScanPlugin.execute()` dispatches to `handleDeviceStatus()` or `handleDeviceFilter()` before scan logic.
+- `TODO.md`: marked incremental scan and scan history as completed ✅.
+- `bootstrap.ts` `dispose()` now stops `AutoScanScheduler` before plugin teardown.
+
+### Added (continued)
+- **`handleDeviceStatus()`** in `NetworkScanPlugin`: queries `DeviceRepository`, classifies devices as 🟢 online / 🟡 niedawno / 🔴 offline based on `last_seen`, returns formatted markdown table. Commands: `status urządzeń`, `lista urządzeń`, `znane urządzenia`, `pokaż urządzenia`.
+- **`handleDeviceFilter()`** in `NetworkScanPlugin`: filters devices from DB by `device_type` (camera/gateway/printer/linux-device/web-device/iot-device). Without type shows summary by type. Commands: `tylko kamery`, `tylko routery`, `filtruj urządzenia`, `filter devices`.
+- **`AutoScanScheduler`** (`src/plugins/discovery/autoScanScheduler.ts`): periodic incremental network scan (default every 5 min, Tauri only). Uses `ScanHistoryRepository.shouldUseIncrementalScan()` to decide full vs incremental. Builds `±4` IP windows around known devices. Persists results to `DeviceRepository` + `ScanHistoryRepository`. Guards against concurrent ticks. Started in `bootstrap.ts`, stopped on `dispose()`.
+- **`autoScanScheduler.test.ts`**: 7 tests — disabled mode, start/stop, no double-start, non-tauri skip, scan_network called after interval, lastScanTimestamp updated, concurrent tick skipped.
+- **`networkScanPlugin.test.ts`**: 4 new filter tests + 3 status tests + 2 canHandle tests = 13 total in discovery suite.
+- **`plugins.e2e.test.ts`**: fixed `scan_network` assertion to match `{ args: { ... } }` wrapper.
 
 ## [1.0.59] - 2026-02-23
 

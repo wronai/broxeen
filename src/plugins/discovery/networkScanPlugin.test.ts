@@ -137,6 +137,69 @@ describe('NetworkScanPlugin handleDeviceStatus', () => {
   });
 });
 
+describe('NetworkScanPlugin handleDeviceFilter', () => {
+  const now = Date.now();
+  const mockDevices = [
+    { id: '1', ip: '192.168.1.100', hostname: 'cam1', mac: null, vendor: null, last_seen: now - 2 * 60 * 1000, device_type: 'camera' },
+    { id: '2', ip: '192.168.1.1', hostname: 'router', mac: null, vendor: null, last_seen: now - 5 * 60 * 1000, device_type: 'gateway' },
+    { id: '3', ip: '192.168.1.101', hostname: 'cam2', mac: null, vendor: null, last_seen: now - 60 * 60 * 1000, device_type: 'camera' },
+  ];
+
+  const makeCtx = () => ({
+    isTauri: true,
+    databaseManager: {
+      getDevicesDb: () => ({
+        query: vi.fn(async () => mockDevices),
+        execute: vi.fn(async () => {}),
+        queryOne: vi.fn(async () => null),
+      }),
+    },
+  } as any);
+
+  it('canHandle filter keywords', async () => {
+    const plugin = new NetworkScanPlugin();
+    expect(await plugin.canHandle('tylko kamery', {} as any)).toBe(true);
+    expect(await plugin.canHandle('filtruj urządzenia', {} as any)).toBe(true);
+    expect(await plugin.canHandle('tylko routery', {} as any)).toBe(true);
+    expect(await plugin.canHandle('filter devices', {} as any)).toBe(true);
+  });
+
+  it('returns type summary when no specific type given', async () => {
+    const plugin = new NetworkScanPlugin();
+    const result = await plugin.execute('filtruj urządzenia', makeCtx());
+    expect(result.status).toBe('success');
+    expect(result.content[0].data).toContain('Typy urządzeń');
+    expect(result.content[0].data).toContain('Kamery');
+  });
+
+  it('filters by camera type', async () => {
+    const plugin = new NetworkScanPlugin();
+    const result = await plugin.execute('tylko kamery', makeCtx());
+    expect(result.status).toBe('success');
+    expect(result.content[0].data).toContain('Kamery');
+    expect(result.content[0].data).toContain('192.168.1.100');
+    expect(result.content[0].data).toContain('192.168.1.101');
+    expect((result.metadata as any).deviceCount).toBe(2);
+  });
+
+  it('returns empty message when no devices of given type', async () => {
+    const plugin = new NetworkScanPlugin();
+    const ctx = {
+      isTauri: true,
+      databaseManager: {
+        getDevicesDb: () => ({
+          query: vi.fn(async () => []),
+          execute: vi.fn(async () => {}),
+          queryOne: vi.fn(async () => null),
+        }),
+      },
+    } as any;
+    const result = await plugin.execute('tylko drukarki', ctx);
+    expect(result.status).toBe('success');
+    expect(result.content[0].data).toContain('Brak urządzeń');
+  });
+});
+
 describe('NetworkScanPlugin execute', () => {
   it('passes incremental + target_ranges to scan_network when strategy is incremental', async () => {
     const plugin = new NetworkScanPlugin() as any;
