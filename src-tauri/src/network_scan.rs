@@ -1172,7 +1172,10 @@ pub async fn scan_network(args: Option<ScanNetworkArgs>) -> Result<NetworkScanRe
         .unwrap_or_default();
 
     let timeout_ms = timeout.unwrap_or(5000);
-    let per_port_timeout = std::cmp::max(timeout_ms / 100, 50);
+    // The scan probes many ports across many hosts. A too-low TCP connect timeout
+    // causes false negatives on slower Wi-Fi devices/cameras.
+    // Keep this bounded to avoid stalling a full /24 scan.
+    let per_port_timeout = std::cmp::min(std::cmp::max(timeout_ms / 20, 150), 800);
     let target_subnet = subnet.unwrap_or_else(|| detect_local_subnet());
     let t0 = Instant::now();
 
@@ -1186,7 +1189,9 @@ pub async fn scan_network(args: Option<ScanNetworkArgs>) -> Result<NetworkScanRe
         target_ranges.len()
     ));
 
-    let camera_ports: Vec<u16> = vec![80, 443, 554, 8080, 8443, 8554, 8000, 9000];
+    let camera_ports: Vec<u16> = vec![
+        80, 81, 82, 83, 443, 554, 8000, 8080, 8081, 8443, 8554, 8888, 9000,
+    ];
 
     // Build host list
     let mut hosts: Vec<u16> = if incremental && !target_ranges.is_empty() {

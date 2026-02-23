@@ -279,5 +279,24 @@ export const devicesDbMigrationV3: Migration[] = [
   }
 ];
 
+export const devicesDbMigrationV4: Migration[] = [
+  {
+    version: 4,
+    description: 'Add monitor_change_threshold to configured_devices',
+    up: (db) => {
+      db.exec(`
+        ALTER TABLE configured_devices ADD COLUMN monitor_change_threshold REAL NOT NULL DEFAULT 0.15;
+      `);
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_configured_devices_change_threshold ON configured_devices(monitor_change_threshold);
+      `);
+    },
+    down: (db) => {
+      // SQLite doesn't support DROP COLUMN; no-op.
+    },
+  },
+];
+
 // Append v3 migrations to devices DB migrations
 devicesDbMigrations.push(...devicesDbMigrationV3);
+devicesDbMigrations.push(...devicesDbMigrationV4);

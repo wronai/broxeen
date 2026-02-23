@@ -213,6 +213,7 @@ export class DeviceConfigPlugin implements Plugin {
         stream_path: params.streamPath || null,
         monitor_enabled: true,
         monitor_interval_ms: 3000,
+        monitor_change_threshold: 0.15,
         last_snapshot_at: null,
         notes: null,
       };

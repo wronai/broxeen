@@ -479,6 +479,7 @@ export class MonitorPlugin implements Plugin {
           stream_path: null,
           monitor_enabled: true,
           monitor_interval_ms: target.intervalMs,
+          monitor_change_threshold: target.threshold,
           last_snapshot_at: null,
           notes: null,
         });
@@ -868,21 +869,40 @@ export class MonitorPlugin implements Plugin {
   private handleConfig(input: string, start: number): PluginResult {
     const lower = input.toLowerCase();
 
+    const scopeMatch = lower.match(/\bdla\s+(.+)$/i);
+    const targetScopeRaw = scopeMatch?.[1]?.trim() || '';
+    const targetScope = targetScopeRaw ? targetScopeRaw.replace(/^["'`]+|["'`]+$/g, '').trim() : '';
+
     // Parse threshold: "ustaw próg zmian 20%"
     const thresholdMatch = lower.match(/(?:próg|prog)\s*(?:zmian\s*)?(\d+)\s*%/);
     if (thresholdMatch) {
       const newThreshold = parseInt(thresholdMatch[1]) / 100;
       let updated = 0;
       for (const t of this.targets.values()) {
+        if (targetScope) {
+          const matches =
+            t.id.toLowerCase().includes(targetScope.toLowerCase()) ||
+            t.name.toLowerCase().includes(targetScope.toLowerCase()) ||
+            (t.address ? t.address.includes(targetScope) : false);
+          if (!matches) continue;
+        }
+
         t.threshold = newThreshold;
         updated++;
+
+        if (this.configuredDeviceRepo && t.configuredDeviceId) {
+          void this.configuredDeviceRepo.setMonitorChangeThreshold(t.configuredDeviceId, newThreshold);
+        }
       }
       return {
         pluginId: this.id,
         status: 'success',
         content: [{
           type: 'text',
-          data: `✅ Próg zmian ustawiony na **${(newThreshold * 100).toFixed(0)}%** dla ${updated} monitoringów.`,
+          data:
+            targetScope
+              ? `✅ Próg zmian ustawiony na **${(newThreshold * 100).toFixed(0)}%** dla **${updated}** monitoringów (dla: **${targetScopeRaw}**).`
+              : `✅ Próg zmian ustawiony na **${(newThreshold * 100).toFixed(0)}%** dla ${updated} monitoringów.`,
         }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };
@@ -896,6 +916,14 @@ export class MonitorPlugin implements Plugin {
       const ms = unit === 'm' || unit === 'min' ? value * 60000 : value * 1000;
       let updated = 0;
       for (const t of this.targets.values()) {
+        if (targetScope) {
+          const matches =
+            t.id.toLowerCase().includes(targetScope.toLowerCase()) ||
+            t.name.toLowerCase().includes(targetScope.toLowerCase()) ||
+            (t.address ? t.address.includes(targetScope) : false);
+          if (!matches) continue;
+        }
+
         t.intervalMs = ms;
         // Restart timer
         const oldTimer = this.timers.get(t.id);
@@ -903,13 +931,20 @@ export class MonitorPlugin implements Plugin {
         const newTimer = setInterval(() => this.poll(t, { isTauri: false }), ms);
         this.timers.set(t.id, newTimer);
         updated++;
+
+        if (this.configuredDeviceRepo && t.configuredDeviceId) {
+          void this.configuredDeviceRepo.setMonitorIntervalMs(t.configuredDeviceId, ms);
+        }
       }
       return {
         pluginId: this.id,
         status: 'success',
         content: [{
           type: 'text',
-          data: `✅ Interwał ustawiony na **${ms / 1000}s** dla ${updated} monitoringów.`,
+          data:
+            targetScope
+              ? `✅ Interwał ustawiony na **${ms / 1000}s** dla **${updated}** monitoringów (dla: **${targetScopeRaw}**).`
+              : `✅ Interwał ustawiony na **${ms / 1000}s** dla ${updated} monitoringów.`,
         }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };
@@ -2017,7 +2052,7 @@ export class MonitorPlugin implements Plugin {
           name: device.label,
           address: device.ip,
           intervalMs: device.monitor_interval_ms,
-          threshold: defaultThreshold,
+          threshold: device.monitor_change_threshold ?? defaultThreshold,
           active: true,
           startedAt,
           changeCount: 0,
@@ -2091,6 +2126,7 @@ export class MonitorPlugin implements Plugin {
     const targetId = `camera-${keep.ip}`;
     if (!this.targets.has(targetId)) {
       const startedAt = Date.now();
+      const defaultThreshold = configStore.get<number>('monitor.defaultChangeThreshold') || 0.15;
       const target: MonitorTarget = {
         id: targetId,
         configuredDeviceId: keep.id,
@@ -2098,7 +2134,7 @@ export class MonitorPlugin implements Plugin {
         name: keep.label,
         address: keep.ip,
         intervalMs: keep.monitor_interval_ms,
-        threshold: 0.1,
+        threshold: keep.monitor_change_threshold ?? defaultThreshold,
         active: true,
         startedAt,
         changeCount: 0,

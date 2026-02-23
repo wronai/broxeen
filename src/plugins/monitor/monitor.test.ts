@@ -73,6 +73,7 @@ describe('MonitorPlugin', () => {
         stream_path: null,
         monitor_enabled: true,
         monitor_interval_ms: 2000,
+        monitor_change_threshold: 0.15,
         last_snapshot_at: null,
         notes: null,
         created_at: Date.now(),
@@ -123,6 +124,7 @@ describe('MonitorPlugin', () => {
         stream_path: null,
         monitor_enabled: false,
         monitor_interval_ms: 1000,
+        monitor_change_threshold: 0.15,
         last_snapshot_at: null,
         notes: null,
         created_at: Date.now(),
@@ -232,6 +234,7 @@ describe('MonitorPlugin', () => {
           stream_path: null,
           monitor_enabled: true,
           monitor_interval_ms: 5_000,
+          monitor_change_threshold: 0.12,
           last_snapshot_at: null,
           notes: null,
           created_at: Date.now(),
@@ -280,6 +283,7 @@ describe('MonitorPlugin', () => {
           stream_path: null,
           monitor_enabled: true,
           monitor_interval_ms: 2000,
+          monitor_change_threshold: 0.15,
           last_snapshot_at: null,
           notes: null,
           created_at: Date.now(),
@@ -298,6 +302,7 @@ describe('MonitorPlugin', () => {
           stream_path: null,
           monitor_enabled: true,
           monitor_interval_ms: 5000,
+          monitor_change_threshold: 0.2,
           last_snapshot_at: null,
           notes: null,
           created_at: Date.now(),
@@ -348,6 +353,7 @@ describe('MonitorPlugin', () => {
           stream_path: null,
           monitor_enabled: true,
           monitor_interval_ms: 2000,
+          monitor_change_threshold: 0.15,
           last_snapshot_at: null,
           notes: null,
           created_at: Date.now(),
@@ -366,6 +372,7 @@ describe('MonitorPlugin', () => {
           stream_path: null,
           monitor_enabled: true,
           monitor_interval_ms: 5000,
+          monitor_change_threshold: 0.15,
           last_snapshot_at: null,
           notes: null,
           created_at: Date.now(),
@@ -422,6 +429,7 @@ describe('MonitorPlugin', () => {
           stream_path: null,
           monitor_enabled: true,
           monitor_interval_ms: 2000,
+          monitor_change_threshold: 0.15,
           last_snapshot_at: null,
           notes: null,
           created_at: Date.now(),
@@ -440,6 +448,7 @@ describe('MonitorPlugin', () => {
           stream_path: null,
           monitor_enabled: false,
           monitor_interval_ms: 2000,
+          monitor_change_threshold: 0.15,
           last_snapshot_at: null,
           notes: null,
           created_at: Date.now(),
@@ -458,6 +467,7 @@ describe('MonitorPlugin', () => {
           stream_path: null,
           monitor_enabled: false,
           monitor_interval_ms: 2000,
+          monitor_change_threshold: 0.15,
           last_snapshot_at: null,
           notes: null,
           created_at: Date.now(),
@@ -554,6 +564,40 @@ describe('MonitorPlugin', () => {
 
       // Prevent leaking config into other tests
       configStore.set('monitor.defaultChangeThreshold', 0.15);
+    });
+
+    it('sets threshold only for a selected monitor when using "dla" and persists to DB when configuredDeviceId exists', async () => {
+      processRegistry.clear();
+
+      const devicesDb = new InMemoryDbAdapter(':memory:');
+      const ctx = {
+        isTauri: false,
+        databaseManager: {
+          getDevicesDb: () => devicesDb,
+        },
+      } as any as PluginContext;
+
+      // Avoid relying on migrations/schema; we only assert that repository setter is called.
+      vi.spyOn(ConfiguredDeviceRepository.prototype, 'save').mockResolvedValue('cd_cam_1' as any);
+      const setThresholdSpy = vi
+        .spyOn(ConfiguredDeviceRepository.prototype, 'setMonitorChangeThreshold')
+        .mockResolvedValue(undefined as any);
+
+      await plugin.initialize(ctx);
+
+      await plugin.execute('monitoruj 192.168.1.10 co 2s user: :', ctx);
+      await plugin.execute('monitoruj 192.168.1.11 co 2s user: :', ctx);
+
+      const res = await plugin.execute('ustaw próg zmian 5% dla 192.168.1.10', ctx);
+      expect(res.status).toBe('success');
+
+      const list = await plugin.execute('aktywne monitoringi', ctx);
+      expect(list.content[0].data).toContain('192.168.1.10');
+      expect(list.content[0].data).toContain('**Próg:** 5%');
+
+      // Ensure only one persistence call (only the targeted monitor)
+      expect(setThresholdSpy).toHaveBeenCalledTimes(1);
+      expect(setThresholdSpy).toHaveBeenCalledWith('cd_cam_1', 0.05);
     });
 
     it('sets interval via chat', async () => {

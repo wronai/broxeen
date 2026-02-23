@@ -92,11 +92,11 @@ describe('ConfiguredDeviceRepository', () => {
     it('converts monitor_enabled integer to boolean', async () => {
       vi.spyOn(db, 'query').mockResolvedValue([
         { id: 'cd_1', label: 'A', ip: '10.0.0.1', device_type: 'camera', monitor_enabled: 1,
-          monitor_interval_ms: 3000, last_snapshot_at: null, notes: null,
+          monitor_interval_ms: 3000, monitor_change_threshold: 0.15, last_snapshot_at: null, notes: null,
           device_id: null, rtsp_url: null, http_url: null, username: null,
           password: null, stream_path: null, created_at: 0, updated_at: 0 },
         { id: 'cd_2', label: 'B', ip: '10.0.0.2', device_type: 'camera', monitor_enabled: 0,
-          monitor_interval_ms: 3000, last_snapshot_at: null, notes: null,
+          monitor_interval_ms: 3000, monitor_change_threshold: 0.15, last_snapshot_at: null, notes: null,
           device_id: null, rtsp_url: null, http_url: null, username: null,
           password: null, stream_path: null, created_at: 0, updated_at: 0 },
       ] as any);
@@ -142,7 +142,7 @@ describe('ConfiguredDeviceRepository', () => {
     it('converts monitor_enabled to boolean on found row', async () => {
       vi.spyOn(db, 'queryOne').mockResolvedValue({
         id: 'cd_1', label: 'X', ip: '1.2.3.4', device_type: 'camera',
-        monitor_enabled: 1, monitor_interval_ms: 3000, last_snapshot_at: null,
+        monitor_enabled: 1, monitor_interval_ms: 3000, monitor_change_threshold: 0.15, last_snapshot_at: null,
         notes: null, device_id: null, rtsp_url: null, http_url: null,
         username: null, password: null, stream_path: null, created_at: 0, updated_at: 0,
       } as any);

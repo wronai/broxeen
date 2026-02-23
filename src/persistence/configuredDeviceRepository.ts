@@ -21,6 +21,7 @@ export interface ConfiguredDevice {
   stream_path: string | null;
   monitor_enabled: boolean;
   monitor_interval_ms: number;
+  monitor_change_threshold: number;
   last_snapshot_at: number | null;
   notes: string | null;
   created_at: number;
@@ -41,6 +42,7 @@ interface ConfiguredDeviceRow {
   stream_path: string | null;
   monitor_enabled: number;
   monitor_interval_ms: number;
+  monitor_change_threshold: number;
   last_snapshot_at: number | null;
   notes: string | null;
   created_at: number;
@@ -70,8 +72,8 @@ export class ConfiguredDeviceRepository {
         `INSERT INTO configured_devices
            (id, device_id, label, ip, device_type, rtsp_url, http_url,
             username, password, stream_path, monitor_enabled, monitor_interval_ms,
-            last_snapshot_at, notes, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            monitor_change_threshold, last_snapshot_at, notes, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(id) DO UPDATE SET
            label = excluded.label,
            ip = excluded.ip,
@@ -83,6 +85,7 @@ export class ConfiguredDeviceRepository {
            stream_path = excluded.stream_path,
            monitor_enabled = excluded.monitor_enabled,
            monitor_interval_ms = excluded.monitor_interval_ms,
+           monitor_change_threshold = excluded.monitor_change_threshold,
            notes = excluded.notes,
            updated_at = excluded.updated_at`,
         [
@@ -98,6 +101,7 @@ export class ConfiguredDeviceRepository {
           input.stream_path ?? null,
           input.monitor_enabled !== false ? 1 : 0,
           input.monitor_interval_ms ?? 3000,
+          input.monitor_change_threshold ?? 0.15,
           input.last_snapshot_at ?? null,
           input.notes ?? null,
           now,
@@ -195,6 +199,30 @@ export class ConfiguredDeviceRepository {
       );
     } catch (err) {
       repoLogger.warn('setMonitorEnabled failed', err);
+    }
+  }
+
+  async setMonitorIntervalMs(id: string, intervalMs: number): Promise<void> {
+    const now = Date.now();
+    try {
+      await this.db.execute(
+        `UPDATE configured_devices SET monitor_interval_ms = ?, updated_at = ? WHERE id = ?`,
+        [intervalMs, now, id],
+      );
+    } catch (err) {
+      repoLogger.warn('setMonitorIntervalMs failed', err);
+    }
+  }
+
+  async setMonitorChangeThreshold(id: string, threshold: number): Promise<void> {
+    const now = Date.now();
+    try {
+      await this.db.execute(
+        `UPDATE configured_devices SET monitor_change_threshold = ?, updated_at = ? WHERE id = ?`,
+        [threshold, now, id],
+      );
+    } catch (err) {
+      repoLogger.warn('setMonitorChangeThreshold failed', err);
     }
   }
 
