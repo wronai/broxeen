@@ -1,5 +1,5 @@
 project: broxeen
-generated: "2026-02-23T17:24:01.890761"
+generated: "2026-02-23T17:32:59.584208"
 modules[269]{path,lang,items}:
   test-parse-pdf.mjs,javascript,0
   phonetic.py,python,2
@@ -1310,13 +1310,13 @@ function_details:
       NetworkScanPlugin.interfaceScore,method,"(ifaceName: string, ip: string) -> number",922-938,false,17,1,interface score
       NetworkScanPlugin.pickBestInterface,method,"(interfaces: Array<[string, string]>) -> [string, string] | null",940-949,false,10,1,pick best interface
       NetworkScanPlugin.formatRaspberryPiResult,method,"(result: NetworkScanResult) -> string",951-979,false,29,1,formats raspberry pi result
-      NetworkScanPlugin.formatScanResult,method,"(result: NetworkScanResult, isCameraQuery, scanStats?) -> string",981-1076,false,96,1,formats scan result
-      NetworkScanPlugin.persistDevices,method,"(devices: NetworkDevice[], context: PluginContext) -> Promise<void>",1079-1120,true,42,1,caches devices
-      NetworkScanPlugin.determineScanStrategy,method,"(userSpecifiedSubnet: string | null, context: PluginContext) -> Promise<{\n    type: 'full' | 'incremental' | 'targeted';\n    subnet: string;\n    targetRanges?: string[];\n    triggeredBy: 'manual' | 'scheduled' | 'auto';\n  }>",1123-1166,true,44,1,determine scan strategy
-      NetworkScanPlugin.calculateIncrementalRanges,method,"(subnet: string, lastScan: any, context: PluginContext) -> Promise<string[]>",1169-1251,true,83,1,processes incremental ranges
-      NetworkScanPlugin.trackScanResults,method,"(scanId: string, subnet: string, scanType: 'full' | 'incremental' | 'targeted', result: NetworkScanResult, scanStart: number, triggeredBy: 'manual' | 'scheduled' | 'auto', context: PluginContext) -> Promise<{\n    devicesFound: number;\n    devicesUpdated: number;\n    newDevices: number;\n    scanDuration: number;\n    efficiency: string;\n  }>",1254-1328,true,75,1,track scan results
-      NetworkScanPlugin.getDefaultSubnet,method,"(context: PluginContext) -> Promise<string>",1331-1368,true,38,1,retrieves default subnet
-      NetworkScanPlugin.dispose,method,() -> Promise<void>,1370-1372,true,3,1,dispose
+      NetworkScanPlugin.formatScanResult,method,"(result: NetworkScanResult, isCameraQuery, scanStats?) -> string",981-1083,false,103,1,formats scan result
+      NetworkScanPlugin.persistDevices,method,"(devices: NetworkDevice[], context: PluginContext) -> Promise<void>",1086-1127,true,42,1,caches devices
+      NetworkScanPlugin.determineScanStrategy,method,"(userSpecifiedSubnet: string | null, context: PluginContext) -> Promise<{\n    type: 'full' | 'incremental' | 'targeted';\n    subnet: string;\n    targetRanges?: string[];\n    triggeredBy: 'manual' | 'scheduled' | 'auto';\n  }>",1130-1173,true,44,1,determine scan strategy
+      NetworkScanPlugin.calculateIncrementalRanges,method,"(subnet: string, lastScan: any, context: PluginContext) -> Promise<string[]>",1176-1258,true,83,1,processes incremental ranges
+      NetworkScanPlugin.trackScanResults,method,"(scanId: string, subnet: string, scanType: 'full' | 'incremental' | 'targeted', result: NetworkScanResult, scanStart: number, triggeredBy: 'manual' | 'scheduled' | 'auto', context: PluginContext) -> Promise<{\n    devicesFound: number;\n    devicesUpdated: number;\n    newDevices: number;\n    scanDuration: number;\n    efficiency: string;\n  }>",1261-1335,true,75,1,track scan results
+      NetworkScanPlugin.getDefaultSubnet,method,"(context: PluginContext) -> Promise<string>",1338-1375,true,38,1,retrieves default subnet
+      NetworkScanPlugin.dispose,method,() -> Promise<void>,1377-1379,true,3,1,dispose
   src/plugins/discovery/autoScanScheduler.ts:
     functions[13]{name,kind,sig,loc,async,lines,cc,does}:
       AutoScanScheduler.constructor,method,"(config: Partial<AutoScanConfig>, onStatusChange?)",41-44,false,4,1,constructor

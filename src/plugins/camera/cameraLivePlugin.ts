@@ -14,7 +14,7 @@ export class CameraLivePlugin implements Plugin {
     if (/pokaż.*live|pokaz.*live|live.*preview|podgląd.*live|podglad.*live/i.test(input)) {
       return true;
     }
-    
+
     // Handle direct RTSP URLs
     if (/^rtsp:\/\//i.test(input)) {
       return true;
@@ -158,9 +158,10 @@ export class CameraLivePlugin implements Plugin {
       };
     }
     
-    // Try to detect camera vendor — use RTSP path if available for best accuracy
+    // Try to detect camera vendor — prefer DB vendor (from scan) and RTSP path.
     const rtspPathForDetection = rtspUrl ? rtspUrl.replace(/^rtsp:\/\/[^/]+/, '') : undefined;
-    const vendorId = detectCameraVendor({ hostname: ip, rtspPath: rtspPathForDetection });
+    const dbVendorId = await this.resolveVendorFromDb(ip, context);
+    const vendorId = dbVendorId ?? detectCameraVendor({ rtspPath: rtspPathForDetection });
     const vendor = getVendorInfo(vendorId);
 
     const auth = username && password ? `${username}:${password}@` : username ? `${username}@` : '';
@@ -416,6 +417,35 @@ export class CameraLivePlugin implements Plugin {
     return result;
   }
 
+  private async resolveVendorFromDb(ip: string, context: PluginContext): Promise<string | null> {
+    if (!context.databaseManager || !context.databaseManager.isReady()) return null;
+    try {
+      const { DeviceRepository } = await import('../../persistence/deviceRepository');
+      const repo = new DeviceRepository(context.databaseManager.getDevicesDb());
+      const device = await repo.getByIp(ip);
+      if (!device?.vendor) return null;
+      return this.mapVendorStringToId(device.vendor);
+    } catch {
+      return null;
+    }
+  }
+
+  private mapVendorStringToId(vendor: string): string | null {
+    const v = vendor.toLowerCase();
+    if (v.includes('annke')) return 'annke';
+    if (v.includes('hikvision')) return 'hikvision';
+    if (v.includes('dahua')) return 'dahua';
+    if (v.includes('reolink')) return 'reolink';
+    if (v.includes('axis')) return 'axis';
+
+    // Fallback: try aliases database
+    for (const [id, info] of Object.entries(CAMERA_VENDORS)) {
+      if (id === 'generic') continue;
+      if (info.aliases.some((a) => v.includes(a.toLowerCase()))) return id;
+    }
+    return null;
+  }
+
   private async handleTestStreams(
     ip: string,
     username: string,
@@ -423,7 +453,8 @@ export class CameraLivePlugin implements Plugin {
     context: PluginContext,
     start: number,
   ): Promise<PluginResult> {
-    const vendorId = detectCameraVendor({ hostname: ip });
+    const dbVendorId = await this.resolveVendorFromDb(ip, context);
+    const vendorId = dbVendorId ?? detectCameraVendor({});
     const vendor = getVendorInfo(vendorId);
     const auth = username && password ? `${username}:${password}@` : username ? `${username}@` : '';
     

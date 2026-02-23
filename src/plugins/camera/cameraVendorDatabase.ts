@@ -34,6 +34,38 @@ export interface CameraVendor {
 }
 
 export const CAMERA_VENDORS: Record<string, CameraVendor> = {
+  annke: {
+    name: 'Annke (Hikvision OEM)',
+    aliases: ['annke'],
+    defaultCredentials: [
+      { username: 'admin', password: '12345', description: 'Domyślne (stare modele)' },
+      { username: 'admin', password: 'admin', description: 'Alternatywne' },
+      { username: 'admin', password: '', description: 'Bez hasła (stare modele)' },
+      { username: 'admin', password: '123456', description: 'Popularne' },
+    ],
+    rtspPaths: [
+      { path: '/Streaming/Channels/101', description: 'Główny kanał (H.264)', quality: 'main' },
+      { path: '/Streaming/Channels/102', description: 'Sub-stream (niższa jakość)', quality: 'sub' },
+      { path: '/h264/ch1/main/av_stream', description: 'Legacy główny', quality: 'main' },
+      { path: '/h264/ch1/sub/av_stream', description: 'Legacy sub', quality: 'sub' },
+      { path: '/live/ch00_0', description: 'NC-series main', quality: 'main' },
+      { path: '/live/ch00_1', description: 'NC-series sub', quality: 'sub' },
+    ],
+    httpSnapshotPaths: [
+      { path: '/ISAPI/Streaming/channels/101/picture', description: 'ISAPI główny kanał' },
+      { path: '/ISAPI/Streaming/channels/102/picture', description: 'ISAPI sub-stream' },
+      { path: '/Streaming/channels/1/picture', description: 'Snapshot kanał 1' },
+    ],
+    defaultPorts: {
+      http: [80, 8000],
+      rtsp: [554],
+    },
+    detectionPatterns: {
+      hostname: [/annke/i],
+      httpContent: ['ANNKE', 'Annke'],
+    },
+  },
+
   hikvision: {
     name: 'Hikvision',
     aliases: ['hikvision', 'hik', 'ds-', 'ivms'],
@@ -281,6 +313,7 @@ export const CAMERA_VENDORS: Record<string, CameraVendor> = {
  */
 const RTSP_PATH_PATTERNS: Record<string, RegExp[]> = {
   reolink:    [/h264Preview_\d+_(main|sub|mobile)/i, /h265Preview_\d+_(main|sub|mobile)/i, /Preview_\d+_(main|sub)/i],
+  annke:     [/\/Streaming\/Channels\/\d+/i, /\/h264\/ch\d+\/(main|sub)\/av_stream/i, /\/live\/ch\d+_\d+/i],
   hikvision:  [/\/Streaming\/Channels\/\d+/i, /\/h264\/ch\d+\/(main|sub)\/av_stream/i],
   dahua:      [/\/cam\/realmonitor/i, /channel=\d+&subtype=\d+/i],
   axis:       [/\/axis-media\/media\.amp/i, /\/mpeg4\/media\.amp/i],

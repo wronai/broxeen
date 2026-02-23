@@ -2,6 +2,8 @@
         install dev dev-browser dev-nvidia build \
         test test-watch test-coverage \
         lint format check clean clean-all \
+        playwright-install playwright-install-browsers playwright-install-deps \
+        e2e e2e-network-scan \
         stop stop-port stop-services stop-all status restart \
         build-vision build-vision-release build-n5105 build-rpi5 \
         cargo-check cargo-check-vision \
@@ -98,6 +100,22 @@ format: ## Format code
 
 check: ## Run type checking
 	corepack npm run check || true
+
+playwright-install-browsers: ## Install Playwright browsers (downloads binaries)
+	corepack pnpm exec playwright install
+
+playwright-install-deps: ## Install system dependencies for Playwright browsers (requires sudo)
+	sudo corepack pnpm exec playwright install-deps
+
+playwright-install: ## Install Playwright browsers + system deps
+	$(MAKE) playwright-install-browsers
+	$(MAKE) playwright-install-deps
+
+e2e: ## Run Playwright E2E tests
+	corepack pnpm playwright test
+
+e2e-network-scan: ## Run Playwright E2E: network-scanning-flow spec
+	corepack pnpm playwright test e2e/network-scanning-flow.spec.ts
 
 clean: ## Clean build artifacts and node_modules
 	rm -rf node_modules dist target
