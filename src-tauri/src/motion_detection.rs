@@ -140,7 +140,7 @@ pub struct DetectionStats {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-fn resolve_db_path(db_path: &str) -> String {
+pub fn resolve_db_path(db_path: &str) -> String {
     if std::path::Path::new(db_path).is_absolute() {
         return db_path.to_string();
     }
@@ -656,57 +656,48 @@ pub struct VisionQueryResult {
 }
 
 /// Natural language → SQL → real DB results.
-/// Uses LLM text-to-SQL when vision feature is available, falls back to keyword matching.
+/// Strategy: LLM text-to-SQL (via llm_query module) → keyword fallback.
+/// The LLM approach uses schemas from query_schema.rs to generate correct SQL
+/// for any natural language question, replacing hardcoded keyword matching.
 #[tauri::command]
 pub async fn vision_query(
     question: String,
     db_path: Option<String>,
 ) -> Result<VisionQueryResult, String> {
-    let db_file = db_path.unwrap_or_else(|| "monitoring.db".to_string());
-    let resolved = resolve_db_path(&db_file);
+    let start = std::time::Instant::now();
 
-    #[cfg(feature = "vision")]
-    {
-        // Try to use LLM-powered QueryEngine first
-        match try_llm_query(&question, &resolved).await {
-            Ok(result) => return Ok(result),
-            Err(e) => {
-                backend_warn!("LLM query failed, falling back to keyword matching: {}", e);
-            }
+    // Try LLM-powered text-to-SQL first (works without vision feature)
+    match crate::llm_query::execute_nl_query(
+        &question,
+        db_path.as_deref(),
+    ).await {
+        Ok(result) => {
+            let elapsed = start.elapsed().as_millis();
+            backend_info(format!(
+                "LLM text-to-SQL succeeded in {}ms: {} → {}",
+                elapsed, question, result.sql
+            ));
+            return Ok(VisionQueryResult {
+                question: result.question,
+                sql: result.sql,
+                columns: result.columns,
+                rows: result.rows,
+                row_count: result.row_count,
+                source: result.db_path,
+            });
+        }
+        Err(e) => {
+            backend_info(format!(
+                "LLM text-to-SQL unavailable ({}), using keyword fallback",
+                e
+            ));
         }
     }
 
-    // Fallback: Use keyword-based nl_to_sql
+    // Fallback: keyword-based nl_to_sql (legacy, for when LLM is not available)
+    let db_file = db_path.unwrap_or_else(|| "monitoring.db".to_string());
+    let resolved = resolve_db_path(&db_file);
     keyword_based_query(&question, &resolved).await
-}
-
-#[cfg(feature = "vision")]
-async fn try_llm_query(question: &str, db_path: &str) -> Result<VisionQueryResult, String> {
-    // Open database using VisionDatabase
-    let db = VisionDatabase::open(db_path).map_err(|e| {
-        format!("Cannot open monitoring DB at {}: {}", db_path, e)
-    })?;
-
-    // Create LLM client
-    let llm_client = LlmClient::new().map_err(|e| {
-        format!("Cannot create LLM client: {}", e)
-    })?;
-
-    // Create query engine and ask
-    let engine = QueryEngine::new(&db, &llm_client);
-    let query_result = engine.ask(question).await.map_err(|e| {
-        format!("LLM query failed: {}", e)
-    })?;
-
-    // Convert to VisionQueryResult
-    Ok(VisionQueryResult {
-        question: question.to_string(),
-        sql: query_result.sql,
-        columns: query_result.columns,
-        rows: query_result.rows,
-        row_count: query_result.rows.len(),
-        source: db_path.to_string(),
-    })
 }
 
 async fn keyword_based_query(question: &str, db_path: &str) -> Result<VisionQueryResult, String> {
@@ -967,6 +958,10 @@ fn extract_date_filter(q: &str, new_schema: bool) -> String {
         " AND timestamp > datetime('now', '-10 minutes')".into()
     } else if q.contains("5 minut") || q.contains("5 min") || q.contains("pięć minut") || q.contains("piec minut") {
         " AND timestamp > datetime('now', '-5 minutes')".into()
+    } else if q.contains("3 minut") || q.contains("3 min") || q.contains("trzy minut") || q.contains("trzy min") {
+        " AND timestamp > datetime('now', '-3 minutes')".into()
+    } else if q.contains("1 minut") || q.contains("1 min") || q.contains("jedną minut") || q.contains("jedna minut") || q.contains("minutę") || q.contains("minute") {
+        " AND timestamp > datetime('now', '-1 minutes')".into()
     } else if q.contains("30 minut") || q.contains("30 min") || q.contains("pół godziny") || q.contains("pol godziny") {
         " AND timestamp > datetime('now', '-30 minutes')".into()
     } else if q.contains("2 godzin") || q.contains("dwóch godzin") || q.contains("2h") {
