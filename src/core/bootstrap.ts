@@ -169,6 +169,12 @@ async function registerCorePlugins(
     safeRegister(registry, router, new DeviceStatusPlugin(), 'DeviceStatusPlugin');
   } catch (e) { console.warn('DeviceStatusPlugin unavailable:', e); }
 
+  // Device configuration
+  try {
+    const { DeviceConfigPlugin } = await import('../plugins/discovery/deviceConfigPlugin');
+    safeRegister(registry, router, new DeviceConfigPlugin(), 'DeviceConfigPlugin');
+  } catch (e) { console.warn('DeviceConfigPlugin unavailable:', e); }
+
   // ── Camera plugins ────────────────────────────────────────────
 
   try {

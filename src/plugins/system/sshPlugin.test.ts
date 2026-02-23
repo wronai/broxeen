@@ -164,5 +164,99 @@ describe('SshPlugin', () => {
       expect(result.status).toBe('partial');
       expect(result.content[0].data).toContain('255');
     });
+
+    it('provides smart diagnosis for connection refused', async () => {
+      const mockInvoke = vi.fn().mockResolvedValue({
+        host: '192.168.188.146',
+        command: 'top -bn1 | head -20',
+        stdout: '',
+        stderr: 'ssh: connect to host 192.168.188.146 port 22: Connection refused',
+        exit_code: 255,
+        duration_ms: 30,
+      });
+
+      const tauriContext: PluginContext = {
+        isTauri: true,
+        tauriInvoke: mockInvoke,
+      };
+
+      const result = await plugin.execute('ssh 192.168.188.146 top -bn1 | head -20', tauriContext);
+      expect(result.status).toBe('partial');
+      expect(result.content[0].data).toContain('🔍 **Diagnoza:**');
+      expect(result.content[0].data).toContain('SSH nie jest dostępne na tym urządzeniu');
+      expect(result.content[0].data).toContain('Może to być kamera, router lub urządzenie IoT');
+      expect(result.content[0].data).toContain('"ping 192.168.188.146"');
+      expect(result.content[0].data).toContain('"skanuj porty 192.168.188.146"');
+      expect(result.content[0].data).toContain('"przeglądaj http://192.168.188.146"');
+    });
+
+    it('provides smart diagnosis for permission denied', async () => {
+      const mockInvoke = vi.fn().mockResolvedValue({
+        host: '192.168.1.100',
+        command: 'uptime',
+        stdout: '',
+        stderr: 'Permission denied (publickey,password)',
+        exit_code: 255,
+        duration_ms: 500,
+      });
+
+      const tauriContext: PluginContext = {
+        isTauri: true,
+        tauriInvoke: mockInvoke,
+      };
+
+      const result = await plugin.execute('ssh 192.168.1.100 uptime', tauriContext);
+      expect(result.status).toBe('partial');
+      expect(result.content[0].data).toContain('🔍 **Diagnoza:**');
+      expect(result.content[0].data).toContain('Błąd autentykacji');
+      expect(result.content[0].data).toContain('"ssh 192.168.1.100 user admin"');
+      expect(result.content[0].data).toContain('"ssh 192.168.1.100 port 2222"');
+    });
+
+    it('provides smart diagnosis for timeout', async () => {
+      const mockInvoke = vi.fn().mockResolvedValue({
+        host: '192.168.1.200',
+        command: 'uptime',
+        stdout: '',
+        stderr: 'ssh: connect to host 192.168.1.200 port 22: Connection timed out',
+        exit_code: 255,
+        duration_ms: 30000,
+      });
+
+      const tauriContext: PluginContext = {
+        isTauri: true,
+        tauriInvoke: mockInvoke,
+      };
+
+      const result = await plugin.execute('ssh 192.168.1.200 uptime', tauriContext);
+      expect(result.status).toBe('partial');
+      expect(result.content[0].data).toContain('🔍 **Diagnoza:**');
+      expect(result.content[0].data).toContain('Przekroczono czas oczekiwania');
+      expect(result.content[0].data).toContain('firewall');
+      expect(result.content[0].data).toContain('"ping 192.168.1.200"');
+    });
+
+    it('provides default suggestions for successful SSH', async () => {
+      const mockInvoke = vi.fn().mockResolvedValue({
+        host: '192.168.1.100',
+        command: 'uptime',
+        stdout: ' 14:30:01 up 5 days, 3:42, 2 users, load average: 0.15, 0.10, 0.05',
+        stderr: '',
+        exit_code: 0,
+        duration_ms: 200,
+      });
+
+      const tauriContext: PluginContext = {
+        isTauri: true,
+        tauriInvoke: mockInvoke,
+      };
+
+      const result = await plugin.execute('ssh 192.168.1.100 uptime', tauriContext);
+      expect(result.status).toBe('success');
+      expect(result.content[0].data).toContain('💡 **Sugerowane akcje:**');
+      expect(result.content[0].data).toContain('"ssh 192.168.1.100 df -h"');
+      expect(result.content[0].data).toContain('"ssh 192.168.1.100 free -h"');
+      expect(result.content[0].data).toContain('"ssh 192.168.1.100 top -bn1 | head -10"');
+    });
   });
 });

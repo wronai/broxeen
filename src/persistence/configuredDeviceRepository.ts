@@ -27,6 +27,30 @@ export interface ConfiguredDevice {
   updated_at: number;
 }
 
+/** Raw row from SQLite (monitor_enabled is INTEGER 0/1) */
+interface ConfiguredDeviceRow {
+  id: string;
+  device_id: string | null;
+  label: string;
+  ip: string;
+  device_type: 'camera' | 'server' | 'sensor' | 'other';
+  rtsp_url: string | null;
+  http_url: string | null;
+  username: string | null;
+  password: string | null;
+  stream_path: string | null;
+  monitor_enabled: number;
+  monitor_interval_ms: number;
+  last_snapshot_at: number | null;
+  notes: string | null;
+  created_at: number;
+  updated_at: number;
+}
+
+function rowToDevice(r: ConfiguredDeviceRow): ConfiguredDevice {
+  return { ...r, monitor_enabled: !!r.monitor_enabled };
+}
+
 export type ConfiguredDeviceInput = Omit<ConfiguredDevice, 'created_at' | 'updated_at'>;
 
 function genId(): string {
@@ -91,10 +115,10 @@ export class ConfiguredDeviceRepository {
   /** List all configured devices. */
   async listAll(): Promise<ConfiguredDevice[]> {
     try {
-      const rows = await this.db.query<ConfiguredDevice & { monitor_enabled: number }>(
+      const rows = await this.db.query<ConfiguredDeviceRow>(
         `SELECT * FROM configured_devices ORDER BY updated_at DESC`,
       );
-      return rows.map(r => ({ ...r, monitor_enabled: !!r.monitor_enabled }));
+      return rows.map(rowToDevice);
     } catch {
       return [];
     }
@@ -103,10 +127,10 @@ export class ConfiguredDeviceRepository {
   /** Get only monitoring-enabled devices. */
   async listMonitored(): Promise<ConfiguredDevice[]> {
     try {
-      const rows = await this.db.query<ConfiguredDevice & { monitor_enabled: number }>(
+      const rows = await this.db.query<ConfiguredDeviceRow>(
         `SELECT * FROM configured_devices WHERE monitor_enabled = 1 ORDER BY updated_at DESC`,
       );
-      return rows.map(r => ({ ...r, monitor_enabled: true }));
+      return rows.map(rowToDevice);
     } catch {
       return [];
     }
@@ -115,11 +139,11 @@ export class ConfiguredDeviceRepository {
   /** Get a single configured device by ID. */
   async getById(id: string): Promise<ConfiguredDevice | null> {
     try {
-      const row = await this.db.queryOne<ConfiguredDevice & { monitor_enabled: number }>(
+      const row = await this.db.queryOne<ConfiguredDeviceRow>(
         `SELECT * FROM configured_devices WHERE id = ?`,
         [id],
       );
-      return row ? { ...row, monitor_enabled: !!row.monitor_enabled } : null;
+      return row ? rowToDevice(row) : null;
     } catch {
       return null;
     }
@@ -128,11 +152,11 @@ export class ConfiguredDeviceRepository {
   /** Find configured device by IP. */
   async getByIp(ip: string): Promise<ConfiguredDevice | null> {
     try {
-      const row = await this.db.queryOne<ConfiguredDevice & { monitor_enabled: number }>(
+      const row = await this.db.queryOne<ConfiguredDeviceRow>(
         `SELECT * FROM configured_devices WHERE ip = ?`,
         [ip],
       );
-      return row ? { ...row, monitor_enabled: !!row.monitor_enabled } : null;
+      return row ? rowToDevice(row) : null;
     } catch {
       return null;
     }

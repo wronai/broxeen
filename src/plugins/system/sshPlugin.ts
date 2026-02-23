@@ -330,16 +330,108 @@ export class SshPlugin implements Plugin {
       lines.push('```');
     }
 
-    lines.push('\n💡 **Sugerowane akcje:**');
-    lines.push(`- "ssh ${host} df -h" — Dyski`);
-    lines.push(`- "ssh ${host} free -h" — Pamięć`);
-    lines.push(`- "ssh ${host} top -bn1 | head -10" — Procesy`);
+    // Smart error diagnosis and suggestions
+    const errorAnalysis = this.analyzeSshError(result.stderr, result.exit_code, host);
+    if (errorAnalysis) {
+      lines.push(`\n🔍 **Diagnoza:** ${errorAnalysis.diagnosis}`);
+      if (errorAnalysis.suggestions.length > 0) {
+        lines.push('\n💡 **Sugerowane akcje:**');
+        errorAnalysis.suggestions.forEach(suggestion => {
+          lines.push(`- ${suggestion}`);
+        });
+      }
+    } else {
+      // Default suggestions for successful connections
+      lines.push('\n💡 **Sugerowane akcje:**');
+      lines.push(`- "ssh ${host} df -h" — Dyski`);
+      lines.push(`- "ssh ${host} free -h" — Pamięć`);
+      lines.push(`- "ssh ${host} top -bn1 | head -10" — Procesy`);
+    }
 
     return {
       pluginId: this.id,
       status: result.exit_code === 0 ? 'success' : 'partial',
       content: [{ type: 'text', data: lines.join('\n'), title: `SSH: ${host}` }],
       metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  private analyzeSshError(stderr: string, exitCode: number, host: string): { diagnosis: string; suggestions: string[] } | null {
+    if (exitCode === 0) return null; // No error
+
+    const errorLower = stderr.toLowerCase();
+    const suggestions: string[] = [];
+
+    // Connection refused
+    if (errorLower.includes('connection refused')) {
+      suggestions.push(`"ping ${host}" — Sprawdź czy host jest online`);
+      suggestions.push(`"skanuj porty ${host}" — Sprawdź otwarte porty`);
+      suggestions.push(`"przeglądaj http://${host}" — Sprawdź interfejs web`);
+      return {
+        diagnosis: 'SSH nie jest dostępne na tym urządzeniu. Może to być kamera, router lub urządzenie IoT bez serwera SSH.',
+        suggestions
+      };
+    }
+
+    // Authentication failed
+    if (errorLower.includes('permission denied') || errorLower.includes('authentication failed')) {
+      suggestions.push(`"ssh ${host} user admin" — Spróbuj innego użytkownika`);
+      suggestions.push(`"ssh ${host} port 2222" — Spróbuj innego portu SSH`);
+      suggestions.push(`"test ssh ${host}" — Przetestuj połączenie`);
+      return {
+        diagnosis: 'Błąd autentykacji. Sprawdź nazwę użytkownika, hasło lub klucz SSH.',
+        suggestions
+      };
+    }
+
+    // Host key verification
+    if (errorLower.includes('host key verification failed')) {
+      suggestions.push(`"ssh ${host}" — Usuń stary klucz hosta i połącz ponownie`);
+      return {
+        diagnosis: 'Weryfikacja klucza hosta nie powiodła się. Klucz hosta mógł ulec zmianie.',
+        suggestions
+      };
+    }
+
+    // Network timeout
+    if (errorLower.includes('connection timed out') || errorLower.includes('timeout')) {
+      suggestions.push(`"ping ${host}" — Sprawdź łączność sieciową`);
+      suggestions.push(`"skanuj ${host}" — Odkryj urządzenie w sieci`);
+      return {
+        diagnosis: 'Przekroczono czas oczekiwania na połączenie. Sprawdź połączenie sieciowe i firewall.',
+        suggestions
+      };
+    }
+
+    // No route to host
+    if (errorLower.includes('no route to host')) {
+      const subnet = host.split('.').slice(0, 3).join('.');
+      suggestions.push(`"ping ${host}" — Sprawdź routing`);
+      suggestions.push(`"skanuj ${subnet}" — Zeskanuj podsieć`);
+      return {
+        diagnosis: 'Brak trasy do hosta. Sprawdź konfigurację sieci i czy host jest w tej samej podsieci.',
+        suggestions
+      };
+    }
+
+    // Command not found (SSH worked but command failed)
+    if (exitCode !== 0 && exitCode !== 255 && !errorLower.includes('ssh') && !errorLower.includes('connection')) {
+      suggestions.push(`"ssh ${host} uptime" — Sprawdź podstawowy status`);
+      suggestions.push(`"ssh ${host} ls -la" — Przeglądaj pliki`);
+      return {
+        diagnosis: 'Połączenie SSH działa, ale komenda nie jest dostępna na tym urządzeniu.',
+        suggestions
+      };
+    }
+
+    // Generic SSH error
+    suggestions.push(`"test ssh ${host}" — Przetestuj połączenie SSH`);
+    suggestions.push(`"skanuj porty ${host}" — Sprawdź dostępne porty`);
+    suggestions.push(`"przeglądaj http://${host}" — Sprawdź interfejs web`);
+
+    return {
+      diagnosis: 'Błąd połączenia SSH. Sprawdź konfigurację sieci, dostępność hosta i uprawnienia.',
+      suggestions
     };
   }
 

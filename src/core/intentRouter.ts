@@ -188,6 +188,44 @@ export class IntentRouter implements IIntentRouter {
       /zlap.*klatke/i,
     ]);
 
+    // Device configuration intents
+    this.intentPatterns.set('device:add', [
+      /dodaj.*kamer[ęe]/i,
+      /dodaj.*urz[ąa]dzenie/i,
+      /add.*camera/i,
+      /add.*device/i,
+      /now[aą].*kamer[aę]/i,
+      /now[eę].*urz[ąa]dzenie/i,
+    ]);
+
+    this.intentPatterns.set('device:save', [
+      /zapisz.*kamer[ęe]/i,
+      /zapisz.*urz[ąa]dzenie/i,
+      /save.*camera/i,
+      /save.*device/i,
+      /zachowaj.*kamer[ęe]/i,
+      /zachowaj.*urz[ąa]dzenie/i,
+    ]);
+
+    this.intentPatterns.set('device:configure', [
+      /konfiguruj.*kamer[ęe]/i,
+      /konfiguruj.*urz[ąa]dzenie/i,
+      /configure.*camera/i,
+      /configure.*device/i,
+      /ustaw.*kamer[ęe]/i,
+      /ustaw.*urz[ąa]dzenie/i,
+    ]);
+
+    this.intentPatterns.set('device:list-configured', [
+      /lista.*skonfigurowanych/i,
+      /skonfigurowane.*urz[ąa]dzenia/i,
+      /skonfigurowane.*kamery/i,
+      /configured.*devices/i,
+      /configured.*cameras/i,
+      /moje.*urz[ąa]dzenia/i,
+      /moje.*kamery/i,
+    ]);
+
     // Monitor intents
     this.intentPatterns.set('monitor:start', [
       /monitoruj/i,

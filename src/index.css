@@ -16,6 +16,45 @@
   ::-webkit-scrollbar-thumb:hover {
     background: #475569;
   }
+
+  /* Fix select and option text contrast */
+  select {
+    color: #ffffff !important;
+    background-color: #374151 !important;
+    border: 1px solid #4b5563 !important;
+  }
+  
+  select option {
+    color: #ffffff !important;
+    background-color: #374151 !important;
+  }
+  
+  select:focus {
+    color: #ffffff !important;
+    background-color: #374151 !important;
+    border-color: #3b82f6 !important;
+    outline: none !important;
+  }
+
+  select:hover {
+    background-color: #4b5563 !important;
+  }
+
+  /* For Firefox */
+  select:-moz-focusring {
+    color: #ffffff !important;
+    background-color: #374151 !important;
+  }
+
+  /* For Webkit browsers (Chrome, Safari, Edge) */
+  select::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+
+  /* Ensure placeholder text is visible */
+  select::placeholder {
+    color: #9ca3af !important;
+  }
 }
 
 /* ThinkingMessage bouncing dots */
