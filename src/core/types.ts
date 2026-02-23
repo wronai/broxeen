@@ -101,6 +101,7 @@ export interface AppContext {
   intentRouter: IntentRouter;
   commandBus: CommandBus;
   databaseManager: import('../persistence/databaseManager').DatabaseManager;
+  autoScanScheduler: import('../plugins/discovery/autoScanScheduler').AutoScanScheduler | null;
   dispose(): Promise<void>;
   tauriInvoke?: (command: string, args?: unknown) => Promise<unknown>;
 }

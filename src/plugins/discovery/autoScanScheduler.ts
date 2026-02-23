@@ -7,6 +7,7 @@ import type { PluginContext } from '../../core/types';
 import { DeviceRepository } from '../../persistence/deviceRepository';
 import { ScanHistoryRepository } from '../../persistence/scanHistoryRepository';
 import { logger } from '../../lib/logger';
+import type { DeviceStatusChange } from '../../reactive/alertBridge';
 
 const schedLogger = logger.scope('auto-scan:scheduler');
 
@@ -22,15 +23,24 @@ const DEFAULT_CONFIG: AutoScanConfig = {
   enabled: true,
 };
 
+export type DeviceStatusChangeCallback = (change: DeviceStatusChange) => void;
+
 export class AutoScanScheduler {
   private timer: ReturnType<typeof setInterval> | null = null;
   private context: PluginContext | null = null;
   private config: AutoScanConfig;
   private running = false;
   private lastScanAt = 0;
+  private knownStatuses = new Map<string, 'online' | 'offline'>();
+  private onStatusChange: DeviceStatusChangeCallback | null = null;
 
-  constructor(config: Partial<AutoScanConfig> = {}) {
+  constructor(config: Partial<AutoScanConfig> = {}, onStatusChange?: DeviceStatusChangeCallback) {
     this.config = { ...DEFAULT_CONFIG, ...config };
+    this.onStatusChange = onStatusChange ?? null;
+  }
+
+  setStatusChangeCallback(cb: DeviceStatusChangeCallback): void {
+    this.onStatusChange = cb;
   }
 
   start(context: PluginContext): void {
@@ -106,6 +116,7 @@ export class AutoScanScheduler {
 
       if (this.context.databaseManager && result?.devices) {
         await this.persistResults(subnet, result.devices, tickStart);
+        this.detectStatusChanges(result.devices);
       }
 
       schedLogger.info('AutoScan tick complete', {
@@ -170,6 +181,44 @@ export class AutoScanScheduler {
       return merged.map(([lo, hi]) => lo === hi ? `${lo}` : `${lo}-${hi}`);
     } catch {
       return [];
+    }
+  }
+
+  private detectStatusChanges(
+    devices: Array<{ ip: string; open_ports: number[]; response_time: number; last_seen: string; device_type: string }>,
+  ): void {
+    if (!this.onStatusChange) return;
+
+    const seenIps = new Set(devices.map(d => d.ip));
+
+    // Devices that appeared online
+    for (const d of devices) {
+      const prev = this.knownStatuses.get(d.ip);
+      if (prev === 'offline' || prev === undefined) {
+        if (prev === 'offline') {
+          this.onStatusChange({
+            ip: d.ip,
+            deviceType: d.device_type || undefined,
+            previousStatus: 'offline',
+            currentStatus: 'online',
+            detectedAt: new Date(),
+          });
+        }
+        this.knownStatuses.set(d.ip, 'online');
+      }
+    }
+
+    // Devices that went offline (were known online, not seen this scan)
+    for (const [ip, status] of this.knownStatuses.entries()) {
+      if (status === 'online' && !seenIps.has(ip)) {
+        this.knownStatuses.set(ip, 'offline');
+        this.onStatusChange({
+          ip,
+          previousStatus: 'online',
+          currentStatus: 'offline',
+          detectedAt: new Date(),
+        });
+      }
     }
   }
 

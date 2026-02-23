@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import { resolve } from "../lib/resolver";
 import { looksLikeUrl } from "../lib/phonetic";
 import { useSpeech } from "../hooks/useSpeech";
@@ -1740,7 +1741,19 @@ ${analysis}`,
     await commands.copyContext.execute(msg.id);
   };
 
-  // Handle ESC key to close expanded image
+  // Welcome screen quick-action cards (same order as rendered)
+  const welcomeCards = [
+    { query: 'skanuj sieć', prefill: '' },
+    { query: 'znajdź kamery w sieci', prefill: '' },
+    { query: '', prefill: 'przeglądaj ' },
+    { query: '', prefill: 'znajdź pliki ' },
+    { query: 'konfiguruj email', prefill: '' },
+    { query: 'konfiguracja', prefill: '' },
+    { query: '', prefill: 'monitoruj ' },
+    { query: 'pomoc', prefill: '' },
+  ];
+
+  // Handle ESC key to close expanded image + Ctrl+1..8 for welcome screen shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && expandedImage) {
@@ -1749,11 +1762,27 @@ ${analysis}`,
       if (event.key === 'Escape' && expandedLive) {
         setExpandedLive(null);
       }
+
+      // Ctrl+1..8 → trigger welcome screen card (only when welcome screen is visible)
+      if (event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey) {
+        const num = parseInt(event.key, 10);
+        if (num >= 1 && num <= 8 && showWelcomeScreen) {
+          const card = welcomeCards[num - 1];
+          if (card) {
+            event.preventDefault();
+            if (card.query) {
+              handleSubmit(card.query);
+            } else if (card.prefill) {
+              setInput(card.prefill);
+            }
+          }
+        }
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [expandedImage, expandedLive]);
+  }, [expandedImage, expandedLive, showWelcomeScreen]);
 
   return (
     <>
@@ -1843,7 +1872,7 @@ ${analysis}`,
                         { icon: '⚙️', label: 'Konfiguracja', desc: 'Ustaw AI, sieć, SSH', query: 'konfiguracja', color: 'from-amber-600/20 to-amber-800/10 border-amber-500/30 hover:border-amber-400/50' },
                         { icon: '👁️', label: 'Monitoruj', desc: 'Obserwuj zmiany', query: '', prefill: 'monitoruj ', color: 'from-red-600/20 to-red-800/10 border-red-500/30 hover:border-red-400/50' },
                         { icon: '❓', label: 'Pomoc', desc: 'Co mogę zrobić?', query: 'pomoc', color: 'from-gray-600/20 to-gray-800/10 border-gray-500/30 hover:border-gray-400/50' },
-                      ].map((card) => (
+                      ].map((card, idx) => (
                         <button
                           key={card.label}
                           onClick={() => {
@@ -1855,7 +1884,12 @@ ${analysis}`,
                           }}
                           className={`group relative flex flex-col items-start gap-1 rounded-xl border bg-gradient-to-br p-4 text-left transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${card.color}`}
                         >
-                          <span className="text-2xl mb-1">{card.icon}</span>
+                          <div className="flex w-full items-start justify-between">
+                            <span className="text-2xl mb-1">{card.icon}</span>
+                            <kbd className="hidden sm:inline-flex items-center rounded bg-black/30 px-1.5 py-0.5 text-[10px] font-mono text-gray-500 group-hover:text-gray-400">
+                              ^{idx + 1}
+                            </kbd>
+                          </div>
                           <span className="text-sm font-semibold text-gray-200 group-hover:text-white">{card.label}</span>
                           <span className="text-[11px] text-gray-400 group-hover:text-gray-300">{card.desc}</span>
                         </button>
@@ -2014,7 +2048,7 @@ ${analysis}`,
                               <div className="prose prose-invert max-w-none prose-sm">
                                 <ReactMarkdown 
                                   urlTransform={(url) => url}
-                                  remarkPlugins={[remarkGfm]}
+                                  remarkPlugins={[remarkGfm, remarkBreaks]}
                                   components={{
                                   // Customize styling for common elements
                                   p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
@@ -2297,7 +2331,7 @@ ${analysis}`,
                                 <div className="text-sm text-gray-300 prose prose-invert max-w-none prose-sm">
                                   <ReactMarkdown 
                                     urlTransform={(url) => url}
-                                    remarkPlugins={[remarkGfm]}
+                                    remarkPlugins={[remarkGfm, remarkBreaks]}
                                     components={{
                                       p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
                                       strong: ({children}) => <strong className="font-bold text-white">{children}</strong>,

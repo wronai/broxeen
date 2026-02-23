@@ -111,6 +111,39 @@ export interface FrigateAppConfig {
   cooldownMs: number;
 }
 
+// ── Motion Detection Pipeline Configuration ────────────────
+
+export interface MotionDetectionConfig {
+  /** Python executable path (e.g. python3, /usr/bin/python3) */
+  pythonPath: string;
+  /** Path to motion_pipeline.py script */
+  pipelinePath: string;
+  /** Process every N-th frame (RPi5: 5, N5105: 3) */
+  processEveryNFrames: number;
+  /** Minimum contour area in pixels to consider as motion */
+  minContourArea: number;
+  /** Maximum contour area in pixels */
+  maxContourArea: number;
+  /** MOG2 variance threshold (higher = fewer false positives) */
+  varThreshold: number;
+  /** MOG2 history frames */
+  bgHistory: number;
+  /** Local classifier confidence threshold — below this, send to LLM */
+  llmConfidenceThreshold: number;
+  /** Cooldown seconds per label before saving same object again */
+  cooldownSec: number;
+  /** Max crop dimension in pixels before sending to LLM */
+  maxCropPx: number;
+  /** SQLite detections DB path (relative to app data dir) */
+  detectionsDbPath: string;
+  /** LLM model for low-confidence verification (cheap/fast) */
+  llmVerifyModel: string;
+  /** Platform hint: 'rpi5' | 'n5105' | 'auto' */
+  platform: string;
+  /** Always send persons to LLM when night mode active */
+  nightModePersonAlwaysLlm: boolean;
+}
+
 // ── Full App Configuration ──────────────────────────────────
 
 export interface AppConfig {
@@ -124,6 +157,7 @@ export interface AppConfig {
   monitor: MonitorAppConfig;
   email: EmailAppConfig;
   frigate: FrigateAppConfig;
+  motionDetection: MotionDetectionConfig;
 }
 
 // ── Defaults ────────────────────────────────────────────────
@@ -211,6 +245,22 @@ export const DEFAULT_CONFIG: AppConfig = {
     mqttTopic: 'frigate/events',
     allowedLabels: ['person', 'car'],
     cooldownMs: 60000,
+  },
+  motionDetection: {
+    pythonPath: 'python3',
+    pipelinePath: 'scripts/motion_pipeline.py',
+    processEveryNFrames: 5,
+    minContourArea: 2000,
+    maxContourArea: 200000,
+    varThreshold: 50,
+    bgHistory: 500,
+    llmConfidenceThreshold: 0.6,
+    cooldownSec: 10,
+    maxCropPx: 500,
+    detectionsDbPath: 'detections.db',
+    llmVerifyModel: 'anthropic/claude-haiku-4-5',
+    platform: 'auto',
+    nightModePersonAlwaysLlm: true,
   },
 };
 
@@ -563,4 +613,5 @@ export const CONFIG_CATEGORIES: Record<string, { label: string; icon: string; de
   locale: { label: 'Język', icon: '🌍', description: 'Ustawienia regionalne' },
   email: { label: 'Email', icon: '📧', description: 'Konfiguracja email (SMTP/IMAP)' },
   frigate: { label: 'Frigate', icon: '🦅', description: 'Detekcja obiektów (person/car) + zdarzenia przez MQTT' },
+  motionDetection: { label: 'Detekcja ruchu', icon: '🎯', description: 'Pipeline MOG2 + YOLOv8n dla RPi5/N5105' },
 };

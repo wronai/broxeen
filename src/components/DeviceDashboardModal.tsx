@@ -37,13 +37,22 @@ function statusColor(device: DeviceEntry): string {
   return "bg-gray-500";
 }
 
-function deviceIcon(device: DeviceEntry) {
+function inferDeviceType(device: DeviceEntry): "camera" | "server" | "device" {
   const v = (device.vendor || "").toLowerCase();
   const h = (device.hostname || "").toLowerCase();
-  if (v.includes("hikvision") || v.includes("dahua") || v.includes("reolink") || h.includes("cam")) {
-    return <Camera size={14} className="text-blue-400" />;
-  }
-  if (device.services_count > 3) return <Server size={14} className="text-purple-400" />;
+  if (
+    v.includes("hikvision") || v.includes("dahua") || v.includes("reolink") ||
+    v.includes("axis") || v.includes("hanwha") || v.includes("bosch") ||
+    h.includes("cam") || h.includes("ipc") || h.includes("nvr") || h.includes("dvr")
+  ) return "camera";
+  if (device.services_count > 3) return "server";
+  return "device";
+}
+
+function deviceIcon(device: DeviceEntry) {
+  const type = inferDeviceType(device);
+  if (type === "camera") return <Camera size={14} className="text-blue-400" />;
+  if (type === "server") return <Server size={14} className="text-purple-400" />;
   return <Monitor size={14} className="text-gray-400" />;
 }
 
@@ -54,7 +63,7 @@ export default function DeviceDashboardModal({
 }: DeviceDashboardModalProps) {
   const [devices, setDevices] = useState<DeviceEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<"all" | "online" | "offline">("all");
+  const [filter, setFilter] = useState<"all" | "online" | "offline" | "cameras">("all");
   const [search, setSearch] = useState("");
 
   const loadDevices = useCallback(async () => {
@@ -92,6 +101,7 @@ export default function DeviceDashboardModal({
     const mins = (Date.now() - d.last_seen) / 60000;
     if (filter === "online" && mins > 60) return false;
     if (filter === "offline" && mins <= 60) return false;
+    if (filter === "cameras" && inferDeviceType(d) !== "camera") return false;
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -105,6 +115,7 @@ export default function DeviceDashboardModal({
 
   const onlineCount = devices.filter((d) => (Date.now() - d.last_seen) / 60000 < 60).length;
   const offlineCount = devices.length - onlineCount;
+  const cameraCount = devices.filter((d) => inferDeviceType(d) === "camera").length;
 
   if (!isOpen) return null;
 
@@ -148,7 +159,12 @@ export default function DeviceDashboardModal({
             <span className="text-gray-300">{offlineCount} offline</span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            {(["all", "online", "offline"] as const).map((f) => (
+            {([
+              ["all", "Wszystkie"],
+              ["cameras", `📷${cameraCount > 0 ? ` (${cameraCount})` : ""}`],
+              ["online", "Online"],
+              ["offline", "Offline"],
+            ] as ["all" | "online" | "offline" | "cameras", string][]).map(([f, label]) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -158,7 +174,7 @@ export default function DeviceDashboardModal({
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
                 }`}
               >
-                {f === "all" ? "Wszystkie" : f === "online" ? "Online" : "Offline"}
+                {label}
               </button>
             ))}
           </div>

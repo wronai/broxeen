@@ -194,6 +194,22 @@ Każda odpowiedź asystenta automatycznie otrzymuje **przyciski szybkich akcji**
 
 Trzy tryby akcji: **execute** (natychmiastowe wykonanie), **prefill** (wstaw do inputa), **link** (otwórz URL).
 
+## Skanowanie sieci i baza urządzeń (SQLite)
+
+Po wykonaniu skanowania w trybie desktop (Tauri), wykryte urządzenia są zapisywane w SQLite. Możesz potem wyświetlić listę znanych urządzeń oraz filtrować je po typie:
+
+```text
+status urządzeń
+lista urządzeń
+znane urządzenia
+pokaż urządzenia
+
+tylko kamery
+tylko routery
+tylko drukarki
+filtruj urządzenia
+```
+
 ## Pipeline rozwiązywania URL
 
 ```

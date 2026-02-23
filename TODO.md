@@ -36,9 +36,9 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 ### 📺 Podgląd Kamier i Urządzeń
 - [x] **Live preview kamer** - podgląd wideo (1 FPS dla oszczędności)
 - [x] **RTSP kompatybilność Tauri (cameraId/camera_id)** - spójne argumenty `rtsp_capture_frame` + testy regresyjne
-- [ ] **Status urządzeń** - online/offline, ostatnia aktywność → `device_status` w DeviceRepository + ping-based health check
+- [x] **Status urządzeń** - online/offline, ostatnia aktywność → `device_status` w DeviceRepository + ping-based health check ✅
 - [x] **Szybkie akcje** — kliknij przycisk na wiadomości → ping, porty, SSH, monitor, live kamera ✅
-- [ ] **Galeria znalezionych** - przeglądaj wszystkie odkryte urządzenia
+- [x] **Galeria znalezionych** - przeglądaj wszystkie odkryte urządzenia ✅ (DeviceDashboardModal z filtrowaniem)
 
 ### 🔍 Inteligentne Skanowanie
 - [x] **Skanowanie przyrostowe** - tylko nowe urządzenia (`calculateIncrementalRanges()`, `determineScanStrategy()`) ✅
@@ -58,11 +58,11 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [x] **Quick-start welcome screen** — 6 klikalnych kart akcji na ekranie powitalnym (skanuj, kamery, przeglądaj, konfiguracja, monitoruj, pomoc) ✅
 - [x] **Context-aware message actions** — `quickActionResolver` analizuje treść → generuje do 5 akcji (ping, porty, SSH, browse, monitor, snapshot) ✅
 - [x] **Execute/Prefill/Link actions** — trzy tryby akcji: execute (natychmiast), prefill (wstaw do inputa), link (otwórz URL) ✅
-- [ ] **Wizard konfiguracyjny** — step-by-step setup: API key → model → podsieć → kamery
-- [ ] **Onboarding flow** — pierwszy start z interaktywnym tutorialem
+- [x] **Wizard konfiguracyjny** — step-by-step setup: API key → model → podsieć → kamery ✅ (`SetupWizardModal.tsx`)
+- [x] **Onboarding flow** — pierwszy start z interaktywnym tutorialem ✅ (auto-open wizard gdy brak API key)
 - [x] **Feedback na akcjach** — animacja sukcesu (green pulse + bounce checkmark 600ms) w `ChatConfigPrompt` dla buttons/cards/inline ✅
 - [ ] **Drag & drop reorder** — użytkownik sortuje ulubione akcje na ekranie powitalnym
-- [ ] **Keyboard shortcuts** — Ctrl+1..6 dla szybkich akcji z welcome screen
+- [x] **Keyboard shortcuts** — Ctrl+1..8 dla szybkich akcji z welcome screen ✅
 
 ### 🌐 Wieloplatformowość
 - [ ] **Android tablet/smartphone** - responsywny UI
@@ -71,7 +71,7 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [ ] **Synchronizacja** - między urządzeniami
 
 ### 📊 Analiza i Monitorowanie
-- [ ] **Dashboard urządzeń** - podsumowanie stanu sieci
+- [x] **Dashboard urządzeń** - podsumowanie stanu sieci ✅ (`DeviceDashboardModal.tsx`, filtr: kamery/online/offline)
 - [ ] **Alerty o zmianach** - automatyczne powiadomienia
 - [ ] **Statystyki użycia** - najczęściej używane funkcje
 - [ ] **Export danych** - CSV, JSON raporty

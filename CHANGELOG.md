@@ -1,3 +1,37 @@
+## [1.0.62] - 2026-02-23
+
+### Summary
+
+refactor(tests): configuration management system
+
+### Docs
+
+- docs: update INLINE_ACTION_HINTS_CAMERA.md
+- docs: update INLINE_ACTION_HINTS_DEMO.md
+- docs: update QUICK_START_NETWORK_SCANNING.md
+- docs: update README
+- docs: update TODO.md
+- docs: update README
+
+### Build
+
+- deps: update package.json
+
+### Other
+
+- update TODO/Cargo.toml
+- update TODO/broxeen.toml
+- update TODO/capture.rs
+- update TODO/database.rs
+- update TODO/detector.rs
+- update TODO/llm.rs
+- update TODO/main.rs
+- update TODO/motion.rs
+- update TODO/pipeline.rs
+- update TODO/src/contexts/PluginContext.tsx
+- ... and 42 more
+
+
 ## [1.0.61] - 2026-02-23
 
 ### Summary

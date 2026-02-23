@@ -3,6 +3,7 @@
 mod audio_capture;
 mod audio_commands;
 mod browse_rendered;
+mod motion_detection;
 mod content_cleaning;
 mod content_extraction;
 mod disk_info;
@@ -396,7 +397,7 @@ fn main() {
     }
 
     backend_info(
-        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network, file_search, file_read_content, email_send, email_poll_inbox, email_test_config, frigate_mqtt_start, frigate_mqtt_stop",
+        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network, file_search, file_read_content, email_send, email_poll_inbox, email_test_config, frigate_mqtt_start, frigate_mqtt_stop, motion_pipeline_start, motion_pipeline_stop, motion_pipeline_status, motion_pipeline_stats, motion_pipeline_detections",
     );
 
     let recording_state: SharedRecordingState = Arc::new(Mutex::new(audio_capture::RecordingState::new()));
@@ -458,6 +459,11 @@ fn main() {
             email::email_test_config,
             frigate_mqtt::frigate_mqtt_start,
             frigate_mqtt::frigate_mqtt_stop,
+            motion_detection::motion_pipeline_start,
+            motion_detection::motion_pipeline_stop,
+            motion_detection::motion_pipeline_status,
+            motion_detection::motion_pipeline_stats,
+            motion_detection::motion_pipeline_detections,
         ])
         .run(tauri::generate_context!())
     {

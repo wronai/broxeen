@@ -15,12 +15,12 @@ lines.push(`- "bridge rest GET http://${gatewayIp}" — Pobierz stronę routera`
 ### 2. Chat.tsx automatycznie parsuje i renderuje przyciski
 ```typescript
 // Pattern: - "komenda" — opis
-const hintPattern = /^-\s*"([^"]+)"(?:\s*[—–-]\s*(.+))?$/gm;
+const hintPattern = /^-\s*"([^"]+)"\s*[—–-]\s*(.+)$/gm;
 
-// Dla każdego dopasowania tworzy przycisk.
-// Jeśli komenda wygląda na szablon (HASŁO / PASSWORD / USER / USERNAME / NAZWA),
-// przycisk prefilluje input zamiast wykonywać od razu.
-// Maksymalnie renderuje 10 przycisków.
+// Dla każdego dopasowania tworzy przycisk:
+<button onClick={() => handleSubmit(hint.query)}>
+  ⚡ {hint.label}
+</button>
 ```
 
 ### 3. Użytkownik klika przycisk → komenda wykonuje się automatycznie
@@ -159,7 +159,7 @@ Zmiany będą automatycznie zgłaszane w tym czacie.
 
 ### Regex pattern:
 ```typescript
-/^-\s*"([^"]+)"(?:\s*[—–-]\s*(.+))?$/gm
+/^-\s*"([^"]+)"\s*[—–-]\s*(.+)$/gm
 ```
 
 ### Przykłady poprawnych formatów:

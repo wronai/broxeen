@@ -21,10 +21,6 @@ Po skanowaniu kamer wyniki pokazywały tylko tekst informacyjny, bez **klikalnyc
 
 Dodano sekcję **💡 Sugerowane akcje:** w formacie rozpoznawanym przez `Chat.tsx`, który automatycznie renderuje je jako klikalne przyciski.
 
-Od teraz `Chat.tsx`:
-- renderuje **przyciski** pod wiadomością,
-- oraz **nie pokazuje** surowej listy `- "..." — ...` w treści markdown (treść wiadomości jest ucinana w miejscu markera `Sugerowane akcje`).
-
 ### Format inline action hints
 
 ```markdown
@@ -34,13 +30,8 @@ Od teraz `Chat.tsx`:
 
 **Wzorzec regex w Chat.tsx:**
 ```typescript
-const hintPattern = /^-\s*"([^"]+)"(?:\s*[—–-]\s*(.+))?$/gm;
+const hintPattern = /^-\s*"([^"]+)"\s*[—–-]\s*(.+)$/gm;
 ```
-
-Uwagi:
-- opis po separatorze jest opcjonalny (gdy brak opisu, label = komenda)
-- maksymalnie renderuje się **10** przycisków
-- jeśli komenda wygląda na szablon (zawiera `HASŁO` / `PASSWORD` / `USER` / `USERNAME` / `NAZWA`), przycisk **prefilluje** input zamiast wykonywać od razu
 
 ## Implementacja
 
@@ -61,20 +52,12 @@ if (isCameraQuery && devicesToShow.length > 0) {
     const hasHttp = device.open_ports.includes(80) || device.open_ports.includes(8000);
     
     if (hasRtsp) {
-      content += `- "pokaż live ${device.ip}" — Podgląd na żywo z kamery\n`;
       content += `- "monitoruj ${device.ip}" — Rozpocznij monitoring kamery\n`;
-      content += `- "pokaż logi monitoringu ${device.ip}" — Logi zmian dla tej kamery\n`;
-      content += `- "stop monitoring ${device.ip}" — Zatrzymaj monitoring tej kamery\n`;
-      content += `- "ustaw próg zmian 10%" — Większa czułość (globalnie)\n`;
-      content += `- "zmień interwał co 10s" — Częstsze sprawdzanie (globalnie)\n`;
-      content += `- "jak działa monitoring" — Wyjaśnij pipeline i diagnostykę\n`;
-      content += `- "test streams ${device.ip} user:admin admin:HASŁO" — Sprawdź warianty RTSP\n`;
     }
     if (hasHttp) {
       const httpPort = device.open_ports.includes(80) ? 80 : 8000;
       content += `- "przeglądaj http://${device.ip}:${httpPort}" — Otwórz interfejs web\n`;
     }
-    content += `- "aktywne monitoringi" — Lista aktywnych monitoringów\n`;
     content += `- "skanuj porty ${device.ip}" — Zaawansowana analiza portów i producenta\n`;
   });
 }
@@ -93,16 +76,8 @@ if (isCameraQuery && devicesToShow.length > 0) {
    📷 RTSP: `rtsp://192.168.188.146:554/stream`
 
 💡 **Sugerowane akcje:**
-- "pokaż live 192.168.188.146" — Podgląd na żywo z kamery
 - "monitoruj 192.168.188.146" — Rozpocznij monitoring kamery
-- "pokaż logi monitoringu 192.168.188.146" — Logi zmian dla tej kamery
-- "stop monitoring 192.168.188.146" — Zatrzymaj monitoring tej kamery
-- "ustaw próg zmian 10%" — Większa czułość (globalnie)
-- "zmień interwał co 10s" — Częstsze sprawdzanie (globalnie)
-- "jak działa monitoring" — Wyjaśnij pipeline i diagnostykę
-- "test streams 192.168.188.146 user:admin admin:HASŁO" — Sprawdź warianty RTSP
 - "przeglądaj http://192.168.188.146:80" — Otwórz interfejs web
-- "aktywne monitoringi" — Lista aktywnych monitoringów
 - "skanuj porty 192.168.188.146" — Zaawansowana analiza portów i producenta
 ```
 
@@ -239,9 +214,9 @@ Znaleziono urządzeń: 5
 {msg.role === "assistant" && !msg.loading && (() => {
   const markers = [
     '💡 **Sugerowane akcje:**',
-    '💡 **Sugerowane akcje**:',
-    'Sugerowane akcje:',
-    'Sugerowane akcje',
+    '💡 **Komendy:**',
+    '💡 Komendy:',
+    '💡 Komendy'
   ];
 
   let markerIdx = -1;
@@ -260,7 +235,7 @@ Znaleziono urządzeń: 5
   const afterMarker = msg.text.slice(markerIdx + markerText.length);
   const section = afterMarker.split('\n').map((l) => l.trimEnd()).join('\n');
 
-  const hintPattern = /^-\s*"([^"]+)"(?:\s*[—–-]\s*(.+))?$/gm;
+  const hintPattern = /^-\s*"([^"]+)"\s*[—–-]\s*(.+)$/gm;
   const hints: Array<{ command: string; label: string }> = [];
   let match;
   while ((match = hintPattern.exec(section)) !== null) {
@@ -270,18 +245,25 @@ Znaleziono urządzeń: 5
   if (hints.length === 0) return null;
 
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      {/* button list */}
-    </div>
+    <ActionSuggestions
+      suggestions={hints}
+      onSelect={(cmd) => handleSubmit(cmd)}
+    />
   );
 })()}
 ```
 
 **Renderowane jako:**
-
-`Chat.tsx` renderuje pod wiadomością listę przycisków (np. `<button ...>`) dla każdego dopasowanego wiersza `- "..." — ...`.
-
-W treści markdown wiadomości surowa lista nie jest pokazywana (tekst jest ucinany w miejscu markera `Sugerowane akcje`).
+```tsx
+<ActionSuggestions
+  suggestions={[
+    { command: "monitoruj 192.168.188.146", label: "Rozpocznij monitoring kamery" },
+    { command: "przeglądaj http://192.168.188.146:80", label: "Otwórz interfejs web" },
+    { command: "skanuj porty 192.168.188.146", label: "Zaawansowana analiza portów i producenta" },
+  ]}
+  onSelect={(cmd) => handleSubmit(cmd)}
+/>
+```
 
 ## Integracja z innymi pluginami
 

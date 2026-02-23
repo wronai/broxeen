@@ -6,12 +6,16 @@ import {
   Volume2,
   VolumeX,
   Activity,
+  Settings as SettingsIcon,
+  Network,
 } from "lucide-react";
 import { CqrsProvider } from "./contexts/CqrsContext";
 import Chat from "./components/Chat";
 import MicSettingsModal from "./components/MicSettingsModal";
 import TtsSettingsModal from "./components/TtsSettingsModal";
 import DiagnosticsModal from "./components/DiagnosticsModal";
+import SetupWizardModal from "./components/SetupWizardModal";
+import DeviceDashboardModal from "./components/DeviceDashboardModal";
 import { HealthDiagnostic } from "./components/HealthDiagnostic";
 import { ErrorReportPanel } from "./components/ErrorReportPanel";
 import { useTts } from "./hooks/useTts";
@@ -25,14 +29,18 @@ import { isTauriRuntime } from "./lib/runtime";
 import { bootstrapApp, type AppContext } from "./core/bootstrap";
 import { PluginProvider } from "./contexts/pluginContext";
 import { ChatPersistenceBridge } from "./components/ChatPersistenceBridge";
+import { AlertBridgeComponent } from "./components/AlertBridgeComponent";
 import { DatabaseManagerContext } from "./hooks/useDatabaseManager";
 import { runQuickHealthCheck } from "./utils/healthCheck";
 import { errorReporting } from "./utils/errorReporting";
+import { configStore } from "./config/configStore";
 
 export default function App() {
   const [micSettingsOpen, setMicSettingsOpen] = useState(false);
   const [ttsSettingsOpen, setTtsSettingsOpen] = useState(false);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
+  const [setupWizardOpen, setSetupWizardOpen] = useState(false);
+  const [deviceDashboardOpen, setDeviceDashboardOpen] = useState(false);
   const [errorReportOpen, setErrorReportOpen] = useState(false);
   const [settings, setSettings] = useState<AudioSettings>(
     DEFAULT_AUDIO_SETTINGS,
@@ -153,6 +161,12 @@ export default function App() {
     loadVoices();
     if (window.speechSynthesis) {
       window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    // First-run onboarding: open setup wizard if no API key configured
+    if (!configStore.get<string>("llm.apiKey")) {
+      startupLogger.info("No API key found — opening setup wizard for first-run onboarding");
+      setSetupWizardOpen(true);
     }
 
     const hasSpeechRecognition =
@@ -404,6 +418,15 @@ export default function App() {
             </span>
           </button>
 
+          {/* Devices dashboard button */}
+          <button
+            onClick={() => setDeviceDashboardOpen(true)}
+            className="flex items-center justify-center rounded-lg bg-gray-800 px-2.5 py-2 text-gray-400 transition hover:bg-gray-700 hover:text-white"
+            title="Urządzenia w sieci"
+          >
+            <Network size={16} />
+          </button>
+
           {/* Diagnostics button */}
           <button
             onClick={() => setDiagnosticsOpen(true)}
@@ -411,6 +434,15 @@ export default function App() {
             title="Diagnostyka"
           >
             <Activity size={16} />
+          </button>
+
+          {/* Setup wizard / settings button */}
+          <button
+            onClick={() => setSetupWizardOpen(true)}
+            className="flex items-center justify-center rounded-lg bg-gray-800 px-2.5 py-2 text-gray-400 transition hover:bg-gray-700 hover:text-white"
+            title="Konfiguracja"
+          >
+            <SettingsIcon size={16} />
           </button>
         </div>
       </header>
@@ -421,6 +453,7 @@ export default function App() {
           <PluginProvider context={appCtx}>
             <DatabaseManagerContext.Provider value={appCtx.databaseManager}>
               <ChatPersistenceBridge databaseManager={appCtx.databaseManager} />
+              <AlertBridgeComponent autoScanScheduler={appCtx.autoScanScheduler} />
               <main className="flex-1 overflow-hidden">
                 <Chat settings={settings} />
               </main>
@@ -460,6 +493,19 @@ export default function App() {
         isOpen={diagnosticsOpen}
         onClose={() => setDiagnosticsOpen(false)}
         settings={settings}
+      />
+
+      {/* Setup wizard modal */}
+      <SetupWizardModal
+        isOpen={setupWizardOpen}
+        onClose={() => setSetupWizardOpen(false)}
+      />
+
+      {/* Device dashboard modal */}
+      <DeviceDashboardModal
+        isOpen={deviceDashboardOpen}
+        onClose={() => setDeviceDashboardOpen(false)}
+        databaseManager={appCtx?.databaseManager ?? null}
       />
 
       {/* Health diagnostic */}

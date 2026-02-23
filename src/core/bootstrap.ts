@@ -79,6 +79,7 @@ export async function bootstrapApp(config: {
     intentRouter,
     commandBus,
     databaseManager: dbManager,
+    autoScanScheduler: autoScanSchedulerInstance,
     dispose: async () => {
       console.log('🧹 Disposing plugin system...');
       autoScanSchedulerInstance?.stop();
@@ -217,6 +218,15 @@ async function registerCorePlugins(
       const { FrigateEventsPlugin } = await import('../plugins/frigate/frigateEventsPlugin');
       safeRegister(registry, router, new FrigateEventsPlugin(), 'FrigateEventsPlugin');
     } catch (e) { console.warn('FrigateEventsPlugin unavailable:', e); }
+  }
+
+  // ── Motion Detection Pipeline plugin (Tauri only) ───────────────
+
+  if (isTauri) {
+    try {
+      const { MotionDetectionPlugin } = await import('../plugins/monitor/motionDetectionPlugin');
+      safeRegister(registry, router, new MotionDetectionPlugin(), 'MotionDetectionPlugin');
+    } catch (e) { console.warn('MotionDetectionPlugin unavailable:', e); }
   }
 
   try {

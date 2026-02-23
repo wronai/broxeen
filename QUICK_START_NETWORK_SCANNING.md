@@ -62,6 +62,26 @@ stop monitoring 192.168.0.100
 pokaż logi monitoringu 192.168.0.100
 ```
 
+### 4. Status i filtrowanie urządzeń (Tauri + SQLite)
+
+Jeśli aplikacja działa w trybie desktop (Tauri) i masz włączoną persystencję urządzeń w SQLite, możesz wyświetlić listę znanych urządzeń oraz filtrować je po typie.
+
+**Status / lista urządzeń:**
+```
+status urządzeń
+lista urządzeń
+znane urządzenia
+pokaż urządzenia
+```
+
+**Filtrowanie po typie:**
+```
+tylko kamery
+tylko routery
+tylko drukarki
+filtruj urządzenia
+```
+
 ## 💡 Inline Action Hints - Jak działają?
 
 ### Automatyczne sugestie
