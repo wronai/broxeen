@@ -81,6 +81,14 @@ describe('IntentRouter', () => {
     expect(result.confidence).toBeGreaterThan(0.5);
   });
 
+  it('should detect monitor conflict resolution command as monitor:start', async () => {
+    const r1 = await router.detect('zachowaj monitoring cd_1771855535008_dddi9s');
+    expect(r1.intent).toBe('monitor:start');
+
+    const r2 = await router.detect('zachowaj monitoring cd_1771855535008_dddi9s:');
+    expect(r2.intent).toBe('monitor:start');
+  });
+
   it('should fallback to chat intent for unknown input', async () => {
     const result = await router.detect('random text that does not match anything');
     
