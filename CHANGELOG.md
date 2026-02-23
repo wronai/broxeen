@@ -1,3 +1,15 @@
+## [1.0.50] - 2026-02-23
+
+### Summary
+
+feat(src-tauri): core module improvements
+
+### Other
+
+- update src-tauri/src/file_search.rs
+- update src/components/Chat.tsx
+
+
 ## [1.0.49] - 2026-02-23
 
 ### Summary

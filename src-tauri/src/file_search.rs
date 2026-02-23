@@ -119,7 +119,7 @@ fn is_text_file(ext: &str) -> bool {
 fn format_time(time: SystemTime) -> Option<String> {
     let duration = time.duration_since(SystemTime::UNIX_EPOCH).ok()?;
     let secs = duration.as_secs();
-    let dt = chrono::NaiveDateTime::from_timestamp_opt(secs as i64, 0)?;
+    let dt = chrono::DateTime::from_timestamp(secs as i64, 0)?;
     Some(dt.format("%Y-%m-%d %H:%M:%S").to_string())
 }
 
