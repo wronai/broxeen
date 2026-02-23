@@ -561,6 +561,7 @@ export default function Chat({ settings }: ChatProps) {
 
   // Auto-listen fallback for STT (Tauri/native capture or MediaRecorder mode).
   // When Web Speech API is not available, keep recording and auto-stop on silence.
+  // Disabled when wake word is enabled to avoid conflicts.
   useEffect(() => {
     const runtimeIsTauri = isTauriRuntime();
 
@@ -568,7 +569,8 @@ export default function Chat({ settings }: ChatProps) {
       settings.mic_enabled &&
       settings.auto_listen &&
       !shouldUseWebSpeech &&
-      stt.isSupported;
+      stt.isSupported &&
+      !wakeWordEnabled;
 
     if (!shouldRun) {
       if (sttAutoListenTimerRef.current !== null) {
@@ -663,6 +665,7 @@ export default function Chat({ settings }: ChatProps) {
     stt.startRecording,
     stt.stopRecording,
     chatLogger,
+    wakeWordEnabled,
   ]);
 
   useEffect(() => {
@@ -784,11 +787,13 @@ export default function Chat({ settings }: ChatProps) {
           if (!stt.isRecording && !stt.isTranscribing) {
             chatLogger.info("Auto-starting STT after wake word detection");
             try {
+              wakeWordTriggeredSttRef.current = true;
               stt.startRecording();
               // Add visual feedback
               appendStatusNotice("wake_word", "🎤 'Heyken' wykryte - słucham...");
             } catch (e) {
               chatLogger.warn("Failed to auto-start STT after wake word", { error: e });
+              wakeWordTriggeredSttRef.current = false;
             }
           }
         });
@@ -828,22 +833,27 @@ export default function Chat({ settings }: ChatProps) {
     }
   }, [input]);
 
+  // Ref to track wake word running state (declared before useEffects that use it)
+  const wakeWordRunningRef = useRef(false);
+  const wakeWordTriggeredSttRef = useRef(false);
+
   // Start/stop wake word listening based on toggle
   useEffect(() => {
-    if (!isTauriRuntime()) return;
+    if (!isTauriRuntime()) {
+      wakeWordRunningRef.current = false;
+      return;
+    }
     if (!wakeWordEnabled) {
       // Stop wake word listening
       invoke("wake_word_stop").catch((err) => {
         chatLogger.debug("Failed to stop wake word listening", { error: err });
       });
+      wakeWordRunningRef.current = false;
       return;
     }
     if (!settings.mic_enabled) {
       chatLogger.warn("Cannot enable wake word: microphone disabled in settings");
-      return;
-    }
-    if (!stt.isSupported) {
-      chatLogger.warn("Cannot enable wake word: STT not supported");
+      wakeWordRunningRef.current = false;
       return;
     }
 
@@ -852,17 +862,54 @@ export default function Chat({ settings }: ChatProps) {
     invoke("wake_word_start")
       .then(() => {
         chatLogger.info("Wake word listening started successfully");
+        wakeWordRunningRef.current = true;
         appendStatusNotice("wake_word", "🔊 Nasłuchiwanie 'heyken' aktywne");
       })
       .catch((err) => {
         chatLogger.error("Failed to start wake word listening", { error: err });
+        wakeWordRunningRef.current = false;
         setWakeWordEnabled(false);
       });
 
     return () => {
       invoke("wake_word_stop").catch(() => {});
+      wakeWordRunningRef.current = false;
     };
-  }, [wakeWordEnabled, settings.mic_enabled, stt.isSupported, chatLogger, appendStatusNotice]);
+  }, [wakeWordEnabled, settings.mic_enabled, chatLogger, appendStatusNotice]);
+
+  // Stop wake word when wake-word-triggered STT starts, restart when it finishes
+  useEffect(() => {
+    if (!isTauriRuntime() || !wakeWordEnabled) {
+      return;
+    }
+
+    // Only manage wake word for wake-word-triggered STT sessions
+    if (!wakeWordTriggeredSttRef.current) {
+      return;
+    }
+
+    if (stt.isRecording || stt.isTranscribing) {
+      // Keep wake word stopped while STT is active
+      if (wakeWordRunningRef.current) {
+        chatLogger.debug("Pausing wake word during wake-word-triggered STT");
+        invoke("wake_word_stop").catch(() => {});
+        wakeWordRunningRef.current = false;
+      }
+    } else {
+      // STT finished - restart wake word and clear flag
+      chatLogger.debug("Resuming wake word after wake-word-triggered STT completed");
+      wakeWordTriggeredSttRef.current = false;
+      if (!wakeWordRunningRef.current) {
+        invoke("wake_word_start")
+          .then(() => {
+            wakeWordRunningRef.current = true;
+          })
+          .catch((err) => {
+            chatLogger.warn("Failed to restart wake word after STT", { error: err });
+          });
+      }
+    }
+  }, [stt.isRecording, stt.isTranscribing, wakeWordEnabled, chatLogger]);
 
   useEffect(() => {
     if (!inputFocused) {

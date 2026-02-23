@@ -23,7 +23,7 @@ pub async fn transcribe_wav_base64(
         return Err("OPENROUTER_API_KEY not set — STT requires cloud transcription".into());
     }
 
-    let default_model = env::var("STT_MODEL").unwrap_or_else(|_| env::var("VITE_STT_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string()));
+    let default_model = env::var("STT_MODEL").unwrap_or_else(|_| env::var("VITE_STT_MODEL").unwrap_or_else(|_| "openai/whisper-1".to_string()));
     let model = model_override
         .map(|s| s.trim().to_string())
         .filter(|value| !value.is_empty())
@@ -90,7 +90,52 @@ pub async fn transcribe_wav_base64(
         return Err("STT: pusty wynik transkrypcji (za cicho?)".into());
     }
 
-    println!("[stt] Result: \"{text}\"");
+    // Hallucination detection - reject obvious LLM hallucinations
+    let words: Vec<&str> = text.split_whitespace().collect();
+    let total_words = words.len();
+    
+    // Check 1: If response is very long (>100 words) for typical voice command, likely hallucination
+    if total_words > 100 {
+        // Check for repetitive patterns (same word repeated many times)
+        let mut word_counts = std::collections::HashMap::new();
+        for word in &words {
+            let normalized = word.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "");
+            if !normalized.is_empty() {
+                *word_counts.entry(normalized).or_insert(0) += 1;
+            }
+        }
+        
+        // Find most common word
+        if let Some((most_common, count)) = word_counts.iter().max_by_key(|(_, count)| *count) {
+            // If same word appears >30 times or >40% of text, it's likely hallucination
+            if *count > 30 || (*count as f32 / total_words as f32) > 0.4 {
+                return Err(format!(
+                    "STT: wykryto halucynację (słowo '{}' powtórzone {} razy z {} słów)",
+                    most_common, count, total_words
+                ));
+            }
+        }
+        
+        // Check 2: Generic essay patterns that indicate model made up content
+        let generic_starts = [
+            "w dzisiejszych czasach",
+            "w dzisiejszym świecie", 
+            "w dzisiejszym materiale",
+            "kamera może przyjąć",
+            "technologia stale się rozwija",
+        ];
+        let lower_text = text.to_lowercase();
+        for pattern in &generic_starts {
+            if lower_text.starts_with(pattern) && total_words > 50 {
+                return Err(format!(
+                    "STT: wykryto halucynację (generyczny tekst nie związany z mową, {} słów)",
+                    total_words
+                ));
+            }
+        }
+    }
+
+    println!("[stt] Result: \"{}\"", text.chars().take(100).collect::<String>());
     Ok(text)
 }
 
