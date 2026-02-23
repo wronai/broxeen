@@ -115,6 +115,10 @@ export class MonitorPlugin implements Plugin {
       /obserwuj/i.test(lower) ||
       /śledź/i.test(lower) ||
       /sledz/i.test(lower) ||
+      /w[łl]ącz.*monitor/i.test(lower) ||
+      /wlacz.*monitor/i.test(lower) ||
+      /wy[łl]ącz.*monitor/i.test(lower) ||
+      /wylacz.*monitor/i.test(lower) ||
       /\b(?:zachowaj|wybierz)\s+monitoring\s+cd_[a-z0-9_]+\b/i.test(lower) ||
       /stop.*monitor/i.test(lower) ||
       /zatrzymaj.*monitor/i.test(lower) ||
@@ -151,6 +155,11 @@ export class MonitorPlugin implements Plugin {
       return await this.handleResolveDbConflict(resolveMatch[1], context, start);
     }
 
+    const toggle = this.parseToggleMonitoring(input);
+    if (toggle) {
+      return await this.handleToggleMonitoring(toggle.action, toggle.identifier, context, start);
+    }
+
     if (/stop.*monitor|zatrzymaj.*monitor|przestań.*monitor|przestan.*monitor/i.test(lower)) {
       return await this.handleStop(input, start);
     }
@@ -169,6 +178,130 @@ export class MonitorPlugin implements Plugin {
 
     // Default: start monitoring
     return this.handleStart(input, context, start);
+  }
+
+  private parseToggleMonitoring(input: string): { action: 'enable' | 'disable'; identifier: string } | null {
+    const m = input.match(/\b(w[łl]ącz|wlacz|wy[łl]ącz|wylacz)\s+monitor(?:ing)?\s+(.+)$/i);
+    if (!m) return null;
+    const verb = m[1].toLowerCase();
+    const rest = (m[2] ?? '').trim();
+    if (!rest) return null;
+    const action: 'enable' | 'disable' = verb.startsWith('wy') || verb.startsWith('wyl') ? 'disable' : 'enable';
+    return { action, identifier: rest };
+  }
+
+  private async handleToggleMonitoring(
+    action: 'enable' | 'disable',
+    identifier: string,
+    context: PluginContext,
+    start: number,
+  ): Promise<PluginResult> {
+    if (!this.configuredDeviceRepo) {
+      return this.errorResult('Baza danych nie jest dostępna — nie mogę zmienić monitoringu.', start);
+    }
+
+    const idMatch = identifier.match(/\b(cd_[a-z0-9_]+)\b/i);
+    const ipMatch = identifier.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
+    const id = idMatch?.[1];
+    const ip = ipMatch?.[0];
+    const label = identifier.trim();
+
+    let device: ConfiguredDevice | null = null;
+    if (id) device = await this.configuredDeviceRepo.getById(id);
+    if (!device && ip) device = await this.configuredDeviceRepo.getByIp(ip);
+    if (!device && label) {
+      const all = await this.configuredDeviceRepo.listAll();
+      device =
+        all.find((d) => d.label.toLowerCase() === label.toLowerCase()) ??
+        all.find((d) => d.label.toLowerCase().includes(label.toLowerCase()));
+    }
+
+    if (!device) {
+      return this.errorResult(`Nie znaleziono urządzenia w bazie: **${identifier}**`, start);
+    }
+
+    const targetId = `camera-${device.ip}`;
+
+    if (action === 'disable') {
+      const existingTarget = this.targets.get(targetId);
+      if (existingTarget) {
+        const timer = this.timers.get(existingTarget.id);
+        if (timer) clearInterval(timer);
+        this.timers.delete(existingTarget.id);
+        existingTarget.active = false;
+        this.targets.delete(existingTarget.id);
+        processRegistry.remove(`monitor:${existingTarget.id}`);
+      }
+
+      await this.configuredDeviceRepo.setMonitorEnabled(device.id, false);
+
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{
+          type: 'text',
+          data: `⏹️ **Wyłączono monitoring:** **${device.label}** (IP: \`${device.ip}\`, id: \`${device.id}\`)`,
+          title: 'Monitoring: wyłączono',
+        }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    // enable
+    await this.configuredDeviceRepo.setMonitorEnabled(device.id, true);
+
+    if (!this.targets.has(targetId)) {
+      const startedAt = Date.now();
+      const target: MonitorTarget = {
+        id: targetId,
+        configuredDeviceId: device.id,
+        type: device.device_type === 'camera' ? 'camera' : 'device',
+        name: device.label,
+        address: device.ip,
+        intervalMs: device.monitor_interval_ms,
+        threshold: 0.1,
+        active: true,
+        startedAt,
+        changeCount: 0,
+        logs: [{
+          timestamp: startedAt,
+          type: 'start',
+          message: `Rozpoczęto monitoring (włączono): ${device.label}`,
+        }],
+        rtspUrl: device.rtsp_url || undefined,
+        httpUrl: device.http_url || undefined,
+        rtspUsername: device.username || undefined,
+        rtspPassword: device.password || undefined,
+        snapshotUrl: device.http_url || undefined,
+      };
+
+      this.targets.set(target.id, target);
+      processRegistry.upsertRunning({
+        id: `monitor:${target.id}`,
+        type: 'monitor',
+        label: `Monitoring: ${target.name}`,
+        pluginId: this.id,
+        stopCommand: `stop monitoring ${target.name}`,
+      });
+
+      const timer = setInterval(() => {
+        this.poll(target, context);
+      }, target.intervalMs);
+      this.timers.set(target.id, timer);
+    }
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{
+        type: 'text',
+        data:
+          `✅ **Włączono monitoring:** **${device.label}** (IP: \`${device.ip}\`, id: \`${device.id}\`)\n` +
+          `⏱️ Interwał: co ${Math.round(device.monitor_interval_ms / 1000)}s`,
+        title: 'Monitoring: włączono',
+      }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
   }
 
   // ── Start Monitoring ────────────────────────────────────

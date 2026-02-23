@@ -4,7 +4,7 @@
 /// macOS:  ~/Library/LaunchAgents/com.broxeen.app.plist  (future)
 /// Windows: HKCU\Software\Microsoft\Windows\CurrentVersion\Run (future)
 
-use crate::logging::{backend_info, backend_warn, backend_error};
+use crate::logging::{backend_info, backend_error};
 use std::fs;
 use std::path::PathBuf;
 
