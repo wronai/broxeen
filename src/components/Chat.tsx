@@ -1475,12 +1475,108 @@ ${analysis}`,
         processRegistry.complete(processId);
         processRegistry.remove(processId);
       } else {
-        // Handle error case — also clear thinking message
+        // Clear thinking message on error
         eventStore.append({
           type: "message_updated",
           payload: { id: thinkingId, updates: { type: "content", text: "", thinkingInfo: undefined } },
         });
+
         const errorMessage = (result.content[0]?.data as string) ?? "Wystąpił błąd podczas przetwarzania zapytania.";
+        const looksLikeMissingCommand = /\bcommand\b.*\bnot found\b/i.test(errorMessage)
+          || /\bno handler registered\b/i.test(errorMessage)
+          || /\bhandler\b.*\bnot found\b/i.test(errorMessage);
+
+        if (looksLikeMissingCommand) {
+          try {
+            const { generateFallback } = await import('../core/fallbackHandler');
+            const fallback = await generateFallback({
+              query: `${query}\n\nBłąd: ${errorMessage}`,
+              detectedIntent: 'system:error',
+              scope: currentScope,
+            });
+
+            eventStore.append({
+              type: "message_added",
+              payload: {
+                id: nextMessageId(),
+                role: "assistant",
+                text: `⚠️ ${errorMessage}\n\n${fallback.text}`,
+                type: "config_prompt",
+                configPrompt: fallback.configPrompt,
+              },
+            });
+          } catch {
+            eventStore.append({
+              type: "message_added",
+              payload: {
+                id: nextMessageId(),
+                role: "assistant",
+                text: errorMessage,
+                type: "error",
+              },
+            });
+          }
+        } else {
+          eventStore.append({
+            type: "message_added",
+            payload: {
+              id: nextMessageId(),
+              role: "assistant",
+              text: errorMessage,
+              type: "error",
+            },
+          });
+        }
+
+        // Add to command history
+        addToCommandHistory(query, errorMessage, categorizeCommand(query), false);
+
+        processRegistry.fail(processId, errorMessage);
+        processRegistry.remove(processId);
+      }
+    } catch (error) {
+      // Clear thinking message on error
+      eventStore.append({
+        type: "message_updated",
+        payload: { id: thinkingId, updates: { type: "content", text: "", thinkingInfo: undefined } },
+      });
+
+      const errorMessage = (error as any)?.message ?? "Wystąpił błąd podczas przetwarzania zapytania.";
+      const looksLikeMissingCommand = /\bcommand\b.*\bnot found\b/i.test(errorMessage)
+        || /\bno handler registered\b/i.test(errorMessage)
+        || /\bhandler\b.*\bnot found\b/i.test(errorMessage);
+
+      if (looksLikeMissingCommand) {
+        try {
+          const { generateFallback } = await import('../core/fallbackHandler');
+          const fallback = await generateFallback({
+            query: `${query}\n\nBłąd: ${errorMessage}`,
+            detectedIntent: 'system:error',
+            scope: currentScope,
+          });
+
+          eventStore.append({
+            type: "message_added",
+            payload: {
+              id: nextMessageId(),
+              role: "assistant",
+              text: `⚠️ ${errorMessage}\n\n${fallback.text}`,
+              type: "config_prompt",
+              configPrompt: fallback.configPrompt,
+            },
+          });
+        } catch {
+          eventStore.append({
+            type: "message_added",
+            payload: {
+              id: nextMessageId(),
+              role: "assistant",
+              text: errorMessage,
+              type: "error",
+            },
+          });
+        }
+      } else {
         eventStore.append({
           type: "message_added",
           payload: {
@@ -1490,40 +1586,15 @@ ${analysis}`,
             type: "error",
           },
         });
-        
-        // Add to command history
-        addToCommandHistory(query, errorMessage, categorizeCommand(query), false);
-
-        processRegistry.fail(processId, errorMessage);
-        processRegistry.remove(processId);
       }
-    } catch (error) {
-      chatLogger.error("Plugin system execution failed", error);
 
-      // Clear thinking message on error
-      eventStore.append({
-        type: "message_updated",
-        payload: { id: thinkingId, updates: { type: "content", text: "", thinkingInfo: undefined } },
-      });
-      
-      // Show error message instead of fallback to suggestions
-      eventStore.append({
-        type: "message_added",
-        payload: {
-          id: nextMessageId(),
-          role: "assistant",
-          text: `Wystąpił błąd podczas przetwarzania zapytania przez system pluginów: ${error instanceof Error ? error.message : 'Nieznany błąd'}`,
-          type: "error",
-        },
-      });
-      
       // Add to command history
-      addToCommandHistory(query, "Błąd systemu pluginów", categorizeCommand(query), false);
+      addToCommandHistory(query, errorMessage, categorizeCommand(query), false);
 
-      const msg = error instanceof Error ? error.message : 'Nieznany błąd';
-      processRegistry.fail(processId, msg);
+      processRegistry.fail(processId, errorMessage);
       processRegistry.remove(processId);
     }
+
   };
 
   const handleLlmQuestion = async (question: string) => {

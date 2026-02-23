@@ -30,14 +30,24 @@ export class NetworkScanPlugin implements Plugin {
       'znajdź kamery', 'znajdź kamerę', 'wyszukaj kamery', 'wyszukaj kamerę',
       'kamery w sieci', 'kamera w sieci', 'discover cameras', 'find cameras'
     ];
+
+    const raspberryPiKeywords = [
+      'znajdź rpi',
+      'znajdz rpi',
+      'raspberry pi',
+      'raspberry',
+      'rpi',
+    ];
     
     return scanKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           cameraKeywords.some(keyword => lowerInput.includes(keyword));
+           cameraKeywords.some(keyword => lowerInput.includes(keyword)) ||
+           raspberryPiKeywords.some(keyword => lowerInput.includes(keyword));
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
     const isCameraQuery = input.toLowerCase().includes('kamer') || input.toLowerCase().includes('camera');
+    const isRaspberryPiQuery = /\b(rpi|raspberry)\b/i.test(input);
     const scanId = `scan:${Date.now()}`;
     const scanLabel = isCameraQuery ? 'Skanowanie kamer' : 'Skanowanie sieci';
 
@@ -80,8 +90,12 @@ export class NetworkScanPlugin implements Plugin {
             status: 'success',
             content: [{
               type: 'text',
-              data: this.formatScanResult(result, isCameraQuery),
-              title: isCameraQuery ? 'Wyniki wyszukiwania kamer' : 'Wyniki skanowania sieci',
+              data: isRaspberryPiQuery
+                ? this.formatRaspberryPiResult(result)
+                : this.formatScanResult(result, isCameraQuery),
+              title: isRaspberryPiQuery
+                ? 'Urządzenia Raspberry Pi'
+                : (isCameraQuery ? 'Wyniki wyszukiwania kamer' : 'Wyniki skanowania sieci'),
             }],
             metadata: {
               duration_ms: Date.now() - start,
@@ -353,19 +367,28 @@ export class NetworkScanPlugin implements Plugin {
             detectionMethod: `Tauri (${ifaceName})`,
           };
         } else {
-          // Multiple interfaces - ask user which one to use
-          console.log(`[NetworkScanPlugin] Multiple interfaces detected, prompting user...`);
-          
-          // Store interfaces for user selection
-          (this as any)._pendingInterfaces = interfaces;
-          
-          // Return special result that triggers user prompt
+          // Multiple interfaces - auto select the best one (do not prompt)
+          const best = this.pickBestInterface(interfaces);
+          if (best) {
+            const [ifaceName, ip] = best;
+            const subnet = ip.split('.').slice(0, 3).join('.');
+            console.log(`[NetworkScanPlugin] ✅ Tauri auto-selected interface: IP=${ip}, subnet=${subnet}, interface=${ifaceName}`);
+            return {
+              localIp: ip,
+              subnet,
+              detectionMethod: `Tauri (${ifaceName})`,
+            };
+          }
+
+          // If we cannot decide (should be rare), fall back to first interface
+          const [ifaceName, ip] = interfaces[0];
+          const subnet = ip.split('.').slice(0, 3).join('.');
+          console.warn(`[NetworkScanPlugin] ⚠️ Could not auto-select interface, falling back to first: IP=${ip}, interface=${ifaceName}`);
           return {
-            localIp: null,
-            subnet: '',
-            detectionMethod: 'user-selection-required',
-            interfaces, // Pass interfaces for UI to display
-          } as any;
+            localIp: ip,
+            subnet,
+            detectionMethod: `Tauri (${ifaceName})`,
+          };
         }
       } catch (err) {
         console.warn(`[NetworkScanPlugin] ⚠️ Tauri network detection failed:`, err);
@@ -543,6 +566,72 @@ export class NetworkScanPlugin implements Plugin {
     return ip.startsWith('192.168.') ||
       ip.startsWith('10.') ||
       /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+  }
+
+  private isValidCandidateIp(ip: string): boolean {
+    if (!ip) return false;
+    if (ip.startsWith('127.')) return false;
+    if (ip.startsWith('169.254.')) return false;
+    return this.isPrivateIp(ip);
+  }
+
+  private interfaceScore(ifaceName: string, ip: string): number {
+    let score = 0;
+    if (this.isValidCandidateIp(ip)) score += 100;
+
+    // Prefer common LAN ranges
+    if (ip.startsWith('192.168.')) score += 30;
+    else if (ip.startsWith('10.')) score += 20;
+    else if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) score += 10;
+
+    // Prefer physical/WiFi interfaces over tunnels/containers
+    const n = (ifaceName || '').toLowerCase();
+    if (/^(en|eth|eno|enp)/.test(n)) score += 15;
+    if (/^(wl|wlan|wlp)/.test(n)) score += 12;
+    if (/docker|br-|veth|virbr|vmnet|tun|tap|wg|tailscale|zt|ham|lo/.test(n)) score -= 25;
+
+    return score;
+  }
+
+  private pickBestInterface(interfaces: Array<[string, string]>): [string, string] | null {
+    const scored = interfaces
+      .map(([name, ip]) => ({ name, ip, score: this.interfaceScore(name, ip) }))
+      .sort((a, b) => b.score - a.score);
+
+    const best = scored[0];
+    if (!best) return null;
+    if (best.score <= 0) return null;
+    return [best.name, best.ip];
+  }
+
+  private formatRaspberryPiResult(result: NetworkScanResult): string {
+    const devices = (result.devices || []).filter((d) => {
+      const vendor = (d.vendor || '').toLowerCase();
+      const hostname = (d.hostname || '').toLowerCase();
+      return vendor.includes('raspberry') || hostname.includes('raspberry') || hostname.includes('rpi');
+    });
+
+    let content = `🥧 **Wyszukiwanie Raspberry Pi zakończone**\n\n`;
+    content += `Metoda: ${result.scan_method}\n`;
+    content += `Czas trwania: ${result.scan_duration}ms\n`;
+    content += `Znaleziono urządzeń: ${devices.length}\n\n`;
+
+    if (devices.length === 0) {
+      content += 'Nie wykryto urządzeń Raspberry Pi (po polu vendor/hostname).\n';
+      content += '💡 Jeśli jesteś w aplikacji desktopowej, spróbuj: "skanuj sieć" i sprawdź listę vendor/MAC.\n';
+      return content;
+    }
+
+    devices.forEach((device, index) => {
+      content += `${index + 1}. **${device.ip}**\n`;
+      if (device.hostname) content += `   Hostname: ${device.hostname}\n`;
+      if (device.mac) content += `   MAC: \`${device.mac}\`\n`;
+      if (device.vendor) content += `   Producent: ${device.vendor}\n`;
+      if (device.open_ports.length > 0) content += `   Porty: ${device.open_ports.join(', ')}\n`;
+      content += `   RTT: ${device.response_time}ms\n\n`;
+    });
+
+    return content;
   }
 
   private formatScanResult(result: NetworkScanResult, isCameraQuery = false): string {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Lightbulb, Sparkles, Target, Wifi, Camera, Search, Globe, Brain, TrendingUp, Clock, ArrowRight } from 'lucide-react';
+import { Lightbulb, Sparkles, Target, Wifi, Camera, Search, Globe, Brain, TrendingUp, Clock, ArrowRight, FileText } from 'lucide-react';
 
 interface ActionSuggestion {
   id: string;
@@ -7,7 +7,7 @@ interface ActionSuggestion {
   description: string;
   icon: React.ReactNode;
   query: string;
-  category: 'network' | 'browse' | 'camera' | 'search' | 'general' | 'smart' | 'contextual';
+  category: 'network' | 'browse' | 'camera' | 'search' | 'general' | 'smart' | 'contextual' | 'file';
   priority: number;
   usageCount?: number;
   isFavorite?: boolean;

@@ -35,6 +35,27 @@ function getLocalIp() {
 }
 const subnet = ip => ip ? ip.split('.').slice(0, 3).join('.') : '192.168.1';
 
+function getLocalCidrs() {
+  if (tools.ip) {
+    const out = run('ip -4 -o addr show scope global');
+    if (out) {
+      const cidrs = out.split('\n')
+        .map((line) => {
+          const m = line.match(/\binet\s+(\d+\.\d+\.\d+\.\d+\/\d+)/);
+          return m?.[1] || null;
+        })
+        .filter(Boolean);
+
+      const uniq = [...new Set(cidrs)];
+      if (uniq.length) return uniq;
+    }
+  }
+
+  const ip = getLocalIp();
+  if (!ip) return [];
+  return [`${subnet(ip)}.0/24`];
+}
+
 // ── Available tools ───────────────────────────────────────────────────────────
 const tools = {
   nmap: hasCmd('nmap'),
@@ -51,9 +72,16 @@ const INTENTS = [
   { name: 'network:arp',       re: /\barp\b|mac\s+address|lista\s+urządzeń/i },
   { name: 'network:mdns',      re: /\bmdns\b|\bbonjour\b|usługi\s+w\s+sieci/i },
   { name: 'camera:onvif',      re: /\bonvif\b|kamery\s+ip/i },
+  { name: 'network:find-rpi',  re: /znajd[źz]\s+rpi|raspberry\s*pi|\brpi\b/i },
   { name: 'network:scan',      re: /skanuj\s+sieć|scan\s+net|pokaż\s+kamery|kamery\s+w\s+sieci|urządzenia\s+w\s+sieci|znajdź\s+urządzenia/i },
   { name: 'browse:url',        re: /https?:\/\/\S+/i },
   { name: 'system:processes',  re: /^procesy\b|^processes\b|^stop\s+proc|^zatrzymaj\s+proc/i },
+  { name: 'monitor:list',      re: /aktywne\s+monitor|lista\s+monitor|monitor.*list/i },
+  { name: 'monitor:logs',      re: /logi\s+monitor|pokaż\s+logi|monitor.*log/i },
+  { name: 'monitor:config',    re: /(?:zmien|zmień|ustaw).*(?:interwał|interwal|próg|prog)/i },
+  { name: 'frigate:status',    re: /frigate\s+status|status\s+frigate|stan\s+frigate/i },
+  { name: 'frigate:start',     re: /frigate\s+start|uruchom\s+frigate/i },
+  { name: 'frigate:stop',      re: /frigate\s+stop|zatrzymaj\s+frigate/i },
 ];
 function detectIntent(q) {
   for (const { name, re } of INTENTS) if (re.test(q)) return name;
@@ -87,6 +115,74 @@ function parseNmapHosts(out) {
     const hasCam = ports.some(p => [554, 8554].includes(p));
     return { ip, ports, hasCam };
   });
+}
+
+function handleFindRpi(q) {
+  const cidrs = getLocalCidrs();
+  const lines = [
+    '🥧 **Znajdź Raspberry Pi w sieci** *(tryb systemowy)*',
+    'Skanuję sieć lokalną w poszukiwaniu urządzeń Raspberry Pi na podstawie wpisów MAC/vendor z nmap.',
+    '',
+    cidrs.length ? `🌐 Zakres(y): ${cidrs.join(', ')}` : '🌐 Zakres(y): (nie wykryto)',
+    '',
+  ];
+
+  if (!cidrs.length) {
+    lines.push('❌ Nie udało się wykryć podsieci.');
+    lines.push('💡 Uruchom w systemie: `ip -4 a` i sprawdź adres IPv4 interfejsu LAN.');
+    return lines.join('\n');
+  }
+
+  if (!tools.nmap) {
+    lines.push('❌ nmap nie jest zainstalowany.');
+    lines.push('💡 Zainstaluj: `sudo apt install nmap`');
+    return lines.join('\n');
+  }
+
+  const allHits = [];
+  for (const cidr of cidrs) {
+    lines.push(`⏳ Skanuję: ${cidr} ...`);
+    const cmd = `sudo nmap -sn -T4 ${cidr} 2>/dev/null`;
+    const out = run(cmd, 60000);
+    if (!out) {
+      lines.push(`⚠️ Brak wyników dla ${cidr} (sprawdź hasło sudo / uprawnienia).`);
+      continue;
+    }
+
+    const blocks = out.split(/\n\n+/);
+    const hits = blocks
+      .filter((b) => /Raspberry\s+Pi/i.test(b))
+      .map((b) => {
+        const ip = b.match(/Nmap scan report for\s+(?:\S+\s+\()?(\d[\d.]+)/)?.[1] || null;
+        const mac = b.match(/MAC Address:\s+([0-9A-F:]+)/i)?.[1] || null;
+        const vendor = b.match(/MAC Address:.*?\(([^)]+)\)/i)?.[1] || null;
+        return ip ? { ip, mac, vendor } : null;
+      })
+      .filter(Boolean);
+
+    if (!hits.length) {
+      lines.push(`ℹ️  Nie znaleziono RPi w ${cidr}.`);
+      continue;
+    }
+
+    lines.push(`✅ Raspberry Pi w ${cidr}: ${hits.length}`);
+    for (const h of hits) {
+      allHits.push(h);
+      lines.push(`  🥧 ${h.ip}${h.mac ? `  MAC: ${h.mac}` : ''}${h.vendor ? ` (${h.vendor})` : ''}`);
+    }
+  }
+
+  if (allHits.length) {
+    lines.push('');
+    lines.push('💡 Sugerowane akcje:');
+    for (const h of allHits.slice(0, 5)) {
+      lines.push(`- "ping ${h.ip}"`);
+      lines.push(`- "skanuj porty ${h.ip}"`);
+      lines.push(`- "ssh ${h.ip}"`);
+    }
+  }
+
+  return lines.join('\n');
 }
 
 function handleScan(q) {
@@ -205,6 +301,19 @@ function showHelp() {
     '  .db query <SQL>         — zapytanie SQL (devices.db)',
     '  .config                 — pokaż bieżącą konfigurację',
     '  .config set <k> <v>     — ustaw wartość konfiguracji',
+    '',
+    col('Monitoring:', 'bold'),
+    '  .monitor list           — aktywne monitoringi (przez app API)',
+    '  .monitor logs           — ostatnie logi monitoringu',
+    '  .monitor config         — konfiguracja (interwał/próg)',
+    '  aktywne monitoringi     — przez chat (wymaga app)',
+    '  zmien interwał co 10s   — zmień interwał (przez chat)',
+    '',
+    col('Frigate NVR:', 'bold'),
+    '  .frigate status         — status połączenia MQTT',
+    '  .frigate config         — konfiguracja Frigate',
+    '  frigate status          — przez chat (wymaga app)',
+    '  frigate start/stop      — uruchom/zatrzymaj nasłuch',
     '',
     col('Email:', 'bold'),
     '  .email test              — test SMTP+IMAP',
@@ -662,12 +771,144 @@ async function askApp(query, scope) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ query, scope }),
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(2000),
     });
     if (!res.ok) return null;
     const data = await res.json();
     return data.content?.[0]?.data || data.result || JSON.stringify(data);
   } catch { return null; }
+}
+
+// ── Monitor CLI handler ──────────────────────────────────────────────────────
+
+async function handleMonitorCommand(sub, args) {
+  const queries = {
+    list:   'aktywne monitoringi',
+    logs:   'pokaż logi monitoringu',
+    config: 'zmien interwał co ' + (args[0] || '30s'),
+  };
+
+  const query = queries[sub];
+  if (!query) {
+    return [
+      col('Użycie: .monitor <sub>', 'yellow'),
+      '  .monitor list           — aktywne monitoringi',
+      '  .monitor logs           — ostatnie logi',
+      '  .monitor config [10s]   — zmień interwał',
+    ].join('\n');
+  }
+
+  const result = await askApp(query, currentScope);
+  const isRealResult = result && !/LLM niedost|chat:fallback|Intent:/i.test(result);
+  if (isRealResult) return col('[app:monitor] ', 'blue') + result;
+
+  // Fallback: show config from env
+  if (sub === 'config') {
+    return [
+      col('⚙️  Monitor config (domyślna):', 'bold', 'cyan'),
+      `  Interwał:  30000 ms (30s)`,
+      `  Próg zmian: 15%`,
+      `  LLM próg:  25%`,
+      `  Miniaturka: 500px`,
+      '',
+      col('💡 Uruchom aplikację i wpisz "aktywne monitoringi" aby zarządzać.', 'dim'),
+    ].join('\n');
+  }
+
+  return [
+    col('⚠️  App niedostępna na ' + APP_URL, 'yellow'),
+    `   Uruchom: ${col('make dev', 'bold')} i spróbuj ponownie.`,
+    '',
+    col('Komendy czatu (po uruchomieniu app):', 'dim'),
+    '  aktywne monitoringi',
+    '  pokaż logi monitoringu',
+    '  zmien interwał co 10s',
+    '  ustaw próg zmian 20%',
+    '  stop wszystkie monitoringi',
+  ].join('\n');
+}
+
+// ── Frigate CLI handler ───────────────────────────────────────────────────────
+
+function getFrigateConfig() {
+  return {
+    baseUrl:    process.env.BROXEEN_FRIGATE_URL      || 'http://localhost:5000',
+    mqttHost:   process.env.BROXEEN_MQTT_HOST        || 'localhost',
+    mqttPort:   process.env.BROXEEN_MQTT_PORT        || '1883',
+    mqttTopic:  process.env.BROXEEN_MQTT_TOPIC       || 'frigate/events',
+    labels:     process.env.BROXEEN_FRIGATE_LABELS   || 'person,car',
+    cooldownMs: process.env.BROXEEN_FRIGATE_COOLDOWN || '60000',
+  };
+}
+
+async function handleFrigateCommand(sub) {
+  if (sub === 'config') {
+    const c = getFrigateConfig();
+    return [
+      col('🦅 Frigate config:', 'bold', 'cyan'),
+      `  Base URL:  ${c.baseUrl}`,
+      `  MQTT:      ${c.mqttHost}:${c.mqttPort}`,
+      `  Topic:     ${c.mqttTopic}`,
+      `  Labels:    ${c.labels}`,
+      `  Cooldown:  ${Math.round(+c.cooldownMs / 1000)}s`,
+      '',
+      col('Zmienne środowiskowe:', 'dim'),
+      '  BROXEEN_FRIGATE_URL, BROXEEN_MQTT_HOST, BROXEEN_MQTT_PORT',
+      '  BROXEEN_MQTT_TOPIC, BROXEEN_FRIGATE_LABELS, BROXEEN_FRIGATE_COOLDOWN',
+    ].join('\n');
+  }
+
+  if (sub === 'status') {
+    const c = getFrigateConfig();
+    const lines = [col('🦅 Frigate NVR status:', 'bold', 'cyan')];
+
+    // Check MQTT broker reachability via nc
+    if (tools.nc) {
+      const mqttReach = run(`nc -zv -w2 ${c.mqttHost} ${c.mqttPort} 2>&1`);
+      const mqttOk = mqttReach && /succeeded|Connected|open/i.test(mqttReach);
+      lines.push(`  MQTT ${c.mqttHost}:${c.mqttPort}: ${mqttOk ? col('✅ osiągalny', 'green') : col('❌ niedostępny', 'red')}`);
+    } else {
+      lines.push(`  MQTT ${c.mqttHost}:${c.mqttPort}: ${col('(nc niedostępny — nie można sprawdzić)', 'dim')}`);
+    }
+
+    // Check Frigate HTTP API
+    const frigateApi = run(`curl -sf --max-time 3 "${c.baseUrl}/api/version" 2>/dev/null`, 5000);
+    if (frigateApi) {
+      lines.push(`  Frigate API ${c.baseUrl}: ${col('✅ dostępny', 'green')} — ${frigateApi.slice(0, 80)}`);
+    } else {
+      lines.push(`  Frigate API ${c.baseUrl}: ${col('❌ niedostępny', 'red')}`);
+    }
+
+    // Check via app API
+    const appResult = await askApp('frigate status', currentScope);
+    if (appResult) {
+      lines.push('', col('[app:frigate] ', 'blue') + appResult);
+    } else {
+      lines.push('', col('💡 Uruchom aplikację aby zobaczyć pełny status MQTT.', 'dim'));
+    }
+
+    return lines.join('\n');
+  }
+
+  if (sub === 'start' || sub === 'stop') {
+    const result = await askApp(`frigate ${sub}`, currentScope);
+    const isReal = result && !/LLM niedost|chat:fallback|Intent:/i.test(result);
+    if (isReal) return col(`[app:frigate] `, 'blue') + result;
+    return [
+      col(`⚠️  App niedostępna lub brak obsługi Frigate.`, 'yellow'),
+      `   Uruchom: ${col('make dev', 'bold')} (Tauri: ${col('make tauri-dev', 'bold')})`,
+      '',
+      col('Frigate start/stop wymaga Tauri runtime (MQTT).', 'dim'),
+    ].join('\n');
+  }
+
+  return [
+    col('Użycie: .frigate <sub>', 'yellow'),
+    '  .frigate status   — sprawdź MQTT + Frigate API',
+    '  .frigate config   — pokaż konfigurację',
+    '  .frigate start    — uruchom nasłuch (przez app)',
+    '  .frigate stop     — zatrzymaj nasłuch (przez app)',
+  ].join('\n');
 }
 
 // ── Comparison mode ───────────────────────────────────────────────────────────
@@ -691,7 +932,8 @@ async function runComparison() {
 // ── REPL ──────────────────────────────────────────────────────────────────────
 let currentScope = 'network';
 
-const rl = createInterface({ input: process.stdin, output: process.stdout });
+const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: false });
+let _pendingAsync = 0;
 
 function showPrompt() {
   process.stdout.write(`\n${col('broxeen', 'cyan', 'bold')}${col(`[${currentScope}]`, 'gray')} ${col('❯', 'dim')} `);
@@ -708,111 +950,144 @@ rl.on('line', async line => {
 
   if (input === '.exit' || input === 'exit') { rl.close(); process.exit(0); }
 
-  if (input === '.status') {
-    const lip = getLocalIp();
-    console.log(`\n📍 Lokalny IP: ${lip || 'nie wykryto'}`);
-    console.log(`🔭 Podsieć: ${subnet(lip)}.0/24`);
-    console.log(Object.entries(tools).map(([k,v]) => `  ${v ? '✅' : '❌'} ${k}`).join('\n'));
-    showPrompt(); return;
-  }
-
-  if (input === '.compare') { await runComparison(); showPrompt(); return; }
-
-  if (input === '.help') { console.log('\n' + showHelp()); showPrompt(); return; }
-
-  if (input.startsWith('.devices')) {
-    const arg = input.split(/\s+/)[1] || '';
-    console.log('\n' + handleDevices(arg || undefined));
-    showPrompt(); return;
-  }
-
-  if (input === '.plugins') {
-    console.log('\n' + await handlePlugins());
-    showPrompt(); return;
-  }
-
-  if (input.startsWith('.db')) {
-    const args = input.split(/\s+/).slice(1);
-    console.log('\n' + handleDbCommand(args));
-    showPrompt(); return;
-  }
-
-  if (input.startsWith('.config')) {
-    const args = input.split(/\s+/).slice(1);
-    console.log('\n' + handleConfig(args));
-    showPrompt(); return;
-  }
-
-  if (input.startsWith('.scope')) {
-    const s = input.split(/\s+/)[1];
-    if (s) { currentScope = s; console.log(`\n✅ Scope → ${s}`); }
-    else console.log(`\nScope: ${currentScope}`);
-    showPrompt(); return;
-  }
-
-  if (input.startsWith('.email')) {
-    const parts = input.split(/\s+/);
-    const sub = parts[1];
-    const rest = parts.slice(2);
-    if (!sub || sub === 'help') {
-      console.log('\n' + showEmailHelp());
-    } else if (sub === 'test') {
-      console.log('\n' + handleEmailTest());
-    } else if (sub === 'send') {
-      console.log('\n' + handleEmailSend(rest));
-    } else if (sub === 'inbox') {
-      console.log('\n' + handleEmailInbox(rest));
-    } else if (sub === 'config') {
-      const c = getEmailConfig();
-      console.log('\n' + col('⚙️  Email config:', 'bold', 'cyan'));
-      console.log(`  SMTP: ${c.smtp_host}:${c.smtp_port}  (tls=${c.use_tls})`);
-      console.log(`  IMAP: ${c.imap_host}:${c.imap_port}`);
-      console.log(`  User: ${c.smtp_user}`);
-      console.log(`  From: ${c.from_addr}`);
-      console.log(`  Pass: ${c.smtp_pass ? '***' : col('(nie ustawione)', 'dim')}`);
-    } else {
-      console.log('\n' + col(`Nieznana komenda: .email ${sub}. Użyj .email help`, 'yellow'));
-    }
-    showPrompt(); return;
-  }
-
-  const intent = detectIntent(input);
-  let result;
+  _pendingAsync++;
   try {
-    switch (intent) {
-      case 'network:ping':      result = handlePing(input); break;
-      case 'network:arp':       result = handleArp(); break;
-      case 'network:port-scan': result = handlePortScan(input); break;
-      case 'network:scan':
-      case 'camera:onvif':      result = handleScan(input); break;
-      case 'browse:url':        result = await handleBrowse(input); break;
-      case 'system:processes': {
-        const appResult = await askApp(input, currentScope);
-        result = appResult
-          ? col('[app:processes] ', 'blue') + appResult
-          : [
-              `📋 **Procesy** *(tryb CLI)*`,
-              ``,
-              `ℹ️  Rejestr procesów działa w kontekście przeglądarki/Tauri.`,
-              `   Uruchom aplikację i wpisz "procesy" w czacie, aby zobaczyć`,
-              `   aktywne monitoringi i zadania.`,
-              ``,
-              `💡 Uruchom: ${col('pnpm dev', 'bold')} i spróbuj ponownie.`,
-            ].join('\n');
-        break;
+
+    if (input === '.status') {
+      const lip = getLocalIp();
+      console.log(`\n📍 Lokalny IP: ${lip || 'nie wykryto'}`);
+      console.log(`🔭 Podsieć: ${subnet(lip)}.0/24`);
+      console.log(Object.entries(tools).map(([k,v]) => `  ${v ? '✅' : '❌'} ${k}`).join('\n'));
+    } else if (input === '.compare') {
+      await runComparison();
+    } else if (input === '.help') {
+      console.log('\n' + showHelp());
+    } else if (input.startsWith('.devices')) {
+      const arg = input.split(/\s+/)[1] || '';
+      console.log('\n' + handleDevices(arg || undefined));
+    } else if (input === '.plugins') {
+      console.log('\n' + await handlePlugins());
+    } else if (input.startsWith('.db')) {
+      const args = input.split(/\s+/).slice(1);
+      console.log('\n' + handleDbCommand(args));
+    } else if (input.startsWith('.config')) {
+      const args = input.split(/\s+/).slice(1);
+      console.log('\n' + handleConfig(args));
+    } else if (input.startsWith('.scope')) {
+      const s = input.split(/\s+/)[1];
+      if (s) { currentScope = s; console.log(`\n✅ Scope → ${s}`); }
+      else console.log(`\nScope: ${currentScope}`);
+    } else if (input.startsWith('.monitor')) {
+      const parts = input.split(/\s+/);
+      const sub = parts[1] || 'list';
+      const rest = parts.slice(2);
+      console.log('\n' + await handleMonitorCommand(sub, rest));
+    } else if (input.startsWith('.frigate')) {
+      const parts = input.split(/\s+/);
+      const sub = parts[1] || 'status';
+      console.log('\n' + await handleFrigateCommand(sub));
+    } else if (input.startsWith('.email')) {
+      const parts = input.split(/\s+/);
+      const sub = parts[1];
+      const rest = parts.slice(2);
+      if (!sub || sub === 'help') {
+        console.log('\n' + showEmailHelp());
+      } else if (sub === 'test') {
+        console.log('\n' + handleEmailTest());
+      } else if (sub === 'send') {
+        console.log('\n' + handleEmailSend(rest));
+      } else if (sub === 'inbox') {
+        console.log('\n' + handleEmailInbox(rest));
+      } else if (sub === 'config') {
+        const c = getEmailConfig();
+        console.log('\n' + col('⚙️  Email config:', 'bold', 'cyan'));
+        console.log(`  SMTP: ${c.smtp_host}:${c.smtp_port}  (tls=${c.use_tls})`);
+        console.log(`  IMAP: ${c.imap_host}:${c.imap_port}`);
+        console.log(`  User: ${c.smtp_user}`);
+        console.log(`  From: ${c.from_addr}`);
+        console.log(`  Pass: ${c.smtp_pass ? '***' : col('(nie ustawione)', 'dim')}`);
+      } else {
+        console.log('\n' + col(`Nieznana komenda: .email ${sub}. Użyj .email help`, 'yellow'));
       }
-      default: {
-        const appResult = await askApp(input, currentScope);
-        result = appResult
-          ? col('[app] ', 'blue') + appResult
-          : `ℹ️  Intent: ${col(intent, 'yellow')}\n💬 LLM niedostępny w CLI. Uruchom aplikację: ${APP_URL}`;
+    } else {
+      const intent = detectIntent(input);
+      let result;
+      switch (intent) {
+        case 'network:ping':      result = handlePing(input); break;
+        case 'network:arp':       result = handleArp(); break;
+        case 'network:port-scan': result = handlePortScan(input); break;
+        case 'network:find-rpi':  result = handleFindRpi(input); break;
+        case 'network:scan':
+        case 'camera:onvif':      result = handleScan(input); break;
+        case 'browse:url':        result = await handleBrowse(input); break;
+        case 'monitor:list':
+        case 'monitor:logs':
+        case 'monitor:config': {
+          const appResult = await askApp(input, currentScope);
+          result = appResult
+            ? col('[app:monitor] ', 'blue') + appResult
+            : [
+                `👁️  **Monitoring** *(tryb CLI)*`,
+                ``,
+                `ℹ️  Zarządzanie monitoringiem działa w kontekście aplikacji.`,
+                `   Uruchom aplikację i wpisz komendę w czacie.`,
+                ``,
+                col('Komendy czatu:', 'dim'),
+                '  aktywne monitoringi',
+                '  zmien interwał co 10s',
+                '  ustaw próg zmian 20%',
+                '  stop wszystkie monitoringi',
+                ``,
+                `💡 Uruchom: ${col('make dev', 'bold')} i spróbuj ponownie.`,
+              ].join('\n');
+          break;
+        }
+        case 'frigate:status':
+        case 'frigate:start':
+        case 'frigate:stop': {
+          const appResult = await askApp(input, currentScope);
+          result = appResult
+            ? col('[app:frigate] ', 'blue') + appResult
+            : await handleFrigateCommand(intent.split(':')[1]);
+          break;
+        }
+        case 'system:processes': {
+          const appResult = await askApp(input, currentScope);
+          result = appResult
+            ? col('[app:processes] ', 'blue') + appResult
+            : [
+                `📋 **Procesy** *(tryb CLI)*`,
+                ``,
+                `ℹ️  Rejestr procesów działa w kontekście przeglądarki/Tauri.`,
+                `   Uruchom aplikację i wpisz "procesy" w czacie, aby zobaczyć`,
+                `   aktywne monitoringi i zadania.`,
+                ``,
+                `💡 Uruchom: ${col('pnpm dev', 'bold')} i spróbuj ponownie.`,
+              ].join('\n');
+          break;
+        }
+        default: {
+          const appResult = await askApp(input, currentScope);
+          result = appResult
+            ? col('[app] ', 'blue') + appResult
+            : `ℹ️  Intent: ${col(intent, 'yellow')}\n💬 LLM niedostępny w CLI. Uruchom aplikację: ${APP_URL}`;
+        }
       }
+      console.log('\n' + result);
     }
-    console.log('\n' + result);
   } catch (e) {
     console.log(`\n${col('❌ Błąd:', 'red')} ${e.message}`);
+  } finally {
+    _pendingAsync--;
+    showPrompt();
   }
-  showPrompt();
 });
 
-rl.on('close', () => { console.log('\n👋 Do widzenia!'); process.exit(0); });
+rl.on('close', () => {
+  const waitAndExit = () => {
+    if (_pendingAsync > 0) { setTimeout(waitAndExit, 50); return; }
+    console.log('\n👋 Do widzenia!');
+    process.exit(0);
+  };
+  waitAndExit();
+});

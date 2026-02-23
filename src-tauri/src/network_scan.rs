@@ -11,6 +11,7 @@ use std::str::FromStr;
 use std::time::{Duration, Instant};
 use std::process::Command;
 use std::process::Stdio;
+use std::path::Path;
 
 use crate::logging::{backend_info, backend_warn};
 
@@ -436,6 +437,132 @@ pub async fn http_fetch_base64(url: String) -> Result<HttpFetchBase64Result, Str
         content_type,
         base64: general_purpose::STANDARD.encode(&bytes),
     })
+}
+
+// ─── Camera Health Check ────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CameraHealthStatus {
+    pub id: String,
+    pub name: String,
+    pub ip: String,
+    pub online: bool,
+    pub latency_ms: Option<u64>,
+    pub uptime: Option<String>,
+    pub lastSnapshot: Option<String>,
+    pub resolution: Option<String>,
+    pub fps: Option<u32>,
+    pub errorMessage: Option<String>,
+}
+
+fn resolve_db_path(db: &str) -> Result<String, String> {
+    if db == ":memory:" {
+        return Ok(db.to_string());
+    }
+
+    let path = Path::new(db);
+    if path.is_absolute() || path.parent().is_some_and(|p| p != Path::new("")) {
+        return Ok(db.to_string());
+    }
+
+    let base = dirs::data_local_dir()
+        .or_else(dirs::data_dir)
+        .ok_or_else(|| "Cannot resolve local data directory".to_string())?;
+    let app_dir = base.join("broxeen");
+    std::fs::create_dir_all(&app_dir).map_err(|e| e.to_string())?;
+    Ok(app_dir.join(path).to_string_lossy().into_owned())
+}
+
+#[tauri::command]
+pub async fn camera_health_check(cameraId: Option<String>) -> Result<Vec<CameraHealthStatus>, String> {
+    // Pull last known devices from devices DB (populated by NetworkScanPlugin).
+    // Important: rusqlite types are not Send; we must not hold Connection/Statement across awaits.
+    let rows: Vec<(String, String, Option<String>)> = {
+        let db_path = resolve_db_path("broxeen_devices.db")?;
+        let conn = rusqlite::Connection::open(db_path).map_err(|e| e.to_string())?;
+
+        // Try to find RTSP/HTTP-capable devices first; fallback to all devices.
+        let query = r#"
+            SELECT DISTINCT d.id, d.ip, d.hostname
+            FROM devices d
+            LEFT JOIN device_services ds ON ds.device_id = d.id
+            WHERE (ds.type IN ('rtsp', 'http') OR ds.type IS NULL)
+            ORDER BY d.last_seen DESC
+            LIMIT 200
+        "#;
+
+        let mut out: Vec<(String, String, Option<String>)> = Vec::new();
+        {
+            let mut stmt = conn.prepare(query).map_err(|e| e.to_string())?;
+            let iter = stmt
+                .query_map([], |r| {
+                    let id: String = r.get(0)?;
+                    let ip: String = r.get(1)?;
+                    let hostname: Option<String> = r.get(2)?;
+                    Ok((id, ip, hostname))
+                })
+                .map_err(|e| e.to_string())?;
+
+            for item in iter {
+                out.push(item.map_err(|e| e.to_string())?);
+            }
+        }
+        out
+    };
+
+    // Filter by a specific camera (plugin uses semantic IDs, but we accept either id, hostname match, or IP)
+    let filtered = if let Some(target) = cameraId.as_ref() {
+        let t = target.to_lowercase();
+        rows.into_iter()
+            .filter(|(id, ip, hostname)| {
+                id.to_lowercase() == t
+                    || ip.to_lowercase() == t
+                    || hostname
+                        .as_ref()
+                        .map(|h| h.to_lowercase().contains(&t))
+                        .unwrap_or(false)
+            })
+            .collect::<Vec<_>>()
+    } else {
+        rows
+    };
+
+    let mut out: Vec<CameraHealthStatus> = Vec::new();
+    for (id, ip, hostname) in filtered {
+        // Use existing ping implementation (with TCP fallback)
+        match ping_host(ip.clone(), Some(1)).await {
+            Ok(res) => {
+                out.push(CameraHealthStatus {
+                    id: id.clone(),
+                    name: hostname.clone().unwrap_or_else(|| id.clone()),
+                    ip: ip.clone(),
+                    online: res.reachable,
+                    latency_ms: res.avg_rtt.map(|v| v.round() as u64),
+                    uptime: None,
+                    lastSnapshot: None,
+                    resolution: None,
+                    fps: None,
+                    errorMessage: if res.reachable { None } else { Some("unreachable".to_string()) },
+                });
+            }
+            Err(e) => {
+                out.push(CameraHealthStatus {
+                    id: id.clone(),
+                    name: hostname.clone().unwrap_or_else(|| id.clone()),
+                    ip: ip.clone(),
+                    online: false,
+                    latency_ms: None,
+                    uptime: None,
+                    lastSnapshot: None,
+                    resolution: None,
+                    fps: None,
+                    errorMessage: Some(e),
+                });
+            }
+        }
+    }
+
+    Ok(out)
 }
 
 // ─── Ping ────────────────────────────────────────────────────

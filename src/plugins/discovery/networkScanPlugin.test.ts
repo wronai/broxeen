@@ -50,3 +50,11 @@ describe('NetworkScanPlugin subnet detection', () => {
     await expect(p).resolves.toBe('192.168.0');
   });
 });
+
+describe('NetworkScanPlugin canHandle', () => {
+  it('handles Raspberry Pi discovery queries', async () => {
+    const plugin = new NetworkScanPlugin();
+    const ok = await plugin.canHandle('znajdź rpi w sieci', { isTauri: false } as any);
+    expect(ok).toBe(true);
+  });
+});

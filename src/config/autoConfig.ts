@@ -43,10 +43,11 @@ export async function runAutoConfig(): Promise<AutoConfigResult> {
     try {
       const { invoke } = (window as any).__TAURI__.core;
       const interfaces = await invoke('list_network_interfaces') as Array<[string, string]>;
-      if (interfaces.length === 1) {
-        const [, ip] = interfaces[0];
+      const best = pickBestInterface(interfaces);
+      if (best) {
+        const [, ip] = best;
         detectedSubnet = ip.split('.').slice(0, 3).join('.');
-        autoConfigLogger.info('Detected subnet via Tauri', { subnet: detectedSubnet });
+        autoConfigLogger.info('Detected subnet via Tauri', { subnet: detectedSubnet, ip, interfaceCount: interfaces.length });
         // Auto-save detected subnet
         configStore.set('network.defaultSubnet', detectedSubnet);
       }
@@ -110,4 +111,43 @@ function buildWelcomeMessage(
   }
 
   return lines.join('\n');
+}
+
+function isPrivateIp(ip: string): boolean {
+  return ip.startsWith('192.168.') ||
+    ip.startsWith('10.') ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+}
+
+function isValidCandidateIp(ip: string): boolean {
+  if (!ip) return false;
+  if (ip.startsWith('127.')) return false;
+  if (ip.startsWith('169.254.')) return false;
+  return isPrivateIp(ip);
+}
+
+function interfaceScore(ifaceName: string, ip: string): number {
+  let score = 0;
+  if (isValidCandidateIp(ip)) score += 100;
+
+  if (ip.startsWith('192.168.')) score += 30;
+  else if (ip.startsWith('10.')) score += 20;
+  else if (/^172\.(1[6-9]|2\d|3[01])\./.test(ip)) score += 10;
+
+  const n = (ifaceName || '').toLowerCase();
+  if (/^(en|eth|eno|enp)/.test(n)) score += 15;
+  if (/^(wl|wlan|wlp)/.test(n)) score += 12;
+  if (/docker|br-|veth|virbr|vmnet|tun|tap|wg|tailscale|zt|ham|lo/.test(n)) score -= 25;
+
+  return score;
+}
+
+function pickBestInterface(interfaces: Array<[string, string]>): [string, string] | null {
+  const best = interfaces
+    .map(([name, ip]) => ({ name, ip, score: interfaceScore(name, ip) }))
+    .sort((a, b) => b.score - a.score)[0];
+
+  if (!best) return null;
+  if (best.score <= 0) return null;
+  return [best.name, best.ip];
 }
