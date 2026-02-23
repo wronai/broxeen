@@ -91,6 +91,7 @@ export class MonitorPlugin implements Plugin {
   private timers = new Map<string, ReturnType<typeof setInterval>>();
   private configuredDeviceRepo?: ConfiguredDeviceRepository;
   private pendingDbConflictsByIp = new Map<string, ConfiguredDevice[]>();
+  private unsubscribeConfig?: () => void;
 
   private buildDbConflictPrompt(): string {
     if (this.pendingDbConflictsByIp.size === 0) return '';
@@ -213,7 +214,8 @@ export class MonitorPlugin implements Plugin {
       const all = await this.configuredDeviceRepo.listAll();
       device =
         all.find((d) => d.label.toLowerCase() === label.toLowerCase()) ??
-        all.find((d) => d.label.toLowerCase().includes(label.toLowerCase()));
+        all.find((d) => d.label.toLowerCase().includes(label.toLowerCase())) ??
+        null;
     }
 
     if (!device) {
@@ -252,6 +254,7 @@ export class MonitorPlugin implements Plugin {
 
     if (!this.targets.has(targetId)) {
       const startedAt = Date.now();
+      const defaultThreshold = configStore.get<number>('monitor.defaultChangeThreshold') || 0.15;
       const target: MonitorTarget = {
         id: targetId,
         configuredDeviceId: device.id,
@@ -259,7 +262,7 @@ export class MonitorPlugin implements Plugin {
         name: device.label,
         address: device.ip,
         intervalMs: device.monitor_interval_ms,
-        threshold: 0.1,
+        threshold: defaultThreshold,
         active: true,
         startedAt,
         changeCount: 0,
@@ -1946,6 +1949,31 @@ export class MonitorPlugin implements Plugin {
 
   async initialize(context: PluginContext): Promise<void> {
     console.log('MonitorPlugin initialized');
+
+    this.unsubscribeConfig?.();
+    this.unsubscribeConfig = configStore.onChange((path, value) => {
+      if (path === 'monitor.defaultChangeThreshold') {
+        const v = typeof value === 'number' ? value : Number(value);
+        if (!Number.isFinite(v)) return;
+        for (const t of this.targets.values()) {
+          t.threshold = v;
+        }
+      }
+
+      if (path === 'monitor.defaultIntervalMs') {
+        const v = typeof value === 'number' ? value : Number(value);
+        if (!Number.isFinite(v) || v <= 0) return;
+        for (const t of this.targets.values()) {
+          t.intervalMs = v;
+          const oldTimer = this.timers.get(t.id);
+          if (oldTimer) clearInterval(oldTimer);
+          const newTimer = setInterval(() => {
+            this.poll(t, context);
+          }, v);
+          this.timers.set(t.id, newTimer);
+        }
+      }
+    });
     
     // Initialize ConfiguredDeviceRepository if database is available
     if (context.databaseManager) {
@@ -1964,6 +1992,7 @@ export class MonitorPlugin implements Plugin {
     if (!this.configuredDeviceRepo) return;
 
     try {
+      const defaultThreshold = configStore.get<number>('monitor.defaultChangeThreshold') || 0.15;
       const configuredDevices = await this.configuredDeviceRepo.listMonitored();
 
       const byIp = new Map<string, ConfiguredDevice[]>();
@@ -1988,7 +2017,7 @@ export class MonitorPlugin implements Plugin {
           name: device.label,
           address: device.ip,
           intervalMs: device.monitor_interval_ms,
-          threshold: 0.1,
+          threshold: defaultThreshold,
           active: true,
           startedAt,
           changeCount: 0,
@@ -2118,6 +2147,9 @@ export class MonitorPlugin implements Plugin {
   async dispose(): Promise<void> {
     for (const timer of this.timers.values()) clearInterval(timer);
     this.timers.clear();
+
+    this.unsubscribeConfig?.();
+    this.unsubscribeConfig = undefined;
 
     for (const id of this.targets.keys()) {
       processRegistry.remove(`monitor:${id}`);

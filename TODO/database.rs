@@ -1,41 +1,127 @@
+//! Two-track monitoring database:
+//!
+//! Track A — LOCAL:  Every detected object → `detections` table (sub-second latency)
+//! Track B — LLM:    Every minute batch  → `llm_events` table (confirmed descriptions)
+//!
+//! Combined view → `monitoring_history` (queryable via text-to-SQL)
+
 use anyhow::Result;
+use chrono::{DateTime, Local, Utc};
 use rusqlite::{params, Connection};
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 
-/// A saved detection record.
+// ─── Structs ──────────────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DetectionRecord {
-    pub id: i64,
-    pub timestamp: DateTime<Utc>,
-    pub camera_id: String,
-    pub label: String,
-    pub confidence: f32,
-    pub llm_label: Option<String>,
-    pub llm_description: Option<String>,
-    pub sent_to_llm: bool,
-    pub bbox_x1: i32,
-    pub bbox_y1: i32,
-    pub bbox_x2: i32,
-    pub bbox_y2: i32,
-    pub area: i64,
+pub struct LocalDetection {
+    pub id:          i64,
+    pub timestamp:   DateTime<Utc>,
+    pub camera_id:   String,
+    pub track_id:    String,
+    pub label:       String,
+    pub confidence:  f32,
+    pub movement:    Option<String>,
+    pub duration_s:  f32,
+    pub entry_zone:  Option<String>,
+    pub exit_zone:   Option<String>,
+    pub direction:   Option<String>,
+    pub speed_label: Option<String>,
 }
 
-/// Statistics response.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Statistics {
-    pub period_hours: u32,
-    pub camera_id: Option<String>,
-    pub by_class: Vec<(String, u64)>,       // (label, count)
-    pub by_hour: Vec<(String, u64)>,        // (hour "HH", count)
-    pub unique_events_30s: u64,
-    pub total: u64,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LlmEvent {
+    pub id:           i64,
+    pub timestamp:    DateTime<Utc>,
+    pub camera_id:    String,
+    pub period_start: DateTime<Utc>,
+    pub period_end:   DateTime<Utc>,
+    /// LLM-generated narrative for this minute's batch
+    pub narrative:    String,
+    /// Which provider answered (openrouter/local)
+    pub provider:     String,
+    /// Number of object crops sent
+    pub crops_sent:   u32,
+    /// Raw context (timeline text) sent to LLM
+    pub context:      String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Statistics {
+    pub period_hours:      u32,
+    pub camera_id:         Option<String>,
+    pub by_class:          Vec<(String, u64)>,
+    pub by_hour:           Vec<(String, u64)>,
+    pub unique_entries:    u64,   // distinct tracks in 30s windows
+    pub total_detections:  u64,
+}
+
+// ─── Database ─────────────────────────────────────────────────────────────────
 
 pub struct Database {
     conn: Connection,
 }
+
+/// The SQL schema — exposed for text-to-SQL context.
+pub const SCHEMA: &str = r#"
+-- TABLE: detections  (local YOLO results, saved every second per detected object)
+CREATE TABLE detections (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp   TEXT NOT NULL,          -- ISO8601 UTC
+    local_date  TEXT NOT NULL,          -- date('now') for daily grouping
+    local_hour  INTEGER NOT NULL,       -- 0..23 local hour
+    camera_id   TEXT NOT NULL,          -- e.g. "front-door"
+    track_id    TEXT NOT NULL,          -- UUID per tracked object
+    label       TEXT NOT NULL,          -- person/car/truck/bus/motorcycle/bicycle/...
+    confidence  REAL NOT NULL,          -- 0.0..1.0 YOLO confidence
+    movement    TEXT,                   -- e.g. "moving right, centre→right, 2.3s"
+    direction   TEXT,                   -- left/right/up/down/upper-right/...
+    speed_label TEXT,                   -- slow/moderate/fast/stationary
+    entry_zone  TEXT,                   -- upper-left/top/centre/...
+    exit_zone   TEXT,
+    duration_s  REAL NOT NULL DEFAULT 0,
+    thumbnail   BLOB NOT NULL           -- JPEG ≤400px
+);
+
+-- TABLE: llm_events  (LLM-confirmed scene descriptions, ~1 per minute)
+CREATE TABLE llm_events (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp    TEXT NOT NULL,
+    local_date   TEXT NOT NULL,
+    camera_id    TEXT NOT NULL,
+    period_start TEXT NOT NULL,
+    period_end   TEXT NOT NULL,
+    narrative    TEXT NOT NULL,         -- LLM scene description
+    provider     TEXT NOT NULL,         -- "openrouter/gemini-2.0-flash" or "local/llava"
+    crops_sent   INTEGER NOT NULL,
+    context      TEXT NOT NULL          -- timeline sent to LLM
+);
+
+-- VIEW: monitoring_history  (unified for NL queries)
+CREATE VIEW monitoring_history AS
+SELECT
+    d.id,
+    d.timestamp,
+    d.local_date  AS date,
+    d.local_hour  AS hour,
+    d.camera_id,
+    d.track_id,
+    d.label       AS object_type,
+    d.confidence,
+    d.movement,
+    d.direction,
+    d.speed_label AS speed,
+    d.entry_zone,
+    d.exit_zone,
+    d.duration_s,
+    -- nearest LLM event for context
+    (SELECT le.narrative
+     FROM llm_events le
+     WHERE le.camera_id = d.camera_id
+       AND le.period_start <= d.timestamp
+       AND le.period_end   >= d.timestamp
+     ORDER BY le.id DESC LIMIT 1) AS llm_narrative
+FROM detections d;
+"#;
 
 impl Database {
     pub fn open(path: &str) -> Result<Self> {
@@ -49,229 +135,244 @@ impl Database {
     fn migrate(&self) -> Result<()> {
         self.conn.execute_batch("
             CREATE TABLE IF NOT EXISTS detections (
-                id               INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp        TEXT    NOT NULL,
-                camera_id        TEXT    NOT NULL,
-                label            TEXT    NOT NULL,
-                confidence       REAL    NOT NULL,
-                llm_label        TEXT,
-                llm_description  TEXT,
-                sent_to_llm      INTEGER NOT NULL DEFAULT 0,
-                thumbnail        BLOB    NOT NULL,
-                bbox_x1          INTEGER NOT NULL,
-                bbox_y1          INTEGER NOT NULL,
-                bbox_x2          INTEGER NOT NULL,
-                bbox_y2          INTEGER NOT NULL,
-                area             INTEGER NOT NULL
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp   TEXT    NOT NULL,
+                local_date  TEXT    NOT NULL,
+                local_hour  INTEGER NOT NULL,
+                camera_id   TEXT    NOT NULL,
+                track_id    TEXT    NOT NULL,
+                label       TEXT    NOT NULL,
+                confidence  REAL    NOT NULL,
+                movement    TEXT,
+                direction   TEXT,
+                speed_label TEXT,
+                entry_zone  TEXT,
+                exit_zone   TEXT,
+                duration_s  REAL    NOT NULL DEFAULT 0,
+                thumbnail   BLOB    NOT NULL
             );
 
-            CREATE INDEX IF NOT EXISTS idx_ts      ON detections (timestamp);
-            CREATE INDEX IF NOT EXISTS idx_cam     ON detections (camera_id);
-            CREATE INDEX IF NOT EXISTS idx_label   ON detections (label);
-            CREATE INDEX IF NOT EXISTS idx_cam_ts  ON detections (camera_id, timestamp);
+            CREATE TABLE IF NOT EXISTS llm_events (
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp    TEXT    NOT NULL,
+                local_date   TEXT    NOT NULL,
+                camera_id    TEXT    NOT NULL,
+                period_start TEXT    NOT NULL,
+                period_end   TEXT    NOT NULL,
+                narrative    TEXT    NOT NULL,
+                provider     TEXT    NOT NULL DEFAULT '',
+                crops_sent   INTEGER NOT NULL DEFAULT 0,
+                context      TEXT    NOT NULL DEFAULT ''
+            );
+
+            CREATE VIEW IF NOT EXISTS monitoring_history AS
+            SELECT
+                d.id, d.timestamp, d.local_date AS date, d.local_hour AS hour,
+                d.camera_id, d.track_id, d.label AS object_type,
+                d.confidence, d.movement, d.direction, d.speed_label AS speed,
+                d.entry_zone, d.exit_zone, d.duration_s,
+                (SELECT le.narrative FROM llm_events le
+                 WHERE le.camera_id = d.camera_id
+                   AND le.period_start <= d.timestamp
+                   AND le.period_end   >= d.timestamp
+                 ORDER BY le.id DESC LIMIT 1) AS llm_narrative
+            FROM detections d;
+
+            CREATE INDEX IF NOT EXISTS idx_det_ts     ON detections(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_det_cam    ON detections(camera_id);
+            CREATE INDEX IF NOT EXISTS idx_det_label  ON detections(label);
+            CREATE INDEX IF NOT EXISTS idx_det_date   ON detections(local_date);
+            CREATE INDEX IF NOT EXISTS idx_llm_ts     ON llm_events(timestamp);
+            CREATE INDEX IF NOT EXISTS idx_llm_cam    ON llm_events(camera_id);
         ")?;
         Ok(())
     }
 
-    /// Insert a new detection. `thumbnail` is JPEG bytes.
+    // ─── Insert ──────────────────────────────────────────────────────────────
+
+    /// Insert a locally-detected object (called immediately on track completion).
     pub fn insert_detection(
         &self,
-        camera_id: &str,
-        label: &str,
-        confidence: f32,
-        thumbnail: &[u8],
-        bbox: (i32, i32, i32, i32),
-        area: i64,
+        camera_id:   &str,
+        track_id:    &str,
+        label:       &str,
+        confidence:  f32,
+        movement:    Option<&str>,
+        direction:   Option<&str>,
+        speed_label: Option<&str>,
+        entry_zone:  Option<&str>,
+        exit_zone:   Option<&str>,
+        duration_s:  f32,
+        thumbnail:   &[u8],
     ) -> Result<i64> {
+        let now = Utc::now();
+        let local = now.with_timezone(&Local);
         self.conn.execute(
             "INSERT INTO detections
-             (timestamp, camera_id, label, confidence, thumbnail,
-              bbox_x1, bbox_y1, bbox_x2, bbox_y2, area)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+             (timestamp,local_date,local_hour,camera_id,track_id,label,confidence,
+              movement,direction,speed_label,entry_zone,exit_zone,duration_s,thumbnail)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
             params![
-                Utc::now().to_rfc3339(),
-                camera_id,
-                label,
-                confidence,
-                thumbnail,
-                bbox.0, bbox.1, bbox.2, bbox.3,
-                area,
+                now.to_rfc3339(),
+                local.format("%Y-%m-%d").to_string(),
+                local.hour(),
+                camera_id, track_id, label, confidence,
+                movement, direction, speed_label, entry_zone, exit_zone,
+                duration_s, thumbnail,
             ],
         )?;
         Ok(self.conn.last_insert_rowid())
     }
 
-    /// Update an existing record with LLM verification result.
-    pub fn update_llm_result(
+    /// Insert LLM-generated event narrative.
+    pub fn insert_llm_event(
         &self,
-        id: i64,
-        llm_label: &str,
-        llm_description: &str,
-    ) -> Result<()> {
+        camera_id:    &str,
+        period_start: DateTime<Utc>,
+        period_end:   DateTime<Utc>,
+        narrative:    &str,
+        provider:     &str,
+        crops_sent:   u32,
+        context:      &str,
+    ) -> Result<i64> {
+        let now = Utc::now();
+        let local = now.with_timezone(&Local);
         self.conn.execute(
-            "UPDATE detections
-             SET llm_label = ?1, llm_description = ?2, sent_to_llm = 1
-             WHERE id = ?3",
-            params![llm_label, llm_description, id],
+            "INSERT INTO llm_events
+             (timestamp,local_date,camera_id,period_start,period_end,
+              narrative,provider,crops_sent,context)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9)",
+            params![
+                now.to_rfc3339(),
+                local.format("%Y-%m-%d").to_string(),
+                camera_id,
+                period_start.to_rfc3339(),
+                period_end.to_rfc3339(),
+                narrative, provider, crops_sent, context,
+            ],
         )?;
-        Ok(())
+        Ok(self.conn.last_insert_rowid())
     }
 
-    /// Retrieve thumbnail JPEG bytes for a detection.
-    pub fn get_thumbnail(&self, id: i64) -> Result<Vec<u8>> {
-        let bytes: Vec<u8> = self.conn.query_row(
-            "SELECT thumbnail FROM detections WHERE id = ?1",
-            params![id],
-            |row| row.get(0),
-        )?;
-        Ok(bytes)
-    }
+    // ─── Queries ─────────────────────────────────────────────────────────────
 
-    /// Retrieve recent detections (without thumbnail blob for speed).
-    pub fn get_recent(
-        &self,
-        camera_id: Option<&str>,
-        limit: u32,
-    ) -> Result<Vec<DetectionRecord>> {
-        let where_clause = match camera_id {
-            Some(_) => "WHERE camera_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
-            None    => "WHERE 1=1       ORDER BY timestamp DESC LIMIT ?2",
-        };
-        // Using a single query approach for both cases
-        let sql = format!(
-            "SELECT id, timestamp, camera_id, label, confidence,
-                    llm_label, llm_description, sent_to_llm,
-                    bbox_x1, bbox_y1, bbox_x2, bbox_y2, area
-             FROM detections
-             {}",
-            match camera_id {
-                Some(_) => "WHERE camera_id = ?1 ORDER BY timestamp DESC LIMIT ?2",
-                None    => "ORDER BY timestamp DESC LIMIT ?1",
-            }
-        );
+    pub fn get_statistics(&self, camera_id: Option<&str>, hours: u32) -> Result<Statistics> {
+        let cam_f = cam_filter(camera_id);
+        let tf    = time_filter(hours);
 
-        let mut stmt = self.conn.prepare(&sql)?;
-
-        let rows = if let Some(cam) = camera_id {
-            stmt.query_map(params![cam, limit], map_row)?
-        } else {
-            stmt.query_map(params![limit], map_row)?
-        };
-
-        let mut out = Vec::new();
-        for row in rows {
-            out.push(row?);
-        }
-        Ok(out)
-    }
-
-    /// Aggregate statistics for a given time window.
-    pub fn get_statistics(
-        &self,
-        camera_id: Option<&str>,
-        hours: u32,
-    ) -> Result<Statistics> {
-        let cam_filter = match camera_id {
-            Some(id) => format!("AND camera_id = '{}'", id.replace('\'', "''")),
-            None     => String::new(),
-        };
-        let time_filter = format!("timestamp > datetime('now', '-{} hours')", hours);
-
-        // Per-class counts
         let by_class: Vec<(String, u64)> = {
             let sql = format!(
-                "SELECT label, COUNT(*) as cnt FROM detections
-                 WHERE {} {} GROUP BY label ORDER BY cnt DESC",
-                time_filter, cam_filter
+                "SELECT label, COUNT(*) FROM detections WHERE {tf}{cam_f}
+                 GROUP BY label ORDER BY 2 DESC"
             );
-            let mut stmt = self.conn.prepare(&sql)?;
-            stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?)))?
-                .filter_map(|r| r.ok())
-                .collect()
+            let mut s = self.conn.prepare(&sql)?;
+            s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,u64>(1)?)))?
+                .filter_map(|r| r.ok()).collect()
         };
 
-        // Per-hour activity
         let by_hour: Vec<(String, u64)> = {
             let sql = format!(
-                "SELECT strftime('%H', timestamp) as hr, COUNT(*) as cnt
-                 FROM detections WHERE {} {}
-                 GROUP BY hr ORDER BY hr",
-                time_filter, cam_filter
+                "SELECT CAST(local_hour AS TEXT), COUNT(*) FROM detections
+                 WHERE {tf}{cam_f} GROUP BY local_hour ORDER BY local_hour"
             );
-            let mut stmt = self.conn.prepare(&sql)?;
-            stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?)))?
-                .filter_map(|r| r.ok())
-                .collect()
+            let mut s = self.conn.prepare(&sql)?;
+            s.query_map([], |r| Ok((r.get::<_,String>(0)?, r.get::<_,u64>(1)?)))?
+                .filter_map(|r| r.ok()).collect()
         };
 
-        // Unique events in 30-second windows (approximate unique objects)
-        let unique_events_30s: u64 = {
-            let sql = format!(
-                "SELECT COUNT(DISTINCT
-                     CAST(strftime('%s', timestamp) / 30 AS INTEGER) || '_' || label)
-                 FROM detections
-                 WHERE {} {} AND label IN ('person','car','truck','bus','motorcycle')",
-                time_filter, cam_filter
-            );
-            self.conn.query_row(&sql, [], |row| row.get(0))?
-        };
+        let unique_entries: u64 = self.conn.query_row(
+            &format!("SELECT COUNT(DISTINCT track_id) FROM detections WHERE {tf}{cam_f}"),
+            [], |r| r.get(0),
+        )?;
 
-        let total: u64 = {
-            let sql = format!(
-                "SELECT COUNT(*) FROM detections WHERE {} {}",
-                time_filter, cam_filter
-            );
-            self.conn.query_row(&sql, [], |row| row.get(0))?
-        };
+        let total: u64 = self.conn.query_row(
+            &format!("SELECT COUNT(*) FROM detections WHERE {tf}{cam_f}"),
+            [], |r| r.get(0),
+        )?;
 
-        Ok(Statistics {
-            period_hours: hours,
-            camera_id: camera_id.map(String::from),
-            by_class,
-            by_hour,
-            unique_events_30s,
-            total,
-        })
+        Ok(Statistics { period_hours: hours, camera_id: camera_id.map(String::from), by_class, by_hour, unique_entries, total_detections: total })
     }
 
-    /// Count per-class for a specific camera in the last N seconds (for cooldown logic).
-    pub fn count_recent_label(
-        &self,
-        camera_id: &str,
-        label: &str,
-        seconds: u64,
-    ) -> Result<u64> {
-        let count: u64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM detections
-             WHERE camera_id = ?1
-               AND label = ?2
-               AND timestamp > datetime('now', ?3)",
-            params![camera_id, label, format!("-{} seconds", seconds)],
-            |row| row.get(0),
-        )?;
-        Ok(count)
+    /// Execute a raw SQL SELECT query (from text-to-SQL).
+    /// Returns rows as Vec<Vec<String>>.
+    pub fn execute_query(&self, sql: &str) -> Result<(Vec<String>, Vec<Vec<String>>)> {
+        // Safety: only allow SELECT statements
+        let trimmed = sql.trim().to_uppercase();
+        if !trimmed.starts_with("SELECT") && !trimmed.starts_with("WITH") {
+            anyhow::bail!("Only SELECT queries are allowed");
+        }
+
+        let mut stmt = self.conn.prepare(sql)?;
+        let col_names: Vec<String> = stmt.column_names()
+            .into_iter().map(String::from).collect();
+
+        let rows = stmt.query_map([], |row| {
+            let n = row.as_ref().column_count();
+            let mut vals = Vec::with_capacity(n);
+            for i in 0..n {
+                let v = match row.get_ref(i)? {
+                    rusqlite::types::ValueRef::Null          => "NULL".into(),
+                    rusqlite::types::ValueRef::Integer(i)    => i.to_string(),
+                    rusqlite::types::ValueRef::Real(f)       => format!("{:.2}", f),
+                    rusqlite::types::ValueRef::Text(t)       => String::from_utf8_lossy(t).into_owned(),
+                    rusqlite::types::ValueRef::Blob(b)       => format!("[BLOB {}B]", b.len()),
+                };
+                vals.push(v);
+            }
+            Ok(vals)
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
+
+        Ok((col_names, rows))
+    }
+
+    pub fn get_thumbnail(&self, id: i64) -> Result<Vec<u8>> {
+        Ok(self.conn.query_row(
+            "SELECT thumbnail FROM detections WHERE id=?1",
+            params![id], |r| r.get(0),
+        )?)
+    }
+
+    pub fn get_recent_llm_events(&self, camera_id: Option<&str>, limit: u32) -> Result<Vec<LlmEvent>> {
+        let cam_f = cam_filter(camera_id);
+        let sql = format!(
+            "SELECT id,timestamp,camera_id,period_start,period_end,narrative,provider,crops_sent,context
+             FROM llm_events WHERE 1=1{cam_f} ORDER BY timestamp DESC LIMIT {limit}"
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map([], |r| {
+            Ok(LlmEvent {
+                id:           r.get(0)?,
+                timestamp:    parse_dt(r.get::<_,String>(1)?),
+                camera_id:    r.get(2)?,
+                period_start: parse_dt(r.get::<_,String>(3)?),
+                period_end:   parse_dt(r.get::<_,String>(4)?),
+                narrative:    r.get(5)?,
+                provider:     r.get(6)?,
+                crops_sent:   r.get::<_,i64>(7)? as u32,
+                context:      r.get(8)?,
+            })
+        })?.filter_map(|r| r.ok()).collect();
+        Ok(rows)
     }
 }
 
-fn map_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<DetectionRecord> {
-    let ts_str: String = row.get(1)?;
-    let timestamp = DateTime::parse_from_rfc3339(&ts_str)
-        .map(|dt| dt.with_timezone(&Utc))
-        .unwrap_or(Utc::now());
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-    Ok(DetectionRecord {
-        id:               row.get(0)?,
-        timestamp,
-        camera_id:        row.get(2)?,
-        label:            row.get(3)?,
-        confidence:       row.get(4)?,
-        llm_label:        row.get(5)?,
-        llm_description:  row.get(6)?,
-        sent_to_llm:      row.get::<_, i32>(7)? != 0,
-        bbox_x1:          row.get(8)?,
-        bbox_y1:          row.get(9)?,
-        bbox_x2:          row.get(10)?,
-        bbox_y2:          row.get(11)?,
-        area:             row.get(12)?,
-    })
+fn cam_filter(camera_id: Option<&str>) -> String {
+    match camera_id {
+        Some(id) => format!(" AND camera_id='{}'", id.replace('\'', "''")),
+        None     => String::new(),
+    }
+}
+
+fn time_filter(hours: u32) -> String {
+    format!("timestamp > datetime('now', '-{hours} hours')")
+}
+
+fn parse_dt(s: String) -> DateTime<Utc> {
+    DateTime::parse_from_rfc3339(&s)
+        .map(|d| d.with_timezone(&Utc))
+        .unwrap_or_else(|_| Utc::now())
 }

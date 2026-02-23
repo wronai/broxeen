@@ -12,6 +12,7 @@ import type { ConfiguredDevice } from '../../persistence/configuredDeviceReposit
 import { DatabaseManager } from '../../persistence/databaseManager';
 import { InMemoryDbAdapter } from '../../persistence/databaseManager';
 import { processRegistry } from '../../core/processRegistry';
+import { configStore } from '../../config/configStore';
 
 const browserCtx: PluginContext = { isTauri: false };
 
@@ -52,6 +53,104 @@ describe('MonitorPlugin', () => {
 
       const can = await plugin.canHandle('zachowaj monitoring cd_1771855535008_dddi9s', ctx);
       expect(can).toBe(true);
+    });
+  });
+
+  describe('toggle monitoring (DB)', () => {
+    it('disables monitoring in DB and stops active monitoring for that IP', async () => {
+      processRegistry.clear();
+
+      vi.spyOn(ConfiguredDeviceRepository.prototype, 'getByIp').mockResolvedValue({
+        id: 'cd_t1',
+        device_id: null,
+        label: 'Kamera Toggle',
+        ip: '192.168.1.77',
+        device_type: 'camera',
+        rtsp_url: null,
+        http_url: null,
+        username: null,
+        password: null,
+        stream_path: null,
+        monitor_enabled: true,
+        monitor_interval_ms: 2000,
+        last_snapshot_at: null,
+        notes: null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      } as any);
+
+      const setSpy = vi
+        .spyOn(ConfiguredDeviceRepository.prototype, 'setMonitorEnabled')
+        .mockResolvedValue(undefined as any);
+
+      const pollSpy = vi.spyOn(plugin as any, 'poll').mockResolvedValue(undefined);
+
+      const ctx = {
+        isTauri: false,
+        databaseManager: { getDevicesDb: () => ({}) as any },
+      } as any as PluginContext;
+
+      await plugin.initialize(ctx);
+
+      // Start a monitor so we can verify it stops
+      await plugin.execute('monitoruj 192.168.1.77 co 2s user: :', ctx);
+      expect(processRegistry.listActive().some(p => p.id === 'monitor:camera-192.168.1.77')).toBe(true);
+
+      const res = await plugin.execute('wyłącz monitoring 192.168.1.77', ctx);
+      expect(res.status).toBe('success');
+      expect(res.content[0].data).toContain('Wyłączono monitoring');
+      expect(setSpy).toHaveBeenCalledWith('cd_t1', false);
+
+      // ensure polling no longer runs
+      await vi.advanceTimersByTimeAsync(2500);
+      await vi.runOnlyPendingTimersAsync();
+      expect(pollSpy).not.toHaveBeenCalled();
+    });
+
+    it('enables monitoring in DB and starts monitoring if not already running', async () => {
+      processRegistry.clear();
+
+      vi.spyOn(ConfiguredDeviceRepository.prototype, 'getById').mockResolvedValue({
+        id: 'cd_t2',
+        device_id: null,
+        label: 'Kamera Enable',
+        ip: '192.168.1.88',
+        device_type: 'camera',
+        rtsp_url: null,
+        http_url: null,
+        username: null,
+        password: null,
+        stream_path: null,
+        monitor_enabled: false,
+        monitor_interval_ms: 1000,
+        last_snapshot_at: null,
+        notes: null,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      } as any);
+
+      const setSpy = vi
+        .spyOn(ConfiguredDeviceRepository.prototype, 'setMonitorEnabled')
+        .mockResolvedValue(undefined as any);
+
+      const pollSpy = vi.spyOn(plugin as any, 'poll').mockResolvedValue(undefined);
+
+      const ctx = {
+        isTauri: false,
+        databaseManager: { getDevicesDb: () => ({}) as any },
+      } as any as PluginContext;
+
+      await plugin.initialize(ctx);
+
+      const res = await plugin.execute('włącz monitoring cd_t2', ctx);
+      expect(res.status).toBe('success');
+      expect(res.content[0].data).toContain('Włączono monitoring');
+      expect(setSpy).toHaveBeenCalledWith('cd_t2', true);
+      expect(processRegistry.listActive().some(p => p.id === 'monitor:camera-192.168.1.88')).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(1100);
+      await vi.runOnlyPendingTimersAsync();
+      expect(pollSpy).toHaveBeenCalled();
     });
   });
 
@@ -438,6 +537,23 @@ describe('MonitorPlugin', () => {
       const result = await plugin.execute('ustaw próg zmian 25%', browserCtx);
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('25%');
+    });
+
+    it('updates running monitor threshold when monitor.defaultChangeThreshold changes in configStore', async () => {
+      const ctx = { isTauri: false } as PluginContext;
+
+      await plugin.initialize(ctx);
+      await plugin.execute('monitoruj 192.168.1.123 co 2s user: :', ctx);
+
+      // Change the global default threshold (0.05 = 5%)
+      configStore.set('monitor.defaultChangeThreshold', 0.05);
+
+      const list = await plugin.execute('aktywne monitoringi', ctx);
+      expect(list.status).toBe('success');
+      expect(list.content[0].data).toContain('**Próg:** 5%');
+
+      // Prevent leaking config into other tests
+      configStore.set('monitor.defaultChangeThreshold', 0.15);
     });
 
     it('sets interval via chat', async () => {
