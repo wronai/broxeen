@@ -7,7 +7,7 @@ export interface ChatMessage {
   id: number;
   role: ChatMessageRole;
   text: string;
-  type?: 'content' | 'image' | 'error' | 'loading' | 'suggestions' | 'network_selection' | 'camera_list' | 'camera_analysis' | 'config_prompt' | 'camera_live';
+  type?: 'content' | 'image' | 'error' | 'loading' | 'suggestions' | 'network_selection' | 'camera_list' | 'camera_analysis' | 'config_prompt' | 'camera_live' | 'file_results' | 'thinking';
   mimeType?: string;
   url?: string;
   resolveType?: string;
@@ -27,6 +27,30 @@ export interface ChatMessage {
   live?: { url: string; cameraId: string; fps?: number; initialBase64?: string; initialMimeType?: string };
   /** Interactive config prompt data (buttons, fields, actions) */
   configPrompt?: import('../components/ChatConfigPrompt').ConfigPromptData;
+  /** File search results for file_results message type */
+  fileResults?: {
+    files: Array<{
+      path: string;
+      name: string;
+      extension: string;
+      size_bytes: number;
+      modified: string | null;
+      file_type: string;
+      is_dir: boolean;
+      preview: string | null;
+      mime_type: string;
+    }>;
+    query: string;
+    totalFound: number;
+    durationMs: number;
+    truncated: boolean;
+  };
+  /** Thinking/processing indicator data */
+  thinkingInfo?: {
+    label: string;
+    estimatedSeconds: number;
+    startedAt: number;
+  };
 }
 
 // ── Domain Events ──────────────────────────────────

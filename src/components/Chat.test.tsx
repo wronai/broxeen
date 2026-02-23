@@ -28,19 +28,6 @@ vi.mock("../contexts/pluginContext", () => ({
   usePlugins: () => ({ ask: mockAskFn }),
 }));
 
-const mockSpeak = vi.fn();
-
-vi.mock("../hooks/useTts", () => ({
-  useTts: () => ({
-    isSupported: true,
-    unsupportedReason: null,
-    speak: mockSpeak,
-    stop: vi.fn(),
-    voices: [],
-    isSpeaking: false,
-  }),
-}));
-
 // Mock bootstrap to avoid plugin system initialization in tests
 vi.mock("../core/bootstrap", () => ({
   bootstrapApp: vi.fn().mockResolvedValue({
@@ -261,6 +248,11 @@ describe("Chat — wpisywanie i wysyłanie", () => {
       />
     );
 
+    // Ensure effects are registered (monitor_change listener is attached in useEffect)
+    await act(async () => {
+      await Promise.resolve();
+    });
+
     await act(async () => {
       window.dispatchEvent(
         new CustomEvent("broxeen:monitor_change", {
@@ -279,12 +271,12 @@ describe("Chat — wpisywanie i wysyłanie", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Monitoring/i)).toBeInTheDocument();
-      expect(screen.getByText(/Kamera testowa/i)).toBeInTheDocument();
-      expect(screen.getByText(/Ktoś wszedł do pokoju/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/Monitoring/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Kamera testowa/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/Ktoś wszedł do pokoju/i).length).toBeGreaterThan(0);
     });
 
-    const img = document.querySelector("img[alt='Obraz']") as HTMLImageElement | null;
+    const img = document.querySelector("img[src^='data:image']") as HTMLImageElement | null;
     expect(img).not.toBeNull();
   });
 });

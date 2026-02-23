@@ -356,6 +356,56 @@ export class IntentRouter implements IIntentRouter {
       /sensor/i,
     ]);
 
+    // File search intents
+    this.intentPatterns.set('file:search', [
+      /znajd[źz]\s*plik/i,
+      /wyszukaj\s*plik/i,
+      /szukaj\s*plik/i,
+      /znajd[źz]\s*dokument/i,
+      /wyszukaj\s*dokument/i,
+      /szukaj\s*dokument/i,
+      /plik[iy]?\s+na\s+dysku/i,
+      /dokument[yów]?\s+na\s+dysku/i,
+      /plik[iy]?\s+w\s+folderze/i,
+      /plik[iy]?\s+w\s+katalogu/i,
+      /przeczytaj\s+plik/i,
+      /odczytaj\s+plik/i,
+      /co\s+jest\s+w\s+pliku/i,
+      /co\s+zawiera\s+plik/i,
+      /otw[óo]rz\s+plik/i,
+      /poka[żz]\s+plik/i,
+      /file\s*search/i,
+      /find\s*file/i,
+      /search\s*file/i,
+    ]);
+
+    // Email intents
+    this.intentPatterns.set('email:send', [
+      /wy[śs]lij.*(?:plik|mail|email)/i,
+      /prze[śs]lij.*(?:plik|mail|email)/i,
+      /send.*(?:file|email|mail)/i,
+      /mail.*plik/i,
+    ]);
+
+    this.intentPatterns.set('email:inbox', [
+      /sprawdz?\s*(?:email|e-mail|poczt|skrzynk)/i,
+      /odczytaj\s*(?:email|e-mail|poczt)/i,
+      /co\s+w\s+(?:email|mailu|poczcie|skrzynce)/i,
+      /nowe\s+(?:email|wiadom)/i,
+      /inbox/i,
+      /poczta/i,
+      /skrzynk/i,
+    ]);
+
+    this.intentPatterns.set('email:config', [
+      /konfiguruj\s*(?:email|e-mail|poczt)/i,
+      /config.*email/i,
+      /ustaw\s*(?:email|e-mail|poczt)/i,
+      /testuj\s*(?:email|e-mail|poczt)/i,
+      /email.*(?:co\s+\d+|interwa[łl]|polling)/i,
+      /odpytuj.*co\s+\d+/i,
+    ]);
+
     // Search intents (less specific, check after network/camera intents)
     this.intentPatterns.set('search:web', [
       /wyszukaj.*stronę/i,
@@ -458,6 +508,10 @@ export class IntentRouter implements IIntentRouter {
       'bridge:list': ['lista', 'bridge', 'pokaż'],
       'bridge:status': ['status', 'bridge', 'most', 'protokół'],
       'search:web': ['wyszukaj', 'znajdź', 'szukaj'],
+      'file:search': ['plik', 'dokument', 'znajdź', 'wyszukaj', 'szukaj', 'folder', 'katalog', 'przeczytaj', 'odczytaj'],
+      'email:send': ['wyślij', 'prześlij', 'mail', 'email', 'plik'],
+      'email:inbox': ['skrzynk', 'inbox', 'poczta', 'email', 'wiadomoś'],
+      'email:config': ['konfiguruj', 'email', 'ustaw', 'testuj', 'polling', 'interwał'],
       'disk:info': ['dysk', 'disk', 'partycj', 'miejsce', 'wolne', 'storage', 'df'],
       'ssh:execute': ['ssh', 'text2ssh', 'zdaln', 'wykonaj', 'połącz'],
       'ssh:hosts': ['ssh', 'hosty', 'known_hosts'],

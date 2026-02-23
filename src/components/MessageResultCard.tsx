@@ -11,11 +11,12 @@ import {
   Wifi, Camera, Globe, Terminal, Eye, Thermometer,
   Link2, ShoppingBag, MessageCircle, HelpCircle,
   CheckCircle2, XCircle, AlertTriangle, Info,
+  FolderSearch, Mail,
 } from 'lucide-react';
 
 // ── Domain detection ────────────────────────────────────────
 
-type ResultDomain = 'camera' | 'network' | 'system' | 'browse' | 'monitor' | 'iot' | 'bridge' | 'marketplace' | 'chat' | 'error' | 'fallback';
+type ResultDomain = 'camera' | 'network' | 'system' | 'browse' | 'monitor' | 'iot' | 'bridge' | 'marketplace' | 'chat' | 'error' | 'fallback' | 'file' | 'email';
 
 interface DomainMeta {
   icon: ReactNode;
@@ -103,6 +104,20 @@ const DOMAIN_META: Record<ResultDomain, DomainMeta> = {
     badgeBg: 'bg-yellow-500/20',
     badgeText: 'text-yellow-400',
   },
+  file: {
+    icon: <FolderSearch size={12} />,
+    label: 'Pliki',
+    borderColor: 'border-l-teal-500',
+    badgeBg: 'bg-teal-500/20',
+    badgeText: 'text-teal-400',
+  },
+  email: {
+    icon: <Mail size={12} />,
+    label: 'Email',
+    borderColor: 'border-l-violet-500',
+    badgeBg: 'bg-violet-500/20',
+    badgeText: 'text-violet-400',
+  },
 };
 
 type ResultStatus = 'success' | 'error' | 'info' | 'warning';
@@ -148,6 +163,14 @@ const DOMAIN_PATTERNS: Array<{ domain: ResultDomain; patterns: RegExp[] }> = [
   {
     domain: 'marketplace',
     patterns: [/marketplace/i, /plugin[yów]/i, /zainstaluj/i, /odinstaluj/i],
+  },
+  {
+    domain: 'file',
+    patterns: [/plik[iów]?/i, /dokument[yów]?/i, /folder/i, /katalog/i, /wyszukiwan.*plik/i, /znaleziono.*plik/i, /file.*search/i],
+  },
+  {
+    domain: 'email',
+    patterns: [/email/i, /e-mail/i, /smtp/i, /imap/i, /skrzynk/i, /inbox/i, /poczt[aę]/i, /wiadomoś/i, /mail.*wysłan/i],
   },
 ];
 

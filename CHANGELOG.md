@@ -1,3 +1,35 @@
+## [1.0.49] - 2026-02-23
+
+### Summary
+
+feat(docs): configuration management system
+
+### Docs
+
+- docs: update TODO.md
+- docs: update README
+- docs: update SSH_EXAMPLES.md
+- docs: update SSH_INTEGRATION.md
+
+### Build
+
+- deps: update package.json
+
+### Other
+
+- update docker/ssh-test/.gitignore
+- scripts: update setup.sh
+- update e2e/ssh-docker.spec.ts
+- update src-tauri/src/email.rs
+- update src-tauri/src/file_search.rs
+- update src-tauri/src/main.rs
+- update src-tauri/tauri.conf.json
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/components/FileResultsDisplay.tsx
+- ... and 12 more
+
+
 ## [1.0.48] - 2026-02-23
 
 ### Summary

@@ -237,6 +237,20 @@ async function registerCorePlugins(
     safeRegister(registry, router, new AuthBrowsePlugin(), 'AuthBrowsePlugin');
   } catch (e) { console.warn('AuthBrowsePlugin unavailable:', e); }
 
+  // ── File Search plugin ──────────────────────────────────────
+
+  try {
+    const { FileSearchPlugin } = await import('../plugins/files/fileSearchPlugin');
+    safeRegister(registry, router, new FileSearchPlugin(), 'FileSearchPlugin');
+  } catch (e) { console.warn('FileSearchPlugin unavailable:', e); }
+
+  // ── Email plugin ──────────────────────────────────────────
+
+  try {
+    const { EmailPlugin } = await import('../plugins/email/emailPlugin');
+    safeRegister(registry, router, new EmailPlugin(), 'EmailPlugin');
+  } catch (e) { console.warn('EmailPlugin unavailable:', e); }
+
   // ── Fallback ─────────────────────────────────────────────────
 
   try {

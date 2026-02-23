@@ -332,9 +332,10 @@ pub async fn file_read_content(
         (text, trunc)
     } else if mime.starts_with("image/") && metadata.len() < 10_000_000 {
         // Return base64 for images
+        use base64::Engine as _;
         let bytes = fs::read(file_path)
             .map_err(|e| format!("Nie można odczytać pliku: {}", e))?;
-        let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes);
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
         (format!("data:{};base64,{}", mime, b64), false)
     } else {
         (format!("[Plik binarny: {} — {} bajtów]", mime, metadata.len()), false)

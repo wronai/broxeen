@@ -1,11 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { DeviceStatusPlugin } from './deviceStatusPlugin';
 import { DeviceRepository } from '../../persistence/deviceRepository';
-import { DatabaseManager } from '../../persistence/databaseManager';
 
 // Mock dependencies
 vi.mock('../../persistence/deviceRepository');
-vi.mock('../../persistence/databaseManager');
 vi.mock('../../config/configStore', () => ({
   configStore: {
     get: vi.fn(),
@@ -16,6 +14,7 @@ describe('DeviceStatusPlugin', () => {
   let plugin: DeviceStatusPlugin;
   let mockDeviceRepo: any;
   let mockDbManager: any;
+  let mockContext: any;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -28,29 +27,31 @@ describe('DeviceStatusPlugin', () => {
     };
     
     mockDbManager = {
-      initialize: vi.fn().mockResolvedValue(undefined),
-      getAdapter: vi.fn().mockReturnValue({}),
-      isReady: vi.fn().mockReturnValue(true),
+      getDevicesDb: vi.fn().mockReturnValue({}),
+    };
+
+    mockContext = {
+      databaseManager: mockDbManager,
     };
 
     // Mock DeviceRepository constructor
     (DeviceRepository as any).mockImplementation(() => mockDeviceRepo);
-    (DatabaseManager as any).mockImplementation(() => mockDbManager);
 
     plugin = new DeviceStatusPlugin();
   });
 
   describe('initialization', () => {
     it('should initialize successfully', async () => {
-      await plugin.initialize({} as any);
-      expect(DatabaseManager).toHaveBeenCalled();
-      expect(mockDbManager.initialize).toHaveBeenCalled();
+      await plugin.initialize(mockContext as any);
       expect(DeviceRepository).toHaveBeenCalled();
+      expect(mockDbManager.getDevicesDb).toHaveBeenCalled();
     });
 
     it('should handle initialization errors gracefully', async () => {
-      mockDbManager.initialize.mockRejectedValue(new Error('DB error'));
-      await plugin.initialize({} as any);
+      (DeviceRepository as any).mockImplementation(() => {
+        throw new Error('DB error');
+      });
+      await plugin.initialize(mockContext as any);
       // Should not throw
     });
   });
@@ -71,7 +72,7 @@ describe('DeviceStatusPlugin', () => {
 
   describe('execute', () => {
     beforeEach(async () => {
-      await plugin.initialize({} as any);
+      await plugin.initialize(mockContext as any);
     });
 
     it('should show general status', async () => {
@@ -84,11 +85,12 @@ describe('DeviceStatusPlugin', () => {
       mockDeviceRepo.getOfflineDevices.mockResolvedValue([]);
 
       const result = await plugin.execute('status urządzeń', {} as any);
+      const text = result.content?.[0]?.data || '';
 
-      expect(result.text).toContain('Status Urządzeń w Sieci');
-      expect(result.text).toContain('Podsumowanie:');
-      expect(result.text).toContain('Online (aktywne):** 1');
-      expect(result.metadata?.total_devices).toBe(1);
+      expect(text).toContain('Status Urządzeń w Sieci');
+      expect(text).toContain('Podsumowanie:');
+      expect(text).toContain('Online (aktywne):** 1');
+      expect((result.metadata as any)?.total_devices).toBe(1);
     });
 
     it('should show online devices', async () => {
@@ -98,11 +100,12 @@ describe('DeviceStatusPlugin', () => {
       ]);
 
       const result = await plugin.execute('urządzenia online', {} as any);
+      const text = result.content?.[0]?.data || '';
 
-      expect(result.text).toContain('Aktywne Urządzenia');
-      expect(result.text).toContain('192.168.1.100');
-      expect(result.text).toContain('192.168.1.101');
-      expect(result.metadata?.active_count).toBe(2);
+      expect(text).toContain('Aktywne Urządzenia');
+      expect(text).toContain('192.168.1.100');
+      expect(text).toContain('192.168.1.101');
+      expect((result.metadata as any)?.active_count).toBe(2);
     });
 
     it('should show offline devices', async () => {
@@ -111,10 +114,11 @@ describe('DeviceStatusPlugin', () => {
       ]);
 
       const result = await plugin.execute('urządzenia offline', {} as any);
+      const text = result.content?.[0]?.data || '';
 
-      expect(result.text).toContain('Urządzenia Offline');
-      expect(result.text).toContain('192.168.1.200');
-      expect(result.metadata?.offline_count).toBe(1);
+      expect(text).toContain('Urządzenia Offline');
+      expect(text).toContain('192.168.1.200');
+      expect((result.metadata as any)?.offline_count).toBe(1);
     });
 
     it('should show recent activity', async () => {
@@ -124,11 +128,12 @@ describe('DeviceStatusPlugin', () => {
       ]);
 
       const result = await plugin.execute('ostatnia aktywność', {} as any);
+      const text = result.content?.[0]?.data || '';
 
-      expect(result.text).toContain('Ostatnia Aktywność Urządzeń');
-      expect(result.text).toContain('192.168.1.100');
-      expect(result.text).toContain('192.168.1.101');
-      expect(result.text).toContain('3 usług');
+      expect(text).toContain('Ostatnia Aktywność Urządzeń');
+      expect(text).toContain('192.168.1.100');
+      expect(text).toContain('192.168.1.101');
+      expect(text).toContain('3 usług');
     });
 
     it('should handle empty device lists', async () => {
@@ -137,23 +142,26 @@ describe('DeviceStatusPlugin', () => {
       mockDeviceRepo.getOfflineDevices.mockResolvedValue([]);
 
       const result = await plugin.execute('status urządzeń', {} as any);
+      const text = result.content?.[0]?.data || '';
 
-      expect(result.text).toContain('Łącznie:** 0');
+      expect(text).toContain('Łącznie:** 0');
     });
 
     it('should handle database not available', async () => {
       const pluginNoDb = new DeviceStatusPlugin();
       const result = await pluginNoDb.execute('status', {} as any);
+      const text = result.content?.[0]?.data || '';
 
-      expect(result.text).toContain('Baza danych urządzeń nie jest dostępna');
+      expect(text).toContain('Baza danych urządzeń nie jest dostępna');
     });
 
     it('should handle database errors gracefully', async () => {
       mockDeviceRepo.getDevicesWithStatus.mockRejectedValue(new Error('Database error'));
 
       const result = await plugin.execute('status', {} as any);
+      const text = result.content?.[0]?.data || '';
 
-      expect(result.text).toContain('Nie udało się pobrać statusu urządzeń');
+      expect(text).toContain('Nie udało się pobrać statusu urządzeń');
     });
   });
 

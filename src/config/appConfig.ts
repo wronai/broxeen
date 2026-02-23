@@ -84,6 +84,20 @@ export interface MonitorAppConfig {
   thumbnailMaxWidth: number;
 }
 
+// ── Email Configuration ──────────────────────────────────────
+
+export interface EmailAppConfig {
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpPassword: string;
+  imapHost: string;
+  imapPort: number;
+  fromAddress: string;
+  useTls: boolean;
+  pollIntervalMs: number;
+}
+
 // ── Full App Configuration ──────────────────────────────────
 
 export interface AppConfig {
@@ -95,6 +109,7 @@ export interface AppConfig {
   locale: LocaleConfig;
   camera: CameraDefaults;
   monitor: MonitorAppConfig;
+  email: EmailAppConfig;
 }
 
 // ── Defaults ────────────────────────────────────────────────
@@ -160,6 +175,17 @@ export const DEFAULT_CONFIG: AppConfig = {
     defaultIntervalMs: 30000,
     defaultChangeThreshold: 0.15,
     thumbnailMaxWidth: 500,
+  },
+  email: {
+    smtpHost: '',
+    smtpPort: 587,
+    smtpUser: '',
+    smtpPassword: '',
+    imapHost: '',
+    imapPort: 993,
+    fromAddress: '',
+    useTls: true,
+    pollIntervalMs: 600000, // 10 minutes
   },
 };
 
@@ -332,6 +358,68 @@ export const CONFIG_FIELD_META: ConfigFieldMeta[] = [
     category: 'ssh',
     placeholder: 'root',
   },
+  // Email
+  {
+    key: 'email.smtpHost',
+    label: 'SMTP serwer',
+    description: 'Adres serwera SMTP (np. smtp.gmail.com)',
+    type: 'string',
+    category: 'email',
+    placeholder: 'smtp.gmail.com',
+  },
+  {
+    key: 'email.smtpPort',
+    label: 'SMTP port',
+    description: 'Port serwera SMTP (587 dla TLS, 465 dla SSL)',
+    type: 'number',
+    category: 'email',
+  },
+  {
+    key: 'email.smtpUser',
+    label: 'Email użytkownik',
+    description: 'Login do skrzynki email',
+    type: 'string',
+    category: 'email',
+    placeholder: 'twoj@email.com',
+  },
+  {
+    key: 'email.smtpPassword',
+    label: 'Hasło email',
+    description: 'Hasło lub hasło aplikacji',
+    type: 'password',
+    category: 'email',
+    placeholder: 'hasło-aplikacji',
+  },
+  {
+    key: 'email.imapHost',
+    label: 'IMAP serwer',
+    description: 'Adres serwera IMAP (np. imap.gmail.com)',
+    type: 'string',
+    category: 'email',
+    placeholder: 'imap.gmail.com',
+  },
+  {
+    key: 'email.imapPort',
+    label: 'IMAP port',
+    description: 'Port serwera IMAP (993 dla SSL)',
+    type: 'number',
+    category: 'email',
+  },
+  {
+    key: 'email.fromAddress',
+    label: 'Adres nadawcy',
+    description: 'Adres email nadawcy',
+    type: 'string',
+    category: 'email',
+    placeholder: 'twoj@email.com',
+  },
+  {
+    key: 'email.pollIntervalMs',
+    label: 'Interwał pollingu (ms)',
+    description: 'Jak często sprawdzać skrzynkę (w milisekundach)',
+    type: 'number',
+    category: 'email',
+  },
   // Camera
   {
     key: 'camera.rtspPort',
@@ -381,4 +469,5 @@ export const CONFIG_CATEGORIES: Record<string, { label: string; icon: string; de
   ssh: { label: 'SSH', icon: '📡', description: 'Zdalne połączenia SSH' },
   camera: { label: 'Kamery', icon: '📷', description: 'Kamery IP / RTSP' },
   locale: { label: 'Język', icon: '🌍', description: 'Ustawienia regionalne' },
+  email: { label: 'Email', icon: '📧', description: 'Konfiguracja email (SMTP/IMAP)' },
 };

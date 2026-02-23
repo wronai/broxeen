@@ -1,0 +1,452 @@
+/**
+ * @module plugins/files/fileSearchPlugin
+ * @description Local file search plugin — searches files on local disk via Tauri backend.
+ * Supports searching by name, extension, path. Returns results with previews.
+ * Results display: ≤3 = grid thumbnails, 4-10 = file list, >10 = ask user to clarify.
+ *
+ * Intents: "file:search", "file:read", "file:open"
+ * Scope: local
+ */
+
+import type { Plugin, PluginContext, PluginResult } from '../../core/types';
+
+export interface FileSearchResult {
+  path: string;
+  name: string;
+  extension: string;
+  size_bytes: number;
+  modified: string | null;
+  file_type: string;
+  is_dir: boolean;
+  preview: string | null;
+  mime_type: string;
+}
+
+export interface FileSearchResponse {
+  results: FileSearchResult[];
+  total_found: number;
+  search_path: string;
+  query: string;
+  duration_ms: number;
+  truncated: boolean;
+}
+
+export interface FileContentResponse {
+  path: string;
+  name: string;
+  content: string;
+  size_bytes: number;
+  mime_type: string;
+  truncated: boolean;
+}
+
+export class FileSearchPlugin implements Plugin {
+  readonly id = 'file-search';
+  readonly name = 'File Search';
+  readonly version = '1.0.0';
+  readonly supportedIntents = ['file:search', 'file:read', 'file:open'];
+
+  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
+    const lower = input.toLowerCase();
+    return (
+      lower.includes('znajdź plik') ||
+      lower.includes('znajdz plik') ||
+      lower.includes('wyszukaj plik') ||
+      lower.includes('szukaj plik') ||
+      lower.includes('szukaj dokument') ||
+      lower.includes('znajdź dokument') ||
+      lower.includes('znajdz dokument') ||
+      lower.includes('wyszukaj dokument') ||
+      lower.includes('pokaż plik') ||
+      lower.includes('pokaz plik') ||
+      lower.includes('otwórz plik') ||
+      lower.includes('otworz plik') ||
+      lower.includes('co jest w pliku') ||
+      lower.includes('co zawiera plik') ||
+      lower.includes('przeczytaj plik') ||
+      lower.includes('odczytaj plik') ||
+      lower.includes('file search') ||
+      lower.includes('find file') ||
+      lower.includes('search file') ||
+      /pliki?\s+(na|w|z)\s+(dysku|komputerze|folderze)/i.test(lower) ||
+      /dokument[yów]?\s+(na|w|z)\s+(dysku|komputerze|folderze)/i.test(lower)
+    );
+  }
+
+  async execute(input: string, context: PluginContext): Promise<PluginResult> {
+    const start = Date.now();
+    const lower = input.toLowerCase();
+
+    try {
+      // Determine if this is a read or search request
+      if (this.isReadRequest(lower)) {
+        return await this.executeRead(input, context, start);
+      }
+
+      return await this.executeSearch(input, context, start);
+    } catch (err) {
+      return this.errorResult(
+        `Błąd wyszukiwania plików: ${err instanceof Error ? err.message : String(err)}`,
+        start,
+      );
+    }
+  }
+
+  private isReadRequest(lower: string): boolean {
+    return (
+      lower.includes('co jest w pliku') ||
+      lower.includes('co zawiera') ||
+      lower.includes('przeczytaj plik') ||
+      lower.includes('odczytaj plik') ||
+      lower.includes('pokaż zawartość') ||
+      lower.includes('pokaz zawartosc') ||
+      lower.includes('otwórz plik') ||
+      lower.includes('otworz plik') ||
+      lower.includes('read file')
+    );
+  }
+
+  private async executeSearch(
+    input: string,
+    context: PluginContext,
+    start: number,
+  ): Promise<PluginResult> {
+    if (!context.isTauri || !context.tauriInvoke) {
+      return this.browserFallback(start);
+    }
+
+    const { query, searchPath, extensions } = this.parseSearchParams(input);
+
+    const response = (await context.tauriInvoke('file_search', {
+      query,
+      searchPath: searchPath || undefined,
+      extensions: extensions.length > 0 ? extensions : undefined,
+      maxResults: 50,
+      maxDepth: 8,
+    })) as FileSearchResponse;
+
+    if (response.total_found === 0) {
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [
+          {
+            type: 'text',
+            data: `🔍 Nie znaleziono plików pasujących do zapytania: **"${query}"**\n\n💡 Spróbuj:\n- Zmienić słowo kluczowe\n- Podać ścieżkę, np. \`znajdź pliki pdf w ~/Dokumenty\`\n- Szukać po rozszerzeniu, np. \`znajdź pliki .xlsx\``,
+          },
+        ],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    // >10 results: ask user to clarify
+    if (response.total_found > 10) {
+      return this.buildClarificationResult(response, query, start);
+    }
+
+    // ≤3 results: grid with thumbnails/previews
+    if (response.total_found <= 3) {
+      return this.buildGridResult(response, start);
+    }
+
+    // 4-10 results: list view
+    return this.buildListResult(response, start);
+  }
+
+  private async executeRead(
+    input: string,
+    context: PluginContext,
+    start: number,
+  ): Promise<PluginResult> {
+    if (!context.isTauri || !context.tauriInvoke) {
+      return this.browserFallback(start);
+    }
+
+    const filePath = this.extractFilePath(input);
+    if (!filePath) {
+      return {
+        pluginId: this.id,
+        status: 'error',
+        content: [
+          {
+            type: 'text',
+            data: '❓ Nie podano ścieżki do pliku.\n\n💡 Przykład: `przeczytaj plik /home/user/dokument.txt`',
+          },
+        ],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    const response = (await context.tauriInvoke('file_read_content', {
+      path: filePath,
+      maxChars: 10000,
+    })) as FileContentResponse;
+
+    const isImage = response.mime_type.startsWith('image/');
+
+    if (isImage && response.content.startsWith('data:')) {
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [
+          {
+            type: 'text',
+            data: `📄 **${response.name}** (${this.formatBytes(response.size_bytes)})`,
+            title: response.name,
+          },
+          {
+            type: 'image',
+            data: response.content.split(',')[1] || response.content,
+            mimeType: response.mime_type,
+            title: response.name,
+          },
+        ],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    const truncNote = response.truncated
+      ? '\n\n⚠️ *Plik jest dłuższy — pokazano pierwsze 10 000 znaków.*'
+      : '';
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [
+        {
+          type: 'text',
+          data: `📄 **${response.name}** (${this.formatBytes(response.size_bytes)}, ${response.mime_type})\n\n\`\`\`\n${response.content}\n\`\`\`${truncNote}`,
+          title: response.name,
+        },
+      ],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: response.truncated },
+    };
+  }
+
+  private buildGridResult(response: FileSearchResponse, start: number): PluginResult {
+    const lines: string[] = [
+      `🔍 Znaleziono **${response.total_found}** plik${response.total_found === 1 ? '' : response.total_found <= 4 ? 'i' : 'ów'} (${response.duration_ms}ms)\n`,
+    ];
+
+    const blocks: Array<{ type: 'text' | 'image'; data: string; mimeType?: string; title?: string }> = [];
+
+    // Text header
+    blocks.push({ type: 'text', data: lines.join('\n') });
+
+    for (const file of response.results) {
+      const sizeStr = this.formatBytes(file.size_bytes);
+      const modStr = file.modified ? ` | ${file.modified}` : '';
+
+      let fileInfo = `📁 **${file.name}**\n`;
+      fileInfo += `📂 \`${file.path}\`\n`;
+      fileInfo += `📊 ${file.file_type} | ${sizeStr}${modStr}\n`;
+
+      if (file.preview) {
+        fileInfo += `\n\`\`\`\n${file.preview.slice(0, 300)}\n\`\`\`\n`;
+      }
+
+      fileInfo += `\n💡 **Sugerowane akcje:**\n`;
+      fileInfo += `- "przeczytaj plik ${file.path}" — odczytaj zawartość\n`;
+      fileInfo += `- "wyślij plik ${file.path} na email" — wyślij mailem\n`;
+
+      blocks.push({ type: 'text', data: fileInfo });
+    }
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: blocks,
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  private buildListResult(response: FileSearchResponse, start: number): PluginResult {
+    const lines: string[] = [
+      `🔍 Znaleziono **${response.total_found}** plików (${response.duration_ms}ms)\n`,
+      '| # | Nazwa | Typ | Rozmiar | Zmieniony |',
+      '|---|-------|-----|---------|-----------|',
+    ];
+
+    for (let i = 0; i < response.results.length; i++) {
+      const f = response.results[i];
+      lines.push(
+        `| ${i + 1} | \`${f.name}\` | ${f.file_type} | ${this.formatBytes(f.size_bytes)} | ${f.modified || '—'} |`,
+      );
+    }
+
+    lines.push('');
+    lines.push('💡 **Sugerowane akcje:**');
+    for (const f of response.results.slice(0, 3)) {
+      lines.push(`- "przeczytaj plik ${f.path}" — odczytaj zawartość`);
+    }
+    lines.push(`- "wyślij pliki na email" — wyślij znalezione pliki mailem`);
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data: lines.join('\n') }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  private buildClarificationResult(
+    response: FileSearchResponse,
+    query: string,
+    start: number,
+  ): PluginResult {
+    const sample = response.results.slice(0, 5);
+    const extCounts = new Map<string, number>();
+    for (const f of response.results) {
+      const ext = f.extension || 'brak';
+      extCounts.set(ext, (extCounts.get(ext) || 0) + 1);
+    }
+
+    const extList = Array.from(extCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([ext, count]) => `\`.${ext}\` (${count})`)
+      .join(', ');
+
+    const lines: string[] = [
+      `🔍 Znaleziono **${response.total_found}** plików dla zapytania **"${query}"** — to dużo wyników.\n`,
+      `📊 **Najczęstsze rozszerzenia:** ${extList}\n`,
+      `📂 **Przykładowe pliki:**`,
+    ];
+
+    for (let i = 0; i < sample.length; i++) {
+      lines.push(`${i + 1}. \`${sample[i].name}\` (${sample[i].file_type}, ${this.formatBytes(sample[i].size_bytes)})`);
+    }
+
+    lines.push(`\n❓ **Doprecyzuj zapytanie**, np.:`);
+    lines.push(`- "znajdź pliki pdf z ${query}" — szukaj tylko PDF`);
+    lines.push(`- "znajdź pliki ${query} w ~/Dokumenty" — ogranicz ścieżkę`);
+    lines.push(`- "znajdź ostatnie pliki ${query}" — najnowsze pliki`);
+
+    return {
+      pluginId: this.id,
+      status: 'partial',
+      content: [{ type: 'text', data: lines.join('\n') }],
+      metadata: {
+        duration_ms: Date.now() - start,
+        cached: false,
+        truncated: true,
+      },
+    };
+  }
+
+  private parseSearchParams(input: string): {
+    query: string;
+    searchPath: string | null;
+    extensions: string[];
+  } {
+    let query = input;
+    let searchPath: string | null = null;
+    const extensions: string[] = [];
+
+    // Extract path: "w ~/Documents", "w /home/user", "w folderze Dokumenty"
+    const pathPatterns = [
+      /(?:w|z|na)\s+(\/\S+)/i,
+      /(?:w|z|na)\s+(~\/\S+)/i,
+      /(?:w\s+folderze|w\s+katalogu)\s+(\S+)/i,
+      /(?:path|ścieżka|sciezka)\s+(\S+)/i,
+    ];
+
+    for (const pattern of pathPatterns) {
+      const m = input.match(pattern);
+      if (m) {
+        searchPath = m[1];
+        query = query.replace(m[0], '').trim();
+        break;
+      }
+    }
+
+    // Extract extensions: ".pdf", "pdf", "pliki pdf"
+    const extPatterns = [
+      /\.(\w{2,5})\b/g,
+      /(?:pliki?|dokumenty?|format)\s+(\w{2,5})\b/gi,
+      /(?:rozszerzenie|ext)\s+(\w{2,5})\b/gi,
+    ];
+
+    for (const pattern of extPatterns) {
+      let m: RegExpExecArray | null;
+      while ((m = pattern.exec(input)) !== null) {
+        const ext = m[1].toLowerCase();
+        if (['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md', 'csv', 'json', 'xml', 'yaml', 'yml', 'html', 'py', 'ts', 'tsx', 'js', 'rs', 'go', 'java', 'c', 'cpp', 'jpg', 'jpeg', 'png', 'gif', 'svg', 'mp4', 'mp3', 'wav', 'zip', 'tar', 'sql', 'log', 'sh'].includes(ext)) {
+          if (!extensions.includes(ext)) extensions.push(ext);
+        }
+      }
+    }
+
+    // Clean up query — remove command words
+    query = query
+      .replace(/znajd[źz]\s+plik[iy]?/gi, '')
+      .replace(/wyszukaj\s+plik[iy]?/gi, '')
+      .replace(/szukaj\s+plik[iy]?/gi, '')
+      .replace(/znajd[źz]\s+dokument[yów]?/gi, '')
+      .replace(/wyszukaj\s+dokument[yów]?/gi, '')
+      .replace(/szukaj\s+dokument[yów]?/gi, '')
+      .replace(/plik[iy]?\s+na\s+dysku/gi, '')
+      .replace(/dokument[yów]?\s+na\s+dysku/gi, '')
+      .replace(/find\s+file/gi, '')
+      .replace(/search\s+file/gi, '')
+      .replace(/file\s+search/gi, '')
+      .trim();
+
+    return { query, searchPath, extensions };
+  }
+
+  private extractFilePath(input: string): string | null {
+    // Match absolute or relative paths
+    const patterns = [
+      /(\/[\w\-./]+\.\w+)/,
+      /(~\/[\w\-./]+\.\w+)/,
+      /plik[u]?\s+([\w\-./]+\.\w+)/i,
+      /file\s+([\w\-./]+\.\w+)/i,
+    ];
+
+    for (const pattern of patterns) {
+      const m = input.match(pattern);
+      if (m) return m[1];
+    }
+
+    return null;
+  }
+
+  private browserFallback(start: number): PluginResult {
+    return {
+      pluginId: this.id,
+      status: 'partial',
+      content: [
+        {
+          type: 'text',
+          data: '📁 **Wyszukiwanie plików**\n\n⚠️ Wyszukiwanie plików na dysku jest dostępne tylko w trybie Tauri (aplikacja desktopowa).\nW przeglądarce nie ma dostępu do systemu plików.\n\n💡 Uruchom Broxeen jako aplikację desktopową.',
+        },
+      ],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  private formatBytes(bytes: number): string {
+    if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(1)} GB`;
+    if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${bytes} B`;
+  }
+
+  private errorResult(msg: string, start: number): PluginResult {
+    return {
+      pluginId: this.id,
+      status: 'error',
+      content: [{ type: 'text', data: msg }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
+  async initialize(_context: PluginContext): Promise<void> {
+    console.log('FileSearchPlugin initialized');
+  }
+
+  async dispose(): Promise<void> {
+    console.log('FileSearchPlugin disposed');
+  }
+}

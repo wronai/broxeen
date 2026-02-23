@@ -109,10 +109,8 @@ pub async fn email_send(
 
             let file_bytes = std::fs::read(path)
                 .map_err(|e| format!("Nie można odczytać załącznika {}: {}", attach_path, e))?;
-            let b64 = base64::Engine::encode(
-                &base64::engine::general_purpose::STANDARD,
-                &file_bytes,
-            );
+            use base64::Engine as _;
+            let b64 = base64::engine::general_purpose::STANDARD.encode(&file_bytes);
 
             email_content.push_str(&format!("--{}\r\n", boundary));
             email_content.push_str(&format!(

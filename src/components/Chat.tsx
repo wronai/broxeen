@@ -49,6 +49,8 @@ import { useHistoryPersistence } from "../hooks/useHistoryPersistence";
 import { isTauriRuntime } from "../lib/runtime";
 import { MessageQuickActions } from "./MessageQuickActions";
 import { MessageResultCard } from "./MessageResultCard";
+import { ThinkingMessage } from "./ThinkingMessage";
+import { FileResultsDisplay } from "./FileResultsDisplay";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -1146,8 +1148,19 @@ ${analysis}`,
   const handleConfigCommand = (query: string): { text: string; prompt: ConfigPromptData } | null => {
     const lower = query.toLowerCase().trim();
 
+    // Monitor config
+    if (/^(konfiguruj\s*monitoring|monitoring\s*konfiguracja|ustaw\s*monitoring)$/i.test(lower)) {
+      const intervalMs = configStore.get<number>('monitor.defaultIntervalMs');
+      const threshold = configStore.get<number>('monitor.defaultChangeThreshold');
+      const thumb = configStore.get<number>('monitor.thumbnailMaxWidth');
+      return {
+        text: `👁️ **Konfiguracja monitoringu**\n\nAktualnie: interwał **${intervalMs}ms**, próg **${Math.round((threshold || 0) * 100)}%**, miniaturka **${thumb}px**.\nWybierz akcję:`,
+        prompt: buildMonitorConfigPrompt(),
+      };
+    }
+
     // Config overview
-    if (/^(konfigur|config|ustawieni|settings|setup)/.test(lower) && !/\b(ai|llm|sieć|network|ssh|model)\b/.test(lower)) {
+    if (/^(konfigur|config|ustawieni|settings|setup)/.test(lower) && !/\b(ai|llm|sieć|network|ssh|model|monitor|monitoring)\b/.test(lower)) {
       return {
         text: '⚙️ **Konfiguracja Broxeen**\n\nWybierz sekcję do konfiguracji:',
         prompt: buildConfigOverviewPrompt(),
@@ -1178,17 +1191,6 @@ ${analysis}`,
       };
     }
 
-    // Monitor config
-    if (/^(konfiguruj\s*monitoring|monitoring\s*konfiguracja|ustaw\s*monitoring)$/i.test(lower)) {
-      const intervalMs = configStore.get<number>('monitor.defaultIntervalMs');
-      const threshold = configStore.get<number>('monitor.defaultChangeThreshold');
-      const thumb = configStore.get<number>('monitor.thumbnailMaxWidth');
-      return {
-        text: `👁️ **Konfiguracja monitoringu**\n\nAktualnie: interwał **${intervalMs}ms**, próg **${Math.round((threshold || 0) * 100)}%**, miniaturka **${thumb}px**.\nWybierz akcję:`,
-        prompt: buildMonitorConfigPrompt(),
-      };
-    }
-
     // Reset config
     if (/reset.*konfig|resetuj.*konfig|przywróć.*domyśl|restore.*default/i.test(lower)) {
       configStore.reset();
@@ -1207,6 +1209,9 @@ ${analysis}`,
         { id: 'help-browse', label: 'Przeglądaj stronę', icon: '🌍', type: 'prefill', prefillText: 'przeglądaj ', variant: 'secondary', description: 'Otwórz i przeczytaj stronę' },
         { id: 'help-ssh', label: 'Połącz SSH', icon: '📡', type: 'prefill', prefillText: 'ssh ', variant: 'secondary', description: 'Zdalne połączenie SSH' },
         { id: 'help-disk', label: 'Dyski', icon: '💾', type: 'prefill', prefillText: 'pokaż dyski', variant: 'secondary', description: 'Informacje o dyskach' },
+        { id: 'help-files', label: 'Szukaj plików', icon: '📁', type: 'prefill', prefillText: 'znajdź pliki ', variant: 'primary', description: 'Wyszukaj dokumenty na dysku' },
+        { id: 'help-email', label: 'Email', icon: '📧', type: 'execute', executeQuery: 'konfiguruj email', variant: 'secondary', description: 'Skonfiguruj i zarządzaj email' },
+        { id: 'help-inbox', label: 'Sprawdź pocztę', icon: '📬', type: 'execute', executeQuery: 'sprawdź skrzynkę email', variant: 'secondary', description: 'Odczytaj wiadomości email' },
         { id: 'help-config', label: 'Konfiguracja', icon: '⚙️', type: 'execute', executeQuery: 'konfiguracja', variant: 'secondary', description: 'Zmień ustawienia' },
       ];
 
@@ -1273,6 +1278,32 @@ ${analysis}`,
 
     const processId = `query:${Date.now()}`;
 
+    // Show thinking message while processing
+    const thinkingId = nextMessageId();
+    const thinkingLabel = /plik|dokument|file/i.test(query)
+      ? 'Szukam plików na dysku'
+      : /email|mail|poczta|skrzynk/i.test(query)
+        ? 'Sprawdzam skrzynkę email'
+        : /skan|kamer|sieć|siec/i.test(query)
+          ? 'Skanuję sieć'
+          : 'Przetwarzam zapytanie';
+    const estimatedSec = /plik|dokument|file/i.test(query) ? 8 : /email|mail/i.test(query) ? 10 : 5;
+
+    eventStore.append({
+      type: "message_added",
+      payload: {
+        id: thinkingId,
+        role: "assistant",
+        text: thinkingLabel,
+        type: "thinking",
+        thinkingInfo: {
+          label: thinkingLabel,
+          estimatedSeconds: estimatedSec,
+          startedAt: Date.now(),
+        },
+      },
+    });
+
     try {
       processRegistry.upsertRunning({
         id: processId,
@@ -1284,6 +1315,12 @@ ${analysis}`,
 
       // Use plugin system to handle the query with scope information
       const result = await ask(query, isListening || stt.isRecording ? "voice" : "text", currentScope);
+
+      // Remove thinking message once we have a response
+      eventStore.append({
+        type: "message_updated",
+        payload: { id: thinkingId, updates: { type: "content", text: "", thinkingInfo: undefined } },
+      });
       
       chatLogger.info("Plugin system result", {
         status: result.status,
@@ -1399,7 +1436,11 @@ ${analysis}`,
         processRegistry.complete(processId);
         processRegistry.remove(processId);
       } else {
-        // Handle error case
+        // Handle error case — also clear thinking message
+        eventStore.append({
+          type: "message_updated",
+          payload: { id: thinkingId, updates: { type: "content", text: "", thinkingInfo: undefined } },
+        });
         const errorMessage = (result.content[0]?.data as string) ?? "Wystąpił błąd podczas przetwarzania zapytania.";
         eventStore.append({
           type: "message_added",
@@ -1419,6 +1460,12 @@ ${analysis}`,
       }
     } catch (error) {
       chatLogger.error("Plugin system execution failed", error);
+
+      // Clear thinking message on error
+      eventStore.append({
+        type: "message_updated",
+        payload: { id: thinkingId, updates: { type: "content", text: "", thinkingInfo: undefined } },
+      });
       
       // Show error message instead of fallback to suggestions
       eventStore.append({
@@ -1808,12 +1855,19 @@ ${analysis}`,
                         </div>
                       )}
                       <div className="flex-1 w-full min-w-0">
-                        {msg.loading ? (
+                        {/* Thinking / processing indicator */}
+                        {msg.type === 'thinking' && msg.thinkingInfo ? (
+                          <ThinkingMessage
+                            label={msg.thinkingInfo.label}
+                            estimatedSeconds={msg.thinkingInfo.estimatedSeconds}
+                            startedAt={msg.thinkingInfo.startedAt}
+                          />
+                        ) : msg.loading ? (
                           <div className="flex items-center gap-2 text-gray-400">
                             <Loader2 size={16} className="animate-spin" />
                             <span>{msg.text}</span>
                           </div>
-                        ) : msg.type === 'image' || msg.type === 'camera_live' ? null : (
+                        ) : msg.type === 'thinking' && !msg.thinkingInfo ? null : msg.type === 'image' || msg.type === 'camera_live' ? null : (
                           <div className="text-sm leading-relaxed">
                             {msg.pageTitle && (
                               <div className="font-bold mb-2">
@@ -1823,6 +1877,7 @@ ${analysis}`,
                             <MessageResultCard text={msg.text} msgType={msg.type}>
                               <div className="prose prose-invert max-w-none prose-sm">
                                 <ReactMarkdown 
+                                  urlTransform={(url) => url}
                                   remarkPlugins={[remarkGfm]}
                                   components={{
                                   // Customize styling for common elements
@@ -2089,6 +2144,7 @@ ${analysis}`,
                                 </div>
                                 <div className="text-sm text-gray-300 prose prose-invert max-w-none prose-sm">
                                   <ReactMarkdown 
+                                    urlTransform={(url) => url}
                                     remarkPlugins={[remarkGfm]}
                                     components={{
                                       p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,

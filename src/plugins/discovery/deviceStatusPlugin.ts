@@ -5,8 +5,6 @@
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
 import { DeviceRepository } from '../../persistence/deviceRepository';
-import { DatabaseManager } from '../../persistence/databaseManager';
-import { configStore } from '../../config/configStore';
 import { logger } from '../../lib/logger';
 
 const statusLogger = logger.scope('device-status');
@@ -21,9 +19,12 @@ export class DeviceStatusPlugin implements Plugin {
 
   async initialize(context: PluginContext): Promise<void> {
     try {
-      const dbManager = new DatabaseManager();
-      await dbManager.initialize();
-      this.deviceRepo = new DeviceRepository(dbManager.getAdapter('devices'));
+      if (!context.databaseManager) {
+        statusLogger.warn('DatabaseManager not available in context');
+        return;
+      }
+      
+      this.deviceRepo = new DeviceRepository(context.databaseManager.getDevicesDb());
       statusLogger.info('DeviceStatusPlugin initialized');
     } catch (err) {
       statusLogger.warn('Failed to initialize DeviceStatusPlugin', err);
@@ -47,7 +48,9 @@ export class DeviceStatusPlugin implements Plugin {
     
     if (!this.deviceRepo) {
       return {
-        text: '❌ Baza danych urządzeń nie jest dostępna.',
+        pluginId: this.id,
+        status: 'error',
+        content: [{ type: 'text', data: '❌ Baza danych urządzeń nie jest dostępna.' }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };
     }
@@ -119,20 +122,24 @@ export class DeviceStatusPlugin implements Plugin {
       content += `- \`ostatnia aktywność\` — pokaż historię aktywności\n`;
 
       return {
-        text: content,
-        metadata: { 
-          duration_ms: Date.now() - start, 
-          cached: false, 
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data: content }],
+        metadata: {
+          duration_ms: Date.now() - start,
+          cached: false,
           truncated: false,
           total_devices: totalDevices,
           online_count: onlineCount,
-          offline_count: offlineCount
-        },
+          offline_count: offlineCount,
+        } as any,
       };
     } catch (err) {
       statusLogger.error('Failed to get general status', err);
       return {
-        text: '❌ Nie udało się pobrać statusu urządzeń.',
+        pluginId: this.id,
+        status: 'error',
+        content: [{ type: 'text', data: '❌ Nie udało się pobrać statusu urządzeń.' }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };
     }
@@ -146,7 +153,9 @@ export class DeviceStatusPlugin implements Plugin {
       
       if (recentlyActive.length === 0) {
         return {
-          text: '🔍 Brak aktywnych urządzeń w ostatniej godzinie.',
+          pluginId: this.id,
+          status: 'success',
+          content: [{ type: 'text', data: '🔍 Brak aktywnych urządzeń w ostatniej godzinie.' }],
           metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
         };
       }
@@ -162,18 +171,22 @@ export class DeviceStatusPlugin implements Plugin {
       content += `\n📊 **Podsumowanie:** ${recentlyActive.length} aktywnych urządzeń`;
 
       return {
-        text: content,
-        metadata: { 
-          duration_ms: Date.now() - start, 
-          cached: false, 
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data: content }],
+        metadata: {
+          duration_ms: Date.now() - start,
+          cached: false,
           truncated: false,
-          active_count: recentlyActive.length
-        },
+          active_count: recentlyActive.length,
+        } as any,
       };
     } catch (err) {
       statusLogger.error('Failed to get online devices', err);
       return {
-        text: '❌ Nie udało się pobrać listy aktywnych urządzeń.',
+        pluginId: this.id,
+        status: 'error',
+        content: [{ type: 'text', data: '❌ Nie udało się pobrać listy aktywnych urządzeń.' }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };
     }
@@ -187,7 +200,9 @@ export class DeviceStatusPlugin implements Plugin {
       
       if (offlineDevices.length === 0) {
         return {
-          text: '✅ Wszystkie znane urządzenia były aktywne w ostatniej godzinie.',
+          pluginId: this.id,
+          status: 'success',
+          content: [{ type: 'text', data: '✅ Wszystkie znane urządzenia były aktywne w ostatniej godzinie.' }],
           metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
         };
       }
@@ -203,18 +218,22 @@ export class DeviceStatusPlugin implements Plugin {
       content += `\n⚠️ **Podsumowanie:** ${offlineDevices.length} urządzeń offline`;
 
       return {
-        text: content,
-        metadata: { 
-          duration_ms: Date.now() - start, 
-          cached: false, 
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data: content }],
+        metadata: {
+          duration_ms: Date.now() - start,
+          cached: false,
           truncated: false,
-          offline_count: offlineDevices.length
-        },
+          offline_count: offlineDevices.length,
+        } as any,
       };
     } catch (err) {
       statusLogger.error('Failed to get offline devices', err);
       return {
-        text: '❌ Nie udało się pobrać listy urządzeń offline.',
+        pluginId: this.id,
+        status: 'error',
+        content: [{ type: 'text', data: '❌ Nie udało się pobrać listy urządzeń offline.' }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };
     }
@@ -228,7 +247,9 @@ export class DeviceStatusPlugin implements Plugin {
       
       if (devicesWithStatus.length === 0) {
         return {
-          text: '📭 Brak znanych urządzeń w bazie.',
+          pluginId: this.id,
+          status: 'success',
+          content: [{ type: 'text', data: '📭 Brak znanych urządzeń w bazie.' }],
           metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
         };
       }
@@ -250,18 +271,22 @@ export class DeviceStatusPlugin implements Plugin {
       }
 
       return {
-        text: content,
-        metadata: { 
-          duration_ms: Date.now() - start, 
-          cached: false, 
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data: content, title: 'Ostatnia aktywność' }],
+        metadata: {
+          duration_ms: Date.now() - start,
+          cached: false,
           truncated: false,
-          total_shown: Math.min(10, devicesWithStatus.length)
+          deviceCount: Math.min(10, devicesWithStatus.length),
         },
       };
     } catch (err) {
       statusLogger.error('Failed to get recent activity', err);
       return {
-        text: '❌ Nie udało się pobrać historii aktywności.',
+        pluginId: this.id,
+        status: 'error',
+        content: [{ type: 'text', data: '❌ Nie udało się pobrać historii aktywności.' }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };
     }

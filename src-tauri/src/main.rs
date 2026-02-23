@@ -5,12 +5,16 @@ mod audio_commands;
 mod browse_rendered;
 mod content_cleaning;
 mod content_extraction;
+mod disk_info;
 mod email;
 mod file_search;
 mod llm;
 mod logging;
+mod network;
+mod network_info;
 mod network_scan;
 mod settings;
+mod ssh;
 mod stt;
 mod tts;
 mod tts_backend;
@@ -431,6 +435,20 @@ fn main() {
             network_scan::discover_onvif_cameras,
             network_scan::discover_mdns,
             network_scan::scan_network,
+            network_scan::rtsp_capture_frame,
+            network_scan::rtsp_worker_stats,
+            network_scan::http_fetch_base64,
+            network_info::get_local_network_info,
+            network_info::list_network_interfaces,
+            disk_info::get_disk_info,
+            disk_info::get_disk_usage,
+            ssh::ssh_execute,
+            ssh::ssh_test_connection,
+            ssh::ssh_list_known_hosts,
+            network::db_execute,
+            network::db_query,
+            network::db_close,
+            audio_commands::stt_is_silence,
             file_search::file_search,
             file_search::file_read_content,
             email::email_send,
