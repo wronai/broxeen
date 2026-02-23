@@ -141,7 +141,7 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
                 "-nostdin",
             ]);
             if include_timeouts {
-                cmd.args(["-stimeout", "900000", "-rw_timeout", "900000"]);
+                cmd.args(["-rw_timeout", "900000"]);
             }
             cmd.args([
                 "-fflags",

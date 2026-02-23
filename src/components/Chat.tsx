@@ -392,6 +392,10 @@ export default function Chat({ settings }: ChatProps) {
       }
     }
 
+    if (settings.mic_enabled && stt.error) {
+      appendStatusNotice("stt_error", `ℹ️ Błąd STT: ${stt.error}`);
+    }
+
     if (settings.tts_enabled && !tts.isSupported && tts.unsupportedReason) {
       appendStatusNotice("tts_unsupported", `ℹ️ ${tts.unsupportedReason}`);
     }

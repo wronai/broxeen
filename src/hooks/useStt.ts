@@ -421,6 +421,12 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
                 });
               } else {
                 sttLogger.warn("Native STT transcription returned empty text");
+                const msg = "STT: pusty wynik transkrypcji (za cicho?)";
+                setError(msg);
+                setLastErrorDetails({
+                  name: "EmptyTranscript",
+                  message: msg,
+                });
               }
             } catch (e: unknown) {
               const msg = e instanceof Error ? e.message : String(e);
@@ -428,6 +434,10 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
                 error: msg,
               });
               setError(msg);
+              setLastErrorDetails({
+                name: e instanceof Error ? e.name : undefined,
+                message: msg,
+              });
             } finally {
               stopInFlightRef.current = false;
               setIsTranscribing(false);

@@ -32,7 +32,7 @@ export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
   mic_enabled: true,
   mic_device_id: "default",
   speaker_device_id: "default",
-  auto_listen: false,
+  auto_listen: true,
   auto_listen_silence_ms: 1000,
 };
 
