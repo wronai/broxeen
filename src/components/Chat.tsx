@@ -72,7 +72,7 @@ interface ScopeOption {
 export default function Chat({ settings }: ChatProps) {
   // State managed by CQRS Event Store
   const { commands, eventStore } = useCqrs();
-  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
+  const messages = useChatMessages();
   const { ask } = usePlugins();
   const dbManager = useDatabaseManager();
   const { addToCommandHistory, addToNetworkHistory } = useHistoryPersistence(dbManager);
@@ -90,6 +90,12 @@ export default function Chat({ settings }: ChatProps) {
     () => messages.some((m) => m.role !== "system"),
     [messages],
   );
+
+  const showWelcomeScreen = useMemo(() => {
+    // Show welcome screen only for the initial state (single system message).
+    // If any additional system notices are appended (e.g. STT fallback), render normal chat view.
+    return messages.length === 1 && messages[0]?.role === "system";
+  }, [messages]);
   const [inputFocused, setInputFocused] = useState(false);
   const [showQuickHistory, setShowQuickHistory] = useState(false);
   const [discoveredCameras, setDiscoveredCameras] = useState<CameraPreviewProps['camera'][]>([]);
@@ -97,6 +103,10 @@ export default function Chat({ settings }: ChatProps) {
   const [currentScope, setCurrentScope] = useState<QueryScope>('local');
   const [showScopeSelector, setShowScopeSelector] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastSpeechSubmitRef = useRef<string>("");
+  const sttAutoListenTimerRef = useRef<number | null>(null);
+  const sttAutoListenStartedAtRef = useRef<number | null>(null);
+  const sttAutoListenSilenceHitsRef = useRef<number>(0);
   const statusNoticeRef = useRef<Record<string, string>>({});
   const statusNoticeIdRef = useRef(1000000);
   const chatLogger = logger.scope("chat:ui");
@@ -196,6 +206,20 @@ export default function Chat({ settings }: ChatProps) {
           text: message.text,
           timestamp: new Date().toISOString()
         });
+
+  const micPhase = useMemo(() => {
+    if (stt.isTranscribing) return "transcribing" as const;
+    if (stt.isRecording) return "recording" as const;
+    if (isListening) return "listening" as const;
+    return "idle" as const;
+  }, [isListening, stt.isRecording, stt.isTranscribing]);
+
+  useEffect(() => {
+    // If user starts speaking/recording, stop any ongoing TTS to avoid overlap.
+    if (micPhase !== "idle" && tts.isSpeaking) {
+      tts.stop();
+    }
+  }, [micPhase, tts]);
         
         // TODO: Initialize and integrate AutoWatchIntegration
         // const autoWatchIntegration = new AutoWatchIntegration(watchManager, dbManager, autoWatchConfig);
@@ -323,10 +347,11 @@ export default function Chat({ settings }: ChatProps) {
   }, [messages]);
 
   useEffect(() => {
-    if (transcript && !isListening) {
+    if (transcript && transcript !== lastSpeechSubmitRef.current && !isListening) {
       chatLogger.info("Applying finalized speech transcript", {
         transcriptLength: transcript.length,
       });
+      lastSpeechSubmitRef.current = transcript;
       handleSubmit(transcript);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -366,6 +391,105 @@ export default function Chat({ settings }: ChatProps) {
     speechSupported,
     enableAutoListen,
     disableAutoListen,
+  ]);
+
+  // Auto-listen fallback for STT (Tauri/native capture or MediaRecorder mode).
+  // When Web Speech API is not available, keep recording and auto-stop on silence.
+  useEffect(() => {
+    const runtimeIsTauri = isTauriRuntime();
+
+    const shouldRun =
+      settings.mic_enabled &&
+      settings.auto_listen &&
+      !speechSupported &&
+      stt.isSupported;
+
+    if (!shouldRun) {
+      if (sttAutoListenTimerRef.current !== null) {
+        window.clearInterval(sttAutoListenTimerRef.current);
+        sttAutoListenTimerRef.current = null;
+      }
+      sttAutoListenStartedAtRef.current = null;
+      sttAutoListenSilenceHitsRef.current = 0;
+      return;
+    }
+
+    // Start a new recording when idle
+    if (!stt.isRecording && !stt.isTranscribing) {
+      chatLogger.info("Auto-listen(STT): starting recording");
+      sttAutoListenStartedAtRef.current = Date.now();
+      sttAutoListenSilenceHitsRef.current = 0;
+      stt.startRecording();
+    }
+
+    // Silence polling is only available in Tauri native audio path.
+    if (!runtimeIsTauri) {
+      return;
+    }
+
+    if (sttAutoListenTimerRef.current !== null) {
+      return;
+    }
+
+    const silenceMs = Math.max(300, Math.min(5000, settings.auto_listen_silence_ms || 1000));
+    const thresholdSeconds = silenceMs / 1000;
+    const requiredHits = Math.max(1, Math.round(silenceMs / 250));
+
+    sttAutoListenTimerRef.current = window.setInterval(async () => {
+      try {
+        if (!stt.isRecording || stt.isTranscribing) {
+          return;
+        }
+
+        const startedAt = sttAutoListenStartedAtRef.current;
+        const elapsedMs = startedAt ? Date.now() - startedAt : 0;
+
+        // Avoid stopping too early (let Whisper get enough audio)
+        if (elapsedMs < 1200) {
+          return;
+        }
+
+        const silent = await invoke<boolean>('stt_is_silence', {
+          thresholdSeconds,
+          rmsThreshold: 0.015,
+        });
+
+        if (silent) {
+          sttAutoListenSilenceHitsRef.current += 1;
+        } else {
+          sttAutoListenSilenceHitsRef.current = 0;
+        }
+
+        // Require consecutive silent checks to reduce flapping
+        if (sttAutoListenSilenceHitsRef.current >= requiredHits) {
+          chatLogger.info("Auto-listen(STT): silence detected -> stopping recording");
+          sttAutoListenSilenceHitsRef.current = 0;
+          stt.stopRecording();
+          sttAutoListenStartedAtRef.current = null;
+        }
+      } catch (e) {
+        // Best-effort; don't break auto-listen loop.
+        chatLogger.debug("Auto-listen(STT): silence probe failed", { error: String(e) });
+      }
+    }, 250);
+
+    return () => {
+      if (sttAutoListenTimerRef.current !== null) {
+        window.clearInterval(sttAutoListenTimerRef.current);
+        sttAutoListenTimerRef.current = null;
+      }
+    };
+  }, [
+    settings.mic_enabled,
+    settings.auto_listen,
+    settings.auto_listen_silence_ms,
+    speechSupported,
+    stt.isSupported,
+    stt.isRecording,
+    stt.isTranscribing,
+    stt.startRecording,
+    stt.stopRecording,
+    chatLogger,
   ]);
 
   useEffect(() => {
@@ -465,12 +589,12 @@ export default function Chat({ settings }: ChatProps) {
   // Input focus and quick history logic
   useEffect(() => {
     // Show quick history when input is focused and empty
-    if (inputFocused && !input.trim() && messages.length === 0) {
+    if (inputFocused && !input.trim() && !hasNonSystemMessages) {
       setShowQuickHistory(true);
     } else {
       setShowQuickHistory(false);
     }
-  }, [inputFocused, input, messages.length]);
+  }, [inputFocused, input, hasNonSystemMessages]);
 
   // Hide quick history when user starts typing
   useEffect(() => {
@@ -1363,7 +1487,6 @@ ${analysis}`,
 
   return (
     <>
-      <div className="sr-only">Witaj w Broxeen</div>
       {expandedImage && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
@@ -1421,7 +1544,7 @@ ${analysis}`,
           <div className="mx-auto max-w-3xl px-4 py-6">
             <div className="space-y-4">
               {/* Command History - show when no messages */}
-              {messages.length === 0 && showCommandHistory && (
+              {!hasNonSystemMessages && showCommandHistory && (
                 <CommandHistory 
                   onSelect={handleCommandHistorySelect}
                   className="mb-6"
@@ -1429,7 +1552,7 @@ ${analysis}`,
                 />
               )}
 
-              {!hasNonSystemMessages && !showCommandHistory && (
+              {showWelcomeScreen && !showCommandHistory && (
                 <>
                   <div className="flex mt-16 flex-col items-center justify-center text-center fade-in">
                     <h1 className="mb-3 text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-broxeen-400 to-emerald-400 sm:text-5xl">

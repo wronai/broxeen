@@ -244,7 +244,16 @@ async function registerCorePlugins(
     const intent = await router.detect(payload);
     const activeScope = scopeRegistry.getActiveScope().id;
     const plugin = router.route(intent.intent, activeScope);
-    if (!plugin) throw new Error(`No plugin found for intent: ${intent.intent}`);
+
+    if (!plugin) {
+      // Fallback: generate action suggestions instead of throwing
+      const { generateFallback } = await import('./fallbackHandler');
+      return await generateFallback({
+        query: payload,
+        detectedIntent: intent.intent,
+        scope: activeScope,
+      });
+    }
     
     // Check if it's a DataSourcePlugin (new API) or Plugin (old API)
     if ('capabilities' in plugin) {

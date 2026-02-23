@@ -155,6 +155,20 @@ pub fn stt_status(
     })
 }
 
+/// Check whether the last `threshold_seconds` of recorded audio is silence.
+/// Useful for implementing simple VAD auto-stop on the frontend.
+#[tauri::command]
+pub fn stt_is_silence(
+    recording_state: tauri::State<SharedRecordingState>,
+    threshold_seconds: Option<f32>,
+    rms_threshold: Option<f32>,
+) -> Result<bool, String> {
+    crate::backend_info("Command stt_is_silence invoked");
+    let seconds = threshold_seconds.unwrap_or(0.9);
+    let rms = rms_threshold.unwrap_or(0.015);
+    Ok(audio_capture::is_silence(&recording_state, seconds, rms))
+}
+
 #[derive(serde::Serialize)]
 pub struct SttStatus {
     pub is_recording: bool,

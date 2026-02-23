@@ -358,6 +358,27 @@ export default function Settings({
                 />
               </label>
 
+              {settings.auto_listen && (
+                <label className="block">
+                  <span className="text-sm text-gray-300">
+                    Pauza ciszy (ms): {settings.auto_listen_silence_ms}
+                  </span>
+                  <input
+                    type="range"
+                    min="300"
+                    max="3000"
+                    step="100"
+                    value={settings.auto_listen_silence_ms}
+                    onChange={(e) =>
+                      update({
+                        auto_listen_silence_ms: parseInt(e.target.value, 10),
+                      })
+                    }
+                    className="mt-1 w-full accent-broxeen-500"
+                  />
+                </label>
+              )}
+
               {micDevices.length > 0 && (
                 <label className="block">
                   <span className="text-sm text-gray-300">

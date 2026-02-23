@@ -54,7 +54,7 @@ export const BUILTIN_SCOPES: Record<ScopeId, Omit<ScopeDefinition, 'remotePlugin
       'network-port-scan', 'network-onvif', 'network-wol',
       'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot', 'camera-live',
       'mqtt', 'service-probe', 'monitor', 'protocol-bridge', 'processes',
-      'disk-info', 'ssh', 'advanced-port-scan', 'http-browse',
+      'disk-info', 'ssh', 'advanced-port-scan', 'http-browse', 'chat-llm',
     ],
     allowInternet: false,
     allowLan: true,

@@ -1,3 +1,28 @@
+## [1.0.46] - 2026-02-23
+
+### Summary
+
+refactor(docs): configuration management system
+
+### Docs
+
+- docs: update README
+
+### Other
+
+- update img_2.png
+- update src-tauri/src/audio_commands.rs
+- update src-tauri/src/main.rs
+- update src/components/Chat.tsx
+- update src/components/Settings.tsx
+- update src/contexts/pluginContext.tsx
+- update src/core/actionSchema.ts
+- update src/core/bootstrap.ts
+- update src/core/fallbackHandler.ts
+- update src/domain/audioSettings.ts
+- ... and 1 more
+
+
 ## [1.0.45] - 2026-02-23
 
 ### Summary

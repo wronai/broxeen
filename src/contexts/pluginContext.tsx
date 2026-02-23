@@ -65,7 +65,24 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
         const plugin = context.intentRouter.route(intent.intent, scope);
         
         if (!plugin) {
-          throw new Error(`No plugin found for intent: ${intent.intent}`);
+          // Fallback: generate action suggestions instead of throwing
+          const { generateFallback } = await import('../core/fallbackHandler');
+          const fallback = await generateFallback({
+            query: rawInput,
+            detectedIntent: intent.intent,
+            scope,
+          });
+          return {
+            pluginId: 'fallback',
+            status: 'success' as const,
+            content: [{ type: 'text' as const, data: fallback.text }],
+            metadata: {
+              duration_ms: 0,
+              cached: false,
+              truncated: false,
+              configPrompt: fallback.configPrompt,
+            },
+          };
         }
 
         // Handle both Plugin and DataSourcePlugin

@@ -2,6 +2,8 @@
 
 ![img_1.png](img_1.png)
 
+![img_2.png](img_2.png)
+
 # ⚡ Broxeen v2.1 — AI Camera Monitoring & Network Discovery
 
 Desktopowa aplikacja **Tauri 2 + React** do monitoringu kamer AI i odkrywania sieci z wbudowanym TTS (Text-to-Speech) i rozpoznawaniem mowy.

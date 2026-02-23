@@ -425,6 +425,7 @@ fn main() {
             audio_commands::stt_start,
             audio_commands::stt_stop,
             audio_commands::stt_status,
+            audio_commands::stt_is_silence,
             audio_commands::backend_tts_speak,
             audio_commands::backend_tts_stop,
             audio_commands::backend_tts_pause,
