@@ -200,6 +200,80 @@ describe('NetworkScanPlugin handleDeviceFilter', () => {
   });
 });
 
+describe('NetworkScanPlugin handleExport', () => {
+  const makeCtxWithDevices = (devices: any[]) => ({
+    isTauri: true,
+    databaseManager: {
+      getDevicesDb: () => ({
+        query: vi.fn(async () => devices),
+        execute: vi.fn(async () => {}),
+        queryOne: vi.fn(async () => null),
+      }),
+    },
+  } as any);
+
+  it('returns error when no databaseManager', async () => {
+    const plugin = new NetworkScanPlugin();
+    const result = await plugin.execute('eksportuj urządzenia', { isTauri: true } as any);
+    expect(result.status).toBe('error');
+    expect(result.content[0].data).toContain('niedostępna');
+  });
+
+  it('returns empty message when no devices', async () => {
+    const plugin = new NetworkScanPlugin();
+    const result = await plugin.execute('eksportuj urządzenia', makeCtxWithDevices([]));
+    expect(result.status).toBe('success');
+    expect(result.content[0].data).toContain('Brak urządzeń');
+  });
+
+  it('exports CSV by default', async () => {
+    const plugin = new NetworkScanPlugin();
+    const now = Date.now();
+    const devices = [
+      { id: '1', ip: '192.168.1.1', hostname: 'router', mac: 'AA:BB:CC', vendor: 'Cisco', last_seen: now - 1000, device_type: 'gateway', open_ports: [80, 443] },
+    ];
+    const result = await plugin.execute('eksportuj urządzenia', makeCtxWithDevices(devices));
+    expect(result.status).toBe('success');
+    expect(result.content[0].data).toContain('CSV');
+    expect(result.content[0].data).toContain('192.168.1.1');
+    expect(result.content[0].data).toContain('ip,hostname,mac');
+    expect(result.content[0].data).toContain('.csv');
+  });
+
+  it('exports JSON when json keyword present', async () => {
+    const plugin = new NetworkScanPlugin();
+    const now = Date.now();
+    const devices = [
+      { id: '1', ip: '192.168.1.100', hostname: null, mac: null, vendor: null, last_seen: now - 1000, device_type: 'camera', open_ports: [554] },
+    ];
+    const result = await plugin.execute('eksport json', makeCtxWithDevices(devices));
+    expect(result.status).toBe('success');
+    expect(result.content[0].data).toContain('JSON');
+    expect(result.content[0].data).toContain('"ip"');
+    expect(result.content[0].data).toContain('.json');
+  });
+
+  it('canHandle export keywords', async () => {
+    const plugin = new NetworkScanPlugin();
+    const ctx = { isTauri: true } as any;
+    expect(await plugin.canHandle('eksportuj urządzenia', ctx)).toBe(true);
+    expect(await plugin.canHandle('export csv', ctx)).toBe(true);
+    expect(await plugin.canHandle('eksport json', ctx)).toBe(true);
+    expect(await plugin.canHandle('pobierz urządzenia', ctx)).toBe(true);
+  });
+
+  it('marks truncated when export > 3000 chars', async () => {
+    const plugin = new NetworkScanPlugin();
+    const now = Date.now();
+    const devices = Array.from({ length: 100 }, (_, i) => ({
+      id: String(i), ip: `192.168.1.${i}`, hostname: `host-${i}`, mac: null, vendor: null,
+      last_seen: now - 1000, device_type: 'linux-device', open_ports: [],
+    }));
+    const result = await plugin.execute('eksportuj urządzenia', makeCtxWithDevices(devices));
+    expect((result.metadata as any).truncated).toBe(true);
+  });
+});
+
 describe('NetworkScanPlugin execute', () => {
   it('passes incremental + target_ranges to scan_network when strategy is incremental', async () => {
     const plugin = new NetworkScanPlugin() as any;

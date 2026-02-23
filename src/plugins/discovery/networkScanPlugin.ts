@@ -52,11 +52,19 @@ export class NetworkScanPlugin implements Plugin {
       'urządzenia typ', 'urzadzenia typ', 'devices type',
     ];
 
+    const exportKeywords = [
+      'exportuj urządzenia', 'exportuj urzadzenia', 'eksportuj urządzenia', 'eksportuj urzadzenia',
+      'export devices', 'export urządzenia', 'pobierz urządzenia',
+      'eksport csv', 'export csv', 'eksport json', 'export json',
+      'zapisz urządzenia', 'pobierz listę urządzeń',
+    ];
+
     return scanKeywords.some(keyword => lowerInput.includes(keyword)) ||
            cameraKeywords.some(keyword => lowerInput.includes(keyword)) ||
            raspberryPiKeywords.some(keyword => lowerInput.includes(keyword)) ||
            statusKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           filterKeywords.some(keyword => lowerInput.includes(keyword));
+           filterKeywords.some(keyword => lowerInput.includes(keyword)) ||
+           exportKeywords.some(keyword => lowerInput.includes(keyword));
   }
 
   private isStatusQuery(input: string): boolean {
@@ -75,6 +83,22 @@ export class NetworkScanPlugin implements Plugin {
       'tylko kamery', 'tylko routery', 'tylko drukarki',
       'urządzenia typ', 'urzadzenia typ', 'devices type',
     ].some(k => lower.includes(k));
+  }
+
+  private isExportQuery(input: string): boolean {
+    const lower = input.toLowerCase();
+    return [
+      'exportuj urządzenia', 'exportuj urzadzenia', 'eksportuj urządzenia', 'eksportuj urzadzenia',
+      'export devices', 'export urządzenia', 'pobierz urządzenia',
+      'eksport csv', 'export csv', 'eksport json', 'export json',
+      'zapisz urządzenia', 'pobierz listę urządzeń',
+    ].some(k => lower.includes(k));
+  }
+
+  private extractExportFormat(input: string): 'csv' | 'json' {
+    const lower = input.toLowerCase();
+    if (lower.includes('json')) return 'json';
+    return 'csv';
   }
 
   private extractFilterType(input: string): string | null {
@@ -241,6 +265,80 @@ export class NetworkScanPlugin implements Plugin {
     };
   }
 
+  private async handleExport(input: string, context: PluginContext, start: number): Promise<PluginResult> {
+    if (!context.databaseManager) {
+      return {
+        pluginId: this.id,
+        status: 'error',
+        content: [{ type: 'text', data: 'Baza danych niedostępna (tryb przeglądarkowy).' }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    const format = this.extractExportFormat(input);
+    const repo = new DeviceRepository(context.databaseManager.getDevicesDb());
+    const devices = await repo.listDevices(1000);
+
+    if (devices.length === 0) {
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data: '📭 Brak urządzeń do eksportu. Uruchom `skanuj sieć` aby odkryć urządzenia.' }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    const now = Date.now();
+    const ONLINE_MS = 15 * 60 * 1000;
+
+    let exportContent: string;
+    let filename: string;
+
+    if (format === 'json') {
+      const rows = devices.map(d => ({
+        ip: d.ip,
+        hostname: d.hostname ?? null,
+        mac: d.mac ?? null,
+        vendor: d.vendor ?? null,
+        device_type: (d as any).device_type ?? null,
+        status: now - d.last_seen < ONLINE_MS ? 'online' : 'offline',
+        last_seen: new Date(d.last_seen).toISOString(),
+        open_ports: (d as any).open_ports ?? [],
+      }));
+      exportContent = JSON.stringify(rows, null, 2);
+      filename = `broxeen-devices-${new Date().toISOString().slice(0, 10)}.json`;
+    } else {
+      const header = 'ip,hostname,mac,vendor,device_type,status,last_seen,open_ports';
+      const rows = devices.map(d => {
+        const status = now - d.last_seen < ONLINE_MS ? 'online' : 'offline';
+        const ports = ((d as any).open_ports ?? []).join(';');
+        const esc = (v: string | null | undefined) => v ? `"${String(v).replace(/"/g, '""')}"` : '';
+        return [d.ip, esc(d.hostname), esc(d.mac), esc(d.vendor), esc((d as any).device_type), status, new Date(d.last_seen).toISOString(), ports].join(',');
+      });
+      exportContent = [header, ...rows].join('\n');
+      filename = `broxeen-devices-${new Date().toISOString().slice(0, 10)}.csv`;
+    }
+
+    const lines = [
+      `## 📥 Eksport urządzeń — ${format.toUpperCase()} (${devices.length} urządzeń)`,
+      '',
+      `**Plik:** \`${filename}\``,
+      '',
+      '```' + format,
+      exportContent.slice(0, 3000) + (exportContent.length > 3000 ? '\n... (skrócono)' : ''),
+      '```',
+      '',
+      `_Skopiuj powyższy blok i zapisz jako \`${filename}\`_`,
+    ];
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data: lines.join('\n'), title: `Eksport ${format.toUpperCase()}` }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: exportContent.length > 3000, deviceCount: devices.length } as any,
+    };
+  }
+
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
 
@@ -250,6 +348,10 @@ export class NetworkScanPlugin implements Plugin {
 
     if (this.isFilterQuery(input)) {
       return this.handleDeviceFilter(input, context, start);
+    }
+
+    if (this.isExportQuery(input)) {
+      return this.handleExport(input, context, start);
     }
 
     const isCameraQuery = input.toLowerCase().includes('kamer') || input.toLowerCase().includes('camera');

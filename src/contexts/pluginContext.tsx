@@ -19,6 +19,7 @@ import type { DataSourcePlugin, PluginQuery, PluginResult as NewPluginResult } f
 import type { IntentDetection } from "../core/types";
 import { invoke } from "@tauri-apps/api/core";
 import { isTauriRuntime } from "../lib/runtime";
+import { configStore } from "../config/configStore";
 
 // ─── Context Value ──────────────────────────────────────────
 
@@ -97,7 +98,6 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
         // Check if it's a DataSourcePlugin (new API) or Plugin (old API)
         if ('execute' in plugin && 'capabilities' in plugin) {
           // DataSourcePlugin - create PluginQuery
-          const { configStore } = await import('../config/configStore');
           const query = {
             intent: intent.intent,
             rawInput,

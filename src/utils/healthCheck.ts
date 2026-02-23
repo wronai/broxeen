@@ -4,6 +4,7 @@
  */
 
 import { logger } from "../lib/logger";
+import { DatabaseManager } from "../persistence/databaseManager";
 
 const healthLogger = logger.scope("health:check");
 
@@ -219,7 +220,6 @@ class HealthChecker {
     // SQLite persistence check
     this.addCheck('dependencies', 'sqlite-persistence', async () => {
       try {
-        const { DatabaseManager } = await import('../persistence/databaseManager');
         // Try to create a quick in-memory manager to verify the module loads
         const testMgr = new DatabaseManager(
           { devicesDbPath: ':memory:', chatDbPath: ':memory:', walMode: false, connectionPoolSize: 1 },

@@ -103,6 +103,8 @@ export default function Chat({ settings }: ChatProps) {
   }, [messages]);
   const [inputFocused, setInputFocused] = useState(false);
   const [showQuickHistory, setShowQuickHistory] = useState(false);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [autocompleteActiveIndex, setAutocompleteActiveIndex] = useState(0);
   const [discoveredCameras, setDiscoveredCameras] = useState<CameraPreviewProps['camera'][]>([]);
   const [selectedCamera, setSelectedCamera] = useState<CameraPreviewProps['camera'] | null>(null);
   const [currentScope, setCurrentScope] = useState<QueryScope>('local');
@@ -157,6 +159,25 @@ export default function Chat({ settings }: ChatProps) {
       .map(msg => msg.text)
       .slice(-5);
   };
+
+  const baseAutocompleteSuggestions = useMemo(() => {
+    return [
+      'skanuj sieć',
+      'znajdź kamery w sieci',
+      'status urządzeń',
+      'lista urządzeń',
+      'tylko kamery',
+      'pokaż kamery',
+      'przeglądaj ',
+      'wyszukaj ',
+      'znajdź pliki ',
+      'znajdź pliki pdf',
+      'konfiguracja',
+      'konfiguruj email',
+      'monitoruj ',
+      'pomoc',
+    ];
+  }, []);
 
   // Get current context for suggestions
   const getCurrentContext = () => {
@@ -284,6 +305,34 @@ export default function Chat({ settings }: ChatProps) {
   } = useSpeech(settings.tts_lang);
 
   const stt = useStt({ lang: settings.tts_lang });
+
+  const autocompleteSuggestions = useMemo(() => {
+    const q = input.trim().toLowerCase();
+    if (!inputFocused) return [];
+    if (!q) return [];
+    if (isListening || stt.isRecording || stt.isTranscribing) return [];
+
+    const recent = getRecentQueries();
+    const candidates = [
+      ...recent,
+      ...baseAutocompleteSuggestions,
+    ];
+
+    const seen = new Set<string>();
+    const filtered: string[] = [];
+    for (const c of candidates) {
+      const trimmed = String(c ?? '');
+      if (!trimmed) continue;
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) continue;
+      if (key === q) continue;
+      if (!key.includes(q)) continue;
+      seen.add(key);
+      filtered.push(trimmed);
+      if (filtered.length >= 8) break;
+    }
+    return filtered;
+  }, [baseAutocompleteSuggestions, input, inputFocused, isListening, stt.isRecording, stt.isTranscribing, messages]);
 
   const tts = useTts({
     rate: settings.tts_rate,
@@ -666,6 +715,23 @@ export default function Chat({ settings }: ChatProps) {
     }
   }, [input]);
 
+  useEffect(() => {
+    if (!inputFocused) {
+      setShowAutocomplete(false);
+      return;
+    }
+    if (autocompleteSuggestions.length > 0) {
+      setShowAutocomplete(true);
+      setAutocompleteActiveIndex((idx) => {
+        if (idx < 0) return 0;
+        if (idx >= autocompleteSuggestions.length) return 0;
+        return idx;
+      });
+    } else {
+      setShowAutocomplete(false);
+    }
+  }, [autocompleteSuggestions, inputFocused]);
+
   // Network selection handlers
   const handleNetworkSelect = (networkConfig: NetworkConfig) => {
     setSelectedNetwork(networkConfig);
@@ -747,6 +813,18 @@ export default function Chat({ settings }: ChatProps) {
 
   const handleInputFocus = () => {
     setInputFocused(true);
+  };
+
+  const handleAutocompleteSelect = (choice: string) => {
+    setInput(choice);
+    setShowAutocomplete(false);
+    setTimeout(() => {
+      const inputElement = document.querySelector("input[type='text']") as HTMLInputElement | null;
+      if (inputElement) {
+        inputElement.focus();
+        inputElement.selectionStart = inputElement.selectionEnd = choice.length;
+      }
+    }, 0);
   };
 
   const handleInputBlur = () => {
@@ -1628,6 +1706,34 @@ ${analysis}`,
   const historyIndexRef = useRef<number>(-1);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Tab' && showAutocomplete && autocompleteSuggestions.length > 0) {
+      e.preventDefault();
+      const choice = autocompleteSuggestions[Math.min(autocompleteActiveIndex, autocompleteSuggestions.length - 1)];
+      if (choice) {
+        setInput(choice);
+        setTimeout(() => {
+          const inputElement = document.querySelector("input[type='text']") as HTMLInputElement | null;
+          if (inputElement) {
+            inputElement.focus();
+            inputElement.selectionStart = inputElement.selectionEnd = choice.length;
+          }
+        }, 0);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown' && showAutocomplete && autocompleteSuggestions.length > 0) {
+      e.preventDefault();
+      setAutocompleteActiveIndex((idx) => (idx + 1) % autocompleteSuggestions.length);
+      return;
+    }
+
+    if (e.key === 'ArrowUp' && showAutocomplete && autocompleteSuggestions.length > 0) {
+      e.preventDefault();
+      setAutocompleteActiveIndex((idx) => (idx - 1 + autocompleteSuggestions.length) % autocompleteSuggestions.length);
+      return;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -2640,6 +2746,39 @@ ${analysis}`,
                       maxItems={5}
                       selectedNetwork={selectedNetwork}
                     />
+                  </div>
+                )}
+
+                {showAutocomplete && !showQuickHistory && (
+                  <div
+                    className="absolute bottom-full left-0 right-0 mb-2 z-50 overflow-hidden rounded-lg border border-gray-700 bg-gray-800 shadow-lg"
+                    data-testid="chat-autocomplete"
+                  >
+                    <div className="max-h-56 overflow-y-auto py-1">
+                      {autocompleteSuggestions.map((s, idx) => (
+                        <button
+                          key={`${s}-${idx}`}
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleAutocompleteSelect(s);
+                          }}
+                          onMouseEnter={() => setAutocompleteActiveIndex(idx)}
+                          className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
+                            idx === autocompleteActiveIndex
+                              ? 'bg-broxeen-600/30 text-white'
+                              : 'text-gray-200 hover:bg-gray-700/50'
+                          }`}
+                          data-testid={`chat-autocomplete-item-${idx}`}
+                        >
+                          <span className="truncate">{s}</span>
+                          {idx === autocompleteActiveIndex && (
+                            <span className="ml-3 shrink-0 text-[11px] text-gray-400">TAB</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <button

@@ -238,6 +238,40 @@ describe("Chat — wpisywanie i wysyłanie", () => {
     expect(screen.getByTestId("config-action-monitor-thumb-500")).toBeInTheDocument();
   });
 
+  it("pokazuje podpowiedzi w trakcie pisania i uzupełnia przez Tab", async () => {
+    render(<Chat settings={defaultSettings} />);
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "konfig" } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-autocomplete")).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(input, { key: "Tab" });
+    expect((input as HTMLInputElement).value.toLowerCase()).toContain("konfig");
+  });
+
+  it("strzałki zmieniają aktywną podpowiedź", async () => {
+    render(<Chat settings={defaultSettings} />);
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
+
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "z" } });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("chat-autocomplete")).toBeInTheDocument();
+    });
+
+    const first = screen.getByTestId("chat-autocomplete-item-0");
+    expect(first.className).toContain("bg-broxeen-600/30");
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    const second = screen.getByTestId("chat-autocomplete-item-1");
+    expect(second.className).toContain("bg-broxeen-600/30");
+  });
+
   it("monitor_change tworzy jedną wiadomość z miniaturką w markdown i odpala TTS", async () => {
     render(
       <Chat

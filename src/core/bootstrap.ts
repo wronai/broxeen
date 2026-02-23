@@ -5,6 +5,7 @@
 import type { PluginContext, AppContext } from './types';
 import { scopeRegistry } from '../plugins/scope/scopeRegistry';
 import { DatabaseManager } from '../persistence/databaseManager';
+import { configStore } from '../config/configStore';
 
 export type { AppContext };
 import { PluginRegistry } from './pluginRegistry';
@@ -310,7 +311,6 @@ async function registerCorePlugins(
     
     // Check if it's a DataSourcePlugin (new API) or Plugin (old API)
     if ('capabilities' in plugin) {
-      const { configStore } = await import('../config/configStore');
       const query = {
         intent: intent.intent,
         rawInput: payload,

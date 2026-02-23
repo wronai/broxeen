@@ -33,6 +33,19 @@ dns-lookup = "2"
 rusqlite = { version = "0.31", features = ["bundled"] }
 rumqttc = "0.24"
 
+# ── Vision pipeline (optional, heavy native deps) ────────────────────────────
+opencv = { version = "0.93", default-features = false, features = [
+    "clang-runtime", "videoio", "imgproc", "video", "imgcodecs",
+], optional = true }
+ort = { version = "2.0.0-rc.11", features = ["download-binaries"], optional = true }
+ndarray = { version = "0.16", optional = true }
+image = { version = "0.25", features = ["jpeg"], optional = true }
+flume = { version = "0.11", optional = true }
+config = { version = "0.14", optional = true }
+anyhow = { version = "1", optional = true }
+thiserror = { version = "2", optional = true }
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+vision = ["dep:opencv", "dep:ort", "dep:ndarray", "dep:image", "dep:flume", "dep:config", "dep:anyhow", "dep:thiserror"]

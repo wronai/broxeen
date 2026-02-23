@@ -1,3 +1,24 @@
+## [1.0.63] - 2026-02-23
+
+### Summary
+
+feat(config): configuration management system
+
+### Other
+
+- update src-tauri/Cargo.lock
+- update src-tauri/Cargo.toml
+- update src-tauri/src/vision_capture.rs
+- update src-tauri/src/vision_config.rs
+- update src-tauri/src/vision_db.rs
+- update src-tauri/src/vision_detector.rs
+- update src-tauri/src/vision_llm.rs
+- update src-tauri/src/vision_motion.rs
+- update src-tauri/src/vision_pipeline.rs
+- update src/components/Chat.test.tsx
+- ... and 8 more
+
+
 ## [1.0.62] - 2026-02-23
 
 ### Summary
