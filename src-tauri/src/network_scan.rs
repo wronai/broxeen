@@ -269,6 +269,13 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
                 camera_id_for_thread, status
             ));
 
+            if let Some(msg) = &stderr_text {
+                backend_warn(&format!(
+                    "rtsp worker stderr: camera_id={} error={}",
+                    camera_id_for_thread, msg
+                ));
+            }
+
             if let Some(msg) = stderr_text {
                 return Err(format!("ffmpeg exited: {}", msg));
             }

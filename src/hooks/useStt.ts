@@ -205,6 +205,12 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   }, []);
 
   const startTauriRecording = useCallback(() => {
+    // Prevent duplicate stt_start calls
+    if (isRecordingRef.current) {
+      sttLogger.warn("STT start called while already recording, ignoring");
+      return;
+    }
+
     const runBackendStart = logAsyncDecorator(
       "speech:stt:ui",
       "startRecordingTauriBackend",

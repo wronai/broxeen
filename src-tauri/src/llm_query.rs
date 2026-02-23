@@ -185,5 +185,6 @@ pub struct NlQueryResult {
     pub rows: Vec<Vec<String>>,
     pub row_count: usize,
     pub db_path: String,
+    #[allow(dead_code)]
     pub source: DataSource,
 }

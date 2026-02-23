@@ -157,96 +157,99 @@ export function useTts(options: Partial<TtsOptions> = {}) {
       ttsLogger.debug("Registering speechSynthesis.onvoiceschanged listener");
       speechSynthesisApi.onvoiceschanged = loadVoices;
     } else if (runtimeIsTauri) {
-      const probeTauriBackendTts = logAsyncDecorator(
-        "speech:tts",
-        "probeTauriBackendTts",
-        async () => {
-          try {
-            const backendInfo =
-              await invoke<BackendTtsInfo>("backend_tts_info");
-            const engine = (backendInfo?.engine ?? "").trim();
-            const backendSupported = engine.length > 0 && engine !== "None";
-
-            if (!isMounted) {
-              return;
-            }
-
-            backendSupportedRef.current = backendSupported;
-            backendModeRef.current = backendSupported ? "native" : "none";
-            setIsSupported(backendSupported);
-            setUnsupportedReason(
-              backendSupported ? null : TTS_TAURI_FALLBACK_UNAVAILABLE_REASON,
-            );
-
-            ttsLogger.info("Tauri native backend TTS probe completed", {
-              supported: backendSupported,
-              engine,
-              engineInfo: backendInfo?.engine_info,
-              piperInstalled: backendInfo?.piper_installed,
-            });
-
-            if (backendInfo?.setup_instructions) {
-              ttsLogger.warn(
-                "Piper TTS is not installed; backend may use espeak fallback",
-                {
-                  setupHintAvailable: true,
-                },
-              );
-            }
-          } catch (nativeError) {
-            ttsLogger.warn(
-              "Failed to probe native backend TTS info, trying legacy tts_is_available",
-              {
-                error: nativeError,
-              },
-            );
-
+      // Cache probe to avoid duplicate backend_tts_info calls
+      if (!backendSupportedRef.current && backendModeRef.current === "none") {
+        const probeTauriBackendTts = logAsyncDecorator(
+          "speech:tts",
+          "probeTauriBackendTts",
+          async () => {
             try {
-              const availability =
-                await invoke<TauriTtsAvailability>("tts_is_available");
-              const backendSupported = !!availability?.supported;
+              const backendInfo =
+                await invoke<BackendTtsInfo>("backend_tts_info");
+              const engine = (backendInfo?.engine ?? "").trim();
+              const backendSupported = engine.length > 0 && engine !== "None";
 
               if (!isMounted) {
                 return;
               }
 
               backendSupportedRef.current = backendSupported;
-              backendModeRef.current = backendSupported ? "legacy" : "none";
+              backendModeRef.current = backendSupported ? "native" : "none";
               setIsSupported(backendSupported);
               setUnsupportedReason(
-                backendSupported
-                  ? null
-                  : availability?.reason ||
-                      TTS_TAURI_FALLBACK_UNAVAILABLE_REASON,
+                backendSupported ? null : TTS_TAURI_FALLBACK_UNAVAILABLE_REASON,
               );
 
-              ttsLogger.info("Legacy Tauri backend TTS probe completed", {
+              ttsLogger.info("Tauri native backend TTS probe completed", {
                 supported: backendSupported,
-                backend: availability?.backend || "unknown",
-                reason: availability?.reason || null,
+                engine,
+                engineInfo: backendInfo?.engine_info,
+                piperInstalled: backendInfo?.piper_installed,
               });
-            } catch (error) {
+
+              if (backendInfo?.setup_instructions) {
+                ttsLogger.warn(
+                  "Piper TTS is not installed; backend may use espeak fallback",
+                  {
+                    setupHintAvailable: true,
+                  },
+                );
+              }
+            } catch (nativeError) {
+              ttsLogger.warn(
+                "Failed to probe native backend TTS info, trying legacy tts_is_available",
+                {
+                  error: nativeError,
+                },
+              );
+
+              try {
+                const availability =
+                  await invoke<TauriTtsAvailability>("tts_is_available");
+                const backendSupported = !!availability?.supported;
+
+                if (!isMounted) {
+                  return;
+                }
+
+                backendSupportedRef.current = backendSupported;
+                backendModeRef.current = backendSupported ? "legacy" : "none";
+                setIsSupported(backendSupported);
+                setUnsupportedReason(
+                  backendSupported
+                    ? null
+                    : availability?.reason ||
+                        TTS_TAURI_FALLBACK_UNAVAILABLE_REASON,
+                );
+
+                ttsLogger.info("Legacy Tauri backend TTS probe completed", {
+                  supported: backendSupported,
+                  backend: availability?.backend || "unknown",
+                  reason: availability?.reason || null,
+                });
+              } catch (error) {
+                if (!isMounted) {
+                  return;
+                }
+
+                backendSupportedRef.current = false;
+                backendModeRef.current = "none";
+                setIsSupported(false);
+                setUnsupportedReason(TTS_TAURI_FALLBACK_UNAVAILABLE_REASON);
+                ttsLogger.warn("Failed to probe Tauri backend TTS support", {
+                  error,
+                });
+              }
+
               if (!isMounted) {
                 return;
               }
-
-              backendSupportedRef.current = false;
-              backendModeRef.current = "none";
-              setIsSupported(false);
-              setUnsupportedReason(TTS_TAURI_FALLBACK_UNAVAILABLE_REASON);
-              ttsLogger.warn("Failed to probe Tauri backend TTS support", {
-                error,
-              });
             }
+          },
+        );
 
-            if (!isMounted) {
-              return;
-            }
-          }
-        },
-      );
-
-      void probeTauriBackendTts();
+        void probeTauriBackendTts();
+      }
     }
 
     return () => {

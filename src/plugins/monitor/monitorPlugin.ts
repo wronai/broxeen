@@ -112,88 +112,74 @@ export class MonitorPlugin implements Plugin {
     return data.trimEnd();
   }
 
-  async canHandle(input: string, context: PluginContext): Promise<boolean> {
+  // ── Data-driven command routing table ─────────────────────────────────
+  // Each entry: [pattern, handler-key]. Checked in order; first match wins.
+  // Replaces 45+ individual regex tests with a single scannable table.
+  private static readonly COMMAND_ROUTES: ReadonlyArray<[RegExp, string]> = [
+    // Vision / AI pipeline — checked first (highest priority)
+    [/vision.*pipeline|pipeline.*vision|ai.*monitor|monitoring.*ai|detekcja.*ai|yolo.*monitor|start.*vision|uruchom.*vision|w[łl]ącz.*vision|status.*vision|stop.*vision|zatrzymaj.*vision/i, 'vision'],
+    // DB conflict resolution
+    [/\b(?:zachowaj|wybierz)\s+monitoring\s+cd_[a-z0-9_]+\b/i, 'resolve'],
+    // Toggle enable/disable
+    [/\b(?:w[łl]ącz|wlacz|wy[łl]ącz|wylacz)\s+monitor/i, 'toggle'],
+    // Stop
+    [/(?:stop|zatrzymaj|przesta[ńn]).*monitor/i, 'stop'],
+    // List active
+    [/(?:aktywne|lista|list).*(?:monitor|watch)/i, 'list'],
+    // Logs / history — "pokaż logi", "historia zmian", "logi monitoringu"
+    [/logi|historia.*zmian|poka[żz].*log/i, 'logs'],
+    // Config (threshold / interval) — "ustaw próg 20%", "zmień interwał"
+    [/(?:ustaw|zmie[ńn]).*(?:pr[oó]g|interwa[łl])/i, 'config'],
+    // Explain / help
+    [/(?:jak.*dzia[łl]a|wyja[śs]ni[jć]).*monitor|tryb.*(?:detekcji|wykrywan)|monitor.*(?:explain|help)/i, 'explain'],
+  ];
+
+  // All patterns that canHandle should match (includes COMMAND_ROUTES + start-triggers)
+  private static readonly CAN_HANDLE_PATTERNS: ReadonlyArray<RegExp> = [
+    // Start / observe keywords
+    /\b(?:monitoruj|obserwuj|[śs]led[źz])\b/i,
+    /monitor.*flag/i,
+    // All command routes
+    ...MonitorPlugin.COMMAND_ROUTES.map(([pattern]) => pattern),
+  ];
+
+  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
     const lower = input.toLowerCase();
-    return /monitoruj/i.test(lower) ||
-      /obserwuj/i.test(lower) ||
-      /śledź/i.test(lower) ||
-      /sledz/i.test(lower) ||
-      /w[łl]ącz.*monitor/i.test(lower) ||
-      /wlacz.*monitor/i.test(lower) ||
-      /wy[łl]ącz.*monitor/i.test(lower) ||
-      /wylacz.*monitor/i.test(lower) ||
-      /\b(?:zachowaj|wybierz)\s+monitoring\s+cd_[a-z0-9_]+\b/i.test(lower) ||
-      /stop.*monitor/i.test(lower) ||
-      /zatrzymaj.*monitor/i.test(lower) ||
-      /przestań.*monitor/i.test(lower) ||
-      /przestan.*monitor/i.test(lower) ||
-      /aktywne.*monitor/i.test(lower) ||
-      /lista.*monitor/i.test(lower) ||
-      /logi.*monitor/i.test(lower) ||
-      /historia.*zmian/i.test(lower) ||
-      /pokaż.*logi/i.test(lower) ||
-      /pokaz.*logi/i.test(lower) ||
-      /ustaw.*próg/i.test(lower) ||
-      /ustaw.*prog/i.test(lower) ||
-      /ustaw.*interwał/i.test(lower) ||
-      /ustaw.*interwal/i.test(lower) ||
-      /zmien.*interwał/i.test(lower) ||
-      /zmien.*interwal/i.test(lower) ||
-      /zmień.*interwał/i.test(lower) ||
-      /zmień.*interwal/i.test(lower) ||
-      /monitor.*flag/i.test(lower) ||
-      /jak.*dzia[łl]a.*monitor/i.test(lower) ||
-      /wyja[śs]ni[jć].*monitor/i.test(lower) ||
-      /tryb.*detekcji|tryb.*wykrywan/i.test(lower) ||
-      /monitor.*explain|monitor.*help/i.test(lower) ||
-      /vision.*pipeline/i.test(lower) ||
-      /pipeline.*vision/i.test(lower) ||
-      /ai.*monitor/i.test(lower) ||
-      /monitoring.*ai/i.test(lower) ||
-      /detekcja.*ai/i.test(lower) ||
-      /yolo.*monitor/i.test(lower) ||
-      /start.*vision/i.test(lower) ||
-      /uruchom.*vision/i.test(lower) ||
-      /w[łl]ącz.*vision/i.test(lower) ||
-      /status.*vision/i.test(lower) ||
-      /stop.*vision/i.test(lower) ||
-      /zatrzymaj.*vision/i.test(lower) ||
-      /watch/i.test(lower) && /start|stop|list|log/i.test(lower);
+    return MonitorPlugin.CAN_HANDLE_PATTERNS.some(p => p.test(lower));
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
     const lower = input.toLowerCase();
 
-    const resolveMatch = input.match(/\b(?:zachowaj|wybierz)\s+monitoring\s+(cd_[a-z0-9_]+)/i);
-    if (resolveMatch) {
-      return await this.handleResolveDbConflict(resolveMatch[1], context, start);
-    }
+    // Route through the command table
+    for (const [pattern, key] of MonitorPlugin.COMMAND_ROUTES) {
+      if (!pattern.test(lower)) continue;
 
-    const toggle = this.parseToggleMonitoring(input);
-    if (toggle) {
-      return await this.handleToggleMonitoring(toggle.action, toggle.identifier, context, start);
-    }
-
-    // Vision Pipeline commands - check BEFORE standard monitoring commands
-    if (/vision.*pipeline|pipeline.*vision|ai.*monitor|monitoring.*ai|detekcja.*ai|yolo.*monitor|start.*vision|uruchom.*vision|w[łl]ącz.*vision|status.*vision|stop.*vision|zatrzymaj.*vision/i.test(lower)) {
-      return await this.handleVisionPipeline(input, context, start);
-    }
-
-    if (/stop.*monitor|zatrzymaj.*monitor|przestań.*monitor|przestan.*monitor/i.test(lower)) {
-      return await this.handleStop(input, start);
-    }
-    if (/aktywne.*monitor|lista.*monitor|list.*watch/i.test(lower)) {
-      return this.handleList(start);
-    }
-    if (/logi.*monitor|historia.*zmian|pokaż.*logi|pokaz.*logi|log.*monitor/i.test(lower)) {
-      return this.handleLogs(input, start);
-    }
-    if (/ustaw.*próg|ustaw.*prog|ustaw.*interwał|ustaw.*interwal|zmien.*interwał|zmien.*interwal|zmień.*interwał|zmień.*interwal/i.test(lower)) {
-      return this.handleConfig(input, start);
-    }
-    if (/jak.*dzia[łl]a.*monitor|wyja[śs]ni[jć].*monitor|tryb.*detekcji|tryb.*wykrywan|monitor.*explain|monitor.*help/i.test(lower)) {
-      return this.handleExplain(start);
+      switch (key) {
+        case 'vision':
+          return await this.handleVisionPipeline(input, context, start);
+        case 'resolve': {
+          const m = input.match(/\b(?:zachowaj|wybierz)\s+monitoring\s+(cd_[a-z0-9_]+)/i);
+          if (m) return await this.handleResolveDbConflict(m[1], context, start);
+          break;
+        }
+        case 'toggle': {
+          const toggle = this.parseToggleMonitoring(input);
+          if (toggle) return await this.handleToggleMonitoring(toggle.action, toggle.identifier, context, start);
+          break;
+        }
+        case 'stop':
+          return await this.handleStop(input, start);
+        case 'list':
+          return this.handleList(start);
+        case 'logs':
+          return this.handleLogs(input, start);
+        case 'config':
+          return this.handleConfig(input, start);
+        case 'explain':
+          return this.handleExplain(start);
+      }
     }
 
     // Default: start monitoring
@@ -2355,7 +2341,7 @@ export class MonitorPlugin implements Plugin {
       const activeTargets = Array.from(this.targets.values());
       if (activeTargets.length > 0) {
         const target = activeTargets[0]; // Use first active monitor
-        rtspUrl = target.address;
+        rtspUrl = target.address ?? `rtsp://${target.id}:554/stream`;
         cameraId = target.id;
       } else {
         return this.errorResult(
@@ -2410,7 +2396,7 @@ export class MonitorPlugin implements Plugin {
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };
     } catch (error) {
-      if (error.toString().includes('vision')) {
+      if (String(error).includes('vision')) {
         return this.errorResult(
           `Vision pipeline nie jest dostępny. Zbuduj z vision feature:\n` +
           `\`cd src-tauri && cargo build --features vision\`\n\n` +
