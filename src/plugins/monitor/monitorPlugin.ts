@@ -40,6 +40,16 @@ export interface MonitorTarget {
   needsCredentials?: boolean;
 }
 
+export interface CaptureMetadata {
+  method?: 'rtsp' | 'http' | 'none';
+  url?: string;
+  resolution?: string;       // e.g. '1920x1080'
+  frameBytes?: number;       // base64 length as proxy for size
+  captureMs?: number;        // how long capture took
+  failReason?: string;       // why capture failed
+  attemptsDetail?: string;   // what was tried
+}
+
 export interface MonitorLogEntry {
   timestamp: number;
   type: 'start' | 'stop' | 'change' | 'error' | 'check' | 'snapshot';
@@ -47,6 +57,7 @@ export interface MonitorLogEntry {
   changeScore?: number;
   details?: string;
   snapshot?: string; // base64 image for visual changes
+  capture?: CaptureMetadata; // technical capture info
 }
 
 type MonitorUiEventDetail = {

@@ -345,6 +345,32 @@ describe("Chat — browse flow", () => {
     });
   });
 
+  it("gdy plugin zwraca Command not found — pokazuje fallback z config prompt i akcjami", async () => {
+    // Simulate missing Tauri command error coming from a plugin
+    mockAskFn = vi.fn().mockResolvedValue({
+      pluginId: 'camera-health',
+      status: 'error' as const,
+      content: [{ type: 'text' as const, data: 'Błąd sprawdzania: Command camera_health_check not found' }],
+      metadata: { duration_ms: 10, cached: false, truncated: false },
+    });
+
+    render(<Chat settings={defaultSettings} />);
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
+    fireEvent.change(input, { target: { value: "sprawdź status kamer" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      // Should render interactive fallback prompt instead of plain error
+      expect(screen.getByTestId("config-prompt")).toBeInTheDocument();
+    });
+
+    // Fallback config prompt should contain at least one action button
+    const anyAction =
+      document.querySelector('[data-testid^="config-action-"]') ||
+      document.querySelector('[data-testid^="config-card-"]');
+    expect(anyAction).not.toBeNull();
+  });
+
   it("zapytanie fonetyczne → URL + wiadomość ładowania", async () => {
     mockAskFn = vi.fn().mockResolvedValue(makePluginResponse('Treść strony onet.pl'));
 
