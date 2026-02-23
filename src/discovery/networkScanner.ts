@@ -300,36 +300,45 @@ export class NetworkScanner {
     const now = Date.now();
 
     for (const device of devices) {
-      const existingDevice = db.prepare('SELECT id FROM devices WHERE ip = ?').get(device.ip) as { id: string } | undefined;
+      const existingDevice = await db.queryOne<{ id: string }>(
+        'SELECT id FROM devices WHERE ip = ?',
+        [device.ip],
+      );
 
       if (existingDevice) {
         // Update existing device
-        db.prepare(`
+        await db.execute(
+          `
           UPDATE devices 
           SET hostname = ?, mac = ?, vendor = ?, last_seen = ?, updated_at = ?
           WHERE id = ?
-        `).run(
-          device.hostname,
-          device.mac,
-          device.vendor,
-          now,
-          now,
-          existingDevice.id
+        `,
+          [
+            device.hostname,
+            device.mac,
+            device.vendor,
+            now,
+            now,
+            existingDevice.id,
+          ],
         );
       } else {
         // Insert new device
-        db.prepare(`
+        await db.execute(
+          `
           INSERT INTO devices (id, ip, hostname, mac, vendor, last_seen, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          crypto.randomUUID(),
-          device.ip,
-          device.hostname,
-          device.mac,
-          device.vendor,
-          now,
-          now,
-          now
+        `,
+          [
+            crypto.randomUUID(),
+            device.ip,
+            device.hostname,
+            device.mac,
+            device.vendor,
+            now,
+            now,
+            now,
+          ],
         );
       }
     }

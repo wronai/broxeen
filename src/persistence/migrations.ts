@@ -101,6 +101,7 @@ export const chatDbMigrations: Migration[] = [
     version: 1,
     description: 'Create initial chat schema',
     up: (db) => {
+
       // Conversations table
       db.exec(`
         CREATE TABLE IF NOT EXISTS conversations (
@@ -160,6 +161,47 @@ export const chatDbMigrations: Migration[] = [
         DROP TABLE IF EXISTS watch_rules;
         DROP TABLE IF EXISTS messages;
         DROP TABLE IF EXISTS conversations;
+      `);
+    }
+  },
+  {
+    version: 2,
+    description: 'Add command_history and network_history tables',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS command_history (
+          id TEXT PRIMARY KEY,
+          command TEXT NOT NULL,
+          result TEXT,
+          category TEXT NOT NULL DEFAULT 'other',
+          success INTEGER NOT NULL DEFAULT 1,
+          timestamp INTEGER NOT NULL
+        )
+      `);
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS network_history (
+          id TEXT PRIMARY KEY,
+          address TEXT NOT NULL,
+          name TEXT NOT NULL,
+          scope TEXT NOT NULL,
+          description TEXT,
+          last_used INTEGER NOT NULL,
+          usage_count INTEGER NOT NULL DEFAULT 1
+        )
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_command_history_timestamp ON command_history(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_command_history_category ON command_history(category);
+        CREATE INDEX IF NOT EXISTS idx_network_history_last_used ON network_history(last_used);
+        CREATE INDEX IF NOT EXISTS idx_network_history_address ON network_history(address);
+      `);
+    },
+    down: (db) => {
+      db.exec(`
+        DROP TABLE IF EXISTS network_history;
+        DROP TABLE IF EXISTS command_history;
       `);
     }
   }

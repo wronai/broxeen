@@ -114,6 +114,7 @@ export class TauriRtspGrabber implements FrameGrabber {
     const result = (await this.invoke("rtsp_capture_frame", {
       url,
       cameraId: camera.id,
+      camera_id: camera.id,
     })) as { base64: string; width: number; height: number };
 
     return {

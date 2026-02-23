@@ -189,54 +189,36 @@ export class CameraLivePlugin implements Plugin {
         const msg = lastRtspErr ? this.truncateOneLine(lastRtspErr, 220) : 'nie udało się pobrać klatki';
         rtspStatusLine = `❌ **RTSP nie działa** — ${msg}`;
       }
-    } else {
-      rtspStatusLine = 'ℹ️ **RTSP preview w czacie wymaga Tauri** (przeglądarka nie odtworzy RTSP)';
-    }
 
-    // HTTP snapshot validation (best-effort)
-    for (const candidate of snapshotCandidates) {
-      try {
-        if (context.isTauri && context.tauriInvoke) {
+      // HTTP snapshot validation (best-effort) via backend (avoids CORS)
+      for (const candidate of snapshotCandidates) {
+        try {
           const res = await context.tauriInvoke('http_fetch_base64', { url: candidate }) as {
+            url: string;
             status: number;
             content_type?: string | null;
             base64: string;
-            url: string;
           };
-
           if (res?.status && res.status >= 200 && res.status < 300 && res.base64) {
-            workingSnapshotUrl = candidate;
-            previewMimeType = (res.content_type?.includes('png') ? 'image/png' : 'image/jpeg');
             previewBase64 = previewBase64 ?? res.base64;
+            previewMimeType = (res.content_type && res.content_type.includes('png')) ? 'image/png' : 'image/jpeg';
+            workingSnapshotUrl = candidate;
             snapshotStatusLine = `✅ **HTTP snapshot OK** — ${res.status} (\`${candidate}\`)`;
             break;
           }
-
           snapshotStatusLine = `❌ **HTTP snapshot** — ${res?.status ?? 'ERR'} (\`${candidate}\`)`;
-          continue;
-        }
-
-        const httpRes = await fetch(candidate);
-        if (!httpRes.ok) {
-          snapshotStatusLine = `❌ **HTTP snapshot** — ${httpRes.status} ${httpRes.statusText} (\`${candidate}\`)`;
-          continue;
-        }
-        const blob = await httpRes.blob();
-        previewMimeType = blob.type?.includes('png') ? 'image/png' : 'image/jpeg';
-        previewBase64 = previewBase64 ?? (await this.blobToBase64(blob));
-        workingSnapshotUrl = candidate;
-        snapshotStatusLine = `✅ **HTTP snapshot OK** — ${httpRes.status} (\`${candidate}\`)`;
-        break;
-      } catch (e) {
-        // Browser often throws due to CORS; keep trying next but remember a useful message
-        if (!snapshotStatusLine) {
-          const errText = this.truncateOneLine(e instanceof Error ? e.message : String(e), 140);
-          snapshotStatusLine = context.isTauri && context.tauriInvoke
-            ? `⚠️ **HTTP snapshot** — backend fetch failed: ${errText}`
-            : `⚠️ **HTTP snapshot** — fetch failed (CORS/auth). Otwórz URL w nowej karcie.`;
+        } catch {
+          // try next
         }
       }
+      if (!snapshotStatusLine) {
+        snapshotStatusLine = '⚠️ **HTTP snapshot** — nie udało się pobrać (sprawdź URL/credentials)';
+      }
+    } else {
+      rtspStatusLine = 'ℹ️ **RTSP preview w czacie wymaga aplikacji Tauri** (w przeglądarce RTSP nie zadziała)';
+      snapshotStatusLine = 'ℹ️ **Snapshot w czacie wymaga aplikacji Tauri** (w przeglądarce blokuje CORS). Otwórz snapshot URL w nowej karcie.';
     }
+
     
     let data = `📹 **Podgląd live z kamery**\n\n`;
     data += `🌐 **IP:** ${ip}\n`;
@@ -446,6 +428,7 @@ export class CameraLivePlugin implements Plugin {
           const result = await context.tauriInvoke('rtsp_capture_frame', {
             url: rtspUrl,
             cameraId: `${ip}-${index}`,
+            camera_id: `${ip}-${index}`,
           }) as { base64?: string };
           
           if (result?.base64) {

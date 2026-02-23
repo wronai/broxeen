@@ -83,4 +83,29 @@ describe('CameraLivePlugin', () => {
     expect(rtspArgs.cameraId).toBe('192.168.188.146');
     expect(rtspArgs.camera_id).toBe('192.168.188.146');
   });
+
+  it('passes both cameraId and camera_id in test-streams probing flow', async () => {
+    const plugin = new CameraLivePlugin();
+
+    const tauriInvoke = vi.fn(async (command: string) => {
+      if (command === 'rtsp_capture_frame') {
+        return { base64: 'ok' };
+      }
+      throw new Error(`unexpected command: ${command}`);
+    });
+
+    const context: PluginContext = {
+      isTauri: true,
+      tauriInvoke,
+    };
+
+    await plugin.execute('test streams 192.168.188.146 user:admin admin:123456', context);
+
+    const firstRtspCall = tauriInvoke.mock.calls.find(([command]) => command === 'rtsp_capture_frame');
+    expect(firstRtspCall).toBeTruthy();
+
+    const rtspArgs = firstRtspCall?.[1] as { cameraId?: string; camera_id?: string };
+    expect(rtspArgs.cameraId).toBe('192.168.188.146-0');
+    expect(rtspArgs.camera_id).toBe('192.168.188.146-0');
+  });
 });

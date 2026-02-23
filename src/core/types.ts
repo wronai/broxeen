@@ -20,6 +20,7 @@ export interface PluginContext {
   mqtt?: MqttConfig;
   describeImage?: (imageUrl: string) => Promise<string>;
   scope?: string; // Add scope to plugin context
+  databaseManager?: import('../persistence/databaseManager').DatabaseManager;
 }
 
 export interface CameraConfig {

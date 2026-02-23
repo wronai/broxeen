@@ -50,6 +50,7 @@ export async function bootstrapApp(config: {
     mqtt: config.mqtt,
     describeImage: config.describeImage,
     scope: scopeRegistry.getActiveScope().id,
+    databaseManager: dbManager,
   };
 
   await registerCorePlugins(pluginRegistry, intentRouter, commandBus, config.isTauri, config.tauriInvoke);

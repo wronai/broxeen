@@ -356,37 +356,41 @@ export class ServiceProber {
 
     for (const service of services) {
       // Check if service already exists
-      const existingService = db.prepare(`
+      const existingService = await db.queryOne<{ id: string }>(
+        `
         SELECT id FROM device_services 
         WHERE device_id = ? AND type = ? AND port = ?
-      `).get(deviceId, service.type, service.port) as { id: string } | undefined;
+      `,
+        [deviceId, service.type, service.port],
+      );
 
       if (existingService) {
         // Update existing service
-        db.prepare(`
+        await db.execute(
+          `
           UPDATE device_services 
           SET status = ?, last_checked = ?, metadata = ?
           WHERE id = ?
-        `).run(
-          service.status,
-          now,
-          JSON.stringify(service.metadata),
-          existingService.id
+        `,
+          [service.status, now, JSON.stringify(service.metadata), existingService.id],
         );
       } else {
         // Insert new service
-        db.prepare(`
+        await db.execute(
+          `
           INSERT INTO device_services (id, device_id, type, port, path, status, last_checked, metadata)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          crypto.randomUUID(),
-          deviceId,
-          service.type,
-          service.port,
-          service.path,
-          service.status,
-          now,
-          JSON.stringify(service.metadata)
+        `,
+          [
+            crypto.randomUUID(),
+            deviceId,
+            service.type,
+            service.port,
+            service.path,
+            service.status,
+            now,
+            JSON.stringify(service.metadata),
+          ],
         );
       }
     }

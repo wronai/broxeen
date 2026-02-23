@@ -5,6 +5,8 @@
   "identifier": "com.broxeen.app",
   "build": {
     "frontendDist": "../dist",
+    "beforeDevCommand": "corepack npm run dev",
+    "beforeBuildCommand": "corepack npm run build",
     "devUrl": "http://localhost:5173"
   },
   "app": {
@@ -12,8 +14,8 @@
       {
         "label": "main",
         "title": "Broxeen",
-        "width": 1024,
-        "height": 768,
+        "width": 768,
+        "height": 1024,
         "resizable": true,
         "fullscreen": false,
         "center": true

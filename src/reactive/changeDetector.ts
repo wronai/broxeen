@@ -122,7 +122,7 @@ export class ChangeDetector {
       params = [targetId];
     }
 
-    const row = db.prepare(query).get(...params) as any;
+    const row = await db.queryOne<any>(query, params);
     
     if (!row) {
       return null;
@@ -161,15 +161,21 @@ export class ChangeDetector {
     const snapshotId = crypto.randomUUID();
 
     if (targetType === 'device') {
-      db.prepare(`
+      await db.execute(
+        `
         INSERT INTO content_snapshots (id, device_id, service_id, content, content_type, hash, size, captured_at)
         VALUES (?, ?, NULL, ?, ?, ?, ?, ?)
-      `).run(snapshotId, targetId, content, contentType, hash, size, now);
+      `,
+        [snapshotId, targetId, content, contentType, hash, size, now],
+      );
     } else {
-      db.prepare(`
+      await db.execute(
+        `
         INSERT INTO content_snapshots (id, device_id, service_id, content, content_type, hash, size, captured_at)
         VALUES (?, NULL, ?, ?, ?, ?, ?, ?)
-      `).run(snapshotId, targetId, content, contentType, hash, size, now);
+      `,
+        [snapshotId, targetId, content, contentType, hash, size, now],
+      );
     }
 
     return {
@@ -202,18 +208,21 @@ export class ChangeDetector {
     const db = this.dbManager.getDevicesDb();
     const now = Date.now();
 
-    db.prepare(`
+    await db.execute(
+      `
       INSERT INTO change_history (id, device_id, service_id, previous_snapshot_id, current_snapshot_id, change_type, change_score, detected_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      crypto.randomUUID(),
-      targetType === 'device' ? targetId : null,
-      targetType === 'service' ? targetId : null,
-      previousSnapshotId,
-      currentSnapshotId,
-      changeType,
-      changeScore,
-      now
+    `,
+      [
+        crypto.randomUUID(),
+        targetType === 'device' ? targetId : null,
+        targetType === 'service' ? targetId : null,
+        previousSnapshotId,
+        currentSnapshotId,
+        changeType,
+        changeScore,
+        now,
+      ],
     );
   }
 
@@ -336,8 +345,8 @@ export class ChangeDetector {
       ORDER BY detected_at DESC 
       LIMIT ?
     `;
-    
-    const rows = db.prepare(query).all(targetId, limit) as any[];
+
+    const rows = await db.query<any>(query, [targetId, limit]);
     
     return rows.map(row => ({
       id: row.id,

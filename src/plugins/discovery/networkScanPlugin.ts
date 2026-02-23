@@ -6,6 +6,7 @@
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
 import { processRegistry } from '../../core/processRegistry';
 import { configStore } from '../../config/configStore';
+import { DeviceRepository } from '../../persistence/deviceRepository';
 
 export class NetworkScanPlugin implements Plugin {
   readonly id = 'network-scan';
@@ -66,6 +67,11 @@ export class NetworkScanPlugin implements Plugin {
             subnet: userSpecifiedSubnet,
             timeout: 5000,
           }) as NetworkScanResult;
+
+          // Persist discovered devices to SQLite
+          this.persistDevices(result.devices, context).catch((err) =>
+            console.warn('[NetworkScanPlugin] Device persistence failed:', err),
+          );
 
           processRegistry.complete(scanId);
           processRegistry.remove(scanId);
@@ -608,6 +614,45 @@ export class NetworkScanPlugin implements Plugin {
     }
 
     return content;
+  }
+
+  /** Persist discovered devices to SQLite via DeviceRepository. */
+  private async persistDevices(devices: NetworkDevice[], context: PluginContext): Promise<void> {
+    if (!context.databaseManager || !context.databaseManager.isReady()) return;
+
+    try {
+      const repo = new DeviceRepository(context.databaseManager.getDevicesDb());
+      const mapped = devices.map((d) => ({
+        id: d.mac || d.ip,
+        ip: d.ip,
+        hostname: d.hostname,
+        mac: d.mac,
+        vendor: d.vendor,
+      }));
+      await repo.saveDevices(mapped);
+
+      // Persist services (open ports)
+      for (const d of devices) {
+        const deviceId = d.mac || d.ip;
+        for (const port of d.open_ports) {
+          const type = port === 554 || port === 8554 ? 'rtsp'
+            : port === 1883 ? 'mqtt'
+            : port === 22 ? 'ssh'
+            : 'http';
+          await repo.saveService({
+            id: `${deviceId}:${port}`,
+            deviceId,
+            type: type as any,
+            port,
+            status: 'online',
+          });
+        }
+      }
+
+      console.log(`[NetworkScanPlugin] Persisted ${mapped.length} devices to SQLite`);
+    } catch (err) {
+      console.warn('[NetworkScanPlugin] persistDevices error:', err);
+    }
   }
 
   async dispose(): Promise<void> {

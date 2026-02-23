@@ -186,7 +186,8 @@ export class AutoWatchIntegration {
     const timeWindowStart = currentTime.getTime() - this.config.timeWindowMs;
 
     // Look for recent messages about the same target
-    const recentMessages = db.prepare(`
+    const recentMessages = await db.query<any>(
+      `
       SELECT m.* FROM messages m
       JOIN conversations c ON m.conversation_id = c.id
       WHERE m.role = 'user'
@@ -194,11 +195,9 @@ export class AutoWatchIntegration {
       AND (LOWER(m.content) LIKE ? OR LOWER(m.content) LIKE ?)
       ORDER BY m.timestamp DESC
       LIMIT 5
-    `).all(
-      timeWindowStart,
-      `%${targetId}%`,
-      `%${intent.split(':')[0]}%`
-    ) as any[];
+    `,
+      [timeWindowStart, `%${targetId}%`, `%${intent.split(':')[0]}%`],
+    );
 
     return recentMessages.length > 0;
   }
@@ -248,21 +247,27 @@ export class AutoWatchIntegration {
     const now = Date.now();
 
     // Try to find an existing conversation (simplified - in production you'd track conversation state)
-    let conversation = db.prepare('SELECT id FROM conversations ORDER BY last_activity_at DESC LIMIT 1').get() as { id: string } | undefined;
+    const conversation = await db.queryOne<{ id: string }>(
+      'SELECT id FROM conversations ORDER BY last_activity_at DESC LIMIT 1',
+      [],
+    );
 
     if (!conversation) {
       // Create new conversation
       const conversationId = crypto.randomUUID();
-      db.prepare(`
+      await db.execute(
+        `
         INSERT INTO conversations (id, started_at, last_activity_at)
         VALUES (?, ?, ?)
-      `).run(conversationId, now, now);
+      `,
+        [conversationId, now, now],
+      );
 
       return conversationId;
     }
 
     // Update last activity
-    db.prepare('UPDATE conversations SET last_activity_at = ? WHERE id = ?').run(now, conversation.id);
+    await db.execute('UPDATE conversations SET last_activity_at = ? WHERE id = ?', [now, conversation.id]);
     return conversation.id;
   }
 
@@ -312,12 +317,7 @@ export class AutoWatchIntegration {
   /**
    * Get auto-watch statistics
    */
-  async getStats(): Promise<{
-    totalAutoWatches: number;
-    activeAutoWatches: number;
-    recentQueries: number;
-    commonIntents: Array<{ intent: string; count: number }>;
-  }> {
+  async getStats(): Promise<AutoWatchStats> {
     if (!this.dbManager.isReady()) {
       return {
         totalAutoWatches: 0,
@@ -331,31 +331,30 @@ export class AutoWatchIntegration {
     const timeWindowStart = Date.now() - this.config.timeWindowMs;
 
     // Get watch statistics
-    const watchStats = db.prepare(`
+    const watchStats = await db.queryOne<{ total: number; active: number }>(
+      `
       SELECT 
         COUNT(*) as total,
         COUNT(CASE WHEN is_active = 1 AND expires_at > ? THEN 1 END) as active
       FROM watch_rules
-    `).get(Date.now()) as { total: number; active: number };
+    `,
+      [Date.now()],
+    );
 
     // Get recent queries
-    const recentQueries = db.prepare(`
+    const recentQueries = await db.queryOne<{ count: number }>(
+      `
       SELECT COUNT(*) as count FROM messages
       WHERE role = 'user' AND timestamp > ?
-    `).get(timeWindowStart) as { count: number };
-
-    // Get common intents (simplified)
-    const commonIntents = [
-      { intent: 'camera:describe', count: 1 },
-      { intent: 'device:status', count: 2 },
-      { intent: 'network:scan', count: 1 }
-    ];
+    `,
+      [timeWindowStart],
+    );
 
     return {
       totalAutoWatches: watchStats.total,
       activeAutoWatches: watchStats.active,
       recentQueries: recentQueries.count,
-      commonIntents
+      commonIntents: []
     };
   }
 }
