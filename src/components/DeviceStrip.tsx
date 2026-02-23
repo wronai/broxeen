@@ -32,6 +32,7 @@ function statusDot(device: ConfiguredDevice) {
 export default function DeviceStrip({ devicesDb, onDeviceClick, onAddDevice }: DeviceStripProps) {
   const [devices, setDevices] = useState<ConfiguredDevice[]>([]);
   const [expanded, setExpanded] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const loadDevices = useCallback(async () => {
     if (!devicesDb) return;
@@ -76,6 +77,35 @@ export default function DeviceStrip({ devicesDb, onDeviceClick, onAddDevice }: D
         detail: { mode, text },
       }),
     );
+  };
+
+  const handleDelete = async (device: ConfiguredDevice) => {
+    if (!devicesDb) return;
+
+    const extra = device.monitor_enabled
+      ? "\n\nUwaga: to urządzenie ma włączony monitoring — zostanie zatrzymany."
+      : "";
+    const ok = window.confirm(
+      `Usunąć urządzenie "${device.label}" (${device.ip})?${extra}`,
+    );
+    if (!ok) return;
+
+    setDeletingId(device.id);
+    try {
+      // Stop monitoring first (in-memory MonitorPlugin)
+      if (device.monitor_enabled) {
+        dispatchChatAction("execute", `stop monitoring ${device.ip}`);
+      }
+
+      const repo = new ConfiguredDeviceRepository(devicesDb);
+      await repo.remove(device.id);
+
+      // Notify UI and reload list
+      window.dispatchEvent(new CustomEvent("broxeen:devices_changed"));
+      await loadDevices();
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -161,6 +191,17 @@ export default function DeviceStrip({ devicesDb, onDeviceClick, onAddDevice }: D
                     title="Monitoruj"
                   >
                     {d.monitor_enabled ? <Eye size={12} /> : <EyeOff size={12} />}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleDelete(d);
+                    }}
+                    disabled={deletingId === d.id}
+                    className="rounded p-1 text-gray-500 transition hover:bg-gray-700 hover:text-red-400 disabled:opacity-50"
+                    title="Usuń urządzenie"
+                  >
+                    <Trash2 size={12} />
                   </button>
                 </div>
               </div>

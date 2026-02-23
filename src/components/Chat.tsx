@@ -410,35 +410,6 @@ export default function Chat({ settings }: ChatProps) {
   useEffect(() => {
     const handler = (ev: Event) => {
       const custom = ev as CustomEvent<{
-        mode: 'prefill' | 'execute';
-        text: string;
-      }>;
-      const detail = custom.detail;
-      if (!detail?.text) return;
-
-      if (detail.mode === 'prefill') {
-        setInput(detail.text);
-        setTimeout(() => {
-          const inputElement = document.querySelector("input[type='text']") as HTMLInputElement | null;
-          if (inputElement) {
-            inputElement.focus();
-            inputElement.selectionStart = inputElement.selectionEnd = detail.text.length;
-          }
-        }, 0);
-        return;
-      }
-
-      void handleSubmit(detail.text);
-    };
-
-    window.addEventListener('broxeen:chat_action', handler);
-    return () => window.removeEventListener('broxeen:chat_action', handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const handler = (ev: Event) => {
-      const custom = ev as CustomEvent<{
         targetId: string;
         targetName: string;
         targetType: string;

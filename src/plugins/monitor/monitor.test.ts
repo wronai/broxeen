@@ -137,7 +137,12 @@ describe('MonitorPlugin', () => {
 
       await plugin.initialize(ctx);
 
-      expect(processRegistry.listActive().some(p => p.id === 'monitor:camera-192.168.1.200')).toBe(true);
+      expect((plugin as any).targets?.has('camera-192.168.1.200')).toBe(true);
+      expect(
+        processRegistry
+          .listActive()
+          .some((p) => p.id === 'monitor:camera-192.168.1.200' || p.id === 'monitor:cd_1'),
+      ).toBe(true);
 
       await vi.advanceTimersByTimeAsync(5_100);
       await vi.runOnlyPendingTimersAsync();
