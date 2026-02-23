@@ -377,6 +377,18 @@ export class IntentRouter implements IIntentRouter {
       /file\s*search/i,
       /find\s*file/i,
       /search\s*file/i,
+      // Listing queries
+      /lista\s+plik[óo]?w/i,
+      /wylistuj\s+plik/i,
+      /poka[żz]\s+(mi\s+)?plik[iy]?\s+(w|na)/i,
+      /co\s+(jest|mam|znajduje\s+się)\s+(w|na)\s+(folderze|katalogu|dysku)/i,
+      /zawarto[śs][ćc]\s+(folderu|katalogu)/i,
+      /(folder|katalog)\s+(usera|u[żz]ytkownika|domowy|home)/i,
+      /plik[iy]?\s+(usera|u[żz]ytkownika)/i,
+      /ls\s+(~|\/home|\/)/i,
+      /list\s+(files|directory|folder)/i,
+      /przejrzyj\s+(pliki|folder|katalog)/i,
+      /wy[śs]wietl\s+plik/i,
     ]);
 
     // Email intents

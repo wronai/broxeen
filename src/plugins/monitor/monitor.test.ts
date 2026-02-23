@@ -150,6 +150,113 @@ describe('MonitorPlugin', () => {
       expect(result.content[0].data).toMatch(/Rozpoczęto|check|Brak zmian|Zmiana/i);
     });
   });
+
+  describe('LLM summary filtering', () => {
+    it("does not emit UI event when summary is 'Brak istotnych zmian.'", async () => {
+      const originalWindow = (globalThis as any).window;
+      const originalCustomEvent = (globalThis as any).CustomEvent;
+
+      const dispatchEvent = vi.fn();
+      (globalThis as any).window = { dispatchEvent };
+      (globalThis as any).CustomEvent = class CustomEvent<T> {
+        type: string;
+        detail: T;
+        constructor(type: string, init?: { detail: T }) {
+          this.type = type;
+          this.detail = init?.detail as T;
+        }
+      };
+
+      const target: any = {
+        id: 'cam-1',
+        name: 'Kamera testowa',
+        type: 'camera',
+        active: true,
+        address: '192.168.1.10',
+        threshold: 0.1,
+        intervalMs: 10_000,
+        logs: [],
+        changeCount: 0,
+        lastChecked: 0,
+        lastChange: 0,
+        lastSnapshot: 'prev-base64',
+        rtspUrl: 'rtsp://example',
+      };
+
+      vi.spyOn(plugin as any, 'captureCameraSnapshot').mockResolvedValue({
+        base64: 'curr-base64',
+        mimeType: 'image/jpeg',
+      });
+      vi.spyOn(plugin as any, 'computeImageChangeScore').mockResolvedValue(0.5);
+      vi.spyOn(plugin as any, 'createThumbnail').mockResolvedValue({
+        base64: 'thumb-base64',
+        mimeType: 'image/jpeg',
+      });
+      vi.spyOn(plugin as any, 'describeCameraChange').mockResolvedValue('Brak istotnych zmian.');
+
+      await (plugin as any).poll(target, browserCtx);
+
+      expect(dispatchEvent).not.toHaveBeenCalled();
+
+      (globalThis as any).window = originalWindow;
+      (globalThis as any).CustomEvent = originalCustomEvent;
+    });
+  });
+
+  describe('LLM min change threshold', () => {
+    it('skips LLM + UI when change is below monitor.llmMinChangeScore', async () => {
+      const originalWindow = (globalThis as any).window;
+      const originalCustomEvent = (globalThis as any).CustomEvent;
+
+      const dispatchEvent = vi.fn();
+      (globalThis as any).window = { dispatchEvent };
+      (globalThis as any).CustomEvent = class CustomEvent<T> {
+        type: string;
+        detail: T;
+        constructor(type: string, init?: { detail: T }) {
+          this.type = type;
+          this.detail = init?.detail as T;
+        }
+      };
+
+      const configStore = (await import('../../config/configStore')).configStore;
+      configStore.set('monitor.llmMinChangeScore', 0.6);
+
+      const target: any = {
+        id: 'cam-2',
+        name: 'Kamera progowa',
+        type: 'camera',
+        active: true,
+        address: '192.168.1.11',
+        threshold: 0.1,
+        intervalMs: 10_000,
+        logs: [],
+        changeCount: 0,
+        lastChecked: 0,
+        lastChange: 0,
+        lastSnapshot: 'prev-base64',
+        rtspUrl: 'rtsp://example',
+      };
+
+      vi.spyOn(plugin as any, 'captureCameraSnapshot').mockResolvedValue({
+        base64: 'curr-base64',
+        mimeType: 'image/jpeg',
+      });
+      vi.spyOn(plugin as any, 'computeImageChangeScore').mockResolvedValue(0.5);
+
+      const describeSpy = vi
+        .spyOn(plugin as any, 'describeCameraChange')
+        .mockResolvedValue('Jakaś zmiana.');
+
+      await (plugin as any).poll(target, browserCtx);
+
+      expect(describeSpy).not.toHaveBeenCalled();
+      expect(dispatchEvent).not.toHaveBeenCalled();
+
+      (globalThis as any).window = originalWindow;
+      (globalThis as any).CustomEvent = originalCustomEvent;
+    });
+  });
 });
 
 describe('Scope: VPN + Tor', () => {

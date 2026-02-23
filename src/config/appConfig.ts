@@ -80,6 +80,8 @@ export interface MonitorAppConfig {
   defaultIntervalMs: number;
   /** Default change threshold for camera scene changes (0.0 - 1.0) */
   defaultChangeThreshold: number;
+  /** Minimal change threshold required before calling LLM for image comparison (0.0 - 1.0) */
+  llmMinChangeScore: number;
   /** Thumbnail width used for LLM + chat rendering (px) */
   thumbnailMaxWidth: number;
 }
@@ -174,6 +176,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   monitor: {
     defaultIntervalMs: 30000,
     defaultChangeThreshold: 0.15,
+    llmMinChangeScore: 0.25,
     thumbnailMaxWidth: 500,
   },
   email: {
@@ -275,6 +278,13 @@ export const CONFIG_FIELD_META: ConfigFieldMeta[] = [
     key: 'monitor.defaultChangeThreshold',
     label: 'Monitoring: próg zmian',
     description: 'Próg wykrycia zmiany (0.0–1.0). Np. 0.15 = 15%',
+    type: 'number',
+    category: 'monitor',
+  },
+  {
+    key: 'monitor.llmMinChangeScore',
+    label: 'Monitoring: próg LLM (obrazy)',
+    description: 'Minimalna zmiana wymagana do wywołania LLM (0.0–1.0). Poniżej: pomijamy LLM i nie wysyłamy powiadomienia.',
     type: 'number',
     category: 'monitor',
   },

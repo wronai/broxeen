@@ -435,10 +435,11 @@ export function buildModelSelectionPrompt(): ConfigPromptData {
 export function buildMonitorConfigPrompt(): ConfigPromptData {
   return {
     title: 'Konfiguracja monitoringu',
-    description: 'Ustaw interwał sprawdzania, próg zmian i maksymalną szerokość miniatury.',
+    description: 'Ustaw interwał sprawdzania, progi zmian (w tym próg LLM) i maksymalną szerokość miniatury.',
     editableFields: [
       'monitor.defaultIntervalMs',
       'monitor.defaultChangeThreshold',
+      'monitor.llmMinChangeScore',
       'monitor.thumbnailMaxWidth',
     ],
     actions: [
@@ -485,6 +486,33 @@ export function buildMonitorConfigPrompt(): ConfigPromptData {
         type: 'set_config',
         configPath: 'monitor.defaultChangeThreshold',
         configValue: 0.2,
+        variant: 'secondary',
+      },
+      {
+        id: 'monitor-llm-25',
+        label: 'LLM od 25%',
+        icon: '🧠',
+        type: 'set_config',
+        configPath: 'monitor.llmMinChangeScore',
+        configValue: 0.25,
+        variant: 'primary',
+      },
+      {
+        id: 'monitor-llm-35',
+        label: 'LLM od 35%',
+        icon: '🧠',
+        type: 'set_config',
+        configPath: 'monitor.llmMinChangeScore',
+        configValue: 0.35,
+        variant: 'secondary',
+      },
+      {
+        id: 'monitor-llm-50',
+        label: 'LLM od 50%',
+        icon: '🧠',
+        type: 'set_config',
+        configPath: 'monitor.llmMinChangeScore',
+        configValue: 0.5,
         variant: 'secondary',
       },
       {

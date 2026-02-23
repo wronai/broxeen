@@ -56,6 +56,39 @@ export class DiskInfoPlugin implements Plugin {
     }
   }
 
+  private buildConfigPrompt(info: DiskInfo): string {
+    const actions: string[] = [];
+    
+    // Add actions for high usage partitions
+    const highUsage = info.partitions.filter((p) => p.use_percent > 85);
+    if (highUsage.length > 0) {
+      for (const p of highUsage) {
+        actions.push(`Wyczyść ${p.mount_point}`);
+        actions.push(`Pokaż duże pliki w ${p.mount_point}`);
+      }
+    }
+    
+    // General actions
+    actions.push('Pokaż pliki w /');
+    actions.push('Sprawdź logi systemowe');
+    actions.push('Analiza zajętości dysku');
+    
+    return actions.join('\n');
+  }
+
+  private buildProgressBar(percent: number, width: number = 20): string {
+    const filled = Math.round((percent / 100) * width);
+    const empty = width - filled;
+    const bar = '█'.repeat(filled) + '░'.repeat(empty);
+    
+    let color = '';
+    if (percent >= 90) color = '🔴';
+    else if (percent >= 75) color = '🟡';
+    else color = '🟢';
+    
+    return `${color} ${bar} ${percent.toFixed(0)}%`;
+  }
+
   private async executeTauri(
     input: string,
     context: PluginContext,
@@ -79,7 +112,12 @@ export class DiskInfoPlugin implements Plugin {
             title: `Dysk: ${targetPath}`,
           },
         ],
-        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+        metadata: { 
+          duration_ms: Date.now() - start, 
+          cached: false, 
+          truncated: false,
+          configPrompt: `Pokaż pliki w ${targetPath}\nWyczyść ${targetPath}\nSprawdź logi`,
+        },
       };
     }
 
@@ -94,7 +132,12 @@ export class DiskInfoPlugin implements Plugin {
           title: 'Informacje o dyskach',
         },
       ],
-      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      metadata: { 
+        duration_ms: Date.now() - start, 
+        cached: false, 
+        truncated: false,
+        configPrompt: this.buildConfigPrompt(info),
+      },
     };
   }
 
@@ -171,11 +214,13 @@ export class DiskInfoPlugin implements Plugin {
     lines.push('');
 
     if (info.partitions.length > 0) {
-      lines.push('| Urządzenie | Punkt montowania | System plików | Rozmiar | Zajęte | Wolne | % |');
-      lines.push('|---|---|---|---|---|---|---|');
+      // Simplified table with progress bars
+      lines.push('| Lokalizacja | Rozmiar | Zajętość | Wolne |');
+      lines.push('|---|---|---|---|');
       for (const p of info.partitions) {
+        const progressBar = this.buildProgressBar(p.use_percent);
         lines.push(
-          `| ${p.device} | ${p.mount_point} | ${p.fs_type} | ${this.formatBytes(p.total_bytes)} | ${this.formatBytes(p.used_bytes)} | ${this.formatBytes(p.available_bytes)} | ${p.use_percent.toFixed(0)}% |`,
+          `| **${p.mount_point}** | ${this.formatBytes(p.total_bytes)} | ${progressBar} | ${this.formatBytes(p.available_bytes)} |`,
         );
       }
     }

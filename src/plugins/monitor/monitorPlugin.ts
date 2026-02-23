@@ -561,6 +561,18 @@ export class MonitorPlugin implements Plugin {
           target.changeCount++;
           target.lastChange = Date.now();
 
+          const llmMinChangeScore = configStore.get<number>('monitor.llmMinChangeScore') ?? 0;
+          if (changeScore < llmMinChangeScore) {
+            target.logs.push({
+              timestamp: Date.now(),
+              type: 'change',
+              message: `Zmiana poniżej progu LLM (pomijam opis i powiadomienie)`,
+              changeScore,
+              details: `llmMinChangeScore:${(llmMinChangeScore * 100).toFixed(1)}%`,
+            });
+            return;
+          }
+
           const thumbMaxWidth = configStore.get<number>('monitor.thumbnailMaxWidth') || 500;
           const thumbnail = await this.createThumbnail(snapshot.base64, snapshot.mimeType, thumbMaxWidth);
 
@@ -574,6 +586,10 @@ export class MonitorPlugin implements Plugin {
             details: summary,
             snapshot: thumbnail?.base64 ?? snapshot.base64,
           });
+
+          if (this.isNoSignificantChangeSummary(summary)) {
+            return;
+          }
 
           this.emitUiEvent({
             targetId: target.id,
@@ -645,6 +661,14 @@ export class MonitorPlugin implements Plugin {
     } catch {
       // ignore
     }
+  }
+
+  private isNoSignificantChangeSummary(summary: string): boolean {
+    const normalized = (summary || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[.!?\s]+$/g, '');
+    return normalized.includes('brak istotnych zmian');
   }
 
   private async captureCameraSnapshot(

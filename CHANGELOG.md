@@ -1,3 +1,25 @@
+## [1.0.53] - 2026-02-23
+
+### Summary
+
+fix(config): configuration management system
+
+### Docs
+
+- docs: update README
+
+### Other
+
+- update img_3.png
+- update src/components/ChatConfigPrompt.tsx
+- update src/config/appConfig.ts
+- update src/core/intentRouter.fileSearch.test.ts
+- update src/core/intentRouter.ts
+- update src/plugins/monitor/monitor.test.ts
+- update src/plugins/monitor/monitorPlugin.ts
+- update src/plugins/system/diskInfoPlugin.ts
+
+
 ## [1.0.52] - 2026-02-23
 
 ### Summary
