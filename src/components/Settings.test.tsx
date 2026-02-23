@@ -92,6 +92,16 @@ function stubMediaDevices() {
   nav.mediaDevices.getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
 }
 
+function stubPermissions(state: "granted" | "denied" | "prompt" = "prompt") {
+  const nav: any = navigator as any;
+  nav.permissions = {
+    query: vi.fn().mockResolvedValue({
+      state,
+      onchange: null,
+    }),
+  };
+}
+
 async function renderSettings(props: Partial<typeof baseProps> = {}) {
   await act(async () => {
     render(<Settings {...baseProps} {...props} />);
@@ -116,6 +126,7 @@ describe("Settings — widoczność", () => {
     });
 
     stubMediaDevices();
+    stubPermissions("prompt");
   });
 
   it("nie renderuje gdy isOpen=false", async () => {
@@ -152,6 +163,7 @@ describe("Settings — ładowanie ustawień", () => {
     vi.mocked(isTauriRuntime).mockReturnValue(true);
 
     stubMediaDevices();
+    stubPermissions("prompt");
   });
 
   it("ładuje ustawienia przez invoke przy otwarciu", async () => {
@@ -201,11 +213,8 @@ describe("Settings — kontrolki TTS", () => {
       auto_listen: false,
     });
 
-    const enumerateDevices = vi.fn().mockResolvedValue([]);
-    const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
-    
-    // Use vi.stubGlobal to properly mock mediaDevices
-    vi.stubGlobal('mediaDevices', { enumerateDevices, getUserMedia });
+    stubMediaDevices();
+    stubPermissions("prompt");
   });
 
   it("pokazuje sekcję TTS", () => {
@@ -272,11 +281,8 @@ describe("Settings — zapisywanie", () => {
       auto_listen: false,
     });
 
-    const enumerateDevices = vi.fn().mockResolvedValue([]);
-    const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
-    
-    // Use vi.stubGlobal to properly mock mediaDevices
-    vi.stubGlobal('mediaDevices', { enumerateDevices, getUserMedia });
+    stubMediaDevices();
+    stubPermissions("prompt");
   });
 
   it("kliknięcie 'Zapisz ustawienia' wywołuje invoke save_settings", async () => {

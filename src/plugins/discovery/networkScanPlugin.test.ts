@@ -49,6 +49,21 @@ describe('NetworkScanPlugin subnet detection', () => {
     await vi.advanceTimersByTimeAsync(21);
     await expect(p).resolves.toBe('192.168.0');
   });
+
+  it('getDefaultSubnet picks best interface from Tauri list_network_interfaces tuple payload', async () => {
+    const plugin = new NetworkScanPlugin() as any;
+
+    const context = {
+      isTauri: true,
+      tauriInvoke: vi.fn().mockResolvedValue([
+        ['docker0', '172.17.0.1'],
+        ['wlan0', '192.168.188.23'],
+      ]),
+    } as any;
+
+    const subnet = await plugin.getDefaultSubnet(context);
+    expect(subnet).toBe('192.168.188');
+  });
 });
 
 describe('NetworkScanPlugin canHandle', () => {

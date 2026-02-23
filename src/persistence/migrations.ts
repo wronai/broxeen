@@ -94,6 +94,38 @@ export const devicesDbMigrations: Migration[] = [
       `);
     }
   }
+  ,
+  {
+    version: 2,
+    description: 'Add scan_history table for network scan analytics',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS scan_history (
+          id TEXT PRIMARY KEY,
+          timestamp INTEGER NOT NULL,
+          scope TEXT NOT NULL,
+          subnet TEXT NOT NULL,
+          device_count INTEGER NOT NULL,
+          duration_ms INTEGER NOT NULL,
+          success INTEGER NOT NULL DEFAULT 1,
+          error TEXT,
+          metadata TEXT -- JSON
+        )
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_scan_history_timestamp ON scan_history(timestamp);
+        CREATE INDEX IF NOT EXISTS idx_scan_history_subnet ON scan_history(subnet);
+        CREATE INDEX IF NOT EXISTS idx_scan_history_scope ON scan_history(scope);
+        CREATE INDEX IF NOT EXISTS idx_scan_history_success ON scan_history(success);
+      `);
+    },
+    down: (db) => {
+      db.exec(`
+        DROP TABLE IF EXISTS scan_history;
+      `);
+    }
+  }
 ];
 
 export const chatDbMigrations: Migration[] = [

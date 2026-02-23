@@ -474,7 +474,7 @@ fn resolve_db_path(db: &str) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn camera_health_check(cameraId: Option<String>) -> Result<Vec<CameraHealthStatus>, String> {
+pub async fn camera_health_check(camera_id: Option<String>) -> Result<Vec<CameraHealthStatus>, String> {
     // Pull last known devices from devices DB (populated by NetworkScanPlugin).
     // Important: rusqlite types are not Send; we must not hold Connection/Statement across awaits.
     let rows: Vec<(String, String, Option<String>)> = {
@@ -511,7 +511,7 @@ pub async fn camera_health_check(cameraId: Option<String>) -> Result<Vec<CameraH
     };
 
     // Filter by a specific camera (plugin uses semantic IDs, but we accept either id, hostname match, or IP)
-    let filtered = if let Some(target) = cameraId.as_ref() {
+    let filtered = if let Some(target) = camera_id.as_ref() {
         let t = target.to_lowercase();
         rows.into_iter()
             .filter(|(id, ip, hostname)| {

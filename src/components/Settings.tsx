@@ -39,6 +39,9 @@ export default function Settings({
   const [piperInstalled, setPiperInstalled] = useState<boolean | null>(null);
   const [piperInstalling, setPiperInstalling] = useState(false);
   const [piperStatus, setPiperStatus] = useState<string | null>(null);
+  const [micPermissionState, setMicPermissionState] = useState<
+    "granted" | "denied" | "prompt" | "unsupported" | "unknown"
+  >("unknown");
 
   const runtimeIsTauri = isTauriRuntime();
 
@@ -106,8 +109,51 @@ export default function Settings({
       .catch((e) => logger.warn("Microphone permission denied or failed:", e));
   }, [isOpen, runtimeIsTauri]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const nav: any = navigator as any;
+    const permissionsApi = nav?.permissions;
+    if (!permissionsApi?.query) {
+      setMicPermissionState("unsupported");
+      return;
+    }
+
+    let active = true;
+    permissionsApi
+      .query({ name: "microphone" })
+      .then((status: any) => {
+        if (!active) return;
+        const state = String(status?.state || "unknown");
+        if (state === "granted" || state === "denied" || state === "prompt") {
+          setMicPermissionState(state);
+        } else {
+          setMicPermissionState("unknown");
+        }
+
+        if (status && "onchange" in status) {
+          status.onchange = () => {
+            const next = String(status?.state || "unknown");
+            if (next === "granted" || next === "denied" || next === "prompt") {
+              setMicPermissionState(next);
+            } else {
+              setMicPermissionState("unknown");
+            }
+          };
+        }
+      })
+      .catch(() => {
+        if (!active) return;
+        setMicPermissionState("unknown");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
+
   const micDevices = audioDevices.filter((d) => d.kind === "audioinput");
   const speakerDevices = audioDevices.filter((d) => d.kind === "audiooutput");
+  const hasDeviceLabels = audioDevices.some((d) => (d.label || "").trim());
 
   const update = (partial: Partial<AudioSettings>) => {
     const next = { ...settings, ...partial };
@@ -171,6 +217,44 @@ export default function Settings({
                       : "false"}
                   </span>
                 </div>
+
+                <div className="mt-2 flex items-center justify-between">
+                  <span>Uprawnienia mikrofonu</span>
+                  <span className="font-mono text-gray-200">
+                    {micPermissionState}
+                  </span>
+                </div>
+                {micPermissionState === "unsupported" && (
+                  <div className="mt-1 rounded-lg border border-gray-700 bg-gray-900/40 p-2 text-xs text-gray-300">
+                    Permissions API niedostępne w tym runtime. Diagnostyka opiera
+                    się na próbie getUserMedia.
+                  </div>
+                )}
+                {micPermissionState === "denied" && (
+                  <div className="mt-1 rounded-lg border border-yellow-600/30 bg-yellow-900/20 p-2 text-xs text-yellow-200">
+                    Mikrofon jest zablokowany (denied). To zwykle nie jest
+                    problem modelu ani konfiguracji STT.
+                  </div>
+                )}
+
+                <div className="mt-2 flex items-center justify-between">
+                  <span>Urządzenia audio</span>
+                  <span className="font-mono text-gray-200">
+                    in:{micDevices.length} out:{speakerDevices.length}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                  <span>Etykiety urządzeń</span>
+                  <span className="font-mono text-gray-200">
+                    {hasDeviceLabels ? "widoczne" : "ukryte"}
+                  </span>
+                </div>
+                {!hasDeviceLabels && (
+                  <div className="mt-1 rounded-lg border border-gray-700 bg-gray-900/40 p-2 text-xs text-gray-300">
+                    Jeśli etykiety są ukryte, to zwykle oznacza brak zgody na
+                    mikrofon lub ograniczenia runtime.
+                  </div>
+                )}
                 <div className="mt-1 flex items-center justify-between">
                   <span>STT (Web Speech)</span>
                   <span

@@ -1042,18 +1042,32 @@ export class MonitorPlugin implements Plugin {
     }
   }
 
+  private proxyUrl(url: string): string {
+    // In browser mode, route camera HTTP requests through Vite dev proxy to bypass CORS
+    if (typeof window !== 'undefined' && !window.__TAURI_INTERNALS__) {
+      return `/api/camera-proxy?url=${encodeURIComponent(url)}`;
+    }
+    return url;
+  }
+
   private async fetchHttpSnapshot(
     url: string,
     captureStart: number,
     attempts: string[],
   ): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null> {
-    const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    const fetchUrl = this.proxyUrl(url);
+    const resp = await fetch(fetchUrl, { signal: AbortSignal.timeout(5000) });
     if (!resp.ok) {
       attempts.push(`  → HTTP ${resp.status}`);
       return null;
     }
     const blob = await resp.blob();
-    if (blob.size < 100) {
+    if (blob.size < 200) {
+      // Reolink returns small JSON error bodies (~146B) when auth fails
+      if (blob.type?.includes('text') || blob.type?.includes('json')) {
+        attempts.push(`  → auth error (${blob.size}B, ${blob.type})`);
+        return null;
+      }
       attempts.push(`  → pusta odpowiedź (${blob.size}B)`);
       return null;
     }
@@ -1101,7 +1115,8 @@ export class MonitorPlugin implements Plugin {
         param: { User: { userName: target.rtspUsername, password: target.rtspPassword || '' } },
       }]);
 
-      const resp = await fetch(`http://${target.address}/api.cgi?cmd=Login`, {
+      const loginUrl = `http://${target.address}/api.cgi?cmd=Login`;
+      const resp = await fetch(this.proxyUrl(loginUrl), {
         method: 'POST',
         body: loginPayload,
         signal: AbortSignal.timeout(5000),
@@ -1114,7 +1129,7 @@ export class MonitorPlugin implements Plugin {
 
       target.apiToken = tokenObj.name;
       target.apiTokenExpiry = Date.now() + (tokenObj.leaseTime || 3600) * 1000;
-      return target.apiToken;
+      return target.apiToken ?? null;
     } catch {
       return null;
     }

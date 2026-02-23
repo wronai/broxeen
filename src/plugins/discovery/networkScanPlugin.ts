@@ -75,16 +75,13 @@ export class NetworkScanPlugin implements Plugin {
         try {
           // Determine scan strategy (incremental vs full)
           const scanStrategy = await this.determineScanStrategy(userSpecifiedSubnet, context);
-          const scanId = `scan:${Date.now()}`;
           const scanStart = Date.now();
 
           console.log(`[NetworkScanPlugin] Starting ${scanStrategy.type} scan via Tauri...`);
           
           const result = await context.tauriInvoke('scan_network', {
-            subnet: userSpecifiedSubnet,
+            subnet: userSpecifiedSubnet || scanStrategy.subnet,
             timeout: 5000,
-            incremental: scanStrategy.type === 'incremental',
-            targetRanges: scanStrategy.targetRanges || [],
           }) as NetworkScanResult;
 
           // Track scan statistics and save to history
@@ -94,7 +91,8 @@ export class NetworkScanPlugin implements Plugin {
             scanStrategy.type,
             result,
             scanStart,
-            scanStrategy.triggeredBy
+            scanStrategy.triggeredBy,
+            context,
           );
 
           // Persist discovered devices to SQLite
@@ -126,8 +124,6 @@ export class NetworkScanPlugin implements Plugin {
               deviceCount: result.devices.length,
               scanDuration: result.scan_duration,
               scanMethod: result.scan_method,
-              scanType: scanStrategy.type,
-              scanStats,
             },
           };
         } catch (error) {
@@ -862,7 +858,8 @@ export class NetworkScanPlugin implements Plugin {
     scanType: 'full' | 'incremental' | 'targeted',
     result: NetworkScanResult,
     scanStart: number,
-    triggeredBy: 'manual' | 'scheduled' | 'auto'
+    triggeredBy: 'manual' | 'scheduled' | 'auto',
+    context: PluginContext,
   ): Promise<{
     devicesFound: number;
     devicesUpdated: number;
@@ -900,8 +897,24 @@ export class NetworkScanPlugin implements Plugin {
 
     // Save to scan history if database is available
     try {
-      // This would be called from the execute method with proper context
-      console.log(`[NetworkScanPlugin] Scan stats: ${result.devices.length} devices, ${scanDuration}ms, ${efficiency}`);
+      if (context.databaseManager && context.databaseManager.isReady()) {
+        const repo = new ScanHistoryRepository(context.databaseManager.getDevicesDb());
+        await repo.save({
+          timestamp: Date.now(),
+          scope: 'default',
+          subnet,
+          deviceCount: result.devices.length,
+          durationMs: scanDuration,
+          success: true,
+          metadata: {
+            scanId,
+            scanType,
+            triggeredBy,
+            scanMethod: result.scan_method,
+            scanDurationBackendMs: result.scan_duration,
+          },
+        });
+      }
     } catch (err) {
       console.warn('[NetworkScanPlugin] Failed to save scan history:', err);
     }
@@ -919,28 +932,40 @@ export class NetworkScanPlugin implements Plugin {
   private async getDefaultSubnet(context: PluginContext): Promise<string> {
     try {
       if (context.isTauri && context.tauriInvoke) {
-        const interfaces = await context.tauriInvoke('list_network_interfaces') as Array<{
-          name: string;
-          ip: string;
-          subnet: string;
-        }>;
-        
-        // Find first non-loopback interface
-        for (const iface of interfaces) {
-          if (iface.ip && !iface.ip.startsWith('127.') && iface.subnet) {
-            const subnetParts = iface.subnet.split('.');
-            if (subnetParts.length === 4) {
-              return `${subnetParts[0]}.${subnetParts[1]}.${subnetParts[2]}`;
-            }
+        const raw = await context.tauriInvoke('list_network_interfaces');
+
+        // Backend may return either:
+        // - Array<[name, ip]>
+        // - Array<{ name, ip, subnet?: string }>
+        const tuples: Array<[string, string]> = Array.isArray(raw)
+          ? (raw
+              .map((it: any) => {
+                if (Array.isArray(it) && typeof it[0] === 'string' && typeof it[1] === 'string') {
+                  return [it[0], it[1]] as [string, string];
+                }
+                if (it && typeof it.name === 'string' && typeof it.ip === 'string') {
+                  return [it.name, it.ip] as [string, string];
+                }
+                return null;
+              })
+              .filter(Boolean) as Array<[string, string]>)
+          : [];
+
+        const best = this.pickBestInterface(tuples);
+        const picked = best || tuples[0];
+        if (picked) {
+          const [, ip] = picked;
+          if (ip && !ip.startsWith('127.')) {
+            return ip.split('.').slice(0, 3).join('.');
           }
         }
       }
     } catch (err) {
       console.warn('[NetworkScanPlugin] Failed to detect subnet:', err);
     }
-    
-    // Fallback to common private network subnets
-    return '192.168.1';
+
+    // Final fallback: user-configured default subnet (still better than hardcoded)
+    return configStore.get<string>('network.defaultSubnet');
   }
 
   async dispose(): Promise<void> {

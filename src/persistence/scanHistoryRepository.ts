@@ -14,6 +14,12 @@ export interface ScanHistoryEntry {
   metadata?: Record<string, any>;
 }
 
+export interface IncrementalScanRecommendation {
+  recommended: boolean;
+  reason: string;
+  lastScan: ScanHistoryEntry | null;
+}
+
 export class ScanHistoryRepository {
   private db: any;
 
@@ -61,6 +67,58 @@ export class ScanHistoryRepository {
       error: row.error,
       metadata: row.metadata ? JSON.parse(row.metadata) : undefined
     }));
+  }
+
+  async getLastSuccessfulBySubnet(subnet: string): Promise<ScanHistoryEntry | null> {
+    const results = await this.db.query(`
+      SELECT * FROM scan_history
+      WHERE subnet = ? AND success = 1
+      ORDER BY timestamp DESC
+      LIMIT 1
+    `, [subnet]);
+
+    const row = results?.[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      timestamp: row.timestamp,
+      scope: row.scope,
+      subnet: row.subnet,
+      deviceCount: row.device_count,
+      durationMs: row.duration_ms,
+      success: row.success === 1,
+      error: row.error,
+      metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
+    };
+  }
+
+  async shouldUseIncrementalScan(subnet: string): Promise<IncrementalScanRecommendation> {
+    const last = await this.getLastSuccessfulBySubnet(subnet);
+    if (!last) {
+      return {
+        recommended: false,
+        reason: 'Brak historii skanów dla tego subnetu',
+        lastScan: null,
+      };
+    }
+
+    const ageMs = Date.now() - last.timestamp;
+    const RECENT_MS = 15 * 60 * 1000; // 15 min
+
+    // Heurystyka: jeśli był niedawny udany skan, warto preferować inkrementalny.
+    if (ageMs < RECENT_MS) {
+      return {
+        recommended: true,
+        reason: `Ostatni skan był ${Math.round(ageMs / 1000)}s temu`,
+        lastScan: last,
+      };
+    }
+
+    return {
+      recommended: false,
+      reason: `Ostatni skan jest zbyt stary (${Math.round(ageMs / 60000)} min)`,
+      lastScan: last,
+    };
   }
 
   async getByScope(scope: string, limit: number = 10): Promise<ScanHistoryEntry[]> {

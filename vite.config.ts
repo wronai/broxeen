@@ -158,6 +158,42 @@ function chatApiPlugin(): Plugin {
         });
       });
 
+      // Camera proxy — bypass CORS for HTTP snapshot fetch in browser mode
+      server.middlewares.use('/api/camera-proxy', async (req, res) => {
+        const url = new URL(req.url ?? '', 'http://localhost').searchParams.get('url');
+        if (!url) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: 'Missing ?url= parameter' }));
+          return;
+        }
+        try {
+          const method = req.method === 'POST' ? 'POST' : 'GET';
+          let body: string | undefined;
+          if (method === 'POST') {
+            const chunks: Buffer[] = [];
+            for await (const chunk of req) chunks.push(chunk as Buffer);
+            body = Buffer.concat(chunks).toString();
+          }
+          const upstream = await fetch(url, {
+            method,
+            body,
+            headers: body ? { 'Content-Type': 'application/json' } : undefined,
+            signal: AbortSignal.timeout(10000),
+          });
+          const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+          const buffer = Buffer.from(await upstream.arrayBuffer());
+          res.writeHead(upstream.status, {
+            'Content-Type': contentType,
+            'Access-Control-Allow-Origin': '*',
+            'X-Proxy-Url': url,
+          });
+          res.end(buffer);
+        } catch (e: any) {
+          res.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ error: e.message }));
+        }
+      });
+
       server.middlewares.use('/api/net-diag', (_req, res) => {
         const localIp = getLocalIp();
         const arp = parseArpEntries();
@@ -217,7 +253,16 @@ export default defineConfig(async () => ({
         }
       : undefined,
     watch: {
-      ignored: ["**/src-tauri/**"],
+      ignored: [
+        "**/src-tauri/**",
+        "**/venv/**",
+        "**/.venv/**",
+        "**/__pycache__/**",
+        "**/dist/**",
+        "**/target/**",
+      ],
+      usePolling: true,
+      interval: 250,
     },
   },
 }));
