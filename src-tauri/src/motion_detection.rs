@@ -194,36 +194,29 @@ pub async fn motion_pipeline_start(
         camera_id, request.rtsp_url
     ));
 
-    // Build VisionConfig from StartPipelineRequest fields
-    let vision_cfg = crate::vision_config::VisionConfig {
-        camera: crate::vision_config::CameraConfig {
-            url: request.rtsp_url.clone(),
-            camera_id: camera_id.clone(),
-            fps: None,
-        },
-        detector: crate::vision_config::DetectorConfig {
-            confidence_threshold: request.llm_threshold.unwrap_or(0.6),
-            max_input_size: request.max_crop_px.unwrap_or(500),
-            ..Default::default()
-        },
-        pipeline: crate::vision_config::PipelineConfig {
-            process_every_n_frames: request.process_every.unwrap_or(5),
-            min_contour_area: request.min_area.unwrap_or(2000) as f64,
-            max_contour_area: request.max_area.unwrap_or(200000) as f64,
-            cooldown_seconds: request.cooldown_sec.unwrap_or(10.0) as u64,
-            bg_history: request.bg_history.unwrap_or(500) as i32,
-            bg_var_threshold: request.var_threshold.unwrap_or(50) as f64,
-            ..Default::default()
-        },
-        database: crate::vision_config::DatabaseConfig {
-            path: request.db_path.unwrap_or_else(|| "detections.db".to_string()),
-        },
-        llm: crate::vision_config::LlmConfig {
-            api_key: request.api_key.clone(),
-            model: request.llm_model.unwrap_or_else(|| "claude-haiku-4-5-20251001".to_string()),
-            ..Default::default()
-        },
-    };
+    // Build VisionConfig from StartPipelineRequest fields (v0.3)
+    let mut vision_cfg = crate::vision_config::default_config();
+    vision_cfg.camera.url = request.rtsp_url.clone();
+    vision_cfg.camera.camera_id = camera_id.clone();
+    vision_cfg.detector.confidence_threshold = request.llm_threshold.unwrap_or(0.50);
+    vision_cfg.pipeline.process_every_n_frames = request.process_every.unwrap_or(4);
+    vision_cfg.pipeline.bg_history = request.bg_history.unwrap_or(500) as i32;
+    vision_cfg.pipeline.bg_var_threshold = request.var_threshold.unwrap_or(40) as f64;
+    vision_cfg.database.path = request.db_path.unwrap_or_else(|| "monitoring.db".to_string());
+    // LLM: prefer OpenRouter key from request or env
+    if let Some(ref key) = request.api_key {
+        if !key.is_empty() {
+            vision_cfg.llm.openrouter_api_key = Some(key.clone());
+        }
+    }
+    if vision_cfg.llm.openrouter_api_key.is_none() {
+        if let Ok(key) = std::env::var("OPENROUTER_API_KEY") {
+            if !key.is_empty() { vision_cfg.llm.openrouter_api_key = Some(key); }
+        }
+    }
+    if let Some(ref model) = request.llm_model {
+        vision_cfg.llm.openrouter_model = model.clone();
+    }
 
     let pipeline = crate::vision_pipeline::Pipeline::new(vision_cfg);
     let handle = pipeline.start(Some(app_handle)).map_err(|e| {

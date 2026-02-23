@@ -1,185 +1,336 @@
-/// LLM Verification Client — Anthropic Claude Haiku
-///
-/// Sends cropped object images (≤500px JPEG) to Claude for classification
-/// when local YOLO confidence is below threshold.
+//! LLM client supporting OpenRouter (primary) with local-model fallback.
+//!
+//! OpenRouter is OpenAI-API-compatible — same /v1/chat/completions endpoint,
+//! different base URL and auth header format.
+//!
+//! Fallback: any local OpenAI-compatible server (Ollama, llama.cpp, LM Studio).
 
 use anyhow::{anyhow, Result};
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
-use serde_json::json;
-use tracing::{debug, warn};
+use serde::Serialize;
+use serde_json::Value;
+use tracing::{debug, info, warn};
 
 use crate::vision_config::LlmConfig;
 
-/// Result of LLM verification.
+// ─── Provider config ─────────────────────────────────────────────────────────
+
 #[derive(Debug, Clone)]
-pub struct LlmResult {
-    pub label: String,
-    pub description: String,
+pub enum LlmProvider {
+    OpenRouter { api_key: String, model: String },
+    Local { base_url: String, model: String },
 }
 
-pub struct LlmClient {
-    client: reqwest::Client,
-    api_key: String,
+impl LlmProvider {
+    pub fn label(&self) -> String {
+        match self {
+            LlmProvider::OpenRouter { model, .. } => format!("OpenRouter/{}", model),
+            LlmProvider::Local { model, .. }      => format!("Local/{}", model),
+        }
+    }
+}
+
+// ─── Request types (OpenAI-compatible) ───────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+struct ChatRequest {
     model: String,
+    messages: Vec<Message>,
+    max_tokens: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    temperature: Option<f32>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct Message {
+    role: String,
+    content: Vec<ContentPart>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type")]
+enum ContentPart {
+    #[serde(rename = "text")]
+    Text { text: String },
+    #[serde(rename = "image_url")]
+    ImageUrl { image_url: ImageUrlData },
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct ImageUrlData {
+    url: String,
+    detail: String,
+}
+
+// ─── Result types ────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone)]
+pub struct ObjectDescription {
+    pub label: String,
+    pub description: String,
+    pub certainty: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SceneNarrativeResult {
+    pub narrative: String,
+    pub provider: String,
+}
+
+// ─── Client ──────────────────────────────────────────────────────────────────
+
+pub struct LlmClient {
+    http: reqwest::Client,
+    primary: Option<LlmProvider>,
+    fallback: Option<LlmProvider>,
     max_tokens: u32,
 }
 
 impl LlmClient {
-    pub fn new(cfg: &LlmConfig) -> Result<Self> {
-        let api_key = cfg
-            .api_key
-            .clone()
-            .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
-            .ok_or_else(|| anyhow!("ANTHROPIC_API_KEY not set"))?;
+    /// Build client from config.
+    /// Primary = OpenRouter (if key set). Fallback = local Ollama (if configured).
+    pub fn from_config(cfg: &LlmConfig) -> Self {
+        let primary = cfg.openrouter_api_key.as_ref()
+            .filter(|k| !k.is_empty())
+            .map(|key| LlmProvider::OpenRouter {
+                api_key: key.clone(),
+                model: cfg.openrouter_model.clone(),
+            });
 
-        Ok(Self {
-            client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(15))
-                .build()?,
-            api_key,
-            model: cfg.model.clone(),
+        let fallback = cfg.local_base_url.as_ref()
+            .filter(|u| !u.is_empty())
+            .map(|url| LlmProvider::Local {
+                base_url: url.clone(),
+                model: cfg.local_model.clone(),
+            });
+
+        if primary.is_none() && fallback.is_none() {
+            warn!("No LLM provider configured — running in local-only mode");
+        } else {
+            info!("LLM primary:  {}", primary.as_ref().map(|p| p.label()).unwrap_or("none".into()));
+            info!("LLM fallback: {}", fallback.as_ref().map(|p| p.label()).unwrap_or("none".into()));
+        }
+
+        Self {
+            http: reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(30))
+                .build()
+                .expect("reqwest client"),
+            primary,
+            fallback,
             max_tokens: cfg.max_tokens,
+        }
+    }
+
+    /// Describe a single detected object crop.
+    pub async fn describe_object(
+        &self, jpeg_bytes: &[u8], local_label: &str, camera_id: &str,
+    ) -> Result<ObjectDescription> {
+        let b64 = format!("data:image/jpeg;base64,{}", B64.encode(jpeg_bytes));
+        let prompt = format!(
+            "Camera: {camera_id}. Local detector: {local_label}.\n\
+             Identify the main object in this image.\n\
+             Reply ONLY in this exact format:\n\
+             LABEL|description (max 10 words)|certainty\n\
+             LABEL must be one of: person/car/truck/bus/motorcycle/bicycle/\
+             dog/cat/bird/horse/backpack/handbag/suitcase/umbrella/\
+             bottle/chair/laptop/cell phone/clock/unknown\n\
+             certainty: certain/likely/uncertain"
+        );
+        let messages = vec![Message {
+            role: "user".into(),
+            content: vec![
+                ContentPart::ImageUrl { image_url: ImageUrlData { url: b64, detail: "low".into() } },
+                ContentPart::Text { text: prompt },
+            ],
+        }];
+        let resp = self.call_with_fallback(messages, 60).await?;
+        Ok(parse_object_response(&resp, local_label))
+    }
+
+    /// Send a scene batch (multiple crops + timeline) → narrative.
+    pub async fn describe_scene(
+        &self, crops: &[(Vec<u8>, String)], timeline: &str, camera_id: &str,
+    ) -> Result<SceneNarrativeResult> {
+        let mut content = Vec::new();
+        for (i, (jpeg, ts)) in crops.iter().enumerate() {
+            let b64 = format!("data:image/jpeg;base64,{}", B64.encode(jpeg));
+            content.push(ContentPart::ImageUrl {
+                image_url: ImageUrlData { url: b64, detail: "low".into() },
+            });
+            content.push(ContentPart::Text {
+                text: format!("[Crop {} @ {}]", i + 1, ts),
+            });
+        }
+        content.push(ContentPart::Text {
+            text: format!(
+                "{}\n\nThese images show detected objects from camera '{}' during this period.\n\
+                 Write a concise 2-4 sentence summary of what happened:\n\
+                 - Which objects appeared and when\n\
+                 - Their movement (direction, behaviour)\n\
+                 - Any notable patterns\n\
+                 Be specific with times. Past tense. No lists.",
+                timeline, camera_id
+            ),
+        });
+        let messages = vec![Message { role: "user".into(), content }];
+        let provider_label = self.active_provider_label();
+        let text = self.call_with_fallback(messages, self.max_tokens).await?;
+        Ok(SceneNarrativeResult {
+            narrative: text.trim().to_string(),
+            provider: provider_label,
         })
     }
 
-    /// Send a JPEG crop (≤500px) to the LLM for classification.
-    ///
-    /// Prompt is deliberately minimal to keep latency and cost low.
-    pub async fn classify_object(
-        &self,
-        jpeg_bytes: &[u8],
-        local_label: &str,
-        camera_id: &str,
-    ) -> Result<LlmResult> {
-        let img_b64 = B64.encode(jpeg_bytes);
+    /// Text-to-SQL: convert natural language query → SQL against our schema.
+    pub async fn text_to_sql(&self, question: &str, schema: &str) -> Result<String> {
+        let messages = vec![Message {
+            role: "user".into(),
+            content: vec![ContentPart::Text {
+                text: format!(
+                    "SQLite schema:\n```sql\n{schema}\n```\n\n\
+                     Convert this question to a single SQLite SELECT query.\n\
+                     Question: {question}\n\n\
+                     Rules:\n\
+                     - Output ONLY the SQL query, nothing else\n\
+                     - No markdown, no explanation\n\
+                     - Use only tables and columns from the schema\n\
+                     - For time filters: use datetime('now', '-N hours/days') or date comparisons\n\
+                     - 'today' means date(timestamp) = date('now')\n\
+                     - Labels are lowercase: 'person', 'car', 'truck', etc."
+                ),
+            }],
+        }];
+        let sql = self.call_with_fallback(messages, 200).await?;
+        let sql = sql.trim()
+            .trim_start_matches("```sql")
+            .trim_start_matches("```")
+            .trim_end_matches("```")
+            .trim()
+            .to_string();
+        Ok(sql)
+    }
 
-        let payload = json!({
-            "model": self.model,
-            "max_tokens": self.max_tokens,
-            "messages": [{
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": "image/jpeg",
-                            "data": img_b64
-                        }
-                    },
-                    {
-                        "type": "text",
-                        "text": format!(
-                            "Camera: {}. Local classifier result: {}.\n\
-                             Identify the main object in this image.\n\
-                             Respond ONLY in this exact format:\n\
-                             LABEL|brief description (max 15 words)\n\
-                             LABEL must be one of: person/car/truck/bus/motorcycle/bicycle/dog/cat/bird/unknown",
-                            camera_id, local_label
-                        )
-                    }
-                ]
-            }]
-        });
+    fn active_provider_label(&self) -> String {
+        self.primary.as_ref()
+            .or(self.fallback.as_ref())
+            .map(|p| p.label())
+            .unwrap_or("none".into())
+    }
 
-        debug!(
-            "Sending crop to LLM (model={}, local={})",
-            self.model, local_label
-        );
+    /// Try primary provider, fall back to local on error.
+    async fn call_with_fallback(&self, messages: Vec<Message>, max_tokens: u32) -> Result<String> {
+        if let Some(ref primary) = self.primary {
+            match self.call_provider(primary, messages.clone(), max_tokens).await {
+                Ok(r) => return Ok(r),
+                Err(e) => warn!("Primary LLM failed: {} — trying fallback", e),
+            }
+        }
+        if let Some(ref fallback) = self.fallback {
+            return self.call_provider(fallback, messages, max_tokens).await;
+        }
+        Err(anyhow!("No LLM provider available"))
+    }
 
-        let resp = self
-            .client
-            .post("https://api.anthropic.com/v1/messages")
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", "2023-06-01")
-            .header("content-type", "application/json")
-            .json(&payload)
+    async fn call_provider(
+        &self, provider: &LlmProvider, messages: Vec<Message>, max_tokens: u32,
+    ) -> Result<String> {
+        let (base_url, model, auth_value) = match provider {
+            LlmProvider::OpenRouter { api_key, model } => (
+                "https://openrouter.ai/api/v1/chat/completions".to_string(),
+                model.clone(),
+                format!("Bearer {}", api_key),
+            ),
+            LlmProvider::Local { base_url, model } => (
+                format!("{}/chat/completions", base_url.trim_end_matches('/')),
+                model.clone(),
+                "Bearer local".to_string(),
+            ),
+        };
+
+        let req_body = ChatRequest {
+            model,
+            messages,
+            max_tokens,
+            temperature: Some(0.2),
+        };
+
+        debug!("LLM call → {}", base_url);
+
+        let resp = self.http
+            .post(&base_url)
+            .header("Authorization", &auth_value)
+            .header("Content-Type", "application/json")
+            .header("HTTP-Referer", "https://github.com/broxeen-vision")
+            .header("X-Title", "Broxeen Vision")
+            .json(&req_body)
             .send()
             .await?;
 
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            warn!("LLM API error {}: {}", status, body);
-            return Err(anyhow!("LLM API returned {}: {}", status, body));
+            anyhow::bail!("LLM HTTP {}: {}", status, &body[..body.len().min(300)]);
         }
 
-        let json: serde_json::Value = resp.json().await?;
-
-        let text = json["content"][0]["text"]
+        let json: Value = resp.json().await?;
+        json["choices"][0]["message"]["content"]
             .as_str()
-            .ok_or_else(|| anyhow!("Unexpected LLM response structure"))?
-            .trim()
-            .to_string();
-
-        let (label, description) = parse_llm_response(&text, local_label);
-        Ok(LlmResult { label, description })
+            .map(|s| s.to_string())
+            .ok_or_else(|| anyhow!("Unexpected LLM response: {}", json))
     }
 }
 
-/// Parse "LABEL|description" format, falling back to local_label on error.
-fn parse_llm_response(raw: &str, fallback_label: &str) -> (String, String) {
-    const VALID_LABELS: &[&str] = &[
-        "person",
-        "car",
-        "truck",
-        "bus",
-        "motorcycle",
-        "bicycle",
-        "dog",
-        "cat",
-        "bird",
-        "unknown",
-    ];
+// ─── Response parsers ────────────────────────────────────────────────────────
 
-    // Find first line that looks like a response (ignore chain-of-thought lines)
+const VALID_LABELS: &[&str] = &[
+    "person", "car", "truck", "bus", "motorcycle", "bicycle",
+    "dog", "cat", "bird", "horse",
+    "backpack", "handbag", "suitcase", "umbrella",
+    "bottle", "chair", "laptop", "cell phone", "clock", "unknown",
+];
+
+fn parse_object_response(raw: &str, fallback: &str) -> ObjectDescription {
     for line in raw.lines() {
-        if let Some(idx) = line.find('|') {
-            let candidate = line[..idx].trim().to_lowercase();
-            let description = line[idx + 1..].trim().to_string();
-            if VALID_LABELS.contains(&candidate.as_str()) {
-                return (candidate, description);
+        let parts: Vec<&str> = line.splitn(3, '|').collect();
+        if parts.len() >= 2 {
+            let label = parts[0].trim().to_lowercase();
+            if VALID_LABELS.contains(&label.as_str()) {
+                let description = parts.get(1).unwrap_or(&"").trim().to_string();
+                let certainty = parts.get(2).unwrap_or(&"likely").trim().to_string();
+                return ObjectDescription { label, description, certainty };
             }
         }
-        // Also accept bare label without description
-        let bare = line.trim().to_lowercase();
-        if VALID_LABELS.contains(&bare.as_str()) {
-            return (bare, String::new());
-        }
     }
-
-    // Fallback
-    (fallback_label.to_string(), raw.to_string())
+    ObjectDescription {
+        label: fallback.to_string(),
+        description: raw.trim().chars().take(60).collect(),
+        certainty: "uncertain".into(),
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::parse_llm_response;
+    use super::*;
 
     #[test]
-    fn test_parse_standard() {
-        let (label, desc) = parse_llm_response("car|A silver sedan moving left", "unknown");
-        assert_eq!(label, "car");
-        assert_eq!(desc, "A silver sedan moving left");
+    fn parse_standard() {
+        let r = parse_object_response("car|Silver sedan moving left|certain", "unknown");
+        assert_eq!(r.label, "car");
+        assert_eq!(r.certainty, "certain");
     }
 
     #[test]
-    fn test_parse_bare_label() {
-        let (label, _) = parse_llm_response("person", "unknown");
-        assert_eq!(label, "person");
+    fn parse_fallback() {
+        let r = parse_object_response("I cannot tell", "person");
+        assert_eq!(r.label, "person");
+        assert_eq!(r.certainty, "uncertain");
     }
 
     #[test]
-    fn test_parse_fallback() {
-        let (label, _) = parse_llm_response("I cannot identify this object.", "dog");
-        assert_eq!(label, "dog");
-    }
-
-    #[test]
-    fn test_parse_ignores_cot() {
-        let raw = "Looking at the image...\ncar|A dark SUV driving away";
-        let (label, desc) = parse_llm_response(raw, "unknown");
-        assert_eq!(label, "car");
-        assert_eq!(desc, "A dark SUV driving away");
+    fn parse_extended_labels() {
+        let r = parse_object_response("horse|Brown horse trotting|likely", "unknown");
+        assert_eq!(r.label, "horse");
+        assert_eq!(r.description, "Brown horse trotting");
     }
 }

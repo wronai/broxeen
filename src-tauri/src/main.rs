@@ -35,7 +35,15 @@ mod vision_llm;
 #[cfg(feature = "vision")]
 mod vision_motion;
 #[cfg(feature = "vision")]
+mod vision_movement;
+#[cfg(feature = "vision")]
 mod vision_pipeline;
+#[cfg(feature = "vision")]
+mod vision_query_engine;
+#[cfg(feature = "vision")]
+mod vision_scene_buffer;
+#[cfg(feature = "vision")]
+mod vision_tracker;
 
 use audio_capture::SharedRecordingState;
 use serde::{Deserialize, Serialize};

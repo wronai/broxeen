@@ -1,6 +1,6 @@
 project: broxeen
-generated: "2026-02-23T15:24:41.718480"
-modules[271]{path,lang,items}:
+generated: "2026-02-23T16:52:12.622493"
+modules[274]{path,lang,items}:
   test-parse-pdf.mjs,javascript,0
   phonetic.py,python,2
   vite.config.ts,typescript,1
@@ -12,12 +12,12 @@ modules[271]{path,lang,items}:
   playwright.config.ts,typescript,0
   src-tauri/build.rs,rust,1
   src-tauri/test_read.rs,rust,1
-  TODO/capture.rs,rust,0
-  TODO/detector.rs,rust,2
   TODO/llm.rs,rust,1
-  TODO/database.rs,rust,1
-  TODO/main.rs,rust,0
-  TODO/motion.rs,rust,0
+  TODO/database.rs,rust,3
+  TODO/query_engine.rs,rust,0
+  TODO/main.rs,rust,1
+  TODO/config.rs,rust,2
+  TODO/scene_buffer.rs,rust,0
   TODO/pipeline.rs,rust,0
   src/main.tsx,typescript,0
   src/App.tsx,typescript,2
@@ -89,7 +89,7 @@ modules[271]{path,lang,items}:
   src/components/Settings.tsx,typescript,2
   src/components/NetworkHistorySelector.tsx,typescript,0
   src/components/CameraLiveInline.tsx,typescript,0
-  src/components/SetupWizardModal.tsx,typescript,3
+  src/components/SetupWizardModal.tsx,typescript,4
   src/components/MessageResultCard.tsx,typescript,0
   src/components/MicSettingsModal.tsx,typescript,2
   src/components/QuickCommands.tsx,typescript,0
@@ -184,7 +184,7 @@ modules[271]{path,lang,items}:
   src/plugins/monitor/motionDetectionPlugin.ts,typescript,17
   src/plugins/monitor/monitor.test.ts,typescript,0
   src/plugins/monitor/index.ts,typescript,0
-  src/plugins/monitor/monitorPlugin.ts,typescript,39
+  src/plugins/monitor/monitorPlugin.ts,typescript,41
   src/plugins/monitor/motionDetectionPlugin.test.ts,typescript,2
   src/plugins/discovery/advancedPortScanPlugin.ts,typescript,8
   src/plugins/discovery/serviceProbePlugin.ts,typescript,8
@@ -235,10 +235,11 @@ modules[271]{path,lang,items}:
   src/plugins/protocol-bridge/protocolBridgePlugin.test.ts,typescript,0
   src/plugins/protocol-bridge/index.ts,typescript,0
   src/plugins/protocol-bridge/protocolBridgePlugin.ts,typescript,36
-  TODO/tests/placeholder_test.rs,rust,0
   src-tauri/src/network_info.rs,rust,3
-  src-tauri/src/vision_config.rs,rust,16
+  src-tauri/src/vision_config.rs,rust,27
   src-tauri/src/main_changes.rs,rust,1
+  src-tauri/src/vision_tracker.rs,rust,2
+  src-tauri/src/vision_scene_buffer.rs,rust,0
   src-tauri/src/tts.rs,rust,11
   src-tauri/src/useBackendStt.ts,typescript,1
   src-tauri/src/llm.rs,rust,0
@@ -249,6 +250,7 @@ modules[271]{path,lang,items}:
   src-tauri/src/browse_rendered.rs,rust,6
   src-tauri/src/vision_llm.rs,rust,1
   src-tauri/src/main.rs,rust,13
+  src-tauri/src/vision_movement.rs,rust,4
   src-tauri/src/motion_detection.rs,rust,3
   src-tauri/src/logging.rs,rust,6
   src-tauri/src/autostart.rs,rust,7
@@ -258,10 +260,11 @@ modules[271]{path,lang,items}:
   src-tauri/src/network_scan.rs,rust,15
   src-tauri/src/ssh.rs,rust,1
   src-tauri/src/useBackendTts.ts,typescript,2
-  src-tauri/src/vision_db.rs,rust,2
+  src-tauri/src/vision_db.rs,rust,4
   src-tauri/src/email.rs,rust,1
   src-tauri/src/audio_commands.rs,rust,11
   src-tauri/src/disk_info.rs,rust,4
+  src-tauri/src/vision_query_engine.rs,rust,0
   src-tauri/src/vision_capture.rs,rust,0
   src-tauri/src/settings.rs,rust,15
   src-tauri/src/audio_capture.rs,rust,7
@@ -305,16 +308,21 @@ function_details:
   src-tauri/test_read.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       main,function,(),"-",false,1,1,main
-  TODO/detector.rs:
-    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      letterbox,function,"(src: &Mat, target: i32) -> Result<(Mat,","-",false,1,1,letterbox
-      mat_to_chw_f32,function,"(mat: &Mat, size: usize) -> Result<Vec<f32>>","-",false,1,1,mat to chw f32
   TODO/llm.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      parse_llm_response,function,"(raw: &str, fallback_label: &str) -> (String,","-",false,1,1,parses llm response
+      parse_object_response,function,"(raw: &str, fallback: &str) -> ObjectDescription","-",false,1,1,parses object response
   TODO/database.rs:
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      cam_filter,function,"(camera_id: Option<&str>) -> String","-",false,1,1,cam filter
+      time_filter,function,"(hours: u32) -> String","-",false,1,1,time filter
+      parse_dt,function,"(s: String) -> DateTime<Utc>","-",false,1,1,parses dt
+  TODO/main.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      map_row,function,"(row: &rusqlite::Row<'_>) -> rusqlite::Result<DetectionRecord>","-",false,1,1,converts row
+      print_startup_info,function,"(cfg: &config::AppConfig)","-",false,1,1,logs startup info
+  TODO/config.rs:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      load_config,function,() -> Result<AppConfig>,"-",false,1,1,retrieves config
+      default_config,function,() -> AppConfig,"-",false,1,1,default config
   src/App.tsx:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       persistSettings,function,"(next: AudioSettings)",342-345,true,4,1,caches settings
@@ -667,10 +675,11 @@ function_details:
       update,function,"(partial: Partial<AudioSettings>)",158-162,false,5,1,updates
       handleSave,function,(),164-179,true,16,1,handles save
   src/components/SetupWizardModal.tsx:
-    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
-      toggleAutostart,function,(),67-83,true,17,1,toggle autostart
-      handleSave,function,(),85-93,false,9,1,handles save
-      canProceed,function,(),95-98,false,4,1,checks proceed
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      toggleAutostart,function,(),85-101,true,17,1,toggle autostart
+      handleSave,function,(),103-111,false,9,1,handles save
+      testApiKey,function,(),126-151,true,26,1,checks api key
+      canProceed,function,(),153-156,false,4,1,checks proceed
   src/components/MicSettingsModal.tsx:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       update,function,"(partial: Partial<AudioSettings>)",99-102,false,4,1,updates
@@ -796,15 +805,15 @@ function_details:
       PluginRegistry.disposeAll,method,() -> Promise<void>,82-93,true,12,1,dispose all
   src/core/intentRouter.ts:
     functions[9]{name,kind,sig,loc,async,lines,cc,does}:
-      buildQuery,function,"(intent: string, rawInput: string, overrides: Partial<Omit<PluginQuery, 'intent' | 'rawInput'>>) -> PluginQuery",702-718,false,17,1,creates query
+      buildQuery,function,"(intent: string, rawInput: string, overrides: Partial<Omit<PluginQuery, 'intent' | 'rawInput'>>) -> PluginQuery",706-722,false,17,1,creates query
       IntentRouter.constructor,method,(),13-15,false,3,1,constructor
-      IntentRouter.initializeDefaultPatterns,method,() -> void,17-517,false,501,1,initializes default patterns
-      IntentRouter.registerPlugin,method,"(plugin: Plugin) -> void",519-521,false,3,1,registers plugin
-      IntentRouter.registerDataSourcePlugin,method,"(plugin: DataSourcePlugin) -> void",523-525,false,3,1,registers data source plugin
-      IntentRouter.detect,method,"(input: string) -> Promise<IntentDetection>",527-554,true,28,1,detect
-      IntentRouter.route,method,"(intent: string, scope?) -> Plugin | DataSourcePlugin | null",556-570,false,15,1,route
-      IntentRouter.calculateConfidence,method,"(input: string, intent: string) -> number",572-610,false,39,1,processes confidence
-      IntentRouter.extractEntities,method,"(input: string, intent: string) -> Record<string, unknown>",612-686,false,75,1,parses entities
+      IntentRouter.initializeDefaultPatterns,method,() -> void,17-521,false,505,1,initializes default patterns
+      IntentRouter.registerPlugin,method,"(plugin: Plugin) -> void",523-525,false,3,1,registers plugin
+      IntentRouter.registerDataSourcePlugin,method,"(plugin: DataSourcePlugin) -> void",527-529,false,3,1,registers data source plugin
+      IntentRouter.detect,method,"(input: string) -> Promise<IntentDetection>",531-558,true,28,1,detect
+      IntentRouter.route,method,"(intent: string, scope?) -> Plugin | DataSourcePlugin | null",560-574,false,15,1,route
+      IntentRouter.calculateConfidence,method,"(input: string, intent: string) -> number",576-614,false,39,1,processes confidence
+      IntentRouter.extractEntities,method,"(input: string, intent: string) -> Record<string, unknown>",616-690,false,75,1,parses entities
   src/core/bootstrap.ts:
     functions[3]{name,kind,sig,loc,async,lines,cc,does}:
       bootstrapApp,function,"(config: {\n  isTauri: boolean;\n  tauriInvoke?: (command: string, args?: any) => Promise<any>;\n  cameras?: import('./types').CameraConfig[];\n  mqtt?: import('./types').MqttConfig;\n  describeImage?: (imageUrl: string) => Promise<string>;\n}) -> Promise<AppContext>",15-95,true,81,1,initializes app
@@ -1203,46 +1212,48 @@ function_details:
       MotionDetectionPlugin.extractLabel,method,"(input: string) -> string | null",499-503,false,5,1,parses label
       MotionDetectionPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",505-511,false,7,1,error result
   src/plugins/monitor/monitorPlugin.ts:
-    functions[39]{name,kind,sig,loc,async,lines,cc,does}:
-      MonitorPlugin.buildDbConflictPrompt,method,() -> string,95-110,false,16,1,creates db conflict prompt
-      MonitorPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",112-143,true,32,1,checks handle
-      MonitorPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",145-172,true,28,1,starts
-      MonitorPlugin.handleStart,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",176-434,true,259,1,handles start
-      MonitorPlugin.handleStop,method,"(input: string, start: number) -> Promise<PluginResult>",438-548,true,111,1,handles stop
-      MonitorPlugin.handleList,method,"(start: number) -> PluginResult",552-609,false,58,1,handles list
-      MonitorPlugin.handleLogs,method,"(input: string, start: number) -> PluginResult",613-728,false,116,1,handles logs
-      MonitorPlugin.handleConfig,method,"(input: string, start: number) -> PluginResult",732-790,false,59,1,handles config
-      MonitorPlugin.handleExplain,method,"(start: number) -> PluginResult",794-859,false,66,1,handles explain
-      MonitorPlugin.poll,method,"(target: MonitorTarget, context: PluginContext) -> Promise<void>",863-1003,true,141,1,poll
-      MonitorPlugin.emitUiEvent,method,"(detail: MonitorUiEventDetail) -> void",1005-1012,false,8,1,sends ui event
-      MonitorPlugin.isNoSignificantChangeSummary,method,"(summary: string) -> boolean",1014-1020,false,7,1,checks no significant change summary
-      MonitorPlugin.captureCameraSnapshot,method,"(target: MonitorTarget, context: PluginContext) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1022-1190,true,169,1,capture camera snapshot
-      MonitorPlugin.resolveDeviceIp,method,"(parsed: { id: string; type: MonitorTarget['type']; name: string }, context: PluginContext) -> Promise<string | null>",1192-1220,true,29,1,resolve device ip
-      MonitorPlugin.proxyUrl,method,"(url: string) -> string",1222-1234,false,13,1,proxy url
-      MonitorPlugin.fetchHttpSnapshot,method,"(url: string, captureStart: number, attempts: string[]) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1236-1269,true,34,1,retrieves http snapshot
-      MonitorPlugin.summarizeCaptureFailure,method,"(attempts: string[], _context: PluginContext) -> string",1271-1290,false,20,1,summarize capture failure
-      MonitorPlugin.ensureApiToken,method,"(target: MonitorTarget) -> Promise<string | null>",1292-1324,true,33,1,ensure api token
-      MonitorPlugin.detectResolution,method,"(base64: string, mimeType: string) -> Promise<string | undefined>",1326-1335,true,10,1,detect resolution
-      MonitorPlugin.describeCameraChange,method,"(prevBase64: string, currBase64: string, mimeType: 'image/jpeg' | 'image/png') -> Promise<string>",1337-1349,true,13,1,describe camera change
-      MonitorPlugin.formatCaptureDetails,method,"(capture: CaptureMetadata) -> string",1351-1359,false,9,1,formats capture details
-      MonitorPlugin.computeImageChangeScore,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1361-1385,true,25,1,processes image change score
-      MonitorPlugin.pixelDiff,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1392-1432,true,41,1,pixel diff
-      MonitorPlugin.createThumbnail,method,"(base64: string, mimeType: 'image/jpeg' | 'image/png', maxWidth: number) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null>",1434-1470,true,37,1,creates thumbnail
-      MonitorPlugin.loadBase64Image,method,"(base64: string, mimeType: string) -> Promise<HTMLImageElement>",1472-1479,false,8,1,retrieves base64 image
-      MonitorPlugin.blobToBase64,method,"(blob: Blob) -> Promise<string>",1481-1489,true,9,1,blob to base64
-      MonitorPlugin.parseTarget,method,"(input: string) -> {\n    id: string; type: MonitorTarget['type']; name: string;\n    address?: string; intervalMs: number; threshold: number;\n    rtspUsername?: string; rtspPassword?: string;\n  } | null",1493-1588,false,96,1,parses target
-      MonitorPlugin.simulateContent,method,"(target: MonitorTarget) -> string",1590-1598,false,9,1,simulate content
-      MonitorPlugin.quickDiff,method,"(a: string, b: string) -> number",1600-1608,false,9,1,quick diff
-      MonitorPlugin.formatTargetLogs,method,"(target: MonitorTarget, start: number) -> PluginResult",1610-1694,false,85,1,formats target logs
-      MonitorPlugin.logIcon,method,"(type: MonitorLogEntry['type']) -> string",1696-1706,false,11,1,logs icon
-      MonitorPlugin.buildMonitoringConfigPrompt,method,() -> ConfigPromptData,1710-1745,false,36,1,creates monitoring config prompt
-      MonitorPlugin.formatDuration,method,"(ms: number) -> string",1747-1754,false,8,1,formats duration
-      MonitorPlugin.verifyCredentials,method,"(ip: string, username: string, password: string, context: PluginContext) -> Promise<boolean>",1756-1804,true,49,1,validates credentials
-      MonitorPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",1806-1812,false,7,1,error result
-      MonitorPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",1814-1827,true,14,1,initializes
-      MonitorPlugin.loadMonitoredDevices,method,"(context: PluginContext) -> Promise<void>",1830-1894,true,65,1,retrieves monitored devices
-      MonitorPlugin.handleResolveDbConflict,method,"(keepId: string, context: PluginContext, start: number) -> Promise<PluginResult>",1896-1983,true,88,1,handles resolve db conflict
-      MonitorPlugin.dispose,method,() -> Promise<void>,1985-1994,true,10,1,dispose
+    functions[41]{name,kind,sig,loc,async,lines,cc,does}:
+      MonitorPlugin.buildDbConflictPrompt,method,() -> string,96-111,false,16,1,creates db conflict prompt
+      MonitorPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",113-148,true,36,1,checks handle
+      MonitorPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",150-182,true,33,1,starts
+      MonitorPlugin.parseToggleMonitoring,method,"(input: string) -> { action: 'enable' | 'disable'; identifier: string } | null",184-192,false,9,1,parses toggle monitoring
+      MonitorPlugin.handleToggleMonitoring,method,"(action: 'enable' | 'disable', identifier: string, context: PluginContext, start: number) -> Promise<PluginResult>",194-308,true,115,1,handles toggle monitoring
+      MonitorPlugin.handleStart,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",312-570,true,259,1,handles start
+      MonitorPlugin.handleStop,method,"(input: string, start: number) -> Promise<PluginResult>",574-684,true,111,1,handles stop
+      MonitorPlugin.handleList,method,"(start: number) -> PluginResult",688-745,false,58,1,handles list
+      MonitorPlugin.handleLogs,method,"(input: string, start: number) -> PluginResult",749-864,false,116,1,handles logs
+      MonitorPlugin.handleConfig,method,"(input: string, start: number) -> PluginResult",868-926,false,59,1,handles config
+      MonitorPlugin.handleExplain,method,"(start: number) -> PluginResult",930-995,false,66,1,handles explain
+      MonitorPlugin.poll,method,"(target: MonitorTarget, context: PluginContext) -> Promise<void>",999-1139,true,141,1,poll
+      MonitorPlugin.emitUiEvent,method,"(detail: MonitorUiEventDetail) -> void",1141-1148,false,8,1,sends ui event
+      MonitorPlugin.isNoSignificantChangeSummary,method,"(summary: string) -> boolean",1150-1156,false,7,1,checks no significant change summary
+      MonitorPlugin.captureCameraSnapshot,method,"(target: MonitorTarget, context: PluginContext) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1158-1326,true,169,1,capture camera snapshot
+      MonitorPlugin.resolveDeviceIp,method,"(parsed: { id: string; type: MonitorTarget['type']; name: string }, context: PluginContext) -> Promise<string | null>",1328-1356,true,29,1,resolve device ip
+      MonitorPlugin.proxyUrl,method,"(url: string) -> string",1358-1370,false,13,1,proxy url
+      MonitorPlugin.fetchHttpSnapshot,method,"(url: string, captureStart: number, attempts: string[]) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1372-1405,true,34,1,retrieves http snapshot
+      MonitorPlugin.summarizeCaptureFailure,method,"(attempts: string[], _context: PluginContext) -> string",1407-1426,false,20,1,summarize capture failure
+      MonitorPlugin.ensureApiToken,method,"(target: MonitorTarget) -> Promise<string | null>",1428-1460,true,33,1,ensure api token
+      MonitorPlugin.detectResolution,method,"(base64: string, mimeType: string) -> Promise<string | undefined>",1462-1471,true,10,1,detect resolution
+      MonitorPlugin.describeCameraChange,method,"(prevBase64: string, currBase64: string, mimeType: 'image/jpeg' | 'image/png') -> Promise<string>",1473-1485,true,13,1,describe camera change
+      MonitorPlugin.formatCaptureDetails,method,"(capture: CaptureMetadata) -> string",1487-1495,false,9,1,formats capture details
+      MonitorPlugin.computeImageChangeScore,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1497-1521,true,25,1,processes image change score
+      MonitorPlugin.pixelDiff,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1528-1568,true,41,1,pixel diff
+      MonitorPlugin.createThumbnail,method,"(base64: string, mimeType: 'image/jpeg' | 'image/png', maxWidth: number) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null>",1570-1606,true,37,1,creates thumbnail
+      MonitorPlugin.loadBase64Image,method,"(base64: string, mimeType: string) -> Promise<HTMLImageElement>",1608-1615,false,8,1,retrieves base64 image
+      MonitorPlugin.blobToBase64,method,"(blob: Blob) -> Promise<string>",1617-1625,true,9,1,blob to base64
+      MonitorPlugin.parseTarget,method,"(input: string) -> {\n    id: string; type: MonitorTarget['type']; name: string;\n    address?: string; intervalMs: number; threshold: number;\n    rtspUsername?: string; rtspPassword?: string;\n  } | null",1629-1724,false,96,1,parses target
+      MonitorPlugin.simulateContent,method,"(target: MonitorTarget) -> string",1726-1734,false,9,1,simulate content
+      MonitorPlugin.quickDiff,method,"(a: string, b: string) -> number",1736-1744,false,9,1,quick diff
+      MonitorPlugin.formatTargetLogs,method,"(target: MonitorTarget, start: number) -> PluginResult",1746-1830,false,85,1,formats target logs
+      MonitorPlugin.logIcon,method,"(type: MonitorLogEntry['type']) -> string",1832-1842,false,11,1,logs icon
+      MonitorPlugin.buildMonitoringConfigPrompt,method,() -> ConfigPromptData,1846-1881,false,36,1,creates monitoring config prompt
+      MonitorPlugin.formatDuration,method,"(ms: number) -> string",1883-1890,false,8,1,formats duration
+      MonitorPlugin.verifyCredentials,method,"(ip: string, username: string, password: string, context: PluginContext) -> Promise<boolean>",1892-1940,true,49,1,validates credentials
+      MonitorPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",1942-1948,false,7,1,error result
+      MonitorPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",1950-1988,true,39,1,initializes
+      MonitorPlugin.loadMonitoredDevices,method,"(context: PluginContext) -> Promise<void>",1991-2056,true,66,1,retrieves monitored devices
+      MonitorPlugin.handleResolveDbConflict,method,"(keepId: string, context: PluginContext, start: number) -> Promise<PluginResult>",2058-2145,true,88,1,handles resolve db conflict
+      MonitorPlugin.dispose,method,() -> Promise<void>,2147-2159,true,13,1,dispose
   src/plugins/monitor/motionDetectionPlugin.test.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       makeTauriCtx,function,(invokeImpl?),39-43,false,5,1,creates tauri ctx
@@ -1642,26 +1653,41 @@ function_details:
       get_interface_name,function,"(target_ip: &str) -> Option<String>","-",false,1,1,retrieves interface name
       list_network_interfaces,function,"() -> Result<Vec<(String,","-",false,1,1,list network interfaces
   src-tauri/src/vision_config.rs:
-    functions[16]{name,kind,sig,loc,async,lines,cc,does}:
+    functions[27]{name,kind,sig,loc,async,lines,cc,does}:
       default_camera_id,function,() -> String,"-",false,1,1,default camera id
       default_model_path,function,() -> String,"-",false,1,1,default model path
       default_confidence_threshold,function,() -> f32,"-",false,1,1,default confidence threshold
       default_nms_threshold,function,() -> f32,"-",false,1,1,default nms threshold
-      default_max_input_size,function,() -> u32,"-",false,1,1,default max input size
+      default_input_size,function,() -> u32,"-",false,1,1,default input size
+      default_use_openvino,function,() -> bool,"-",false,1,1,default use openvino
+      default_intra_threads,function,() -> u16,"-",false,1,1,default intra threads
       default_process_every,function,() -> u32,"-",false,1,1,default process every
-      default_min_contour_area,function,() -> f64,"-",false,1,1,default min contour area
-      default_max_contour_area,function,() -> f64,"-",false,1,1,default max contour area
-      default_cooldown_seconds,function,() -> u64,"-",false,1,1,default cooldown seconds
       default_bg_history,function,() -> i32,"-",false,1,1,default bg history
       default_bg_var_threshold,function,() -> f64,"-",false,1,1,default bg var threshold
-      default_worker_threads,function,() -> usize,"-",false,1,1,default worker threads
+      default_min_activity_area,function,() -> f64,"-",false,1,1,default min activity area
+      default_iou_match_threshold,function,() -> f32,"-",false,1,1,default iou match threshold
+      default_max_age_frames,function,() -> u32,"-",false,1,1,default max age frames
+      default_min_hits,function,() -> u32,"-",false,1,1,default min hits
+      default_crop_max_px,function,() -> u32,"-",false,1,1,default crop max px
+      default_crops_per_track,function,() -> usize,"-",false,1,1,default crops per track
+      default_flush_interval_secs,function,() -> u64,"-",false,1,1,default flush interval secs
+      default_min_crops_for_llm,function,() -> usize,"-",false,1,1,default min crops for llm
+      default_ring_capacity,function,() -> usize,"-",false,1,1,default ring capacity
+      default_max_crops_per_batch,function,() -> usize,"-",false,1,1,default max crops per batch
       default_db_path,function,() -> String,"-",false,1,1,default db path
-      default_llm_model,function,() -> String,"-",false,1,1,default llm model
+      default_openrouter_model,function,() -> String,"-",false,1,1,default openrouter model
+      default_local_model,function,() -> String,"-",false,1,1,default local model
       default_max_tokens,function,() -> u32,"-",false,1,1,default max tokens
+      default_max_narrative_tokens,function,() -> u32,"-",false,1,1,default max narrative tokens
       load_config,function,"() -> Result<VisionConfig,","-",false,1,1,retrieves config
+      default_config,function,() -> VisionConfig,"-",false,1,1,default config
   src-tauri/src/main_changes.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       main,function,(),"-",false,1,1,main
+  src-tauri/src/vision_tracker.rs:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      compute_iou,function,"(a: (f32, f32, f32, f32)","-",false,1,1,processes iou
+      extract_crop,function,"(frame: &Mat, bbox_norm: (f32, f32, f32, f32)","-",false,1,1,parses crop
   src-tauri/src/tts.rs:
     functions[11]{name,kind,sig,loc,async,lines,cc,does}:
       load_settings,function,"() -> crate::AudioSettings","-",false,1,1,retrieves settings
@@ -1699,7 +1725,7 @@ function_details:
       normalize_text,function,"(text: &str) -> String","-",false,1,1,normalize text
   src-tauri/src/vision_llm.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      parse_llm_response,function,"(raw: &str, fallback_label: &str) -> (String,","-",false,1,1,parses llm response
+      parse_object_response,function,"(raw: &str, fallback: &str) -> ObjectDescription","-",false,1,1,parses object response
   src-tauri/src/main.rs:
     functions[13]{name,kind,sig,loc,async,lines,cc,does}:
       default_tts_enabled,function,() -> bool,"-",false,1,1,default tts enabled
@@ -1715,6 +1741,12 @@ function_details:
       default_device_id,function,() -> String,"-",false,1,1,default device id
       default_auto_listen,function,() -> bool,"-",false,1,1,default auto listen
       main,function,(),"-",false,1,1,main
+  src-tauri/src/vision_movement.rs:
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      classify_zone,function,"(x: f32, y: f32) -> String","-",false,1,1,classify zone
+      bbox_center,function,"(bbox: &(f32, f32, f32, f32)","-",false,1,1,bbox center
+      analyse_movement,function,"(track: &CompletedTrack) -> MovementSummary","-",false,1,1,analyse movement
+      movement_tag,function,"(summary: &MovementSummary, class: &str) -> String","-",false,1,1,movement tag
   src-tauri/src/motion_detection.rs:
     functions[3]{name,kind,sig,loc,async,lines,cc,does}:
       now_ms,function,() -> u64,"-",false,1,1,now ms
@@ -1769,8 +1801,10 @@ function_details:
       useBackendTts,function,"(options: UseBackendTtsOptions) -> UseBackendTtsReturn",54-157,false,104,1,use backend tts
       playBase64Audio,function,"(base64: string, volume: number, audioRef: React.MutableRefObject<HTMLAudioElement | null>) -> Promise<void>",162-184,true,23,1,play base64 audio
   src-tauri/src/vision_db.rs:
-    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      map_row,function,"(row: &rusqlite::Row<'_>) -> rusqlite::Result<DetectionRecord>","-",false,1,1,converts row
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      cam_filter,function,"(camera_id: Option<&str>) -> String","-",false,1,1,cam filter
+      time_filter,function,"(hours: u32) -> String","-",false,1,1,time filter
+      parse_dt,function,"(s: String) -> DateTime<Utc>","-",false,1,1,parses dt
       resolve_db_path,function,"(db_path: &str) -> String","-",false,1,1,resolve db path
   src-tauri/src/email.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:

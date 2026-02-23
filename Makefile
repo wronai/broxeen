@@ -111,3 +111,51 @@ restart: ## Restart development server
 	@sleep 2
 	@echo "🚀 Starting development server..."
 	@npm run tauri dev
+
+# ── Vision Pipeline v0.3 ─────────────────────────────────────────────────────
+
+build-vision: ## Build with vision pipeline (requires OpenCV, ort)
+	cd src-tauri && cargo build --features vision
+
+build-vision-release: ## Build release with vision pipeline
+	cd src-tauri && cargo build --release --features vision
+
+build-n5105: ## Build optimised for Intel N5105
+	cd src-tauri && RUSTFLAGS="-C target-cpu=tremont" cargo build --release --features vision
+
+cargo-check: ## Check Rust compilation (default, no vision)
+	cd src-tauri && cargo check
+
+cargo-check-vision: ## Check Rust compilation with vision feature
+	cd src-tauri && cargo check --features vision
+
+# ── Vision: Model setup ─────────────────────────────────────────────────────
+
+setup-model: ## Download and export YOLOv8s ONNX model
+	mkdir -p models
+	pip3 install -q ultralytics
+	python3 -c "\
+from ultralytics import YOLO; \
+m = YOLO('yolov8s.pt'); \
+m.export(format='onnx', imgsz=640, opset=12, simplify=True); \
+import shutil; shutil.move('yolov8s.onnx', 'models/yolov8s.onnx'); \
+print('models/yolov8s.onnx ready')"
+
+# ── Vision: OpenVINO + Ollama ────────────────────────────────────────────────
+
+install-openvino-n5105: ## Install Intel OpenVINO runtime (software only, N5105)
+	@echo "=== Installing Intel OpenVINO runtime (N5105 iGPU 24EU) ==="
+	wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+	sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+	echo "deb https://apt.repos.intel.com/openvino/2024 ubuntu22 main" | \
+	    sudo tee /etc/apt/sources.list.d/intel-openvino-2024.list
+	sudo apt update && sudo apt install -y openvino-2024.0.0
+	@echo "Run: source /opt/intel/openvino_2024/setupvars.sh"
+
+install-ollama: ## Install Ollama + LLaVA (local LLM fallback)
+	curl -fsSL https://ollama.ai/install.sh | sh
+	ollama pull llava:7b
+	@echo "Local LLM fallback: llava:7b via Ollama"
+
+install-vision-deps: ## Install system deps for vision feature
+	sudo apt install -y libopencv-dev libclang-dev ffmpeg pkg-config build-essential

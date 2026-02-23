@@ -1,37 +1,57 @@
-# broxeen.toml — Broxeen Vision Configuration
-# Copy to project root and edit.  All values can be overridden
-# with env vars: BROXEEN__CAMERA__URL etc.
+# broxeen.toml — Broxeen Vision v0.3
+# Override any value with env vars: BROXEEN__CAMERA__URL etc.
 
 [camera]
 url       = "rtsp://admin:password@192.168.1.100:554/stream1"
 camera_id = "front-door"
-# fps     = 25  # override if RTSP reports wrong FPS
+
+# Second camera: run a second instance with different camera_id and different db
 
 [detector]
-model_path          = "models/yolov8n.onnx"
-confidence_threshold = 0.60   # below this → send to LLM for verification
+model_path           = "models/yolov8s.onnx"
+confidence_threshold = 0.50
 nms_threshold        = 0.45
-max_input_size       = 500    # pixels (longest edge) sent to ONNX + LLM
+input_size           = 640
+use_openvino         = true    # Intel N5105: true | RPi5: false
+intra_threads        = 2
 
 [pipeline]
-# RPi 5:  process_every_n_frames = 5  (achieves ~5-8 fps effective)
-# N5105:  process_every_n_frames = 3  (achieves ~8-12 fps effective)
-process_every_n_frames = 5
+process_every_n_frames = 4     # N5105: 3-4 | RPi5: 5-6
+bg_history             = 500
+bg_var_threshold       = 40.0
+min_activity_area      = 1500.0
 
-min_contour_area = 2000.0     # pixels² — ignore dust, insects
-max_contour_area = 200000.0   # pixels² — ignore full-frame illumination changes
+[tracker]
+iou_match_threshold = 0.30
+max_age_frames      = 15
+min_hits            = 3
+crop_max_px         = 400
+crops_per_track     = 3
 
-cooldown_seconds = 10         # re-detect same class after N seconds
-
-bg_history      = 500         # MOG2: frames to build background model
-bg_var_threshold = 50.0       # MOG2: sensitivity (higher = less sensitive)
-
-worker_threads = 2            # ONNX inference threads
+[scene]
+flush_interval_secs = 60    # LLM call every 60 seconds if objects detected
+min_crops_for_llm   = 3     # skip LLM if fewer than 3 crops accumulated
+ring_capacity       = 100
+max_crops_per_batch = 10    # max images sent per LLM call
 
 [database]
-path = "detections.db"
+path = "monitoring.db"
 
 [llm]
-# api_key = ""  # prefer ANTHROPIC_API_KEY environment variable
-model      = "claude-haiku-4-5-20251001"   # cheapest + fastest
-max_tokens = 80
+# ── Primary: OpenRouter ─────────────────────────────────────────────────────
+# api_key = ""   ← set OPENROUTER_API_KEY env var instead (more secure)
+openrouter_model = "google/gemini-2.0-flash-exp:free"
+
+# Other good OpenRouter models:
+# "google/gemini-flash-1.5"            fast, vision, cheap
+# "meta-llama/llama-3.2-11b-vision-instruct:free"  free with vision
+# "anthropic/claude-haiku-4-5-20251001"            if you have Anthropic credits
+# "openai/gpt-4o-mini"                 OpenAI option
+
+# ── Fallback: Local Ollama (must have llava model for vision) ───────────────
+local_base_url = "http://localhost:11434/v1"
+local_model    = "llava:7b"
+# To install: ollama pull llava:7b
+
+max_tokens           = 80
+max_narrative_tokens = 400

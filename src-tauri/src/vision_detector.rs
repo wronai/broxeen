@@ -1,6 +1,6 @@
-/// Object Detector — YOLOv8n via ONNX Runtime
+/// Object Detector — YOLOv8s via ONNX Runtime
 ///
-/// Classifies cropped moving objects into 10 classes.
+/// Classifies detected objects into 20 classes.
 /// Platform selection at runtime:
 ///   - Intel N5105: OpenVINO Execution Provider
 ///   - RPi5: CPU (ARM NEON auto-detected by ort)
@@ -11,7 +11,7 @@ use opencv::{core::Mat, imgproc, prelude::*};
 use ort::session::Session;
 use tracing::debug;
 
-/// The 10 classes we care about.
+/// The 20 classes we care about.
 /// Everything else from COCO maps to `Unknown`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ObjectClass {
@@ -24,38 +24,68 @@ pub enum ObjectClass {
     Dog,
     Cat,
     Bird,
+    Horse,
+    Backpack,
+    Handbag,
+    Suitcase,
+    Umbrella,
+    Bottle,
+    Chair,
+    Laptop,
+    CellPhone,
+    Clock,
     Unknown,
 }
 
 impl ObjectClass {
     pub fn as_str(&self) -> &'static str {
         match self {
-            ObjectClass::Person => "person",
-            ObjectClass::Car => "car",
-            ObjectClass::Truck => "truck",
-            ObjectClass::Bus => "bus",
+            ObjectClass::Person     => "person",
+            ObjectClass::Car        => "car",
+            ObjectClass::Truck      => "truck",
+            ObjectClass::Bus        => "bus",
             ObjectClass::Motorcycle => "motorcycle",
-            ObjectClass::Bicycle => "bicycle",
-            ObjectClass::Dog => "dog",
-            ObjectClass::Cat => "cat",
-            ObjectClass::Bird => "bird",
-            ObjectClass::Unknown => "unknown",
+            ObjectClass::Bicycle    => "bicycle",
+            ObjectClass::Dog        => "dog",
+            ObjectClass::Cat        => "cat",
+            ObjectClass::Bird       => "bird",
+            ObjectClass::Horse      => "horse",
+            ObjectClass::Backpack   => "backpack",
+            ObjectClass::Handbag    => "handbag",
+            ObjectClass::Suitcase   => "suitcase",
+            ObjectClass::Umbrella   => "umbrella",
+            ObjectClass::Bottle     => "bottle",
+            ObjectClass::Chair      => "chair",
+            ObjectClass::Laptop     => "laptop",
+            ObjectClass::CellPhone  => "cell phone",
+            ObjectClass::Clock      => "clock",
+            ObjectClass::Unknown    => "unknown",
         }
     }
 
-    /// Map COCO class id (YOLOv8) → our 10 classes
+    /// Map COCO class id (YOLOv8) → our 20 classes
     fn from_coco_id(id: usize) -> Self {
         match id {
-            0 => ObjectClass::Person,
-            2 => ObjectClass::Car,
-            7 => ObjectClass::Truck,
-            5 => ObjectClass::Bus,
-            3 => ObjectClass::Motorcycle,
-            1 => ObjectClass::Bicycle,
-            16 => ObjectClass::Dog,
-            15 => ObjectClass::Cat,
+            0  => ObjectClass::Person,
+            1  => ObjectClass::Bicycle,
+            2  => ObjectClass::Car,
+            3  => ObjectClass::Motorcycle,
+            5  => ObjectClass::Bus,
+            7  => ObjectClass::Truck,
             14 => ObjectClass::Bird,
-            _ => ObjectClass::Unknown,
+            15 => ObjectClass::Cat,
+            16 => ObjectClass::Dog,
+            17 => ObjectClass::Horse,
+            24 => ObjectClass::Backpack,
+            26 => ObjectClass::Handbag,
+            28 => ObjectClass::Suitcase,
+            25 => ObjectClass::Umbrella,
+            39 => ObjectClass::Bottle,
+            56 => ObjectClass::Chair,
+            63 => ObjectClass::Laptop,
+            67 => ObjectClass::CellPhone,
+            74 => ObjectClass::Clock,
+            _  => ObjectClass::Unknown,
         }
     }
 }
@@ -122,6 +152,49 @@ impl Detector {
         imgproc::cvt_color(&mat, &mut bgr, imgproc::COLOR_RGB2BGR, 0)?;
 
         self.detect(&bgr)
+    }
+
+    /// Run inference on a full frame. Returns ALL detections above threshold.
+    pub fn detect_frame(&self, frame: &Mat) -> Result<Vec<Detection>> {
+        let sz = self.input_size as i32;
+        let (letterboxed, scale, pad_x, pad_y) = letterbox(frame, sz)?;
+        let mut rgb = Mat::default();
+        imgproc::cvt_color(&letterboxed, &mut rgb, imgproc::COLOR_BGR2RGB, 0)?;
+        let data = mat_to_chw_f32(&rgb, sz as usize)?;
+        let array = Array4::from_shape_vec((1, 3, sz as usize, sz as usize), data)?;
+        let outputs = self.session.run(ort::inputs!["images" => array.view()]?)?;
+        let output_tensor = outputs[0]
+            .try_extract_tensor::<f32>()
+            .map_err(|e| anyhow!("Failed to extract output tensor: {}", e))?;
+        let shape = output_tensor.shape();
+        let num_boxes = shape[2];
+        let num_classes = shape[1] - 4;
+        let orig_w = frame.cols() as f32;
+        let orig_h = frame.rows() as f32;
+
+        let mut detections = Vec::new();
+        for i in 0..num_boxes {
+            let cx = output_tensor[[0, 0, i]];
+            let cy = output_tensor[[0, 1, i]];
+            let bw = output_tensor[[0, 2, i]];
+            let bh = output_tensor[[0, 3, i]];
+            let mut max_score = 0f32;
+            let mut max_class = 0usize;
+            for c in 0..num_classes {
+                let score = output_tensor[[0, 4 + c, i]];
+                if score > max_score { max_score = score; max_class = c; }
+            }
+            if max_score <= self.conf_threshold { continue; }
+            let class = ObjectClass::from_coco_id(max_class);
+            if class == ObjectClass::Unknown { continue; }
+            // Convert letterbox coords → normalised frame coords [0..1]
+            let x1 = ((cx - bw / 2.0 - pad_x as f32) / (scale as f32 * orig_w)).max(0.0);
+            let y1 = ((cy - bh / 2.0 - pad_y as f32) / (scale as f32 * orig_h)).max(0.0);
+            let x2 = ((cx + bw / 2.0 - pad_x as f32) / (scale as f32 * orig_w)).min(1.0);
+            let y2 = ((cy + bh / 2.0 - pad_y as f32) / (scale as f32 * orig_h)).min(1.0);
+            detections.push(Detection { class, confidence: max_score, bbox_norm: (x1, y1, x2, y2) });
+        }
+        Ok(detections)
     }
 
     /// Run inference on a single BGR Mat crop.

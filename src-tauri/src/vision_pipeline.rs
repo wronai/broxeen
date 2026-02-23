@@ -1,54 +1,32 @@
-/// Vision Pipeline — Full async orchestration
-///
-/// Architecture:
-///   RTSP capture (blocking thread)
-///     → motion detection (MOG2)
-///     → crop + JPEG encode
-///     → [flume channel] → detection worker (ONNX YOLOv8n)
-///       → confidence ≥ threshold → save to SQLite
-///       → confidence < threshold → [flume channel] → LLM worker (Claude Haiku)
-///         → update SQLite with LLM verification
-///
-/// Emits `broxeen:vision_detection` events to the Tauri frontend.
+//! Main pipeline — two-track architecture (v0.3):
+//!
+//! Track A (immediate): YOLO detection → tracker → movement analysis → DB (detections)
+//! Track B (1/min):     MinuteBuffer → LLM (OpenRouter / local) → DB (llm_events)
+//!
+//! Emits `broxeen:vision_detection` and `broxeen:vision_llm_result` events to frontend.
 
 use anyhow::Result;
-use opencv::{
-    core::Vector,
-    imgcodecs::IMWRITE_JPEG_QUALITY,
-    prelude::*,
-};
-use std::collections::HashMap;
 use std::sync::Arc;
-use std::time::Instant;
 use tokio::sync::watch;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::vision_capture::CaptureStream;
 use crate::vision_config::VisionConfig;
 use crate::vision_db::VisionDatabase;
-use crate::vision_detector::{Detector, ObjectClass};
+use crate::vision_detector::Detector;
 use crate::vision_llm::LlmClient;
-use crate::vision_motion::MotionDetector;
+use crate::vision_movement;
+use crate::vision_scene_buffer::{MinuteBuffer, ObjectEvent};
+use crate::vision_tracker::Tracker;
 
-// ─── Messages flowing through pipeline channels ─────────────────────────────
-
-struct WorkItem {
-    camera_id: String,
-    jpeg_bytes: Vec<u8>,
-    bbox: (i32, i32, i32, i32),
-    area: i64,
-}
-
-struct LlmWorkItem {
-    detection_id: i64,
-    jpeg_bytes: Vec<u8>,
-    local_label: String,
+/// Message from blocking capture thread → async LLM worker.
+struct TrackMsg {
+    track:     crate::vision_tracker::CompletedTrack,
     camera_id: String,
 }
 
 // ─── Pipeline handle returned to Tauri commands ─────────────────────────────
 
-/// A running pipeline that can be stopped via the stop signal.
 pub struct PipelineHandle {
     pub camera_id: String,
     pub rtsp_url: String,
@@ -57,7 +35,6 @@ pub struct PipelineHandle {
 }
 
 impl PipelineHandle {
-    /// Signal the pipeline to stop.
     pub fn stop(&self) {
         let _ = self.stop_tx.send(true);
     }
@@ -70,13 +47,8 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(cfg: VisionConfig) -> Self {
-        Self { cfg }
-    }
+    pub fn new(cfg: VisionConfig) -> Self { Self { cfg } }
 
-    /// Start the pipeline in background tasks. Returns a handle to stop it.
-    ///
-    /// If `app_handle` is provided, detection events are emitted to the frontend.
     pub fn start(
         self,
         app_handle: Option<tauri::AppHandle>,
@@ -84,206 +56,202 @@ impl Pipeline {
         let cfg = Arc::new(self.cfg);
         let (stop_tx, stop_rx) = watch::channel(false);
 
-        // Shared database
         let db = Arc::new(std::sync::Mutex::new(
             VisionDatabase::open(&cfg.database.path)?,
         ));
+        let llm = Arc::new(LlmClient::from_config(&cfg.llm));
 
-        // Channel: capture → detection (bounded, drop old frames under load)
-        let (detect_tx, detect_rx) = flume::bounded::<WorkItem>(16);
-
-        // Channel: detection → LLM (small buffer)
-        let (llm_tx, llm_rx) = flume::bounded::<LlmWorkItem>(8);
+        // Async channel: completed tracks → LLM/scene worker
+        let (track_tx, mut track_rx) = tokio::sync::mpsc::channel::<TrackMsg>(64);
 
         let camera_id = cfg.camera.camera_id.clone();
         let rtsp_url = cfg.camera.url.clone();
 
-        // ── Spawn LLM worker ────────────────────────────────────────────────
-        let llm_db = Arc::clone(&db);
-        let llm_cfg = cfg.clone();
-        let llm_app = app_handle.clone();
+        // ── Async worker: per-minute LLM batching (Track B) ─────────────
+        let worker_db = Arc::clone(&db);
+        let worker_llm = Arc::clone(&llm);
+        let worker_cfg = cfg.clone();
+        let worker_app = app_handle.clone();
+
         tokio::spawn(async move {
-            match LlmClient::new(&llm_cfg.llm) {
-                Ok(client) => {
-                    while let Ok(item) = llm_rx.recv_async().await {
-                        match client
-                            .classify_object(
-                                &item.jpeg_bytes,
-                                &item.local_label,
-                                &item.camera_id,
-                            )
-                            .await
-                        {
-                            Ok(result) => {
-                                let db = llm_db.lock().unwrap();
-                                if let Err(e) = db.update_llm_result(
-                                    item.detection_id,
-                                    &result.label,
-                                    &result.description,
+            let mut buf = MinuteBuffer::new(
+                worker_cfg.scene.flush_interval_secs,
+                worker_cfg.scene.ring_capacity,
+                worker_cfg.scene.min_crops_for_llm,
+            );
+
+            loop {
+                // Drain all pending completed tracks
+                loop {
+                    match track_rx.try_recv() {
+                        Ok(msg) => {
+                            let summary = vision_movement::analyse_movement(&msg.track);
+                            let mv_tag = vision_movement::movement_tag(&summary, &msg.track.class);
+
+                            // ── Track A: save to DB immediately ──────────
+                            let thumbnail = msg.track.crops.first()
+                                .map(|c| c.jpeg_bytes.clone())
+                                .unwrap_or_default();
+
+                            {
+                                let db = worker_db.lock().unwrap();
+                                if let Err(e) = db.insert_detection(
+                                    &msg.camera_id,
+                                    &msg.track.id.to_string(),
+                                    &msg.track.class,
+                                    msg.track.confidence,
+                                    Some(&mv_tag),
+                                    Some(&summary.direction),
+                                    Some(summary.speed_label),
+                                    Some(&summary.entry_zone),
+                                    Some(&summary.exit_zone),
+                                    summary.duration_secs,
+                                    &thumbnail,
                                 ) {
-                                    warn!("DB update error: {}", e);
+                                    warn!("DB insert_detection: {}", e);
                                 } else {
                                     info!(
-                                        "LLM verified det#{}: {} → {} ({})",
-                                        item.detection_id,
-                                        item.local_label,
-                                        result.label,
-                                        result.description
+                                        "✓ Local: {} [{:.0}%] {} cam={}",
+                                        msg.track.class,
+                                        msg.track.confidence * 100.0,
+                                        summary.description,
+                                        msg.camera_id,
                                     );
-                                    // Emit LLM verification event
-                                    if let Some(ref app) = llm_app {
+
+                                    // Emit detection event to frontend
+                                    if let Some(ref app) = worker_app {
                                         use tauri::Emitter;
                                         let _ = app.emit(
-                                            "broxeen:vision_llm_result",
+                                            "broxeen:vision_detection",
                                             serde_json::json!({
-                                                "detection_id": item.detection_id,
-                                                "camera_id": item.camera_id,
-                                                "local_label": item.local_label,
-                                                "llm_label": result.label,
-                                                "llm_description": result.description,
+                                                "camera_id": msg.camera_id,
+                                                "track_id": msg.track.id.to_string(),
+                                                "label": msg.track.class,
+                                                "confidence": msg.track.confidence,
+                                                "movement": mv_tag,
+                                                "direction": summary.direction,
+                                                "duration_s": summary.duration_secs,
                                             }),
                                         );
                                     }
                                 }
                             }
-                            Err(e) => {
-                                warn!("LLM error for det#{}: {}", item.detection_id, e)
+
+                            // ── Buffer for LLM batch ─────────────────────
+                            buf.push(ObjectEvent {
+                                track_id:    msg.track.id,
+                                class:       msg.track.class.clone(),
+                                confidence:  msg.track.confidence,
+                                movement:    summary,
+                                crops:       msg.track.crops.clone(),
+                                finished_at: chrono::Utc::now(),
+                            });
+                        }
+                        Err(tokio::sync::mpsc::error::TryRecvError::Empty)        => break,
+                        Err(tokio::sync::mpsc::error::TryRecvError::Disconnected) => return,
+                    }
+                }
+
+                // ── Track B: flush to LLM once per minute ─────────────────
+                if buf.should_flush() {
+                    if let Some(batch) = buf.drain() {
+                        let timeline = batch.build_timeline(&worker_cfg.camera.camera_id);
+                        let crops = batch.select_crops(
+                            worker_cfg.scene.min_crops_for_llm,
+                            worker_cfg.scene.max_crops_per_batch,
+                        );
+
+                        if !crops.is_empty() {
+                            match worker_llm.describe_scene(
+                                &crops, &timeline, &worker_cfg.camera.camera_id,
+                            ).await {
+                                Ok(result) => {
+                                    info!("📖 LLM [{}]: {}", result.provider, result.narrative);
+                                    let db = worker_db.lock().unwrap();
+                                    if let Err(e) = db.insert_llm_event(
+                                        &worker_cfg.camera.camera_id,
+                                        batch.period_start,
+                                        batch.period_end,
+                                        &result.narrative,
+                                        &result.provider,
+                                        crops.len() as u32,
+                                        &timeline,
+                                    ) {
+                                        warn!("DB insert_llm_event: {}", e);
+                                    }
+
+                                    if let Some(ref app) = worker_app {
+                                        use tauri::Emitter;
+                                        let _ = app.emit(
+                                            "broxeen:vision_llm_result",
+                                            serde_json::json!({
+                                                "camera_id": worker_cfg.camera.camera_id,
+                                                "narrative": result.narrative,
+                                                "provider": result.provider,
+                                                "crops_sent": crops.len(),
+                                            }),
+                                        );
+                                    }
+                                }
+                                Err(e) => warn!("LLM scene error: {} — detections still saved locally", e),
                             }
                         }
                     }
                 }
-                Err(e) => {
-                    warn!("LLM client init failed (running without LLM): {}", e)
-                }
+
+                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
             }
         });
 
-        // ── Spawn detection worker ──────────────────────────────────────────
-        let det_db = Arc::clone(&db);
-        let det_cfg = cfg.clone();
-        let det_app = app_handle.clone();
-        tokio::task::spawn_blocking(move || {
-            let use_openvino = cfg!(feature = "openvino");
-            let detector = match Detector::new(
-                &det_cfg.detector.model_path,
-                det_cfg.detector.max_input_size,
-                det_cfg.detector.confidence_threshold,
-                det_cfg.detector.nms_threshold,
-                use_openvino,
-            ) {
-                Ok(d) => d,
-                Err(e) => {
-                    warn!("Detector init failed: {}", e);
-                    return;
-                }
-            };
-
-            while let Ok(item) = detect_rx.recv() {
-                match detector.detect_from_jpeg(&item.jpeg_bytes) {
-                    Ok(Some(det)) => {
-                        let label = det.class.as_str().to_string();
-                        let confidence = det.confidence;
-
-                        // Save to DB
-                        let id = {
-                            let db = det_db.lock().unwrap();
-                            db.insert_detection(
-                                &item.camera_id,
-                                &label,
-                                confidence,
-                                &item.jpeg_bytes,
-                                item.bbox,
-                                item.area,
-                            )
-                        };
-
-                        match id {
-                            Ok(det_id) => {
-                                info!(
-                                    "Detected: {} ({:.0}%) cam={} area={}",
-                                    label,
-                                    confidence * 100.0,
-                                    item.camera_id,
-                                    item.area
-                                );
-
-                                // Emit detection event to frontend
-                                if let Some(ref app) = det_app {
-                                    use tauri::Emitter;
-                                    let _ = app.emit(
-                                        "broxeen:vision_detection",
-                                        serde_json::json!({
-                                            "detection_id": det_id,
-                                            "camera_id": item.camera_id,
-                                            "label": label,
-                                            "confidence": confidence,
-                                            "bbox": item.bbox,
-                                            "area": item.area,
-                                        }),
-                                    );
-                                }
-
-                                // Send to LLM only if low confidence or unknown
-                                if confidence < det_cfg.detector.confidence_threshold
-                                    || det.class == ObjectClass::Unknown
-                                {
-                                    let _ = llm_tx.try_send(LlmWorkItem {
-                                        detection_id: det_id,
-                                        jpeg_bytes: item.jpeg_bytes,
-                                        local_label: label,
-                                        camera_id: item.camera_id,
-                                    });
-                                }
-                            }
-                            Err(e) => warn!("DB insert error: {}", e),
-                        }
-                    }
-                    Ok(None) => debug!("No detection in crop"),
-                    Err(e) => warn!("Detector error: {}", e),
-                }
-            }
-        });
-
-        // ── Spawn capture loop (blocking thread) ────────────────────────────
+        // ── Blocking capture + detection loop ─────────────────────────────
         let cap_cfg = cfg.clone();
         let mut stop_rx_cap = stop_rx.clone();
+
         tokio::task::spawn_blocking(move || {
             let cam = &cap_cfg.camera;
+            let det_cfg = &cap_cfg.detector;
+
             let mut stream = match CaptureStream::open(
-                &cam.url,
-                &cam.camera_id,
-                cap_cfg.pipeline.process_every_n_frames,
+                &cam.url, &cam.camera_id, cap_cfg.pipeline.process_every_n_frames,
             ) {
                 Ok(s) => s,
-                Err(e) => {
-                    warn!("Failed to open camera stream: {}", e);
-                    return;
-                }
+                Err(e) => { warn!("Failed to open camera stream: {}", e); return; }
             };
 
-            let mut motion = match MotionDetector::new(
+            let detector = match Detector::new(
+                &det_cfg.model_path,
+                det_cfg.input_size,
+                det_cfg.confidence_threshold,
+                det_cfg.nms_threshold,
+                det_cfg.use_openvino,
+            ) {
+                Ok(d) => d,
+                Err(e) => { warn!("Detector init failed: {}", e); return; }
+            };
+
+            let mut tracker = Tracker::new(
+                cap_cfg.tracker.iou_match_threshold,
+                cap_cfg.tracker.max_age_frames,
+                cap_cfg.tracker.min_hits,
+                cap_cfg.tracker.crop_max_px,
+                cap_cfg.tracker.crops_per_track,
+            );
+
+            // Simple activity gate: use MOG2 at low res to decide if YOLO should run
+            let mut activity_detector = crate::vision_motion::MotionDetector::new(
                 cap_cfg.pipeline.bg_history,
                 cap_cfg.pipeline.bg_var_threshold,
-                cap_cfg.pipeline.min_contour_area,
-                cap_cfg.pipeline.max_contour_area,
-                cap_cfg.detector.max_input_size,
-            ) {
-                Ok(m) => m,
-                Err(e) => {
-                    warn!("Failed to init motion detector: {}", e);
-                    return;
-                }
-            };
+                cap_cfg.pipeline.min_activity_area,
+                200000.0,
+                400,
+            ).ok();
 
-            // Per-area-bucket cooldown tracker
-            let mut cooldowns: HashMap<String, Instant> = HashMap::new();
-            let cooldown_dur =
-                std::time::Duration::from_secs(cap_cfg.pipeline.cooldown_seconds);
-
-            info!("Pipeline running. Camera: {}", cam.camera_id);
+            info!(
+                "▶ Pipeline v0.3: cam={} openvino={} flush={}s",
+                cam.camera_id, det_cfg.use_openvino, cap_cfg.scene.flush_interval_secs,
+            );
 
             loop {
-                // Check stop signal (non-blocking)
                 if *stop_rx_cap.borrow() {
                     info!("Pipeline stop signal received for {}", cam.camera_id);
                     break;
@@ -291,61 +259,36 @@ impl Pipeline {
 
                 let frame = match stream.next_frame() {
                     Ok(Some(f)) => f,
-                    Ok(None) => continue, // skipped frame
+                    Ok(None) => continue,
                     Err(e) => {
-                        warn!("Capture error: {} — reconnecting", e);
+                        warn!("Capture: {} — reconnecting", e);
                         match stream.reconnect() {
                             Ok(_) => continue,
-                            Err(re) => {
-                                warn!("Reconnect failed: {}", re);
-                                break;
-                            }
+                            Err(re) => { warn!("Reconnect failed: {}", re); break; }
                         }
                     }
                 };
 
-                let objects = match motion.process_frame(&frame) {
-                    Ok(o) => o,
-                    Err(e) => {
-                        warn!("Motion error: {}", e);
-                        continue;
+                // Activity gate: skip YOLO if no motion detected
+                let active = activity_detector.as_mut()
+                    .map(|m| m.process_frame(&frame).map(|objs| !objs.is_empty()).unwrap_or(true))
+                    .unwrap_or(true);
+
+                let detections = if active {
+                    match detector.detect_frame(&frame) {
+                        Ok(d) => d,
+                        Err(e) => { warn!("Detector: {}", e); vec![] }
                     }
+                } else {
+                    vec![]
                 };
 
-                for obj in objects {
-                    // Encode crop to JPEG
-                    let mut buf: Vector<u8> = Vector::new();
-                    let params: Vector<i32> = Vector::from_iter([IMWRITE_JPEG_QUALITY, 75]);
+                let completed = tracker.update(&detections, &frame);
 
-                    if let Err(e) =
-                        opencv::imgcodecs::imencode(".jpg", &obj.crop, &mut buf, &params)
-                    {
-                        warn!("JPEG encode error: {}", e);
-                        continue;
-                    }
-                    let jpeg = buf.to_vec();
-
-                    // Skip tiny crops (noise)
-                    if jpeg.len() < 512 {
-                        continue;
-                    }
-
-                    // Area-based rate limit to avoid flooding the channel
-                    let area_key = format!("area_{}", (obj.area as i64 / 5000) * 5000);
-                    let now = Instant::now();
-                    if let Some(last) = cooldowns.get(&area_key) {
-                        if now.duration_since(*last) < cooldown_dur {
-                            continue;
-                        }
-                    }
-                    cooldowns.insert(area_key, now);
-
-                    // Non-blocking send — drop if detection worker is overwhelmed
-                    let _ = detect_tx.try_send(WorkItem {
+                for t in completed {
+                    let _ = track_tx.try_send(TrackMsg {
+                        track: t,
                         camera_id: cam.camera_id.clone(),
-                        jpeg_bytes: jpeg,
-                        bbox: obj.bbox,
-                        area: obj.area as i64,
                     });
                 }
             }
