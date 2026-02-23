@@ -47,6 +47,48 @@ export class FileSearchPlugin implements Plugin {
   readonly version = '1.0.0';
   readonly supportedIntents = ['file:search', 'file:read', 'file:open'];
 
+  // ── Data-driven command routing table ─────────────────────────────────
+  // Each entry: [pattern, handler-key]. Checked in order; first match wins.
+  private static readonly ROUTE_TABLE: ReadonlyArray<[RegExp, string]> = [
+    // Read file content (highest priority)
+    [/\bco\s+jest\s+w\s+pliku\b/i, 'read'],
+    [/\bco\s+zawiera\b/i, 'read'],
+    [/\bprzeczytaj\s+plik\b/i, 'read'],
+    [/\bodczytaj\s+plik\b/i, 'read'],
+    [/\bpokaż\s+zawartość\b/i, 'read'],
+    [/\bpokaz\s+zawartosc\b/i, 'read'],
+    [/\botwórz\s+plik\b/i, 'read'],
+    [/\botworz\s+plik\b/i, 'read'],
+    [/\bread\s+file\b/i, 'read'],
+    // Search files (default)
+    [/\bznajd[źz]\s+plik\b/i, 'search'],
+    [/\bwyszukaj\s+plik\b/i, 'search'],
+    [/\bszukaj\s+plik\b/i, 'search'],
+    [/\bznajd[źz]\s+dokument\b/i, 'search'],
+    [/\bwyszukaj\s+dokument\b/i, 'search'],
+    [/\bszukaj\s+dokument\b/i, 'search'],
+    [/\bpokaż\s+plik\b/i, 'search'],
+    [/\bpokaz\s+plik\b/i, 'search'],
+    [/\blista\s+plik[óo]?w\b/i, 'search'],
+    [/\bwylistuj\s+plik\b/i, 'search'],
+    [/\bco\s+(jest|mam|znajduje\s+się)\s+(w|na)\s+(folderze|katalogu|dysku)/i, 'search'],
+    [/\bzawarto[śs][ćc]\s+(folderu|katalogu|dysku)/i, 'search'],
+    [/\bplik[iy]?\s+(w|na|z)\s+(folderze|katalogu|dysku|komputerze|pulpicie)/i, 'search'],
+    [/\bdokument[yów]?\s+(w|na|z)\s+(folderze|katalogu|dysku|komputerze|pulpicie)/i, 'search'],
+    [/(folder|katalog|pulpit)\s+(usera|u[żz]ytkownika|domowy|home)/i, 'search'],
+    [/\bplik[iy]?\s+(usera|u[żz]ytkownika)/i, 'search'],
+    [/\bls\s+(~|\/home|\/)/i, 'search'],
+    [/\blist\s+(files|directory|folder)/i, 'search'],
+    [/\bpoka[żz]\s+(folder|katalog)/i, 'search'],
+    [/\bco\s+mam\s+na\s+dysku/i, 'search'],
+    [/\bprzejrzyj\s+(pliki|folder|katalog)/i, 'search'],
+    [/\bwy[śs]wietl\s+plik/i, 'search'],
+    [/\bfile\s+search\b/i, 'search'],
+    [/\bfind\s+file\b/i, 'search'],
+    [/\bsearch\s+file\b/i, 'search'],
+  ];
+
+  // All patterns that canHandle should match (includes ROUTE_TABLE + general keywords)
   private static readonly CAN_HANDLE_KEYWORDS: readonly string[] = [
     'znajdź plik', 'znajdz plik', 'wyszukaj plik', 'szukaj plik',
     'szukaj dokument', 'znajdź dokument', 'znajdz dokument', 'wyszukaj dokument',
@@ -55,22 +97,9 @@ export class FileSearchPlugin implements Plugin {
     'file search', 'find file', 'search file',
   ];
 
-  private static readonly CAN_HANDLE_PATTERNS: readonly RegExp[] = [
-    /lista\s+plik[óo]?w/i,
-    /poka[zż]\s+(mi\s+)?plik/i,
-    /wylistuj\s+plik/i,
-    /co\s+(jest|mam|znajduje\s+się)\s+(w|na)\s+(folderze|katalogu|dysku)/i,
-    /zawarto[śs][ćc]\s+(folderu|katalogu|dysku)/i,
-    /plik[iy]?\s+(w|na|z)\s+(folderze|katalogu|dysku|komputerze|pulpicie)/i,
-    /dokument[yów]?\s+(w|na|z)\s+(folderze|katalogu|dysku|komputerze|pulpicie)/i,
-    /(folder|katalog|pulpit)\s+(usera|u[żz]ytkownika|domowy|home)/i,
-    /plik[iy]?\s+(usera|u[żz]ytkownika)/i,
-    /ls\s+(~|\/home|\/)/i,
-    /list\s+(files|directory|folder)/i,
-    /poka[żz]\s+(folder|katalog)/i,
-    /co\s+mam\s+na\s+dysku/i,
-    /przejrzyj\s+(pliki|folder|katalog)/i,
-    /wy[śs]wietl\s+plik/i,
+  private static readonly CAN_HANDLE_PATTERNS: ReadonlyArray<RegExp> = [
+    // All route patterns
+    ...FileSearchPlugin.ROUTE_TABLE.map(([pattern]) => pattern),
   ];
 
   async canHandle(input: string, _context: PluginContext): Promise<boolean> {
@@ -84,11 +113,19 @@ export class FileSearchPlugin implements Plugin {
     const lower = input.toLowerCase();
 
     try {
-      // Determine if this is a read or search request
-      if (this.isReadRequest(lower)) {
-        return await this.executeRead(input, context, start);
+      // Route through the command table
+      for (const [pattern, key] of FileSearchPlugin.ROUTE_TABLE) {
+        if (!pattern.test(lower)) continue;
+
+        switch (key) {
+          case 'read':
+            return await this.executeRead(input, context, start);
+          case 'search':
+            return await this.executeSearch(input, context, start);
+        }
       }
 
+      // Fallback: treat as search request
       return await this.executeSearch(input, context, start);
     } catch (err) {
       return this.errorResult(
@@ -98,19 +135,7 @@ export class FileSearchPlugin implements Plugin {
     }
   }
 
-  private isReadRequest(lower: string): boolean {
-    return (
-      lower.includes('co jest w pliku') ||
-      lower.includes('co zawiera') ||
-      lower.includes('przeczytaj plik') ||
-      lower.includes('odczytaj plik') ||
-      lower.includes('pokaż zawartość') ||
-      lower.includes('pokaz zawartosc') ||
-      lower.includes('otwórz plik') ||
-      lower.includes('otworz plik') ||
-      lower.includes('read file')
-    );
-  }
+  // isReadRequest method is no longer needed - handled by ROUTE_TABLE
 
   private async executeSearch(
     input: string,
