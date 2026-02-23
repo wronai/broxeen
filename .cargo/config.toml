@@ -15,3 +15,8 @@ debug = true
 incremental = true
 codegen-units = 16
 lto = false
+
+# Vision pipeline (--features vision) requires libclang + OpenCV dev headers.
+# Install: sudo apt install libclang-dev clang-20 libopencv-dev
+[env]
+LIBCLANG_PATH = "/usr/lib/llvm-20/lib"

@@ -21,6 +21,21 @@ mod stt;
 mod tts;
 mod tts_backend;
 
+#[cfg(feature = "vision")]
+mod vision_capture;
+#[cfg(feature = "vision")]
+mod vision_config;
+#[cfg(feature = "vision")]
+mod vision_db;
+#[cfg(feature = "vision")]
+mod vision_detector;
+#[cfg(feature = "vision")]
+mod vision_llm;
+#[cfg(feature = "vision")]
+mod vision_motion;
+#[cfg(feature = "vision")]
+mod vision_pipeline;
+
 use audio_capture::SharedRecordingState;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};

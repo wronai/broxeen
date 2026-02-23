@@ -1,0 +1,37 @@
+# broxeen.toml — Broxeen Vision Configuration
+# Copy to project root and edit.  All values can be overridden
+# with env vars: BROXEEN__CAMERA__URL etc.
+
+[camera]
+url       = "rtsp://admin:password@192.168.1.100:554/stream1"
+camera_id = "front-door"
+# fps     = 25  # override if RTSP reports wrong FPS
+
+[detector]
+model_path          = "models/yolov8n.onnx"
+confidence_threshold = 0.60   # below this → send to LLM for verification
+nms_threshold        = 0.45
+max_input_size       = 500    # pixels (longest edge) sent to ONNX + LLM
+
+[pipeline]
+# RPi 5:  process_every_n_frames = 5  (achieves ~5-8 fps effective)
+# N5105:  process_every_n_frames = 3  (achieves ~8-12 fps effective)
+process_every_n_frames = 5
+
+min_contour_area = 2000.0     # pixels² — ignore dust, insects
+max_contour_area = 200000.0   # pixels² — ignore full-frame illumination changes
+
+cooldown_seconds = 10         # re-detect same class after N seconds
+
+bg_history      = 500         # MOG2: frames to build background model
+bg_var_threshold = 50.0       # MOG2: sensitivity (higher = less sensitive)
+
+worker_threads = 2            # ONNX inference threads
+
+[database]
+path = "detections.db"
+
+[llm]
+# api_key = ""  # prefer ANTHROPIC_API_KEY environment variable
+model      = "claude-haiku-4-5-20251001"   # cheapest + fastest
+max_tokens = 80

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { X, Wifi, WifiOff, RefreshCw, Monitor, Camera, Server, Smartphone } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { X, Wifi, WifiOff, RefreshCw, Monitor, Camera, Server, Terminal, Globe, Play, MoreHorizontal } from "lucide-react";
 
 interface DeviceEntry {
   id: string;
@@ -10,6 +10,15 @@ interface DeviceEntry {
   last_seen: number;
   status: "online" | "offline" | "unknown";
   services_count: number;
+}
+
+interface DeviceServiceEntry {
+  id: string;
+  device_id: string;
+  type: 'http' | 'rtsp' | 'mqtt' | 'ssh' | 'api' | string;
+  port: number;
+  path: string | null;
+  status: 'online' | 'offline' | 'unknown' | string;
 }
 
 interface DeviceDashboardModalProps {
@@ -62,6 +71,7 @@ export default function DeviceDashboardModal({
   databaseManager,
 }: DeviceDashboardModalProps) {
   const [devices, setDevices] = useState<DeviceEntry[]>([]);
+  const [servicesByDeviceId, setServicesByDeviceId] = useState<Record<string, DeviceServiceEntry[]>>({});
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "online" | "offline" | "cameras">("all");
   const [search, setSearch] = useState("");
@@ -82,12 +92,91 @@ export default function DeviceDashboardModal({
          LIMIT 200`,
       );
       setDevices(rows || []);
+
+      const serviceRows: DeviceServiceEntry[] = await db.query(
+        `SELECT id, device_id, type, port, path, status
+         FROM device_services
+         ORDER BY device_id, port ASC
+         LIMIT 1500`,
+      );
+      const map: Record<string, DeviceServiceEntry[]> = {};
+      for (const s of serviceRows || []) {
+        const key = String((s as any).device_id);
+        if (!map[key]) map[key] = [];
+        map[key].push(s);
+      }
+      setServicesByDeviceId(map);
     } catch {
       setDevices([]);
+      setServicesByDeviceId({});
     } finally {
       setLoading(false);
     }
   }, [databaseManager]);
+
+  const dispatchChatAction = (mode: 'prefill' | 'execute', text: string) => {
+    window.dispatchEvent(
+      new CustomEvent('broxeen:chat_action', {
+        detail: { mode, text },
+      }),
+    );
+  };
+
+  const buildDeviceActions = useCallback((device: DeviceEntry) => {
+    const services = servicesByDeviceId[device.id] || [];
+    const actions: Array<{
+      id: string;
+      label: string;
+      icon: React.ReactNode;
+      mode: 'prefill' | 'execute';
+      text: string;
+    }> = [];
+
+    actions.push({
+      id: 'monitor',
+      label: 'Monitoruj',
+      icon: <Monitor size={14} />,
+      mode: 'execute',
+      text: `monitoruj ${device.ip}`,
+    });
+
+    const rtsp = services.find((s) => String(s.type).toLowerCase() === 'rtsp');
+    if (rtsp || inferDeviceType(device) === 'camera') {
+      actions.push({
+        id: 'live',
+        label: 'Podgląd',
+        icon: <Play size={14} />,
+        mode: 'execute',
+        text: `pokaż live ${device.ip}`,
+      });
+    }
+
+    const http = services.find((s) => String(s.type).toLowerCase() === 'http');
+    if (http) {
+      const scheme = http.port === 443 ? 'https' : 'http';
+      const url = `${scheme}://${device.ip}:${http.port}${http.path || ''}`;
+      actions.push({
+        id: 'browse',
+        label: 'Panel WWW',
+        icon: <Globe size={14} />,
+        mode: 'execute',
+        text: `przeglądaj ${url}`,
+      });
+    }
+
+    const ssh = services.find((s) => String(s.type).toLowerCase() === 'ssh' || s.port === 22);
+    if (ssh) {
+      actions.push({
+        id: 'ssh',
+        label: 'SSH',
+        icon: <Terminal size={14} />,
+        mode: 'prefill',
+        text: `ssh ${device.ip} user:root haslo:HASŁO`,
+      });
+    }
+
+    return actions.slice(0, 3);
+  }, [servicesByDeviceId]);
 
   useEffect(() => {
     if (isOpen) {
@@ -241,6 +330,25 @@ export default function DeviceDashboardModal({
                         {device.mac && (
                           <span className="font-mono text-xs text-gray-600">{device.mac}</span>
                         )}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {buildDeviceActions(device).map((a) => (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              dispatchChatAction(a.mode, a.text);
+                            }}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-gray-800 px-2.5 py-1 text-xs text-gray-300 transition hover:bg-gray-700 hover:text-white"
+                            title={a.text}
+                          >
+                            {a.icon}
+                            {a.label}
+                          </button>
+                        ))}
                       </div>
                     </div>
 
