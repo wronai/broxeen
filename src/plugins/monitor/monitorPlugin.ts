@@ -123,22 +123,6 @@ export class MonitorPlugin implements Plugin {
     if (/stop.*monitor|zatrzymaj.*monitor|przestań.*monitor|przestan.*monitor/i.test(lower)) {
       return this.handleStop(input, start);
     }
-
-    // Resolve implicit targets using persisted device discovery (e.g. "monitoruj rpi")
-    if (!parsed.address && parsed.type === 'device') {
-      const resolvedIp = await this.resolveDeviceIp(parsed, context);
-      if (resolvedIp) {
-        (parsed as any).address = resolvedIp;
-        (parsed as any).name = `${parsed.name} (${resolvedIp})`;
-        (parsed as any).id = `device-${resolvedIp}`;
-      } else {
-        return this.errorResult(
-          `Nie mogę znaleźć adresu dla: **${parsed.name}**.\n\n` +
-            `💡 Najpierw uruchom skan sieci: \"skanuj sieć\" (Tauri) albo podaj IP bezpośrednio: \"monitoruj 192.168.x.x\".`,
-          start,
-        );
-      }
-    }
     if (/aktywne.*monitor|lista.*monitor|list.*watch/i.test(lower)) {
       return this.handleList(start);
     }
@@ -168,6 +152,22 @@ export class MonitorPlugin implements Plugin {
         '- "obserwuj kamerę ogrodową próg 10%"',
         start,
       );
+    }
+
+    // Resolve implicit targets using persisted device discovery (e.g. "monitoruj rpi")
+    if (!parsed.address && parsed.type === 'device') {
+      const resolvedIp = await this.resolveDeviceIp(parsed, context);
+      if (resolvedIp) {
+        parsed.address = resolvedIp;
+        parsed.name = `${parsed.name} (${resolvedIp})`;
+        parsed.id = `device-${resolvedIp}`;
+      } else {
+        return this.errorResult(
+          `Nie mogę znaleźć adresu dla: **${parsed.name}**.\n\n` +
+            `💡 Najpierw uruchom skan sieci: "skanuj sieć" (Tauri) albo podaj IP bezpośrednio: "monitoruj 192.168.x.x".`,
+          start,
+        );
+      }
     }
 
     // Check if already monitoring

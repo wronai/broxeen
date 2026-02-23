@@ -108,11 +108,9 @@ describe("Settings — widoczność", () => {
 
     const enumerateDevices = vi.fn().mockResolvedValue([]);
     const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
-    Object.defineProperty(navigator, "mediaDevices", {
-      value: { enumerateDevices, getUserMedia },
-      configurable: true,
-      writable: true,
-    });
+    
+    // Use vi.stubGlobal to properly mock mediaDevices
+    vi.stubGlobal('mediaDevices', { enumerateDevices, getUserMedia });
   });
 
   it("nie renderuje gdy isOpen=false", async () => {
@@ -204,11 +202,9 @@ describe("Settings — kontrolki TTS", () => {
 
     const enumerateDevices = vi.fn().mockResolvedValue([]);
     const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
-    Object.defineProperty(navigator, "mediaDevices", {
-      value: { enumerateDevices, getUserMedia },
-      configurable: true,
-      writable: true,
-    });
+    
+    // Use vi.stubGlobal to properly mock mediaDevices
+    vi.stubGlobal('mediaDevices', { enumerateDevices, getUserMedia });
   });
 
   it("pokazuje sekcję TTS", () => {
@@ -277,11 +273,9 @@ describe("Settings — zapisywanie", () => {
 
     const enumerateDevices = vi.fn().mockResolvedValue([]);
     const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
-    Object.defineProperty(navigator, "mediaDevices", {
-      value: { enumerateDevices, getUserMedia },
-      configurable: true,
-      writable: true,
-    });
+    
+    // Use vi.stubGlobal to properly mock mediaDevices
+    vi.stubGlobal('mediaDevices', { enumerateDevices, getUserMedia });
   });
 
   it("kliknięcie 'Zapisz ustawienia' wywołuje invoke save_settings", async () => {
@@ -351,11 +345,9 @@ describe("Settings — checkbox mikrofon", () => {
 
     const enumerateDevices = vi.fn().mockResolvedValue([]);
     const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
-    Object.defineProperty(navigator, "mediaDevices", {
-      value: { enumerateDevices, getUserMedia },
-      configurable: true,
-      writable: true,
-    });
+    
+    // Use vi.stubGlobal to properly mock mediaDevices
+    vi.stubGlobal('mediaDevices', { enumerateDevices, getUserMedia });
   });
 
   it("pokazuje checkbox 'Mikrofon włączony'", () => {

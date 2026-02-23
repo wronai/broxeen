@@ -28,6 +28,8 @@ export class FrigateEventsPlugin implements Plugin {
   private tauriInvoke: PluginContext["tauriInvoke"] | null = null;
   private lastSnapshotByCamera = new Map<string, { base64: string; mimeType: string }>();
   private lastAlertAtByKey = new Map<string, number>();
+  private processedEventIds = new Set<string>();
+  private activeEventIdByKey = new Map<string, string>();
   private started = false;
 
   async initialize(context: PluginContext): Promise<void> {
@@ -165,14 +167,13 @@ export class FrigateEventsPlugin implements Plugin {
     }
 
     const eventType = (json?.type || "").toLowerCase();
-    if (eventType !== "new") {
-      return;
-    }
-
     const after = json?.after || {};
-    const label = String(after.label || "").toLowerCase();
-    const camera = String(after.camera || "").trim();
-    const id = typeof after.id === "string" ? after.id : null;
+    const before = json?.before || {};
+
+    const label = String(after.label || before.label || "").toLowerCase();
+    const camera = String(after.camera || before.camera || "").trim();
+    const idRaw = after.id || before.id;
+    const id = typeof idRaw === "string" ? idRaw : null;
 
     if (!camera || !label) return;
 
@@ -180,10 +181,35 @@ export class FrigateEventsPlugin implements Plugin {
     if (!allowed.includes(label)) return;
 
     const key = `${camera}:${label}`;
-    const now = Date.now();
-    const last = this.lastAlertAtByKey.get(key) ?? 0;
-    if (now - last < cfg.cooldownMs) return;
-    this.lastAlertAtByKey.set(key, now);
+
+    // End of incident: clear active mapping; do not remove from processed ids
+    if (eventType === "end") {
+      const active = this.activeEventIdByKey.get(key);
+      if (active && id && active === id) {
+        this.activeEventIdByKey.delete(key);
+      }
+      return;
+    }
+
+    // We only trigger LLM at incident start.
+    if (eventType !== "new") {
+      return;
+    }
+
+    // Incident semantics: deduplicate by event id (preferred).
+    if (id) {
+      if (this.processedEventIds.has(id)) {
+        return;
+      }
+      this.processedEventIds.add(id);
+      this.activeEventIdByKey.set(key, id);
+    } else {
+      // Fallback: if id missing, use cooldown.
+      const now = Date.now();
+      const last = this.lastAlertAtByKey.get(key) ?? 0;
+      if (now - last < cfg.cooldownMs) return;
+      this.lastAlertAtByKey.set(key, now);
+    }
 
     const current = await this.fetchSnapshotBase64(cfg.baseUrl, camera, id);
     if (!current) return;
