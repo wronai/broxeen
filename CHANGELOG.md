@@ -1,3 +1,22 @@
+## [1.0.59] - 2026-02-23
+
+### Summary
+
+refactor(tests): configuration management system
+
+### Other
+
+- update src/components/Settings.test.tsx
+- update src/components/Settings.tsx
+- update src/hooks/useStt.ts
+- update src/persistence/migrations.ts
+- update src/persistence/scanHistoryRepository.ts
+- update src/persistence/types.ts
+- update src/plugins/discovery/networkScanPlugin.ts
+- update src/plugins/monitor/monitor.test.ts
+- update src/plugins/monitor/monitorPlugin.ts
+
+
 ## [1.0.58] - 2026-02-23
 
 ### Summary
