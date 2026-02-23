@@ -232,6 +232,7 @@ export class IntentRouter implements IIntentRouter {
       /obserwuj/i,
       /śledź/i,
       /sledz/i,
+      /\b(?:zachowaj|wybierz)\s+monitoring\s+cd_[a-z0-9_]+\b\s*[:.,;!?]?/i,
       /stop.*monitor/i,
       /zatrzymaj.*monitor/i,
       /aktywne.*monitor/i,

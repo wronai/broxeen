@@ -115,6 +115,7 @@ export class MonitorPlugin implements Plugin {
       /obserwuj/i.test(lower) ||
       /śledź/i.test(lower) ||
       /sledz/i.test(lower) ||
+      /\b(?:zachowaj|wybierz)\s+monitoring\s+cd_[a-z0-9_]+\b/i.test(lower) ||
       /stop.*monitor/i.test(lower) ||
       /zatrzymaj.*monitor/i.test(lower) ||
       /przestań.*monitor/i.test(lower) ||
@@ -300,13 +301,17 @@ export class MonitorPlugin implements Plugin {
     if (this.configuredDeviceRepo && target.type === 'camera' && target.address) {
       try {
         const existing = await this.configuredDeviceRepo.listByIp(target.address);
-        if (existing.length > 1) {
-          this.pendingDbConflictsByIp.set(target.address, existing);
+        const enabledExisting = existing.filter(d => d.monitor_enabled);
+
+        // Only treat as a conflict if there are multiple *enabled* rows.
+        // Disabled rows may exist as historical records and should not block starting monitoring.
+        if (enabledExisting.length > 1) {
+          this.pendingDbConflictsByIp.set(target.address, enabledExisting);
           this.targets.delete(parsed.id);
-          const choices = existing
+          const choices = enabledExisting
             .map(d => `- **${d.label}** (id: \`${d.id}\`, interwał: ${Math.round(d.monitor_interval_ms / 1000)}s, updated: ${new Date(d.updated_at).toLocaleString('pl-PL')})`)
             .join('\n');
-          const actions = existing
+          const actions = enabledExisting
             .map(d => `- \`zachowaj monitoring ${d.id}\` — zachowaj ten wpis`)
             .join('\n');
           return {
@@ -315,7 +320,7 @@ export class MonitorPlugin implements Plugin {
             content: [{
               type: 'text',
               data:
-                `⚠️ **W bazie danych są ${existing.length} wpisy dla IP ${target.address}.**\n\n` +
+                `⚠️ **W bazie danych są ${enabledExisting.length} aktywne wpisy dla IP ${target.address}.**\n\n` +
                 `Wybierz, który wpis zachować (pozostałe zostaną wyłączone):\n\n` +
                 `${choices}\n\n` +
                 `**Wybór:**\n${actions}`,
@@ -325,7 +330,7 @@ export class MonitorPlugin implements Plugin {
           };
         }
 
-        const existingId = existing[0]?.id;
+        const existingId = enabledExisting[0]?.id ?? existing[0]?.id;
         const savedId = await this.configuredDeviceRepo.save({
           id: existingId,
           label: target.name,

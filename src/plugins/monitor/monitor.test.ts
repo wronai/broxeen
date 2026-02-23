@@ -41,6 +41,20 @@ describe('MonitorPlugin', () => {
     expect(await plugin.canHandle('jaka pogoda', browserCtx)).toBe(false);
   });
 
+  describe('routing (canHandle)', () => {
+    it('matches conflict resolution command: zachowaj monitoring <id>', async () => {
+      const ctx = {
+        isTauri: false,
+        databaseManager: {
+          getDevicesDb: () => ({}) as any,
+        },
+      } as any as PluginContext;
+
+      const can = await plugin.canHandle('zachowaj monitoring cd_1771855535008_dddi9s', ctx);
+      expect(can).toBe(true);
+    });
+  });
+
   describe('start monitoring', () => {
     it('starts monitoring a camera by name', async () => {
       const result = await plugin.execute('monitoruj kamerę wejściową user: :', browserCtx);
@@ -290,6 +304,88 @@ describe('MonitorPlugin', () => {
       await vi.runOnlyPendingTimersAsync();
       expect(pollSpy).toHaveBeenCalled();
     });
+
+    it('does not re-trigger conflict after duplicates were disabled (only enabled rows count as conflict)', async () => {
+      processRegistry.clear();
+
+      // Simulate DB: 3 rows for same IP, but only one remains enabled after resolution.
+      vi.spyOn(ConfiguredDeviceRepository.prototype, 'listByIp').mockResolvedValue([
+        {
+          id: 'cd_keep',
+          device_id: null,
+          label: 'Kamera KEEP',
+          ip: '192.168.1.55',
+          device_type: 'camera',
+          rtsp_url: null,
+          http_url: null,
+          username: null,
+          password: null,
+          stream_path: null,
+          monitor_enabled: true,
+          monitor_interval_ms: 2000,
+          last_snapshot_at: null,
+          notes: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+        {
+          id: 'cd_old1',
+          device_id: null,
+          label: 'Kamera OLD1',
+          ip: '192.168.1.55',
+          device_type: 'camera',
+          rtsp_url: null,
+          http_url: null,
+          username: null,
+          password: null,
+          stream_path: null,
+          monitor_enabled: false,
+          monitor_interval_ms: 2000,
+          last_snapshot_at: null,
+          notes: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+        {
+          id: 'cd_old2',
+          device_id: null,
+          label: 'Kamera OLD2',
+          ip: '192.168.1.55',
+          device_type: 'camera',
+          rtsp_url: null,
+          http_url: null,
+          username: null,
+          password: null,
+          stream_path: null,
+          monitor_enabled: false,
+          monitor_interval_ms: 2000,
+          last_snapshot_at: null,
+          notes: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+      ] as any);
+
+      const saveSpy = vi
+        .spyOn(ConfiguredDeviceRepository.prototype, 'save')
+        .mockResolvedValue('cd_keep' as any);
+
+      const ctx = {
+        isTauri: false,
+        databaseManager: {
+          getDevicesDb: () => ({}) as any,
+        },
+      } as any as PluginContext;
+
+      await plugin.initialize(ctx);
+
+      const res = await plugin.execute('monitoruj 192.168.1.55 co 2s', ctx);
+      expect(res.status).toBe('success');
+      expect(res.content[0].data).toContain('Monitoring uruchomiony');
+      // Should not show duplicate conflict prompt
+      expect(res.content[0].data).not.toContain('Duplikaty');
+      expect(saveSpy).toHaveBeenCalled();
+    });
   });
 
   describe('stop monitoring', () => {
@@ -525,7 +621,7 @@ describe('Scope: VPN + Tor', () => {
   describe('persistence and restore', () => {
     let plugin: MonitorPlugin;
     
-    beforeEach(() => { 
+    beforeEach(async () => { 
       plugin = new MonitorPlugin();
     });
     
