@@ -31,26 +31,22 @@ export class AuthBrowsePlugin implements Plugin {
   readonly browserCompatible = false; // Requires Tauri for invoke
   readonly priority = 85; // Higher than default browse
 
-  async canHandle(input: string, context: PluginContext): Promise<boolean> {
+  private static readonly BROWSE_KEYWORDS: readonly string[] = [
+    'przeglądaj', 'browse', 'otwórz', 'open', 'pokaż', 'show',
+  ];
+
+  private static readonly AUTH_INDICATORS: readonly RegExp[] = [
+    /--user\s+\w+/, /--username\s+\w+/, /--pass\s+\S+/, /--password\s+\S+/,
+    /z uwierzytelnieniem\s+\w+:\S+/, /with authentication\s+\w+:\S+/,
+    /admin:\S+/, /user:\S+/,
+  ];
+
+  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
     const lower = input.toLowerCase();
-    
-    // Check for browse-related keywords
-    const browseKeywords = ['przeglądaj', 'browse', 'otwórz', 'open', 'pokaż', 'show'];
-    const hasBrowseKeyword = browseKeywords.some(keyword => lower.includes(keyword));
-    
-    // Check for HTTP/HTTPS URL
-    const urlMatch = input.match(/https?:\/\/[^\s]+/);
-    const hasUrl = !!urlMatch;
-    
-    // Check for authentication indicators
-    const authIndicators = [
-      /--user\s+\w+/, /--username\s+\w+/, /--pass\s+\S+/, /--password\s+\S+/,
-      /z uwierzytelnieniem\s+\w+:\S+/, /with authentication\s+\w+:\S+/,
-      /admin:\S+/, /user:\S+/
-    ];
-    const hasAuth = authIndicators.some(pattern => pattern.test(input));
-    
-    return hasBrowseKeyword && hasUrl && hasAuth;
+    const hasBrowse = AuthBrowsePlugin.BROWSE_KEYWORDS.some(kw => lower.includes(kw));
+    const hasUrl = /https?:\/\/[^\s]+/.test(input);
+    const hasAuth = AuthBrowsePlugin.AUTH_INDICATORS.some(p => p.test(input));
+    return hasBrowse && hasUrl && hasAuth;
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {

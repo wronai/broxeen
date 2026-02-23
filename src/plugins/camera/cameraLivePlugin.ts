@@ -7,30 +7,16 @@ export class CameraLivePlugin implements Plugin {
   readonly version = '1.0.0';
   readonly supportedIntents = ['camera:live', 'camera:preview', 'camera:snapshot'];
 
-  async canHandle(input: string, context: PluginContext): Promise<boolean> {
-    const lower = input.toLowerCase();
-    
-    // Handle "pokaż live IP" commands
-    if (/pokaż.*live|pokaz.*live|live.*preview|podgląd.*live|podglad.*live/i.test(input)) {
-      return true;
-    }
+  private static readonly CAN_HANDLE_PATTERNS: readonly RegExp[] = [
+    /pokaż.*live|pokaz.*live|live.*preview|podgląd.*live|podglad.*live/i,
+    /^rtsp:\/\//i,
+    /^[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]*$/,
+    /test.*streams/i,
+  ];
 
-    // Handle direct RTSP URLs
-    if (/^rtsp:\/\//i.test(input)) {
-      return true;
-    }
-    
-    // Handle credential testing patterns like "admin:123456" or "user:pass"
-    if (/^[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]*$/.test(input.trim())) {
-      return true;
-    }
-    
-    // Handle "test streams" command
-    if (/test.*streams/i.test(input)) {
-      return true;
-    }
-
-    return false;
+  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
+    const trimmed = input.trim();
+    return CameraLivePlugin.CAN_HANDLE_PATTERNS.some(p => p.test(trimmed));
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {

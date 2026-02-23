@@ -19,16 +19,16 @@ export class ServiceProbePlugin implements Plugin {
     console.log('Service Probe Plugin initialized (browser-compatible mode)');
   }
 
-  async canHandle(input: string, context: PluginContext): Promise<boolean> {
+  private static readonly PROBE_KEYWORDS: readonly string[] = [
+    'sprawdź usługę', 'probe service', 'sprawdź port', 'check port',
+    'http://', 'https://', 'rtsp://', 'mqtt://',
+    'kamera', 'camera', 'api', 'serwis', 'service',
+  ];
+
+  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
     const lowerInput = input.toLowerCase();
-    const probeKeywords = [
-      'sprawdź usługę', 'probe service', 'sprawdź port', 'check port',
-      'http://', 'https://', 'rtsp://', 'mqtt://',
-      'kamera', 'camera', 'api', 'serwis', 'service'
-    ];
-    
     return this.supportedIntents.some(intent => lowerInput.includes(intent.replace(':', ' '))) ||
-           probeKeywords.some(keyword => lowerInput.includes(keyword));
+           ServiceProbePlugin.PROBE_KEYWORDS.some(keyword => lowerInput.includes(keyword));
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {

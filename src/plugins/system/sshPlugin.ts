@@ -90,18 +90,15 @@ export class SshPlugin implements Plugin {
   readonly version = '1.0.0';
   readonly supportedIntents = ['ssh:execute', 'ssh:connect', 'ssh:test', 'ssh:hosts'];
 
+  private static readonly CAN_HANDLE_PATTERNS: readonly RegExp[] = [
+    /ssh/i, /text2ssh/i, /zdaln/i,
+    /^połącz/i, /^polacz/i, /^wykonaj\s+na/i, /^run\s+on/i,
+    /(?:sprawdź|sprawdz|check|pokaż|pokaz)\s+(?:na|on)\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/i,
+  ];
+
   async canHandle(input: string, _context: PluginContext): Promise<boolean> {
     const lower = input.toLowerCase();
-    return (
-      lower.includes('ssh') ||
-      lower.startsWith('połącz') ||
-      lower.startsWith('polacz') ||
-      lower.startsWith('wykonaj na') ||
-      lower.startsWith('run on') ||
-      lower.includes('text2ssh') ||
-      lower.includes('zdaln') ||
-      /(?:sprawdź|sprawdz|check|pokaż|pokaz)\s+(?:na|on)\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/i.test(input)
-    );
+    return SshPlugin.CAN_HANDLE_PATTERNS.some(p => p.test(lower));
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {

@@ -291,6 +291,16 @@ export const ACTION_SCHEMAS: readonly ActionSchema[] = [
     examples: ['monitoruj kamerę', 'obserwuj zmiany', 'logi monitora'],
     executeQuery: 'monitoruj ',
   },
+  {
+    intent: 'monitoring:query',
+    domain: 'monitor',
+    label: 'Baza detekcji (AI)',
+    description: 'Zadaj pytanie o historię wykryć, obecność osób lub statystyki z kamer (wymaga włączonego monitoringu AI)',
+    icon: '📊',
+    keywords: ['ile osób', 'kto', 'kiedy', 'wykryto', 'detekcje', 'historia', 'statystyki', 'ostatnio'],
+    examples: ['ile osób było w pomieszczeniu?', 'kiedy ostatnio ktoś wszedł?', 'pokaż statystyki detekcji z dzisiaj'],
+    executeQuery: 'zapytaj bazę detekcji',
+  },
 
   // ── Frigate domain ────────────────────────────────
   {
