@@ -137,11 +137,152 @@ describe('MonitorPlugin', () => {
 
       await plugin.initialize(ctx);
 
-      expect(processRegistry.listActive().some(p => p.id === 'monitor:configured-cd_1')).toBe(true);
+      expect(processRegistry.listActive().some(p => p.id === 'monitor:camera-192.168.1.200')).toBe(true);
 
       await vi.advanceTimersByTimeAsync(5_100);
       await vi.runOnlyPendingTimersAsync();
 
+      expect(pollSpy).toHaveBeenCalled();
+    });
+
+    it('detects duplicate monitored rows for same IP and asks user to choose', async () => {
+      processRegistry.clear();
+
+      vi.spyOn(ConfiguredDeviceRepository.prototype, 'listMonitored').mockResolvedValue([
+        {
+          id: 'cd_a',
+          device_id: null,
+          label: 'Kamera A',
+          ip: '192.168.1.50',
+          device_type: 'camera',
+          rtsp_url: null,
+          http_url: null,
+          username: null,
+          password: null,
+          stream_path: null,
+          monitor_enabled: true,
+          monitor_interval_ms: 2000,
+          last_snapshot_at: null,
+          notes: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+        {
+          id: 'cd_b',
+          device_id: null,
+          label: 'Kamera B',
+          ip: '192.168.1.50',
+          device_type: 'camera',
+          rtsp_url: null,
+          http_url: null,
+          username: null,
+          password: null,
+          stream_path: null,
+          monitor_enabled: true,
+          monitor_interval_ms: 5000,
+          last_snapshot_at: null,
+          notes: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+      ] as any);
+
+      const pollSpy = vi.spyOn(plugin as any, 'poll').mockResolvedValue(undefined);
+
+      const ctx = {
+        isTauri: false,
+        databaseManager: {
+          getDevicesDb: () => ({}) as any,
+        },
+      } as any as PluginContext;
+
+      await plugin.initialize(ctx);
+
+      // No monitor should be started automatically for this IP
+      expect(processRegistry.listActive().some(p => p.id.includes('192.168.1.50'))).toBe(false);
+
+      const list = await plugin.execute('aktywne monitoringi', ctx);
+      expect(list.content[0].data).toContain('Wykryto duplikaty');
+      expect(list.content[0].data).toContain('192.168.1.50');
+      expect(list.content[0].data).toContain('zachowaj monitoring cd_a');
+      expect(list.content[0].data).toContain('zachowaj monitoring cd_b');
+
+      // Ensure no polling was scheduled
+      await vi.advanceTimersByTimeAsync(6000);
+      await vi.runOnlyPendingTimersAsync();
+      expect(pollSpy).not.toHaveBeenCalled();
+    });
+
+    it('resolves DB duplicate conflict via chat command and starts monitoring for kept entry', async () => {
+      processRegistry.clear();
+
+      vi.spyOn(ConfiguredDeviceRepository.prototype, 'listMonitored').mockResolvedValue([
+        {
+          id: 'cd_a',
+          device_id: null,
+          label: 'Kamera A',
+          ip: '192.168.1.50',
+          device_type: 'camera',
+          rtsp_url: null,
+          http_url: null,
+          username: null,
+          password: null,
+          stream_path: null,
+          monitor_enabled: true,
+          monitor_interval_ms: 2000,
+          last_snapshot_at: null,
+          notes: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+        {
+          id: 'cd_b',
+          device_id: null,
+          label: 'Kamera B',
+          ip: '192.168.1.50',
+          device_type: 'camera',
+          rtsp_url: null,
+          http_url: null,
+          username: null,
+          password: null,
+          stream_path: null,
+          monitor_enabled: true,
+          monitor_interval_ms: 5000,
+          last_snapshot_at: null,
+          notes: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+      ] as any);
+
+      const setMonitorEnabledSpy = vi
+        .spyOn(ConfiguredDeviceRepository.prototype, 'setMonitorEnabled')
+        .mockResolvedValue(undefined as any);
+
+      const pollSpy = vi.spyOn(plugin as any, 'poll').mockResolvedValue(undefined);
+
+      const ctx = {
+        isTauri: false,
+        databaseManager: {
+          getDevicesDb: () => ({}) as any,
+        },
+      } as any as PluginContext;
+
+      await plugin.initialize(ctx);
+
+      const resolve = await plugin.execute('zachowaj monitoring cd_a', ctx);
+      expect(resolve.status).toBe('success');
+      expect(resolve.content[0].data).toContain('Zachowano wpis');
+      expect(resolve.content[0].data).toContain('cd_a');
+
+      // Should disable cd_b and ensure cd_a stays enabled
+      expect(setMonitorEnabledSpy).toHaveBeenCalledWith('cd_b', false);
+      expect(setMonitorEnabledSpy).toHaveBeenCalledWith('cd_a', true);
+
+      expect(processRegistry.listActive().some(p => p.id === 'monitor:camera-192.168.1.50')).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(2100);
+      await vi.runOnlyPendingTimersAsync();
       expect(pollSpy).toHaveBeenCalled();
     });
   });

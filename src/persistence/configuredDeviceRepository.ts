@@ -162,6 +162,19 @@ export class ConfiguredDeviceRepository {
     }
   }
 
+  /** List all configured devices matching an IP (used to detect duplicates). */
+  async listByIp(ip: string): Promise<ConfiguredDevice[]> {
+    try {
+      const rows = await this.db.query<ConfiguredDeviceRow>(
+        `SELECT * FROM configured_devices WHERE ip = ? ORDER BY updated_at DESC`,
+        [ip],
+      );
+      return rows.map(rowToDevice);
+    } catch {
+      return [];
+    }
+  }
+
   /** Delete a configured device. */
   async remove(id: string): Promise<void> {
     try {

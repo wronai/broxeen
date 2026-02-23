@@ -26,6 +26,7 @@ export interface MonitorTarget {
   type: 'camera' | 'device' | 'endpoint' | 'service';
   name: string;
   address?: string;
+  configuredDeviceId?: string;
   intervalMs: number;
   threshold: number;
   active: boolean;
@@ -89,6 +90,24 @@ export class MonitorPlugin implements Plugin {
   private targets = new Map<string, MonitorTarget>();
   private timers = new Map<string, ReturnType<typeof setInterval>>();
   private configuredDeviceRepo?: ConfiguredDeviceRepository;
+  private pendingDbConflictsByIp = new Map<string, ConfiguredDevice[]>();
+
+  private buildDbConflictPrompt(): string {
+    if (this.pendingDbConflictsByIp.size === 0) return '';
+
+    let data = `\n---\n⚠️ **Wykryto duplikaty w bazie danych (monitoring):**\n\n`;
+    for (const [ip, devices] of this.pendingDbConflictsByIp.entries()) {
+      data += `### IP: \`${ip}\` (${devices.length} wpisy)\n`;
+      data += devices
+        .map(d => `- **${d.label}** (id: \`${d.id}\`, interwał: ${Math.round(d.monitor_interval_ms / 1000)}s, updated: ${new Date(d.updated_at).toLocaleString('pl-PL')})`)
+        .join('\n');
+      data += '\n\n**Wybierz wpis do zachowania:**\n';
+      data += devices.map(d => `- \`zachowaj monitoring ${d.id}\``).join('\n');
+      data += '\n\n';
+    }
+
+    return data.trimEnd();
+  }
 
   async canHandle(input: string, context: PluginContext): Promise<boolean> {
     const lower = input.toLowerCase();
@@ -125,6 +144,11 @@ export class MonitorPlugin implements Plugin {
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
     const lower = input.toLowerCase();
+
+    const resolveMatch = input.match(/\b(?:zachowaj|wybierz)\s+monitoring\s+(cd_[a-z0-9_]+)/i);
+    if (resolveMatch) {
+      return await this.handleResolveDbConflict(resolveMatch[1], context, start);
+    }
 
     if (/stop.*monitor|zatrzymaj.*monitor|przestań.*monitor|przestan.*monitor/i.test(lower)) {
       return await this.handleStop(input, start);
@@ -264,6 +288,7 @@ export class MonitorPlugin implements Plugin {
       // Camera-specific
       rtspUrl,
       snapshotUrl,
+      httpUrl: snapshotUrl,
       rtspUsername: parsed.rtspUsername,
       rtspPassword: parsed.rtspPassword,
       needsCredentials: !parsed.rtspUsername && parsed.type === 'camera',
@@ -274,12 +299,40 @@ export class MonitorPlugin implements Plugin {
     // Save to ConfiguredDeviceRepository if it's a device with IP
     if (this.configuredDeviceRepo && target.type === 'camera' && target.address) {
       try {
-        await this.configuredDeviceRepo.save({
+        const existing = await this.configuredDeviceRepo.listByIp(target.address);
+        if (existing.length > 1) {
+          this.pendingDbConflictsByIp.set(target.address, existing);
+          this.targets.delete(parsed.id);
+          const choices = existing
+            .map(d => `- **${d.label}** (id: \`${d.id}\`, interwał: ${Math.round(d.monitor_interval_ms / 1000)}s, updated: ${new Date(d.updated_at).toLocaleString('pl-PL')})`)
+            .join('\n');
+          const actions = existing
+            .map(d => `- \`zachowaj monitoring ${d.id}\` — zachowaj ten wpis`)
+            .join('\n');
+          return {
+            pluginId: this.id,
+            status: 'success',
+            content: [{
+              type: 'text',
+              data:
+                `⚠️ **W bazie danych są ${existing.length} wpisy dla IP ${target.address}.**\n\n` +
+                `Wybierz, który wpis zachować (pozostałe zostaną wyłączone):\n\n` +
+                `${choices}\n\n` +
+                `**Wybór:**\n${actions}`,
+              title: 'Duplikaty w bazie — wybór',
+            }],
+            metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+          };
+        }
+
+        const existingId = existing[0]?.id;
+        const savedId = await this.configuredDeviceRepo.save({
+          id: existingId,
           label: target.name,
           ip: target.address,
           device_type: 'camera',
           rtsp_url: target.rtspUrl || null,
-          http_url: target.httpUrl || null,
+          http_url: target.snapshotUrl || target.httpUrl || null,
           username: target.rtspUsername || null,
           password: target.rtspPassword || null,
           stream_path: null,
@@ -288,6 +341,7 @@ export class MonitorPlugin implements Plugin {
           last_snapshot_at: null,
           notes: null,
         });
+        target.configuredDeviceId = savedId;
         console.log(`Saved monitoring configuration for ${target.name} to database`);
       } catch (err) {
         console.warn('Failed to save monitoring configuration to database:', err);
@@ -459,11 +513,9 @@ export class MonitorPlugin implements Plugin {
 
     this.targets.delete(found.id);
 
-    // Update database to disable monitoring
-    if (this.configuredDeviceRepo && found.id.startsWith('configured-')) {
+    if (this.configuredDeviceRepo && found.configuredDeviceId) {
       try {
-        const deviceId = found.id.replace('configured-', '');
-        await this.configuredDeviceRepo.setMonitorEnabled(deviceId, false);
+        await this.configuredDeviceRepo.setMonitorEnabled(found.configuredDeviceId, false);
         console.log(`Disabled monitoring for ${found.name} in database`);
       } catch (err) {
         console.warn('Failed to disable monitoring in database:', err);
@@ -484,6 +536,7 @@ export class MonitorPlugin implements Plugin {
 
   private handleList(start: number): PluginResult {
     if (this.targets.size === 0) {
+      const conflictPrompt = this.buildDbConflictPrompt();
       return {
         pluginId: this.id,
         status: 'success',
@@ -494,7 +547,8 @@ export class MonitorPlugin implements Plugin {
             'Przykłady:\n' +
             '- "monitoruj kamerę wejściową"\n' +
             '- "monitoruj 192.168.1.100 co 60s"\n' +
-            '- "obserwuj kamerę ogrodową próg 5%"',
+            '- "obserwuj kamerę ogrodową próg 5%"' +
+            (conflictPrompt ? `\n\n${conflictPrompt}` : ''),
         }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };
@@ -1455,7 +1509,7 @@ export class MonitorPlugin implements Plugin {
     const ipMatch = input.match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/);
     if (ipMatch) {
       return {
-        id: `device-${ipMatch[0]}`,
+        id: `camera-${ipMatch[0]}`,
         type: 'camera', // Assume camera if IP provided
         name: `Kamera ${ipMatch[0]}`,
         address: ipMatch[0],
@@ -1763,18 +1817,32 @@ export class MonitorPlugin implements Plugin {
 
     try {
       const configuredDevices = await this.configuredDeviceRepo.listMonitored();
-      
-      for (const device of configuredDevices) {
+
+      const byIp = new Map<string, ConfiguredDevice[]>();
+      for (const d of configuredDevices) {
+        const list = byIp.get(d.ip) ?? [];
+        list.push(d);
+        byIp.set(d.ip, list);
+      }
+
+      for (const [ip, devices] of byIp.entries()) {
+        if (devices.length > 1) {
+          this.pendingDbConflictsByIp.set(ip, devices);
+          continue;
+        }
+
+        const device = devices[0];
         const startedAt = Date.now();
         const target: MonitorTarget = {
-          id: `configured-${device.id}`,
+          id: `camera-${device.ip}`,
+          configuredDeviceId: device.id,
           type: device.device_type === 'camera' ? 'camera' : 'device',
           name: device.label,
           address: device.ip,
           intervalMs: device.monitor_interval_ms,
-          threshold: 0.1, // Default threshold - could be stored in DB in future
+          threshold: 0.1,
           active: true,
-          startedAt, // Could be restored from DB in future
+          startedAt,
           changeCount: 0,
           logs: [{
             timestamp: startedAt,
@@ -1788,6 +1856,8 @@ export class MonitorPlugin implements Plugin {
           snapshotUrl: device.http_url || undefined,
         };
 
+        // Dedupe in-memory: if already exists, keep the existing one.
+        if (this.targets.has(target.id)) continue;
         this.targets.set(target.id, target);
 
         processRegistry.upsertRunning({
@@ -1797,8 +1867,7 @@ export class MonitorPlugin implements Plugin {
           pluginId: this.id,
           stopCommand: `stop monitoring ${target.name}`,
         });
-        
-        // Start polling timer for any active target.
+
         const timer = setInterval(() => {
           this.poll(target, context);
         }, target.intervalMs);
@@ -1807,6 +1876,95 @@ export class MonitorPlugin implements Plugin {
     } catch (err) {
       console.error('Failed to load monitored devices:', err);
     }
+  }
+
+  private async handleResolveDbConflict(keepId: string, context: PluginContext, start: number): Promise<PluginResult> {
+    if (!this.configuredDeviceRepo) {
+      return this.errorResult('Baza danych nie jest dostępna — nie mogę rozwiązać konfliktu.', start);
+    }
+
+    let ip: string | null = null;
+    let devices: ConfiguredDevice[] | undefined;
+    for (const [k, v] of this.pendingDbConflictsByIp.entries()) {
+      if (v.some(d => d.id === keepId)) {
+        ip = k;
+        devices = v;
+        break;
+      }
+    }
+
+    if (!ip || !devices) {
+      return this.errorResult(`Nie widzę konfliktu dla id: \`${keepId}\`.`, start);
+    }
+
+    const keep = devices.find(d => d.id === keepId);
+    if (!keep) {
+      return this.errorResult(`Nie znaleziono wpisu: \`${keepId}\`.`, start);
+    }
+
+    const toDisable = devices.filter(d => d.id !== keepId);
+    for (const d of toDisable) {
+      await this.configuredDeviceRepo.setMonitorEnabled(d.id, false);
+    }
+    await this.configuredDeviceRepo.setMonitorEnabled(keepId, true);
+
+    this.pendingDbConflictsByIp.delete(ip);
+
+    // Start monitoring for kept record (if not already running)
+    const targetId = `camera-${keep.ip}`;
+    if (!this.targets.has(targetId)) {
+      const startedAt = Date.now();
+      const target: MonitorTarget = {
+        id: targetId,
+        configuredDeviceId: keep.id,
+        type: keep.device_type === 'camera' ? 'camera' : 'device',
+        name: keep.label,
+        address: keep.ip,
+        intervalMs: keep.monitor_interval_ms,
+        threshold: 0.1,
+        active: true,
+        startedAt,
+        changeCount: 0,
+        logs: [{
+          timestamp: startedAt,
+          type: 'start',
+          message: `Rozpoczęto monitoring (po wyborze): ${keep.label}`,
+        }],
+        rtspUrl: keep.rtsp_url || undefined,
+        httpUrl: keep.http_url || undefined,
+        rtspUsername: keep.username || undefined,
+        rtspPassword: keep.password || undefined,
+        snapshotUrl: keep.http_url || undefined,
+      };
+
+      this.targets.set(target.id, target);
+      processRegistry.upsertRunning({
+        id: `monitor:${target.id}`,
+        type: 'monitor',
+        label: `Monitoring: ${target.name}`,
+        pluginId: this.id,
+        stopCommand: `stop monitoring ${target.name}`,
+      });
+
+      const timer = setInterval(() => {
+        this.poll(target, context);
+      }, target.intervalMs);
+      this.timers.set(target.id, timer);
+    }
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{
+        type: 'text',
+        data:
+          `✅ **Zachowano wpis:** \`${keep.id}\` (**${keep.label}**, IP: \`${keep.ip}\`)\n` +
+          `Wyłączono pozostałe: ${toDisable.length}.\n\n` +
+          `Monitoring dla tego IP jest teraz uruchomiony.`,
+        title: 'Konflikt rozwiązany',
+      }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
   }
 
   async dispose(): Promise<void> {
