@@ -310,16 +310,16 @@ openvino-check: ## Check current OpenVINO installation
 openvino-devices: ## List devices available to OpenVINO
 	@echo ""
 	@python3 - << 'EOF' 2>/dev/null || echo "  OpenVINO not found. Run: make openvino-install"
-import openvino as ov
-core = ov.Core()
-print(f"  OpenVINO: {ov.__version__}")
-print(f"  Devices:")
-for d in core.available_devices:
-    try:
-        name = core.get_property(d, "FULL_DEVICE_NAME")
-        print(f"    {d:8s} {name}")
-    except:
-        print(f"    {d}")
+	@import openvino as ov
+	@core = ov.Core()
+	@print(f"  OpenVINO: {ov.__version__}")
+	@print(f"  Devices:")
+	@for d in core.available_devices:
+	@    try:
+	@        name = core.get_property(d, "FULL_DEVICE_NAME")
+	@        print(f"    {d:8s} {name}")
+	@    except:
+	@        print(f"    {d}")
 EOF
 	@echo ""
 

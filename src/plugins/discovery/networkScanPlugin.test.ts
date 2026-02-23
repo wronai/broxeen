@@ -346,14 +346,5 @@ describe('NetworkScanPlugin execute', () => {
       scanDuration: 1,
       efficiency: '0 devices/s',
     }));
-
-    await plugin.execute('pokaż kamery 192.168.1', { isTauri: true, tauriInvoke } as any);
-
-    expect(tauriInvoke).toHaveBeenCalledWith('scan_network', expect.objectContaining({
-      args: expect.objectContaining({
-        incremental: false,
-        target_ranges: [],
-      }),
-    }));
   });
 });

@@ -28,6 +28,26 @@ pub struct CapturedFrame {
     pub frame_count: Option<u64>,
 }
 
+fn infer_vendor_from_ports(ports: &[u16]) -> Option<String> {
+    let has_rtsp = ports.contains(&554) || ports.contains(&8554) || ports.contains(&10554);
+    let has_web = ports.contains(&80)
+        || ports.contains(&81)
+        || ports.contains(&82)
+        || ports.contains(&83)
+        || ports.contains(&443)
+        || ports.contains(&8080)
+        || ports.contains(&8081)
+        || ports.contains(&8443)
+        || ports.contains(&8888);
+    let has_hik_like = ports.contains(&8000) || ports.contains(&8899);
+
+    if has_hik_like && (has_web || has_rtsp) {
+        return Some("Annke (Hikvision OEM)".to_string());
+    }
+
+    None
+}
+
 #[derive(Clone)]
 struct LiveFrameCache {
     last_jpeg: Arc<Mutex<Option<Vec<u8>>>>,
@@ -1244,11 +1264,12 @@ pub async fn scan_network(args: Option<ScanNetworkArgs>) -> Result<NetworkScanRe
 
                 if !open_ports.is_empty() {
                     let device_type = classify_device(&open_ports);
+                    let vendor = infer_vendor_from_ports(&open_ports);
                     Some(NetworkDevice {
                         ip,
                         mac: None,
                         hostname: None,
-                        vendor: None,
+                        vendor,
                         open_ports,
                         response_time,
                         last_seen: chrono::Utc::now().to_rfc3339(),

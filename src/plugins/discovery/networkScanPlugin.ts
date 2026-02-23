@@ -422,6 +422,10 @@ export class NetworkScanPlugin implements Plugin {
             ? this.formatRaspberryPiResult(result)
             : this.formatScanResult(result, isCameraQuery, scanStats);
 
+          const cameraConfigPrompt = isCameraQuery
+            ? this.buildCameraActionsPrompt(result.devices)
+            : null;
+
           return {
             pluginId: this.id,
             status: 'success',
@@ -439,6 +443,7 @@ export class NetworkScanPlugin implements Plugin {
               deviceCount: result.devices.length,
               scanDuration: result.scan_duration,
               scanMethod: result.scan_method,
+              ...(cameraConfigPrompt ? { configPrompt: cameraConfigPrompt } : {}),
             },
           };
         } catch (error) {
@@ -467,6 +472,88 @@ export class NetworkScanPlugin implements Plugin {
       processRegistry.remove(scanId);
       throw err;
     }
+  }
+
+  private buildCameraActionsPrompt(devices: NetworkDevice[]): any {
+    const cameras = (devices || []).filter((d) => {
+      const ports = d.open_ports ?? [];
+      const hasRtsp = ports.some((p) => [554, 8554, 10554].includes(p));
+      const hasWeb = ports.some((p) => [80, 81, 82, 83, 443, 8080, 8081, 8443, 8888].includes(p));
+      const hasHikLike = ports.some((p) => [8000, 8899].includes(p));
+      return d.device_type === 'camera' || hasRtsp || (hasHikLike && hasWeb);
+    });
+
+    const actions: any[] = [];
+
+    for (const cam of cameras) {
+      const ip = cam.ip;
+      const ports = cam.open_ports ?? [];
+      const httpPort = ports.includes(80) ? 80 : ports.includes(8000) ? 8000 : ports.includes(8080) ? 8080 : 80;
+      const vendor = cam.vendor || 'kamera';
+
+      actions.push(
+        {
+          id: `cam-${ip}-live`,
+          label: `${ip} — Live`,
+          icon: '📹',
+          type: 'execute' as const,
+          executeQuery: `pokaż live ${ip}`,
+          variant: 'primary' as const,
+          description: `Podgląd na żywo (${vendor})`,
+        },
+        {
+          id: `cam-${ip}-monitor`,
+          label: `${ip} — Monitoruj`,
+          icon: '🟢',
+          type: 'execute' as const,
+          executeQuery: `monitoruj ${ip}`,
+          variant: 'secondary' as const,
+          description: 'Wykrywanie zmian + logi',
+        },
+        {
+          id: `cam-${ip}-config`,
+          label: `${ip} — Zapisz/konfiguruj`,
+          icon: '🔐',
+          type: 'prefill' as const,
+          prefillText: `monitoruj ${ip} user:admin admin:HASŁO`,
+          variant: 'secondary' as const,
+          description: 'Uzupełnij hasło — zostanie zapamiętane na przyszłość',
+        },
+        {
+          id: `cam-${ip}-device-config`,
+          label: `${ip} — Konfiguracja (DB)`,
+          icon: '💾',
+          type: 'execute' as const,
+          executeQuery: `konfiguruj kamerę ${ip}`,
+          variant: 'outline' as const,
+          description: 'Zapisz kamerę w bazie (nazwa/RTSP/HTTP/user/pass)',
+        },
+        {
+          id: `cam-${ip}-web`,
+          label: `${ip} — Web UI`,
+          icon: '🌐',
+          type: 'execute' as const,
+          executeQuery: `przeglądaj http://${ip}:${httpPort}`,
+          variant: 'outline' as const,
+          description: `Panel web (port ${httpPort})`,
+        },
+        {
+          id: `cam-${ip}-ports`,
+          label: `${ip} — Skan portów`,
+          icon: '🧪',
+          type: 'execute' as const,
+          executeQuery: `skanuj porty ${ip}`,
+          variant: 'outline' as const,
+          description: 'Zaawansowana analiza usług i producenta',
+        },
+      );
+    }
+
+    return {
+      title: 'Kamery — szybkie akcje',
+      actions,
+      layout: 'cards' as const,
+    };
   }
 
   private async browserFallback(
