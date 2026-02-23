@@ -37,6 +37,7 @@ interface UseSttReturn {
   isRecording: boolean;
   isTranscribing: boolean;
   transcript: string;
+  setTranscript: (text: string) => void;
   error: string | null;
   lastErrorDetails: {
     name?: string;
@@ -521,6 +522,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
     isRecording,
     isTranscribing,
     transcript,
+    setTranscript,
     error,
     lastErrorDetails,
     startRecording,

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   Send,
@@ -8,6 +8,8 @@ import {
   Globe,
   Search,
   Zap,
+  Ear,
+  EarOff,
   Copy,
   Bot,
   Wifi,
@@ -90,6 +92,7 @@ export default function Chat({ settings }: ChatProps) {
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkConfig | null>(null);
   const [pendingNetworkQuery, setPendingNetworkQuery] = useState<string>("");
   const [showCommandHistory, setShowCommandHistory] = useState(false);
+  const [wakeWordEnabled, setWakeWordEnabled] = useState(false);
 
   const hasNonSystemMessages = useMemo(
     () => messages.some((m) => m.role !== "system"),
@@ -664,13 +667,15 @@ export default function Chat({ settings }: ChatProps) {
 
   useEffect(() => {
     if (stt.transcript && !stt.isRecording && !stt.isTranscribing) {
-      chatLogger.info("Applying finalized cloud STT transcript", {
+      chatLogger.info("Applying finalized cloud STT transcript to input", {
         transcriptLength: stt.transcript.length,
       });
-      handleSubmit(stt.transcript);
+      setInput(stt.transcript);
+      // Clear transcript after setting input
+      stt.setTranscript("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stt.transcript, stt.isRecording, stt.isTranscribing]);
+  }, [stt.transcript, stt.isRecording, stt.isTranscribing, setInput]);
 
   useEffect(() => {
     if (!settings.mic_enabled) {
@@ -822,6 +827,42 @@ export default function Chat({ settings }: ChatProps) {
       setShowQuickHistory(false);
     }
   }, [input]);
+
+  // Start/stop wake word listening based on toggle
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    if (!wakeWordEnabled) {
+      // Stop wake word listening
+      invoke("wake_word_stop").catch((err) => {
+        chatLogger.debug("Failed to stop wake word listening", { error: err });
+      });
+      return;
+    }
+    if (!settings.mic_enabled) {
+      chatLogger.warn("Cannot enable wake word: microphone disabled in settings");
+      return;
+    }
+    if (!stt.isSupported) {
+      chatLogger.warn("Cannot enable wake word: STT not supported");
+      return;
+    }
+
+    // Start wake word listening
+    chatLogger.info("Starting wake word listening for 'heyken'");
+    invoke("wake_word_start")
+      .then(() => {
+        chatLogger.info("Wake word listening started successfully");
+        appendStatusNotice("wake_word", "🔊 Nasłuchiwanie 'heyken' aktywne");
+      })
+      .catch((err) => {
+        chatLogger.error("Failed to start wake word listening", { error: err });
+        setWakeWordEnabled(false);
+      });
+
+    return () => {
+      invoke("wake_word_stop").catch(() => {});
+    };
+  }, [wakeWordEnabled, settings.mic_enabled, stt.isSupported, chatLogger, appendStatusNotice]);
 
   useEffect(() => {
     if (!inputFocused) {
@@ -2830,6 +2871,19 @@ ${analysis}`,
             </div>
 
             <div className="flex items-center gap-3">
+              {isTauriRuntime() && settings.mic_enabled && stt.isSupported && (
+                <button
+                  onClick={() => setWakeWordEnabled(!wakeWordEnabled)}
+                  className={`rounded-xl p-2.5 transition ${wakeWordEnabled
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
+                    }`}
+                  title={wakeWordEnabled ? "Wyłącz nasłuchiwanie 'heyken'" : "Włącz nasłuchiwanie 'heyken' (mów głośno aby aktywować)"}
+                >
+                  {wakeWordEnabled ? <Ear size={20} /> : <EarOff size={20} />}
+                </button>
+              )}
+
               {settings.mic_enabled && (speechSupported || stt.isSupported) && (
                 <button
                   onClick={toggleMic}
