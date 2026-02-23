@@ -74,6 +74,7 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
           isTauri: runtimeIsTauri,
           tauriInvoke: runtimeIsTauri ? invoke : undefined,
           scope, // Pass scope to plugin context
+          databaseManager: context.databaseManager,
         };
 
         // Check if it's a DataSourcePlugin (new API) or Plugin (old API)

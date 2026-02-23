@@ -7,12 +7,16 @@ install: ## Install dependencies
 	corepack npm install
 
 dev: ## Start development server with hot reload
+	@$(MAKE) stop-services >/dev/null 2>&1 || true
+	@$(MAKE) stop-port >/dev/null 2>&1 || true
 	corepack npm run tauri dev
 
 dev-browser: ## Start frontend-only Vite dev server
 	corepack npm run dev
 
 dev-nvidia: ## Start development server with Nvidia GPU fixes
+	@$(MAKE) stop-services >/dev/null 2>&1 || true
+	@$(MAKE) stop-port >/dev/null 2>&1 || true
 	WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITE_OPERATORS_WORKAROUND=1 corepack npm run tauri dev
 
 build: ## Build production version

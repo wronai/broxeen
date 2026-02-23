@@ -43,6 +43,8 @@ import { getConfig } from "../lib/llmClient";
 import { configStore } from "../config/configStore";
 import { runAutoConfig } from "../config/autoConfig";
 import { errorReporting, capturePluginError, captureNetworkError } from "../utils/errorReporting";
+import { useDatabaseManager } from "../hooks/useDatabaseManager";
+import { useHistoryPersistence } from "../hooks/useHistoryPersistence";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -70,6 +72,8 @@ export default function Chat({ settings }: ChatProps) {
   const { commands, eventStore } = useCqrs();
   const messages = useChatMessages();
   const { ask } = usePlugins();
+  const dbManager = useDatabaseManager();
+  const { addToCommandHistory, addToNetworkHistory } = useHistoryPersistence(dbManager);
 
   const [input, setInput] = useState("");
   const [expandedImage, setExpandedImage] = useState<{ data: string; mimeType?: string } | null>(null);
@@ -426,94 +430,7 @@ export default function Chat({ settings }: ChatProps) {
     }
   };
 
-  const addToNetworkHistory = (scope: NetworkScope, name: string, address: string) => {
-    try {
-      const historyKey = 'broxeen_network_history';
-      const savedHistory = localStorage.getItem(historyKey);
-      let history: NetworkHistoryItem[] = [];
-      
-      if (savedHistory) {
-        history = JSON.parse(savedHistory);
-      }
-      
-      const newItem: NetworkHistoryItem = {
-        id: Date.now().toString(),
-        address,
-        name,
-        scope,
-        lastUsed: Date.now(),
-        usageCount: 1,
-        description: `${scope === 'local' ? 'Sieć lokalna' : scope === 'global' ? 'Internet globalny' : scope === 'tor' ? 'Sieć Tor' : scope === 'vpn' ? 'VPN' : 'Custom'} - ${address}`
-      };
-      
-      // Remove existing entry with same address
-      const existingIndex = history.findIndex(item => item.address === address);
-      let newHistory = [...history];
-      
-      if (existingIndex >= 0) {
-        newHistory[existingIndex] = {
-          ...newHistory[existingIndex],
-          lastUsed: Date.now(),
-          usageCount: newHistory[existingIndex].usageCount + 1
-        };
-      } else {
-        newHistory.unshift(newItem);
-      }
-      
-      // Keep only last 10 entries
-      newHistory = newHistory.slice(0, 10);
-      
-      localStorage.setItem(historyKey, JSON.stringify(newHistory));
-    } catch (error) {
-      chatLogger.error('Failed to save network history', error);
-    }
-  };
-
-  const addToCommandHistory = (command: string, result?: string, category: CommandHistoryItem['category'] = 'other', success: boolean = true) => {
-    try {
-      const historyKey = 'broxeen_command_history';
-      const savedHistory = localStorage.getItem(historyKey);
-      let history: CommandHistoryItem[] = [];
-      
-      if (savedHistory) {
-        history = JSON.parse(savedHistory);
-      }
-      
-      const newItem: CommandHistoryItem = {
-        id: Date.now().toString(),
-        command: command.trim(),
-        timestamp: Date.now(),
-        result,
-        category,
-        success
-      };
-      
-      // Remove existing entry with same command
-      const existingIndex = history.findIndex(item => item.command === newItem.command);
-      let newHistory = [...history];
-      
-      if (existingIndex >= 0) {
-        // Update existing entry
-        newHistory[existingIndex] = {
-          ...newHistory[existingIndex],
-          timestamp: Date.now(),
-          result,
-          category,
-          success
-        };
-      } else {
-        // Add new entry
-        newHistory.unshift(newItem);
-      }
-      
-      // Keep only last 50 entries
-      newHistory = newHistory.slice(0, 50);
-      
-      localStorage.setItem(historyKey, JSON.stringify(newHistory));
-    } catch (error) {
-      chatLogger.error('Failed to save command history', error);
-    }
-  };
+  // addToNetworkHistory and addToCommandHistory are now provided by useHistoryPersistence hook
 
   const handleCommandHistorySelect = (command: string) => {
     chatLogger.info('Command selected from history', { command });

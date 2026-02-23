@@ -16,6 +16,7 @@ import { isTauriRuntime } from "./lib/runtime";
 import { bootstrapApp, type AppContext } from "./core/bootstrap";
 import { PluginProvider } from "./contexts/pluginContext";
 import { ChatPersistenceBridge } from "./components/ChatPersistenceBridge";
+import { DatabaseManagerContext } from "./hooks/useDatabaseManager";
 import { runQuickHealthCheck } from "./utils/healthCheck";
 import { errorReporting } from "./utils/errorReporting";
 
@@ -197,10 +198,12 @@ export default function App() {
       <CqrsProvider>
         {appCtx ? (
           <PluginProvider context={appCtx}>
-            <ChatPersistenceBridge databaseManager={appCtx.databaseManager} />
-            <main className="flex-1 overflow-hidden">
-              <Chat settings={settings} />
-            </main>
+            <DatabaseManagerContext.Provider value={appCtx.databaseManager}>
+              <ChatPersistenceBridge databaseManager={appCtx.databaseManager} />
+              <main className="flex-1 overflow-hidden">
+                <Chat settings={settings} />
+              </main>
+            </DatabaseManagerContext.Provider>
           </PluginProvider>
         ) : (
           <main className="flex-1 overflow-hidden flex items-center justify-center">

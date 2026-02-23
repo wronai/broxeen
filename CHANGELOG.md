@@ -1,3 +1,23 @@
+## [1.0.38] - 2026-02-23
+
+### Summary
+
+feat(build): deep code analysis engine with 5 supporting modules
+
+### Other
+
+- build: update Makefile
+- update src/App.tsx
+- update src/components/Chat.tsx
+- update src/contexts/pluginContext.tsx
+- update src/hooks/useDatabaseManager.ts
+- update src/hooks/useHistoryPersistence.ts
+- update src/integration/autoWatchIntegration.ts
+- update src/plugins/discovery/advancedPortScanPlugin.ts
+- update src/plugins/discovery/networkScanPlugin.ts
+- update src/plugins/monitor/monitorPlugin.ts
+
+
 ## [1.0.37] - 2026-02-23
 
 ### Summary
