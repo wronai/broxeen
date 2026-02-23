@@ -147,6 +147,12 @@ async function registerCorePlugins(
     safeRegister(registry, router, new WakeOnLanPlugin(), 'WakeOnLanPlugin');
   } catch (e) { console.warn('WakeOnLanPlugin unavailable:', e); }
 
+  // Device status monitoring
+  try {
+    const { DeviceStatusPlugin } = await import('../plugins/discovery/deviceStatusPlugin');
+    safeRegister(registry, router, new DeviceStatusPlugin(), 'DeviceStatusPlugin');
+  } catch (e) { console.warn('DeviceStatusPlugin unavailable:', e); }
+
   // ── Camera plugins ────────────────────────────────────────────
 
   try {

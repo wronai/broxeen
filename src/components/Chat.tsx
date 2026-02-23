@@ -34,7 +34,7 @@ import { CameraPreview, type CameraPreviewProps } from "./CameraPreview";
 import { CameraLiveInline } from "./CameraLiveInline";
 import { ActionSuggestions } from "./ActionSuggestions";
 import { QuickCommands } from "./QuickCommands";
-import { ChatConfigPrompt, buildApiKeyPrompt, buildConfigOverviewPrompt, buildNetworkConfigPrompt, buildModelSelectionPrompt } from "./ChatConfigPrompt";
+import { ChatConfigPrompt, buildApiKeyPrompt, buildConfigOverviewPrompt, buildMonitorConfigPrompt, buildNetworkConfigPrompt, buildModelSelectionPrompt } from "./ChatConfigPrompt";
 import type { ConfigPromptData } from "./ChatConfigPrompt";
 import { processRegistry } from "../core/processRegistry";
 import type { AudioSettings } from "../domain/audioSettings";
@@ -371,30 +371,25 @@ export default function Chat({ settings }: ChatProps) {
       const detail = custom.detail;
       if (!detail?.summary) return;
 
-      // Image thumbnail message (optional)
-      if (detail.thumbnailBase64) {
-        eventStore.append({
-          type: "message_added",
-          payload: {
-            id: nextMessageId(),
-            role: "assistant",
-            text: detail.thumbnailBase64,
-            type: "image",
-            mimeType: detail.thumbnailMimeType || "image/jpeg",
-            title: `Monitoring: ${detail.targetName}`,
-            timestamp: detail.timestamp,
-          },
-        });
-      }
+      const pct = Math.round(detail.changeScore * 100);
+      const mime = detail.thumbnailMimeType || "image/jpeg";
+      const dataUrl = detail.thumbnailBase64
+        ? `data:${mime};base64,${detail.thumbnailBase64}`
+        : null;
 
-      // One-sentence summary message
+      const monitoringText = [
+        `👁️ **Monitoring**: **${detail.targetName}** (${pct}%)`,
+        dataUrl ? `\n\n![](${dataUrl})` : "",
+        `\n\n${detail.summary}`,
+      ].join("");
+
+      // Single message: header + optional embedded thumbnail + one-sentence summary
       eventStore.append({
         type: "message_added",
         payload: {
           id: nextMessageId(),
           role: "assistant",
-          text:
-            `📷 **${detail.targetName}** (${Math.round(detail.changeScore * 100)}%): ${detail.summary}`,
+          text: monitoringText,
           type: "content",
           timestamp: detail.timestamp,
         },
@@ -1175,11 +1170,22 @@ ${analysis}`,
     }
 
     // Network config
-    if (/konfiguruj\s*(sieć|network)|config\s*network|ustaw\s*(sieć|subnet|podsieć)/i.test(lower)) {
+    if (/^(konfiguruj\s*sie[cć]|konfiguracja\s*sieci|ustaw\s*sie[cć])$/i.test(lower)) {
       const subnet = configStore.get<string>('network.defaultSubnet');
       return {
         text: `🌐 **Konfiguracja sieci**\n\nAktualna podsieć: **${subnet}.0/24**\nWybierz akcję:`,
         prompt: buildNetworkConfigPrompt(subnet),
+      };
+    }
+
+    // Monitor config
+    if (/^(konfiguruj\s*monitoring|monitoring\s*konfiguracja|ustaw\s*monitoring)$/i.test(lower)) {
+      const intervalMs = configStore.get<number>('monitor.defaultIntervalMs');
+      const threshold = configStore.get<number>('monitor.defaultChangeThreshold');
+      const thumb = configStore.get<number>('monitor.thumbnailMaxWidth');
+      return {
+        text: `👁️ **Konfiguracja monitoringu**\n\nAktualnie: interwał **${intervalMs}ms**, próg **${Math.round((threshold || 0) * 100)}%**, miniaturka **${thumb}px**.\nWybierz akcję:`,
+        prompt: buildMonitorConfigPrompt(),
       };
     }
 
@@ -1815,10 +1821,10 @@ ${analysis}`,
                               </div>
                             )}
                             <MessageResultCard text={msg.text} msgType={msg.type}>
-                            <div className="prose prose-invert max-w-none prose-sm">
-                              <ReactMarkdown 
-                                remarkPlugins={[remarkGfm]}
-                                components={{
+                              <div className="prose prose-invert max-w-none prose-sm">
+                                <ReactMarkdown 
+                                  remarkPlugins={[remarkGfm]}
+                                  components={{
                                   // Customize styling for common elements
                                   p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
                                   strong: ({children}) => <strong className="font-bold text-white">{children}</strong>,
@@ -1865,11 +1871,29 @@ ${analysis}`,
                                     {children}
                                   </blockquote>
                                 ),
-                              }}
-                            >
-                              {msg.text}
-                            </ReactMarkdown>
-                            </div>
+                                img: ({ src, alt }) => {
+                                  if (!src) return null;
+                                  const isDataUrl = src.startsWith('data:');
+                                  const canPreview = isDataUrl;
+                                  return (
+                                    <img
+                                      src={src}
+                                      alt={alt || 'Obraz'}
+                                      className="max-w-full h-auto rounded border border-gray-700 bg-black/30 cursor-pointer hover:opacity-90 transition-opacity"
+                                      onClick={() => {
+                                        if (!canPreview) return;
+                                        const m = src.match(/^data:([^;]+);base64,(.+)$/);
+                                        if (!m) return;
+                                        setExpandedImage({ data: m[2], mimeType: m[1] });
+                                      }}
+                                    />
+                                  );
+                                },
+                                  }}
+                                >
+                                  {msg.text}
+                                </ReactMarkdown>
+                              </div>
                             </MessageResultCard>
                           </div>
                         )}

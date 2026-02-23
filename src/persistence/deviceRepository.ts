@@ -99,6 +99,99 @@ export class DeviceRepository {
     }
   }
 
+  /** Update device status (online/offline/unknown) */
+  async updateDeviceStatus(deviceId: string, status: 'online' | 'offline' | 'unknown'): Promise<void> {
+    const now = Date.now();
+    try {
+      await this.db.execute(
+        `UPDATE devices SET last_seen = ?, updated_at = ? WHERE id = ?`,
+        [now, now, deviceId]
+      );
+      
+      // Also update all services for this device
+      await this.db.execute(
+        `UPDATE device_services SET status = ?, last_checked = ? WHERE device_id = ?`,
+        [status, now, deviceId]
+      );
+      
+      repoLogger.debug('Device status updated', { deviceId, status });
+    } catch (err) {
+      repoLogger.warn('updateDeviceStatus failed', { deviceId, status, error: err });
+    }
+  }
+
+  /** Get devices with their current status */
+  async getDevicesWithStatus(): Promise<Array<{
+    id: string;
+    ip: string;
+    hostname: string | null;
+    mac: string | null;
+    vendor: string | null;
+    last_seen: number;
+    status: 'online' | 'offline' | 'unknown';
+    services_count: number;
+  }>> {
+    try {
+      return await this.db.query(
+        `SELECT d.id, d.ip, d.hostname, d.mac, d.vendor, d.last_seen,
+                COALESCE(ds.status, 'unknown') as status,
+                COUNT(ds.id) as services_count
+         FROM devices d
+         LEFT JOIN device_services ds ON d.id = ds.device_id
+         GROUP BY d.id, d.ip, d.hostname, d.mac, d.vendor, d.last_seen, ds.status
+         ORDER BY d.last_seen DESC`
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  /** Get recently active devices (within N minutes) */
+  async getRecentlyActiveDevices(minutesAgo = 30): Promise<Array<{
+    id: string;
+    ip: string;
+    hostname: string | null;
+    last_seen: number;
+    minutes_since_last_seen: number;
+  }>> {
+    try {
+      const cutoff = Date.now() - (minutesAgo * 60 * 1000);
+      return await this.db.query(
+        `SELECT id, ip, hostname, last_seen,
+                ((? - last_seen) / 60000) as minutes_since_last_seen
+         FROM devices 
+         WHERE last_seen > ?
+         ORDER BY last_seen DESC`,
+        [Date.now(), cutoff]
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  /** Get offline devices (not seen for N hours) */
+  async getOfflineDevices(hoursAgo = 2): Promise<Array<{
+    id: string;
+    ip: string;
+    hostname: string | null;
+    last_seen: number;
+    hours_since_last_seen: number;
+  }>> {
+    try {
+      const cutoff = Date.now() - (hoursAgo * 60 * 60 * 1000);
+      return await this.db.query(
+        `SELECT id, ip, hostname, last_seen,
+                ((? - last_seen) / 3600000) as hours_since_last_seen
+         FROM devices 
+         WHERE last_seen < ?
+         ORDER BY last_seen DESC`,
+        [Date.now(), cutoff]
+      );
+    } catch {
+      return [];
+    }
+  }
+
   /** List services for a device. */
   async listServices(deviceId: string): Promise<Array<{
     id: string;

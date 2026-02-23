@@ -431,6 +431,85 @@ export function buildModelSelectionPrompt(): ConfigPromptData {
   };
 }
 
+/** Build a monitor config prompt */
+export function buildMonitorConfigPrompt(): ConfigPromptData {
+  return {
+    title: 'Konfiguracja monitoringu',
+    description: 'Ustaw interwał sprawdzania, próg zmian i maksymalną szerokość miniatury.',
+    editableFields: [
+      'monitor.defaultIntervalMs',
+      'monitor.defaultChangeThreshold',
+      'monitor.thumbnailMaxWidth',
+    ],
+    actions: [
+      {
+        id: 'monitor-interval-30s',
+        label: 'Co 30s',
+        icon: '⏱️',
+        type: 'set_config',
+        configPath: 'monitor.defaultIntervalMs',
+        configValue: 30000,
+        variant: 'primary',
+      },
+      {
+        id: 'monitor-interval-60s',
+        label: 'Co 60s',
+        icon: '⏱️',
+        type: 'set_config',
+        configPath: 'monitor.defaultIntervalMs',
+        configValue: 60000,
+        variant: 'secondary',
+      },
+      {
+        id: 'monitor-threshold-10',
+        label: 'Próg 10%',
+        icon: '🎚️',
+        type: 'set_config',
+        configPath: 'monitor.defaultChangeThreshold',
+        configValue: 0.1,
+        variant: 'secondary',
+      },
+      {
+        id: 'monitor-threshold-15',
+        label: 'Próg 15%',
+        icon: '🎚️',
+        type: 'set_config',
+        configPath: 'monitor.defaultChangeThreshold',
+        configValue: 0.15,
+        variant: 'primary',
+      },
+      {
+        id: 'monitor-threshold-20',
+        label: 'Próg 20%',
+        icon: '🎚️',
+        type: 'set_config',
+        configPath: 'monitor.defaultChangeThreshold',
+        configValue: 0.2,
+        variant: 'secondary',
+      },
+      {
+        id: 'monitor-thumb-500',
+        label: 'Miniaturka 500px',
+        icon: '🖼️',
+        type: 'set_config',
+        configPath: 'monitor.thumbnailMaxWidth',
+        configValue: 500,
+        variant: 'primary',
+      },
+      {
+        id: 'monitor-thumb-800',
+        label: 'Miniaturka 800px',
+        icon: '🖼️',
+        type: 'set_config',
+        configPath: 'monitor.thumbnailMaxWidth',
+        configValue: 800,
+        variant: 'secondary',
+      },
+    ],
+    layout: 'buttons',
+  };
+}
+
 /** Build a SSH host prompt */
 export function buildSshHostPrompt(hosts: string[]): ConfigPromptData {
   return {
@@ -525,6 +604,15 @@ export function buildConfigOverviewPrompt(): ConfigPromptData {
         executeQuery: 'konfiguruj sieć',
         variant: 'secondary',
         description: `Podsieć: ${status.networkSubnet}`,
+      },
+      {
+        id: 'config-monitor',
+        label: 'Monitoring',
+        icon: '👁️',
+        type: 'execute',
+        executeQuery: 'konfiguruj monitoring',
+        variant: 'secondary',
+        description: 'Interwał / próg / miniaturka',
       },
       {
         id: 'config-ssh',

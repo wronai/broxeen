@@ -631,6 +631,11 @@ export class NetworkScanPlugin implements Plugin {
       }));
       await repo.saveDevices(mapped);
 
+      // Update device status to 'online' for discovered devices
+      for (const device of mapped) {
+        await repo.updateDeviceStatus(device.id, 'online');
+      }
+
       // Persist services (open ports)
       for (const d of devices) {
         const deviceId = d.mac || d.ip;

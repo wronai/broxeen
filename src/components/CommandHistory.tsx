@@ -3,8 +3,8 @@
  * Displays recently used commands for quick access
  */
 
-import React, { useState, useEffect } from 'react';
-import { Clock, Search, Trash2, RefreshCw, Command } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Clock, Search, Trash2, RefreshCw, Command, Wifi, Globe, Camera, MessageCircle, MoreHorizontal } from 'lucide-react';
 
 export interface CommandHistoryItem {
   id: string;
@@ -21,6 +21,17 @@ interface CommandHistoryProps {
   maxItems?: number;
 }
 
+type CategoryFilter = 'all' | CommandHistoryItem['category'];
+
+const CATEGORY_TABS: Array<{ id: CategoryFilter; label: string; icon: React.ReactNode; color: string }> = [
+  { id: 'all', label: 'Wszystko', icon: <Command size={12} />, color: 'text-gray-300' },
+  { id: 'network', label: 'Sieć', icon: <Wifi size={12} />, color: 'text-blue-400' },
+  { id: 'camera', label: 'Kamery', icon: <Camera size={12} />, color: 'text-orange-400' },
+  { id: 'browse', label: 'Strony', icon: <Globe size={12} />, color: 'text-green-400' },
+  { id: 'chat', label: 'Czat', icon: <MessageCircle size={12} />, color: 'text-purple-400' },
+  { id: 'other', label: 'Inne', icon: <MoreHorizontal size={12} />, color: 'text-gray-400' },
+];
+
 export const CommandHistory: React.FC<CommandHistoryProps> = ({
   onSelect,
   className = '',
@@ -30,6 +41,16 @@ export const CommandHistory: React.FC<CommandHistoryProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredHistory, setFilteredHistory] = useState<CommandHistoryItem[]>([]);
   const [showDetails, setShowDetails] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all');
+
+  // Count items per category
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: history.length };
+    for (const item of history) {
+      counts[item.category] = (counts[item.category] || 0) + 1;
+    }
+    return counts;
+  }, [history]);
 
   // Load history from localStorage on mount
   useEffect(() => {
@@ -45,18 +66,22 @@ export const CommandHistory: React.FC<CommandHistoryProps> = ({
     }
   }, []);
 
-  // Filter history based on search query
+  // Filter history based on search query AND active category
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredHistory(history.slice(0, maxItems));
-    } else {
-      const filtered = history.filter(item =>
-        item.command.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.result?.toLowerCase().includes(searchQuery.toLowerCase())
-      ).slice(0, maxItems);
-      setFilteredHistory(filtered);
+    let filtered = activeCategory === 'all'
+      ? history
+      : history.filter(item => item.category === activeCategory);
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(item =>
+        item.command.toLowerCase().includes(q) ||
+        item.result?.toLowerCase().includes(q)
+      );
     }
-  }, [searchQuery, history, maxItems]);
+
+    setFilteredHistory(filtered.slice(0, maxItems));
+  }, [searchQuery, history, maxItems, activeCategory]);
 
   // Save history to localStorage
   const saveHistory = (newHistory: CommandHistoryItem[]) => {
@@ -200,6 +225,35 @@ export const CommandHistory: React.FC<CommandHistoryProps> = ({
         <p className="text-gray-400 text-sm">
           Kliknij komendę, aby ponownie ją wykonać
         </p>
+      </div>
+
+      {/* Category filter tabs */}
+      <div className="mb-3 flex flex-wrap gap-1" data-testid="category-tabs">
+        {CATEGORY_TABS.map(tab => {
+          const count = categoryCounts[tab.id] || 0;
+          const isActive = activeCategory === tab.id;
+          if (tab.id !== 'all' && count === 0) return null;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveCategory(tab.id)}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                isActive
+                  ? `bg-broxeen-600/30 border border-broxeen-500/40 ${tab.color}`
+                  : 'bg-gray-700/50 border border-transparent text-gray-400 hover:bg-gray-700 hover:text-gray-300'
+              }`}
+              data-testid={`category-tab-${tab.id}`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+              {count > 0 && (
+                <span className={`ml-0.5 text-[10px] ${isActive ? 'opacity-80' : 'opacity-50'}`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Search bar */}
