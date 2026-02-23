@@ -320,7 +320,7 @@ openvino-devices: ## List devices available to OpenVINO
 	@        print(f"    {d:8s} {name}")
 	@    except:
 	@        print(f"    {d}")
-EOF
+	EOF
 	@echo ""
 
 openvino-activate: ## Print command to activate OpenVINO in current shell

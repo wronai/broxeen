@@ -346,5 +346,70 @@ describe('NetworkScanPlugin execute', () => {
       scanDuration: 1,
       efficiency: '0 devices/s',
     }));
+
+    await plugin.execute('pokaż kamery 192.168.1', { isTauri: true, tauriInvoke } as any);
+
+    expect(tauriInvoke).toHaveBeenCalledWith('scan_network', expect.objectContaining({
+      args: expect.objectContaining({
+        subnet: '192.168.1',
+        incremental: false,
+      }),
+    }));
+  });
+
+  it('adds per-camera action buttons (configPrompt) for camera scan results', async () => {
+    const plugin = new NetworkScanPlugin();
+
+    const devices = [
+      {
+        ip: '192.168.188.146',
+        mac: null,
+        hostname: 'Camera4',
+        vendor: 'Annke (Hikvision OEM)',
+        open_ports: [80, 554, 8000],
+        response_time: 4,
+        last_seen: new Date().toISOString(),
+        device_type: 'camera',
+      },
+      {
+        ip: '192.168.188.176',
+        mac: null,
+        hostname: 'annke',
+        vendor: 'Annke (Hikvision OEM)',
+        open_ports: [80, 554, 8000],
+        response_time: 6,
+        last_seen: new Date().toISOString(),
+        device_type: 'camera',
+      },
+    ];
+
+    const tauriInvoke = vi.fn(async (cmd: string) => {
+      if (cmd === 'scan_network') {
+        return {
+          devices,
+          scan_duration: 100,
+          scan_method: 'tcp-connect-parallel',
+          subnet: '192.168.188',
+        } as any;
+      }
+      return [];
+    });
+
+    const result = await plugin.execute('pokaż kamery 192.168.188', { isTauri: true, tauriInvoke } as any);
+    expect(result.status).toBe('success');
+
+    const prompt = (result.metadata as any).configPrompt;
+    expect(prompt).toBeTruthy();
+    expect(prompt.title).toContain('Kamery');
+    expect(Array.isArray(prompt.actions)).toBe(true);
+
+    const ids = prompt.actions.map((a: any) => a.id);
+    expect(ids).toContain('cam-192.168.188.146-live');
+    expect(ids).toContain('cam-192.168.188.146-monitor');
+    expect(ids).toContain('cam-192.168.188.176-live');
+    expect(ids).toContain('cam-192.168.188.176-monitor');
+
+    const liveAction = prompt.actions.find((a: any) => a.id === 'cam-192.168.188.176-live');
+    expect(liveAction.executeQuery).toBe('pokaż live 192.168.188.176');
   });
 });

@@ -73,7 +73,7 @@ export default function DeviceDashboardModal({
   const [devices, setDevices] = useState<DeviceEntry[]>([]);
   const [servicesByDeviceId, setServicesByDeviceId] = useState<Record<string, DeviceServiceEntry[]>>({});
   const [loading, setLoading] = useState(false);
-  const [filter, setFilter] = useState<"all" | "online" | "offline" | "cameras">("all");
+  const [filter, setFilter] = useState<"all" | "online" | "offline" | "cameras" | "servers" | "devices">("all");
   const [search, setSearch] = useState("");
 
   const loadDevices = useCallback(async () => {
@@ -191,6 +191,8 @@ export default function DeviceDashboardModal({
     if (filter === "online" && mins > 60) return false;
     if (filter === "offline" && mins <= 60) return false;
     if (filter === "cameras" && inferDeviceType(d) !== "camera") return false;
+    if (filter === "servers" && inferDeviceType(d) !== "server") return false;
+    if (filter === "devices" && inferDeviceType(d) !== "device") return false;
     if (search) {
       const q = search.toLowerCase();
       return (
@@ -205,6 +207,8 @@ export default function DeviceDashboardModal({
   const onlineCount = devices.filter((d) => (Date.now() - d.last_seen) / 60000 < 60).length;
   const offlineCount = devices.length - onlineCount;
   const cameraCount = devices.filter((d) => inferDeviceType(d) === "camera").length;
+  const serverCount = devices.filter((d) => inferDeviceType(d) === "server").length;
+  const deviceCount = devices.filter((d) => inferDeviceType(d) === "device").length;
 
   if (!isOpen) return null;
 
@@ -247,13 +251,15 @@ export default function DeviceDashboardModal({
             <div className="h-2 w-2 rounded-full bg-gray-500" />
             <span className="text-gray-300">{offlineCount} offline</span>
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
             {([
               ["all", "Wszystkie"],
               ["cameras", `📷${cameraCount > 0 ? ` (${cameraCount})` : ""}`],
+              ["servers", `🖥️${serverCount > 0 ? ` (${serverCount})` : ""}`],
+              ["devices", `🖱️${deviceCount > 0 ? ` (${deviceCount})` : ""}`],
               ["online", "Online"],
               ["offline", "Offline"],
-            ] as ["all" | "online" | "offline" | "cameras", string][]).map(([f, label]) => (
+            ] as ["all" | "online" | "offline" | "cameras" | "servers" | "devices", string][]).map(([f, label]) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
