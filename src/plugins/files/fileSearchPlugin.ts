@@ -47,52 +47,36 @@ export class FileSearchPlugin implements Plugin {
   readonly version = '1.0.0';
   readonly supportedIntents = ['file:search', 'file:read', 'file:open'];
 
+  private static readonly CAN_HANDLE_KEYWORDS: readonly string[] = [
+    'znajdź plik', 'znajdz plik', 'wyszukaj plik', 'szukaj plik',
+    'szukaj dokument', 'znajdź dokument', 'znajdz dokument', 'wyszukaj dokument',
+    'pokaż plik', 'pokaz plik', 'otwórz plik', 'otworz plik',
+    'co jest w pliku', 'co zawiera plik', 'przeczytaj plik', 'odczytaj plik',
+    'file search', 'find file', 'search file',
+  ];
+
+  private static readonly CAN_HANDLE_PATTERNS: readonly RegExp[] = [
+    /lista\s+plik[óo]?w/i,
+    /poka[zż]\s+(mi\s+)?plik/i,
+    /wylistuj\s+plik/i,
+    /co\s+(jest|mam|znajduje\s+się)\s+(w|na)\s+(folderze|katalogu|dysku)/i,
+    /zawarto[śs][ćc]\s+(folderu|katalogu|dysku)/i,
+    /plik[iy]?\s+(w|na|z)\s+(folderze|katalogu|dysku|komputerze|pulpicie)/i,
+    /dokument[yów]?\s+(w|na|z)\s+(folderze|katalogu|dysku|komputerze|pulpicie)/i,
+    /(folder|katalog|pulpit)\s+(usera|u[żz]ytkownika|domowy|home)/i,
+    /plik[iy]?\s+(usera|u[żz]ytkownika)/i,
+    /ls\s+(~|\/home|\/)/i,
+    /list\s+(files|directory|folder)/i,
+    /poka[żz]\s+(folder|katalog)/i,
+    /co\s+mam\s+na\s+dysku/i,
+    /przejrzyj\s+(pliki|folder|katalog)/i,
+    /wy[śs]wietl\s+plik/i,
+  ];
+
   async canHandle(input: string, _context: PluginContext): Promise<boolean> {
     const lower = input.toLowerCase();
-
-    // Exact phrase matches
-    if (
-      lower.includes('znajdź plik') ||
-      lower.includes('znajdz plik') ||
-      lower.includes('wyszukaj plik') ||
-      lower.includes('szukaj plik') ||
-      lower.includes('szukaj dokument') ||
-      lower.includes('znajdź dokument') ||
-      lower.includes('znajdz dokument') ||
-      lower.includes('wyszukaj dokument') ||
-      lower.includes('pokaż plik') ||
-      lower.includes('pokaz plik') ||
-      lower.includes('otwórz plik') ||
-      lower.includes('otworz plik') ||
-      lower.includes('co jest w pliku') ||
-      lower.includes('co zawiera plik') ||
-      lower.includes('przeczytaj plik') ||
-      lower.includes('odczytaj plik') ||
-      lower.includes('file search') ||
-      lower.includes('find file') ||
-      lower.includes('search file')
-    ) return true;
-
-    // Broader regex patterns for natural queries
-    if (
-      /lista\s+plik[óo]?w/i.test(lower) ||
-      /poka[zż]\s+(mi\s+)?plik/i.test(lower) ||
-      /wylistuj\s+plik/i.test(lower) ||
-      /co\s+(jest|mam|znajduje\s+się)\s+(w|na)\s+(folderze|katalogu|dysku)/i.test(lower) ||
-      /zawarto[śs][ćc]\s+(folderu|katalogu|dysku)/i.test(lower) ||
-      /plik[iy]?\s+(w|na|z)\s+(folderze|katalogu|dysku|komputerze|pulpicie)/i.test(lower) ||
-      /dokument[yów]?\s+(w|na|z)\s+(folderze|katalogu|dysku|komputerze|pulpicie)/i.test(lower) ||
-      /(folder|katalog|pulpit)\s+(usera|u[żz]ytkownika|domowy|home)/i.test(lower) ||
-      /plik[iy]?\s+(usera|u[żz]ytkownika)/i.test(lower) ||
-      /ls\s+(~|\/home|\/)/i.test(lower) ||
-      /list\s+(files|directory|folder)/i.test(lower) ||
-      /poka[żz]\s+(folder|katalog)/i.test(lower) ||
-      /co\s+mam\s+na\s+dysku/i.test(lower) ||
-      /przejrzyj\s+(pliki|folder|katalog)/i.test(lower) ||
-      /wy[śs]wietl\s+plik/i.test(lower)
-    ) return true;
-
-    return false;
+    return FileSearchPlugin.CAN_HANDLE_KEYWORDS.some(kw => lower.includes(kw)) ||
+           FileSearchPlugin.CAN_HANDLE_PATTERNS.some(p => p.test(lower));
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
