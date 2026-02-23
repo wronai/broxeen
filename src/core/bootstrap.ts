@@ -13,7 +13,7 @@ import { CommandBus } from './commandBus';
 
 export async function bootstrapApp(config: {
   isTauri: boolean;
-  tauriInvoke?: (command: string, args?: unknown) => Promise<unknown>;
+  tauriInvoke?: (command: string, args?: any) => Promise<any>;
   cameras?: import('./types').CameraConfig[];
   mqtt?: import('./types').MqttConfig;
   describeImage?: (imageUrl: string) => Promise<string>;

@@ -30,6 +30,7 @@ import type { NetworkHistoryItem } from "./NetworkHistorySelector";
 import { CommandHistory, type CommandHistoryItem } from "./CommandHistory";
 import { QuickCommandHistory } from "./QuickCommandHistory";
 import { CameraPreview, type CameraPreviewProps } from "./CameraPreview";
+import { CameraLiveInline } from "./CameraLiveInline";
 import { ActionSuggestions } from "./ActionSuggestions";
 import { QuickCommands } from "./QuickCommands";
 import { ChatConfigPrompt, buildApiKeyPrompt, buildConfigOverviewPrompt, buildNetworkConfigPrompt, buildModelSelectionPrompt } from "./ChatConfigPrompt";
@@ -1087,18 +1088,35 @@ ${analysis}`,
         let fullResult = '';
         for (const block of result.content) {
           let messageText = '';
-          let messageType: 'content' | 'image' = 'content';
+          let messageType: 'content' | 'image' | 'camera_live' = 'content';
+          let livePayload: { url: string; cameraId: string; fps?: number } | undefined;
           
           if (block.type === 'text') {
             messageText = block.data as string;
           } else if (block.type === 'image') {
             messageText = block.data as string;
             messageType = 'image';
+          } else if (block.type === 'structured') {
+            // Structured blocks: support camera_live payload
+            try {
+              const parsed = JSON.parse(String(block.data ?? '')) as any;
+              if (parsed && parsed.kind === 'camera_live' && typeof parsed.url === 'string' && typeof parsed.cameraId === 'string') {
+                messageType = 'camera_live';
+                livePayload = { url: parsed.url, cameraId: parsed.cameraId, fps: typeof parsed.fps === 'number' ? parsed.fps : undefined };
+                messageText = '';
+              } else {
+                messageText = String(block.data);
+              }
+            } catch {
+              messageText = String(block.data);
+            }
           } else {
             messageText = String(block.data);
           }
 
-          fullResult += messageText + ' ';
+          if (messageText) {
+            fullResult += messageText + ' ';
+          }
           eventStore.append({
             type: "message_added",
             payload: {
@@ -1108,6 +1126,7 @@ ${analysis}`,
               type: messageType,
               mimeType: block.mimeType,
               title: block.title,
+              live: livePayload,
             },
           });
         }
@@ -1484,13 +1503,23 @@ ${analysis}`,
                           />
                         </div>
                       )}
+                      {msg.role === "assistant" && msg.type === "camera_live" && msg.live && (
+                        <div className="shrink-0 w-full max-w-sm rounded-lg border border-gray-700 bg-black/50 overflow-hidden p-3">
+                          <CameraLiveInline
+                            url={msg.live.url}
+                            cameraId={msg.live.cameraId}
+                            fps={msg.live.fps}
+                            onClickImage={(frame) => setExpandedImage({ data: frame.base64, mimeType: frame.mimeType })}
+                          />
+                        </div>
+                      )}
                       <div className="flex-1 w-full min-w-0">
                         {msg.loading ? (
                           <div className="flex items-center gap-2 text-gray-400">
                             <Loader2 size={16} className="animate-spin" />
                             <span>{msg.text}</span>
                           </div>
-                        ) : msg.type === 'image' ? null : (
+                        ) : msg.type === 'image' || msg.type === 'camera_live' ? null : (
                           <div className="text-sm leading-relaxed">
                             {msg.pageTitle && (
                               <div className="font-bold mb-2">

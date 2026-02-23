@@ -15,7 +15,7 @@ export type PluginResult = NewPluginResult;
 
 export interface PluginContext {
   isTauri: boolean;
-  tauriInvoke?: (command: string, args?: unknown) => Promise<unknown>;
+  tauriInvoke?: (command: string, args?: any) => Promise<any>;
   cameras?: CameraConfig[];
   mqtt?: MqttConfig;
   describeImage?: (imageUrl: string) => Promise<string>;

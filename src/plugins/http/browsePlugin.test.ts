@@ -20,6 +20,7 @@ describe('HttpBrowsePlugin', () => {
   let mockContext: PluginContext;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     plugin = new HttpBrowsePlugin();
     mockContext = {
       isTauri: false,

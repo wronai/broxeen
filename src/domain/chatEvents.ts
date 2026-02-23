@@ -7,7 +7,7 @@ export interface ChatMessage {
   id: number;
   role: ChatMessageRole;
   text: string;
-  type?: 'content' | 'image' | 'error' | 'loading' | 'suggestions' | 'network_selection' | 'camera_list' | 'camera_analysis' | 'config_prompt';
+  type?: 'content' | 'image' | 'error' | 'loading' | 'suggestions' | 'network_selection' | 'camera_list' | 'camera_analysis' | 'config_prompt' | 'camera_live';
   mimeType?: string;
   url?: string;
   resolveType?: string;
@@ -24,6 +24,7 @@ export interface ChatMessage {
   networkOptions?: Array<{ scope: string; name: string; description: string }>;
   cameras?: Array<{ id: string; name: string; address: string; status: string }>;
   analysis?: string;
+  live?: { url: string; cameraId: string; fps?: number };
   /** Interactive config prompt data (buttons, fields, actions) */
   configPrompt?: import('../components/ChatConfigPrompt').ConfigPromptData;
 }

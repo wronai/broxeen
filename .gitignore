@@ -6,6 +6,7 @@ fixPI/.venv/
 /logs
 logs/
 .zip
+.sql
 backups/
 venv
 node_modules

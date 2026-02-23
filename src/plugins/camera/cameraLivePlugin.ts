@@ -305,6 +305,19 @@ export class CameraLivePlugin implements Plugin {
               title: `Podgląd: ${ip}`,
             }]
           : []),
+        ...(workingRtspUrl
+          ? [{
+              type: 'structured' as const,
+              data: JSON.stringify({
+                kind: 'camera_live',
+                url: workingRtspUrl,
+                cameraId: ip,
+                fps: 1,
+              }),
+              title: `Live (1fps): ${ip}`,
+              mimeType: 'application/json',
+            }]
+          : []),
         {
           type: 'text',
           data,

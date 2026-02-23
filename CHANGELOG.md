@@ -1,3 +1,23 @@
+## [1.0.37] - 2026-02-23
+
+### Summary
+
+feat(build): configuration management system
+
+### Other
+
+- update .gitignore
+- build: update Makefile
+- update scripts/add-camera.sql
+- update src/components/CameraLiveInline.tsx
+- update src/components/Chat.tsx
+- update src/core/bootstrap.ts
+- update src/core/types.ts
+- update src/domain/chatEvents.ts
+- update src/plugins/camera/cameraLivePlugin.ts
+- update src/plugins/http/browsePlugin.test.ts
+
+
 ## [1.0.36] - 2026-02-22
 
 ### Summary
