@@ -73,6 +73,28 @@ export const devicesDbMigrations: Migration[] = [
         )
       `);
 
+      // Scan history table
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS scan_history (
+          id TEXT PRIMARY KEY,
+          timestamp INTEGER NOT NULL,
+          scope TEXT NOT NULL,
+          subnet TEXT NOT NULL,
+          device_count INTEGER NOT NULL,
+          duration_ms INTEGER NOT NULL,
+          success INTEGER NOT NULL DEFAULT 1,
+          error TEXT,
+          metadata TEXT, -- JSON
+          created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+        )
+      `);
+
+      // Indexes for scan_history
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_scan_history_timestamp ON scan_history(timestamp DESC);
+        CREATE INDEX IF NOT EXISTS idx_scan_history_scope ON scan_history(scope);
+      `);
+
       // Indexes for performance
       db.exec(`
         CREATE INDEX IF NOT EXISTS idx_devices_ip ON devices(ip);
@@ -92,39 +114,6 @@ export const devicesDbMigrations: Migration[] = [
         DROP TABLE IF EXISTS device_services;
         DROP TABLE IF EXISTS devices;
       `);
-    }
-  },
-  {
-    version: 2,
-    description: 'Add scan history for incremental scanning',
-    up: (db) => {
-      // Scan history table
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS scan_history (
-          id TEXT PRIMARY KEY,
-          subnet TEXT NOT NULL,
-          scan_type TEXT NOT NULL CHECK (scan_type IN ('full', 'incremental', 'targeted')),
-          devices_found INTEGER NOT NULL DEFAULT 0,
-          devices_updated INTEGER NOT NULL DEFAULT 0,
-          new_devices INTEGER NOT NULL DEFAULT 0,
-          scan_duration_ms INTEGER NOT NULL,
-          scan_range TEXT NOT NULL, -- JSON array of IP ranges scanned
-          triggered_by TEXT NOT NULL, -- 'manual', 'scheduled', 'auto'
-          metadata TEXT, -- JSON: includes scan strategy, excluded IPs, etc.
-          started_at INTEGER NOT NULL,
-          completed_at INTEGER NOT NULL
-        )
-      `);
-
-      // Indexes for scan history
-      db.exec(`
-        CREATE INDEX IF NOT EXISTS idx_scan_history_subnet ON scan_history(subnet);
-        CREATE INDEX IF NOT EXISTS idx_scan_history_started_at ON scan_history(started_at);
-        CREATE INDEX IF NOT EXISTS idx_scan_history_scan_type ON scan_history(scan_type);
-      `);
-    },
-    down: (db) => {
-      db.exec(`DROP TABLE IF EXISTS scan_history`);
     }
   }
 ];

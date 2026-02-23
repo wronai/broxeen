@@ -47,21 +47,6 @@ export interface ChangeHistory {
   detectedAt: Date;
 }
 
-export interface ScanHistory {
-  id: string;
-  subnet: string;
-  scanType: 'full' | 'incremental' | 'targeted';
-  devicesFound: number;
-  devicesUpdated: number;
-  newDevices: number;
-  scanDurationMs: number;
-  scanRange: string; // JSON array of IP ranges
-  triggeredBy: 'manual' | 'scheduled' | 'auto';
-  metadata?: Record<string, unknown>; // scan strategy, excluded IPs, etc.
-  startedAt: Date;
-  completedAt: Date;
-}
-
 export interface Conversation {
   id: string;
   startedAt: Date;

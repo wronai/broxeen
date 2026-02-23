@@ -18,10 +18,16 @@ interface UseSttOptions {
 interface UseSttReturn {
   isSupported: boolean;
   unsupportedReason: string | null;
+  mode: "media" | "tauri" | "none";
   isRecording: boolean;
   isTranscribing: boolean;
   transcript: string;
   error: string | null;
+  lastErrorDetails: {
+    name?: string;
+    message?: string;
+    constraint?: string;
+  } | null;
   startRecording: () => void;
   stopRecording: () => void;
 }
@@ -133,10 +139,18 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   const [unsupportedReason, setUnsupportedReason] = useState<string | null>(
     null,
   );
+  const [mode, setMode] = useState<"media" | "tauri" | "none">("none");
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [lastErrorDetails, setLastErrorDetails] = useState<
+    {
+      name?: string;
+      message?: string;
+      constraint?: string;
+    } | null
+  >(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -151,14 +165,17 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
 
     if (browserMediaSupported) {
       modeRef.current = "media";
+      setMode("media");
       setIsSupported(true);
       setUnsupportedReason(null);
     } else if (runtime === "tauri") {
       modeRef.current = "tauri";
+      setMode("tauri");
       setIsSupported(true);
       setUnsupportedReason(STT_TAURI_BACKEND_REASON);
     } else {
       modeRef.current = "none";
+      setMode("none");
       setIsSupported(false);
       setUnsupportedReason(reason);
     }
@@ -206,6 +223,10 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
         `${STT_TAURI_BACKEND_UNAVAILABLE_REASON} ${msg}`.trim(),
       );
       setError(msg);
+      setLastErrorDetails({
+        name: e instanceof Error ? e.name : undefined,
+        message: msg,
+      });
       setIsRecording(false);
     });
   }, [lang]);
@@ -213,6 +234,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   const startRecording = useCallback(() => {
     const run = logSyncDecorator("speech:stt:ui", "startRecording", () => {
       setError(null);
+      setLastErrorDetails(null);
       setTranscript("");
 
       if (modeRef.current === "tauri") {
@@ -265,6 +287,10 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
                   const msg = e instanceof Error ? e.message : String(e);
                   sttLogger.error("Transcription failed", { error: msg });
                   setError(msg);
+                  setLastErrorDetails({
+                    name: e instanceof Error ? e.name : undefined,
+                    message: msg,
+                  });
                 } finally {
                   setIsTranscribing(false);
                 }
@@ -294,6 +320,12 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
                 : undefined,
           });
 
+          setLastErrorDetails({
+            name: details.name,
+            message: details.message,
+            constraint: details.constraint,
+          });
+
           const shouldFallbackToNative =
             runtime === "tauri" && modeRef.current === "media";
           if (shouldFallbackToNative) {
@@ -302,6 +334,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
               details,
             );
             modeRef.current = "tauri";
+            setMode("tauri");
             setUnsupportedReason(STT_TAURI_BACKEND_REASON);
             setIsSupported(true);
             stopTracks();
@@ -405,10 +438,12 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   return {
     isSupported,
     unsupportedReason,
+    mode,
     isRecording,
     isTranscribing,
     transcript,
     error,
+    lastErrorDetails,
     startRecording,
     stopRecording,
   };

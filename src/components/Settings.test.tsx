@@ -10,6 +10,52 @@ import { invoke } from "@tauri-apps/api/core";
 import Settings from "./Settings";
 import { isTauriRuntime } from "../lib/runtime";
 
+vi.mock("../hooks/useSpeech", () => ({
+  useSpeech: () => ({
+    isListening: false,
+    transcript: "",
+    interimTranscript: "",
+    finalTranscript: "",
+    isSupported: false,
+    unsupportedReason: "brak Web Speech API",
+    startListening: vi.fn(),
+    stopListening: vi.fn(),
+    enableAutoListen: vi.fn(),
+    disableAutoListen: vi.fn(),
+    clearFinalTranscript: vi.fn(),
+  }),
+}));
+
+vi.mock("../hooks/useStt", () => ({
+  useStt: () => ({
+    isSupported: false,
+    unsupportedReason: "Brak wsparcia MediaRecorder w tym środowisku.",
+    mode: "none",
+    isRecording: false,
+    isTranscribing: false,
+    transcript: "",
+    error: null,
+    lastErrorDetails: null,
+    startRecording: vi.fn(),
+    stopRecording: vi.fn(),
+  }),
+}));
+
+vi.mock("../hooks/useTts", () => ({
+  useTts: () => ({
+    speak: vi.fn(),
+    pause: vi.fn(),
+    resume: vi.fn(),
+    stop: vi.fn(),
+    isSpeaking: false,
+    isPaused: false,
+    voices: [],
+    progress: 0,
+    isSupported: false,
+    unsupportedReason: "brak SpeechSynthesis API",
+  }),
+}));
+
 // Mock the runtime module
 vi.mock("../lib/runtime");
 
@@ -37,6 +83,12 @@ const baseProps = {
   voices: defaultVoices,
 };
 
+async function renderSettings(props: Partial<typeof baseProps> = {}) {
+  await act(async () => {
+    render(<Settings {...baseProps} {...props} />);
+  });
+}
+
 describe("Settings — widoczność", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -53,27 +105,29 @@ describe("Settings — widoczność", () => {
       speaker_device_id: "default",
       auto_listen: false,
     });
+
+    const enumerateDevices = vi.fn().mockResolvedValue([]);
+    const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { enumerateDevices, getUserMedia },
+      configurable: true,
+      writable: true,
+    });
   });
 
   it("nie renderuje gdy isOpen=false", async () => {
-    await act(async () => {
-      render(<Settings {...baseProps} isOpen={false} />);
-    });
+    await renderSettings({ isOpen: false });
     expect(screen.queryByText("Ustawienia Audio")).not.toBeInTheDocument();
   });
 
   it("renderuje gdy isOpen=true", async () => {
-    await act(async () => {
-      render(<Settings {...baseProps} />);
-    });
+    await renderSettings();
     expect(screen.getByText("Ustawienia Audio")).toBeInTheDocument();
   });
 
   it("przycisk X zamyka modal", async () => {
     const onClose = vi.fn();
-    await act(async () => {
-      render(<Settings {...baseProps} onClose={onClose} />);
-    });
+    await renderSettings({ onClose });
     // X button is the one with title attribute
     const xBtn = document.querySelector("button[class*='rounded-lg p-1.5']");
     if (xBtn) fireEvent.click(xBtn);
@@ -83,9 +137,7 @@ describe("Settings — widoczność", () => {
 
   it("przycisk Anuluj wywołuje onClose", async () => {
     const onClose = vi.fn();
-    await act(async () => {
-      render(<Settings {...baseProps} onClose={onClose} />);
-    });
+    await renderSettings({ onClose });
     fireEvent.click(screen.getByText("Anuluj"));
     expect(onClose).toHaveBeenCalledOnce();
   });
@@ -95,6 +147,12 @@ describe("Settings — ładowanie ustawień", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(isTauriRuntime).mockReturnValue(true);
+
+    const enumerateDevices = vi.fn().mockResolvedValue([]);
+    const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
+    
+    // Use vi.stubGlobal to properly mock mediaDevices
+    vi.stubGlobal('mediaDevices', { enumerateDevices, getUserMedia });
   });
 
   it("ładuje ustawienia przez invoke przy otwarciu", async () => {
@@ -111,7 +169,7 @@ describe("Settings — ładowanie ustawień", () => {
       auto_listen: false,
     });
 
-    render(<Settings {...baseProps} />);
+    await renderSettings();
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_settings");
@@ -120,9 +178,7 @@ describe("Settings — ładowanie ustawień", () => {
 
   it("używa domyślnych gdy invoke się nie powiedzie", async () => {
     (invoke as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("fail"));
-    await act(async () => {
-      render(<Settings {...baseProps} />);
-    });
+    await renderSettings();
     await waitFor(() => {
       expect(screen.getByText("Ustawienia Audio")).toBeInTheDocument();
     });
@@ -145,6 +201,14 @@ describe("Settings — kontrolki TTS", () => {
       speaker_device_id: "default",
       auto_listen: false,
     });
+
+    const enumerateDevices = vi.fn().mockResolvedValue([]);
+    const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { enumerateDevices, getUserMedia },
+      configurable: true,
+      writable: true,
+    });
   });
 
   it("pokazuje sekcję TTS", () => {
@@ -152,8 +216,16 @@ describe("Settings — kontrolki TTS", () => {
     expect(screen.getByText(/Text-to-Speech/i)).toBeInTheDocument();
   });
 
+  it("pokazuje sekcję Diagnostyka", async () => {
+    await renderSettings();
+    expect(screen.getByText(/Diagnostyka/i)).toBeInTheDocument();
+    expect(screen.getByText(/STT \(Web Speech\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/STT \(nagranie \+ transkrypcja\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/^TTS$/i)).toBeInTheDocument();
+  });
+
   it("pokazuje sekcję Mikrofon", async () => {
-    render(<Settings {...baseProps} />);
+    await renderSettings();
     await waitFor(() => {
       // The heading uses uppercase via CSS, match the actual text
       expect(screen.getAllByText(/mikrofon/i).length).toBeGreaterThan(0);
@@ -202,10 +274,18 @@ describe("Settings — zapisywanie", () => {
       speaker_device_id: "default",
       auto_listen: false,
     });
+
+    const enumerateDevices = vi.fn().mockResolvedValue([]);
+    const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { enumerateDevices, getUserMedia },
+      configurable: true,
+      writable: true,
+    });
   });
 
   it("kliknięcie 'Zapisz ustawienia' wywołuje invoke save_settings", async () => {
-    render(<Settings {...baseProps} />);
+    await renderSettings();
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_settings");
@@ -223,7 +303,7 @@ describe("Settings — zapisywanie", () => {
 
   it("po zapisaniu wywołuje onSettingsChange", async () => {
     const onSettingsChange = vi.fn();
-    render(<Settings {...baseProps} onSettingsChange={onSettingsChange} />);
+    await renderSettings({ onSettingsChange });
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_settings");
@@ -238,7 +318,7 @@ describe("Settings — zapisywanie", () => {
   });
 
   it("po zapisaniu pokazuje komunikat '✓ Zapisano'", async () => {
-    render(<Settings {...baseProps} />);
+    await renderSettings();
 
     await waitFor(() => {
       expect(invoke).toHaveBeenCalledWith("get_settings");
@@ -267,6 +347,14 @@ describe("Settings — checkbox mikrofon", () => {
       mic_device_id: "default",
       speaker_device_id: "default",
       auto_listen: false,
+    });
+
+    const enumerateDevices = vi.fn().mockResolvedValue([]);
+    const getUserMedia = vi.fn().mockRejectedValue(new Error("denied"));
+    Object.defineProperty(navigator, "mediaDevices", {
+      value: { enumerateDevices, getUserMedia },
+      configurable: true,
+      writable: true,
     });
   });
 

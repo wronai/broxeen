@@ -17,6 +17,7 @@ import type { Plugin, PluginContext, PluginResult } from '../../core/types';
 import { processRegistry } from '../../core/processRegistry';
 import { configStore } from '../../config/configStore';
 import type { ConfigPromptData, ConfigAction } from '../../components/ChatConfigPrompt';
+import { DeviceRepository } from '../../persistence/deviceRepository';
 
 export interface MonitorTarget {
   id: string;
@@ -108,6 +109,10 @@ export class MonitorPlugin implements Plugin {
       /zmień.*interwał/i.test(lower) ||
       /zmień.*interwal/i.test(lower) ||
       /monitor.*flag/i.test(lower) ||
+      /jak.*dzia[łl]a.*monitor/i.test(lower) ||
+      /wyja[śs]ni[jć].*monitor/i.test(lower) ||
+      /tryb.*detekcji|tryb.*wykrywan/i.test(lower) ||
+      /monitor.*explain|monitor.*help/i.test(lower) ||
       /watch/i.test(lower) && /start|stop|list|log/i.test(lower);
   }
 
@@ -118,6 +123,22 @@ export class MonitorPlugin implements Plugin {
     if (/stop.*monitor|zatrzymaj.*monitor|przestań.*monitor|przestan.*monitor/i.test(lower)) {
       return this.handleStop(input, start);
     }
+
+    // Resolve implicit targets using persisted device discovery (e.g. "monitoruj rpi")
+    if (!parsed.address && parsed.type === 'device') {
+      const resolvedIp = await this.resolveDeviceIp(parsed, context);
+      if (resolvedIp) {
+        (parsed as any).address = resolvedIp;
+        (parsed as any).name = `${parsed.name} (${resolvedIp})`;
+        (parsed as any).id = `device-${resolvedIp}`;
+      } else {
+        return this.errorResult(
+          `Nie mogę znaleźć adresu dla: **${parsed.name}**.\n\n` +
+            `💡 Najpierw uruchom skan sieci: \"skanuj sieć\" (Tauri) albo podaj IP bezpośrednio: \"monitoruj 192.168.x.x\".`,
+          start,
+        );
+      }
+    }
     if (/aktywne.*monitor|lista.*monitor|list.*watch/i.test(lower)) {
       return this.handleList(start);
     }
@@ -126,6 +147,9 @@ export class MonitorPlugin implements Plugin {
     }
     if (/ustaw.*próg|ustaw.*prog|ustaw.*interwał|ustaw.*interwal|zmien.*interwał|zmien.*interwal|zmień.*interwał|zmień.*interwal/i.test(lower)) {
       return this.handleConfig(input, start);
+    }
+    if (/jak.*dzia[łl]a.*monitor|wyja[śs]ni[jć].*monitor|tryb.*detekcji|tryb.*wykrywan|monitor.*explain|monitor.*help/i.test(lower)) {
+      return this.handleExplain(start);
     }
 
     // Default: start monitoring
@@ -633,6 +657,75 @@ export class MonitorPlugin implements Plugin {
     );
   }
 
+  // ── Explain / Help ─────────────────────────────────────
+
+  private handleExplain(start: number): PluginResult {
+    const threshold = configStore.get<number>('monitor.defaultChangeThreshold') || 0.15;
+    const interval = configStore.get<number>('monitor.defaultIntervalMs') || 30000;
+    const llmMin = configStore.get<number>('monitor.llmMinChangeScore') ?? 0;
+
+    const data = [
+      '## 🔍 Jak działa monitoring kamer',
+      '',
+      '### Pipeline detekcji zmian',
+      '```',
+      '  Kamera → [Snapshot] → [Pixel Diff] → [Próg] → [LLM opis] → Alert',
+      '```',
+      '',
+      '**1. Pobieranie snapshotu** — co każdy interwał',
+      '- **RTSP** (Tauri) — ffmpeg wyciąga klatkę z streamu (najwyższa jakość)',
+      '- **HTTP snapshot** — pobiera JPEG z endpointu kamery (fallback)',
+      '- **Auto-probing** — próbuje endpointy z bazy vendorów (Hikvision, Dahua, Reolink...)',
+      '',
+      '**2. Porównanie pikseli** (canvas pixel diff)',
+      '- Oba obrazy skalowane do 200px szerokości',
+      '- Porównanie RGB per-piksel (próg: 30/255 na kanał)',
+      '- Wynik: % zmienionych pikseli (0-100%)',
+      '',
+      '**3. Filtrowanie**',
+      `- **Próg zmian:** ${(threshold * 100).toFixed(0)}% — poniżej = "Brak zmian"`,
+      `- **Próg LLM:** ${(llmMin * 100).toFixed(0)}% — poniżej = pomijamy opis LLM (oszczędność tokenów)`,
+      '- LLM filtruje "Brak istotnych zmian" → brak alertu',
+      '',
+      '### ⚙️ Bieżąca konfiguracja',
+      `- Interwał: **${interval / 1000}s**`,
+      `- Próg wykrywania: **${(threshold * 100).toFixed(0)}%**`,
+      `- Próg LLM: **${(llmMin * 100).toFixed(0)}%**`,
+      '',
+      '### 💡 Porady',
+      '- **Za mało wykrywa?** → Ustaw niższy próg (np. 5%): `ustaw próg zmian 5%`',
+      '- **Za dużo fałszywych alertów?** → Podnieś próg: `ustaw próg zmian 20%`',
+      '- **Brak snapshotów?** → Podaj credentials: `monitoruj IP user:admin admin:HASŁO`',
+      '- **Najlepsza jakość?** → Uruchom w Tauri: `make tauri-dev` (RTSP via ffmpeg)',
+      '- **Szybsza detekcja?** → Krótszy interwał: `zmien interwał co 5s`',
+    ].join('\n');
+
+    const configPrompt: ConfigPromptData = {
+      title: '⚙️ Strategia detekcji',
+      description: 'Dostosuj czułość wykrywania zmian:',
+      actions: [
+        { id: 'sens-high', label: '🎯 Wysoka czułość (3%)', type: 'execute', executeQuery: 'ustaw próg zmian 3%', variant: 'warning', description: 'Wykrywa nawet drobne zmiany' },
+        { id: 'sens-med', label: '⚖️ Średnia (10%)', type: 'execute', executeQuery: 'ustaw próg zmian 10%', variant: 'primary', description: 'Równowaga między czułością a fałszywymi alertami' },
+        { id: 'sens-low', label: '🛡️ Niska (20%)', type: 'execute', executeQuery: 'ustaw próg zmian 20%', variant: 'secondary', description: 'Tylko duże zmiany w kadrze' },
+        { id: 'interval-5', label: '⚡ Co 5s', type: 'execute', executeQuery: 'zmien interwał co 5s', variant: 'secondary' },
+        { id: 'interval-10', label: '🔄 Co 10s', type: 'execute', executeQuery: 'zmien interwał co 10s', variant: 'secondary' },
+        { id: 'interval-30', label: '⏱️ Co 30s', type: 'execute', executeQuery: 'zmien interwał co 30s', variant: 'secondary' },
+        { id: 'logs', label: '📋 Pokaż logi', type: 'execute', executeQuery: 'pokaż logi monitoringu', variant: 'success' },
+      ],
+      layout: 'buttons',
+    };
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [
+        { type: 'text', data },
+        { type: 'config_prompt', data: '⚙️ Strategia detekcji', title: '⚙️ Strategia detekcji', configPrompt },
+      ],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
   // ── Polling Logic ───────────────────────────────────────
 
   private async poll(target: MonitorTarget, context: PluginContext): Promise<void> {
@@ -890,6 +983,36 @@ export class MonitorPlugin implements Plugin {
       capture: failCapture,
     });
     return null;
+  }
+
+  private async resolveDeviceIp(
+    parsed: { id: string; type: MonitorTarget['type']; name: string },
+    context: PluginContext,
+  ): Promise<string | null> {
+    if (!context.databaseManager || !context.databaseManager.isReady()) return null;
+
+    try {
+      const repo = new DeviceRepository(context.databaseManager.getDevicesDb());
+      const devices = await repo.listDevices(100);
+      const name = (parsed.name || '').toLowerCase();
+
+      // Raspberry Pi selection: vendor/hostname contains raspberry/rpi
+      if (parsed.id === 'device-rpi' || name.includes('raspberry') || name.includes('rpi')) {
+        const rpi = devices.find((d) => {
+          const vendor = (d.vendor || '').toLowerCase();
+          const hostname = (d.hostname || '').toLowerCase();
+          return vendor.includes('raspberry') || hostname.includes('raspberry') || hostname.includes('rpi');
+        });
+        return rpi?.ip ?? null;
+      }
+
+      // Generic fallback: try hostname contains
+      const generic = devices.find((d) => (d.hostname || '').toLowerCase().includes(name));
+      return generic?.ip ?? null;
+    } catch (err) {
+      console.warn('[MonitorPlugin] resolveDeviceIp failed:', err);
+      return null;
+    }
   }
 
   private async fetchHttpSnapshot(
@@ -1173,6 +1296,17 @@ export class MonitorPlugin implements Plugin {
         name: urlMatch[0],
         address: urlMatch[0],
         intervalMs, threshold,
+      };
+    }
+
+    // Raspberry Pi shortcut
+    if (/\b(rpi|raspberry)\b/i.test(lower)) {
+      return {
+        id: 'device-rpi',
+        type: 'device',
+        name: 'Raspberry Pi',
+        intervalMs,
+        threshold,
       };
     }
 

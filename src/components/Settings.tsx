@@ -14,6 +14,9 @@ import {
 } from "../domain/audioSettings";
 import { logger } from "../lib/logger";
 import { isTauriRuntime } from "../lib/runtime";
+import { useSpeech } from "../hooks/useSpeech";
+import { useStt } from "../hooks/useStt";
+import { useTts } from "../hooks/useTts";
 
 interface SettingsProps {
   isOpen: boolean;
@@ -37,11 +40,27 @@ export default function Settings({
   const [piperInstalling, setPiperInstalling] = useState(false);
   const [piperStatus, setPiperStatus] = useState<string | null>(null);
 
+  const runtimeIsTauri = isTauriRuntime();
+
+  const speech = useSpeech(settings.tts_lang);
+  const stt = useStt({ lang: settings.tts_lang });
+  const tts = useTts({
+    rate: settings.tts_rate,
+    pitch: settings.tts_pitch,
+    volume: settings.tts_volume,
+    voice: settings.tts_voice,
+    lang: settings.tts_lang,
+  });
+
+  const [testTtsText, setTestTtsText] = useState(
+    "Test dźwięku. Jeśli to słyszysz, TTS działa.",
+  );
+
   useEffect(() => {
     if (!isOpen) return;
 
     logger.debug("Settings modal opened, loading data...");
-    if (isTauriRuntime()) {
+    if (runtimeIsTauri) {
       invoke<Partial<AudioSettings>>("get_settings")
         .then((s) => {
           logger.debug("Settings fetched from backend:", s);
@@ -85,7 +104,7 @@ export default function Settings({
           .then((devices) => setAudioDevices(devices));
       })
       .catch((e) => logger.warn("Microphone permission denied or failed:", e));
-  }, [isOpen]);
+  }, [isOpen, runtimeIsTauri]);
 
   const micDevices = audioDevices.filter((d) => d.kind === "audioinput");
   const speakerDevices = audioDevices.filter((d) => d.kind === "audiooutput");
@@ -99,7 +118,7 @@ export default function Settings({
   const handleSave = async () => {
     try {
       logger.debug("Saving settings to backend...", settings);
-      if (isTauriRuntime()) {
+      if (runtimeIsTauri) {
         await invoke("save_settings", { settings });
       } else {
         logger.debug("Skipped saving to Tauri backend (browser environment)");
@@ -131,6 +150,177 @@ export default function Settings({
         </div>
 
         <div className="space-y-5">
+          {/* Diagnostics Section */}
+          <section>
+            <h3 className="mb-3 text-sm font-semibold uppercase text-gray-400">
+              Diagnostyka
+            </h3>
+            <div className="space-y-3 rounded-xl bg-gray-800/50 p-4">
+              <div className="text-xs text-gray-300">
+                <div className="flex items-center justify-between">
+                  <span>Runtime</span>
+                  <span className="font-mono text-gray-200">
+                    {runtimeIsTauri ? "tauri" : "browser"}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                  <span>Secure context</span>
+                  <span className="font-mono text-gray-200">
+                    {typeof window !== "undefined" && window.isSecureContext
+                      ? "true"
+                      : "false"}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                  <span>STT (Web Speech)</span>
+                  <span
+                    className={
+                      speech.isSupported
+                        ? "text-green-400"
+                        : "text-yellow-300"
+                    }
+                  >
+                    {speech.isSupported ? "dostępne" : "niedostępne"}
+                  </span>
+                </div>
+                {!speech.isSupported && speech.unsupportedReason && (
+                  <div className="mt-1 rounded-lg border border-yellow-600/30 bg-yellow-900/20 p-2 text-xs text-yellow-200">
+                    {speech.unsupportedReason}
+                  </div>
+                )}
+
+                <div className="mt-2 flex items-center justify-between">
+                  <span>STT (nagranie + transkrypcja)</span>
+                  <span
+                    className={
+                      stt.isSupported ? "text-green-400" : "text-yellow-300"
+                    }
+                  >
+                    {stt.isSupported
+                      ? `dostępne (${stt.mode})`
+                      : "niedostępne"}
+                  </span>
+                </div>
+                {stt.unsupportedReason && (
+                  <div className="mt-1 rounded-lg border border-gray-700 bg-gray-900/40 p-2 text-xs text-gray-300">
+                    {stt.unsupportedReason}
+                  </div>
+                )}
+                {(stt.error || stt.lastErrorDetails) && (
+                  <div className="mt-1 rounded-lg border border-red-600/30 bg-red-900/20 p-2 text-xs text-red-200">
+                    <div className="font-semibold">Ostatni błąd STT</div>
+                    <div className="mt-1">
+                      {stt.error || stt.lastErrorDetails?.message}
+                    </div>
+                    {stt.lastErrorDetails?.name && (
+                      <div className="mt-1 text-red-300">
+                        {stt.lastErrorDetails.name}
+                        {stt.lastErrorDetails.constraint
+                          ? ` (constraint: ${stt.lastErrorDetails.constraint})`
+                          : ""}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-2 flex items-center justify-between">
+                  <span>TTS</span>
+                  <span
+                    className={
+                      tts.isSupported ? "text-green-400" : "text-yellow-300"
+                    }
+                  >
+                    {tts.isSupported ? "dostępne" : "niedostępne"}
+                  </span>
+                </div>
+                {!tts.isSupported && tts.unsupportedReason && (
+                  <div className="mt-1 rounded-lg border border-yellow-600/30 bg-yellow-900/20 p-2 text-xs text-yellow-200">
+                    {tts.unsupportedReason}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-2">
+                <label className="block">
+                  <span className="text-xs text-gray-400">Test TTS</span>
+                  <input
+                    value={testTtsText}
+                    onChange={(e) => setTestTtsText(e.target.value)}
+                    className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-xs text-white"
+                  />
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => tts.speak(testTtsText)}
+                    disabled={!tts.isSupported}
+                    className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-white transition hover:bg-gray-600 disabled:opacity-50"
+                  >
+                    Odtwórz test
+                  </button>
+                  <button
+                    onClick={() => tts.stop()}
+                    className="rounded-lg bg-gray-800 px-3 py-1.5 text-xs text-gray-200 transition hover:bg-gray-700"
+                  >
+                    Stop
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (speech.isSupported) {
+                        speech.isListening
+                          ? speech.stopListening()
+                          : speech.startListening();
+                        return;
+                      }
+                      if (stt.isSupported) {
+                        stt.isRecording
+                          ? stt.stopRecording()
+                          : stt.startRecording();
+                      }
+                    }}
+                    disabled={
+                      !settings.mic_enabled ||
+                      (!speech.isSupported && !stt.isSupported)
+                    }
+                    className="rounded-lg bg-broxeen-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-broxeen-500 disabled:opacity-50"
+                  >
+                    {speech.isSupported
+                      ? speech.isListening
+                        ? "Zatrzymaj nasłuch"
+                        : "Test STT (nasłuch)"
+                      : stt.isRecording
+                        ? "Zatrzymaj nagrywanie"
+                        : "Test STT (nagranie)"}
+                  </button>
+                  {stt.isTranscribing && (
+                    <span className="text-xs text-gray-400">Transkrypcja…</span>
+                  )}
+                </div>
+                {(speech.interimTranscript ||
+                  speech.transcript ||
+                  stt.transcript) && (
+                  <div className="rounded-lg border border-gray-700 bg-gray-900/40 p-2 text-xs text-gray-200">
+                    {speech.isSupported ? (
+                      <>
+                        {speech.interimTranscript && (
+                          <div className="text-gray-400">
+                            {speech.interimTranscript}
+                          </div>
+                        )}
+                        {speech.transcript && <div>{speech.transcript}</div>}
+                        {speech.finalTranscript && (
+                          <div className="mt-1">{speech.finalTranscript}</div>
+                        )}
+                      </>
+                    ) : (
+                      <div>{stt.transcript}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </section>
+
           {/* TTS Section */}
           <section>
             <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase text-gray-400">

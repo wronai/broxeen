@@ -186,6 +186,7 @@ describe('MonitorPlugin', () => {
       vi.spyOn(plugin as any, 'captureCameraSnapshot').mockResolvedValue({
         base64: 'curr-base64',
         mimeType: 'image/jpeg',
+        capture: { method: 'http', frameBytes: 1024, captureMs: 50 },
       });
       vi.spyOn(plugin as any, 'computeImageChangeScore').mockResolvedValue(0.5);
       vi.spyOn(plugin as any, 'createThumbnail').mockResolvedValue({
@@ -241,6 +242,7 @@ describe('MonitorPlugin', () => {
       vi.spyOn(plugin as any, 'captureCameraSnapshot').mockResolvedValue({
         base64: 'curr-base64',
         mimeType: 'image/jpeg',
+        capture: { method: 'http', frameBytes: 1024, captureMs: 50 },
       });
       vi.spyOn(plugin as any, 'computeImageChangeScore').mockResolvedValue(0.5);
 

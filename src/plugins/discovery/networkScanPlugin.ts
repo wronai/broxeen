@@ -658,7 +658,13 @@ export class NetworkScanPlugin implements Plugin {
     return content;
   }
 
-  private formatScanResult(result: NetworkScanResult, isCameraQuery = false): string {
+  private formatScanResult(result: NetworkScanResult, isCameraQuery = false, scanStats?: {
+    devicesFound: number;
+    devicesUpdated: number;
+    newDevices: number;
+    scanDuration: number;
+    efficiency: string;
+  }): string {
     const { devices, scan_duration, scan_method } = result;
 
     let content = isCameraQuery
@@ -667,7 +673,20 @@ export class NetworkScanPlugin implements Plugin {
 
     content += `Metoda: ${scan_method}\n`;
     content += `Czas trwania: ${scan_duration}ms\n`;
-    content += `Znaleziono urządzeń: ${devices.length}\n\n`;
+    content += `Znaleziono urządzeń: ${devices.length}\n`;
+    
+    // Add scan statistics if available
+    if (scanStats) {
+      content += `Efektywność: ${scanStats.efficiency}\n`;
+      if (scanStats.newDevices > 0) {
+        content += `Nowe urządzenia: ${scanStats.newDevices}\n`;
+      }
+      if (scanStats.devicesUpdated > 0) {
+        content += `Zaktualizowane: ${scanStats.devicesUpdated}\n`;
+      }
+    }
+    
+    content += '\n';
 
     if (devices.length === 0) {
       content += `Nie znaleziono żadnych urządzeń w sieci.\n`;
