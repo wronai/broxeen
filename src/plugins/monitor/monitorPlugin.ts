@@ -175,6 +175,11 @@ export class MonitorPlugin implements Plugin {
       return await this.handleToggleMonitoring(toggle.action, toggle.identifier, context, start);
     }
 
+    // Vision Pipeline commands - check BEFORE standard monitoring commands
+    if (/vision.*pipeline|pipeline.*vision|ai.*monitor|monitoring.*ai|detekcja.*ai|yolo.*monitor|start.*vision|uruchom.*vision|w[łl]ącz.*vision|status.*vision|stop.*vision|zatrzymaj.*vision/i.test(lower)) {
+      return await this.handleVisionPipeline(input, context, start);
+    }
+
     if (/stop.*monitor|zatrzymaj.*monitor|przestań.*monitor|przestan.*monitor/i.test(lower)) {
       return await this.handleStop(input, start);
     }
@@ -189,11 +194,6 @@ export class MonitorPlugin implements Plugin {
     }
     if (/jak.*dzia[łl]a.*monitor|wyja[śs]ni[jć].*monitor|tryb.*detekcji|tryb.*wykrywan|monitor.*explain|monitor.*help/i.test(lower)) {
       return this.handleExplain(start);
-    }
-    
-    // Vision Pipeline commands
-    if (/vision.*pipeline|pipeline.*vision|ai.*monitor|monitoring.*ai|detekcja.*ai|yolo.*monitor/i.test(lower)) {
-      return await this.handleVisionPipeline(input, context, start);
     }
 
     // Default: start monitoring
