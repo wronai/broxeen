@@ -105,7 +105,7 @@ User NL Query
   - Zastąpić deklaratywną definicją w schema → router decyduje, plugin nie sprawdza
   - **Plik:** `src/plugins/discovery/networkScanPlugin.ts:27-82`
 
-- [ ] **R6: `src/plugins/system/sshPlugin.ts` — canHandle + TEXT2SSH_PATTERNS**
+- [x] **R6: `src/plugins/system/sshPlugin.ts` — canHandle + TEXT2SSH_PATTERNS**
   - `canHandle`: 7 hardkodowanych `lower.includes()` + regex
   - `TEXT2SSH_PATTERNS`: 14 entries mapping NL → shell commands
   - `resolveCommand()`: regex-matching NL do komend
@@ -120,11 +120,11 @@ User NL Query
   - `isConfigRequest`, `isSendRequest`, `isInboxRequest`, `isPollConfigRequest`: 4 metody z regex
   - **Plik:** `src/plugins/email/emailPlugin.ts:54-145`
 
-- [ ] **R8: `src/plugins/files/fileSearchPlugin.ts` — canHandle**
+- [x] **R8: `src/plugins/files/fileSearchPlugin.ts` — canHandle**
   - 20+ `lower.includes()` + 15 regex patterns
   - **Plik:** `src/plugins/files/fileSearchPlugin.ts:50-96`
 
-- [ ] **R9: `src/plugins/protocol-bridge/protocolBridgePlugin.ts` — canHandle + execute routing**
+- [x] **R9: `src/plugins/protocol-bridge/protocolBridgePlugin.ts` — canHandle + execute routing**
   - `canHandle`: 20+ regex tests
   - `execute`: 8 regex-based if/else routing blocks
   - `detectProtocolFromInput`: hardkodowane NL cues

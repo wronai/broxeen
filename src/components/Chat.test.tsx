@@ -584,6 +584,40 @@ describe("Chat — TTS auto-play", () => {
 
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(2);
   });
+
+  it("TTS controls appear only on latest message when not speaking", async () => {
+    mockAskFn = vi.fn()
+      .mockResolvedValueOnce(makePluginResponse('Pierwsza długa treść wiadomości, która powinna mieć TTS controls'))
+      .mockResolvedValueOnce(makePluginResponse('Druga długa treść wiadomości, która powinna mieć TTS controls jako najnowsza'));
+
+    render(<Chat settings={{ ...defaultSettings, tts_enabled: true }} />);
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
+
+    // Send first message
+    fireEvent.change(input, { target: { value: "first.com" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Pierwsza długa treść wiadomości/i)).toBeTruthy();
+    }, { timeout: 5000 });
+
+    // Send second message  
+    fireEvent.change(input, { target: { value: "second.com" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Druga długa treść wiadomości/i)).toBeTruthy();
+    }, { timeout: 5000 });
+
+    // Both messages should be rendered
+    expect(screen.queryByText(/Pierwsza długa treść wiadomości/i)).toBeTruthy();
+    expect(screen.queryByText(/Druga długa treść wiadomości/i)).toBeTruthy();
+
+    // When TTS is not speaking, only the latest message should have TTS controls
+    // Look for "Odsłuchaj" buttons - should only be one (on the latest message)
+    const listenButtons = screen.queryAllByText(/Odsłuchaj/i);
+    expect(listenButtons.length).toBe(1);
+  });
 });
 
 describe("Chat — mikrofon", () => {

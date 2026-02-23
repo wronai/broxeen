@@ -1288,64 +1288,77 @@ ${analysis}`,
     return urlPatterns.some(pattern => pattern.test(query));
   };
 
+  /** Data-driven config command route table: [route_key, pattern] */
+  const CONFIG_COMMAND_ROUTES: ReadonlyArray<[string, RegExp]> = [
+    ['monitor',  /^(konfiguruj\s*monitoring|monitoring\s*konfiguracja|ustaw\s*monitoring)$/i],
+    ['ai',       /konfiguruj\s*(ai|llm|model)|config\s*(ai|llm)|ustaw\s*(ai|model|klucz)/i],
+    ['network',  /^(konfiguruj\s*sie[cć]|konfiguracja\s*sieci|ustaw\s*sie[cć])$/i],
+    ['reset',    /reset.*konfig|resetuj.*konfig|przywróć.*domyśl|restore.*default/i],
+    ['help',     /^(pomoc|help|co\s+umiesz|co\s+potrafisz|jak\s+zacząć|jak\s+zaczac|start)$/i],
+    ['overview', /^(konfigur|config|ustawieni|settings|setup)/i],
+  ];
+
   /** Handle config/setup commands locally with interactive prompts */
   const handleConfigCommand = (query: string): { text: string; prompt: ConfigPromptData } | null => {
     const lower = query.toLowerCase().trim();
 
-    // Monitor config
-    if (/^(konfiguruj\s*monitoring|monitoring\s*konfiguracja|ustaw\s*monitoring)$/i.test(lower)) {
-      const intervalMs = configStore.get<number>('monitor.defaultIntervalMs');
-      const threshold = configStore.get<number>('monitor.defaultChangeThreshold');
-      const thumb = configStore.get<number>('monitor.thumbnailMaxWidth');
-      return {
-        text: `👁️ **Konfiguracja monitoringu**\n\nAktualnie: interwał **${intervalMs}ms**, próg **${Math.round((threshold || 0) * 100)}%**, miniaturka **${thumb}px**.\nWybierz akcję:`,
-        prompt: buildMonitorConfigPrompt(),
-      };
+    // Find matching route
+    let route: string | null = null;
+    for (const [key, pattern] of CONFIG_COMMAND_ROUTES) {
+      if (pattern.test(lower)) {
+        // "overview" must NOT match specific sub-config keywords
+        if (key === 'overview' && /\b(ai|llm|sieć|network|ssh|model|monitor|monitoring)\b/.test(lower)) continue;
+        route = key;
+        break;
+      }
     }
+    if (!route) return null;
 
-    // Config overview
-    if (/^(konfigur|config|ustawieni|settings|setup)/.test(lower) && !/\b(ai|llm|sieć|network|ssh|model|monitor|monitoring)\b/.test(lower)) {
-      return {
-        text: '⚙️ **Konfiguracja Broxeen**\n\nWybierz sekcję do konfiguracji:',
-        prompt: buildConfigOverviewPrompt(),
-      };
-    }
-
-    // AI / LLM config
-    if (/konfiguruj\s*(ai|llm|model)|config\s*(ai|llm)|ustaw\s*(ai|model|klucz)/i.test(lower)) {
-      const status = configStore.getConfigStatus();
-      if (!status.llmConfigured) {
+    switch (route) {
+      case 'monitor': {
+        const intervalMs = configStore.get<number>('monitor.defaultIntervalMs');
+        const threshold = configStore.get<number>('monitor.defaultChangeThreshold');
+        const thumb = configStore.get<number>('monitor.thumbnailMaxWidth');
         return {
-          text: '🧠 **Konfiguracja AI**\n\nAby korzystać z AI, potrzebujesz klucza API OpenRouter.\nWprowadź klucz poniżej lub kliknij link, aby go uzyskać:',
-          prompt: buildApiKeyPrompt(),
+          text: `👁️ **Konfiguracja monitoringu**\n\nAktualnie: interwał **${intervalMs}ms**, próg **${Math.round((threshold || 0) * 100)}%**, miniaturka **${thumb}px**.\nWybierz akcję:`,
+          prompt: buildMonitorConfigPrompt(),
         };
       }
-      return {
-        text: `🧠 **Konfiguracja AI**\n\nAktualny model: **${configStore.get('llm.model')}**\nWybierz nowy model lub zmień ustawienia:`,
-        prompt: buildModelSelectionPrompt(),
-      };
-    }
-
-    // Network config
-    if (/^(konfiguruj\s*sie[cć]|konfiguracja\s*sieci|ustaw\s*sie[cć])$/i.test(lower)) {
-      const subnet = configStore.get<string>('network.defaultSubnet');
-      return {
-        text: `🌐 **Konfiguracja sieci**\n\nAktualna podsieć: **${subnet}.0/24**\nWybierz akcję:`,
-        prompt: buildNetworkConfigPrompt(subnet),
-      };
-    }
-
-    // Reset config
-    if (/reset.*konfig|resetuj.*konfig|przywróć.*domyśl|restore.*default/i.test(lower)) {
-      configStore.reset();
-      return {
-        text: '🔄 **Konfiguracja zresetowana**\n\nPrzywrócono domyślne ustawienia. Skonfiguruj ponownie:',
-        prompt: buildConfigOverviewPrompt(),
-      };
+      case 'overview':
+        return {
+          text: '⚙️ **Konfiguracja Broxeen**\n\nWybierz sekcję do konfiguracji:',
+          prompt: buildConfigOverviewPrompt(),
+        };
+      case 'ai': {
+        const status = configStore.getConfigStatus();
+        if (!status.llmConfigured) {
+          return {
+            text: '🧠 **Konfiguracja AI**\n\nAby korzystać z AI, potrzebujesz klucza API OpenRouter.\nWprowadź klucz poniżej lub kliknij link, aby go uzyskać:',
+            prompt: buildApiKeyPrompt(),
+          };
+        }
+        return {
+          text: `🧠 **Konfiguracja AI**\n\nAktualny model: **${configStore.get('llm.model')}**\nWybierz nowy model lub zmień ustawienia:`,
+          prompt: buildModelSelectionPrompt(),
+        };
+      }
+      case 'network': {
+        const subnet = configStore.get<string>('network.defaultSubnet');
+        return {
+          text: `🌐 **Konfiguracja sieci**\n\nAktualna podsieć: **${subnet}.0/24**\nWybierz akcję:`,
+          prompt: buildNetworkConfigPrompt(subnet),
+        };
+      }
+      case 'reset':
+        configStore.reset();
+        return {
+          text: '🔄 **Konfiguracja zresetowana**\n\nPrzywrócono domyślne ustawienia. Skonfiguruj ponownie:',
+          prompt: buildConfigOverviewPrompt(),
+        };
     }
 
     // Help / what can you do
-    if (/^(pomoc|help|co\s+umiesz|co\s+potrafisz|jak\s+zacząć|jak\s+zaczac|start)$/i.test(lower)) {
+    if (route === 'help') {
       const status = configStore.getConfigStatus();
       const helpActions: import('./ChatConfigPrompt').ConfigAction[] = [
         { id: 'help-scan', label: 'Skanuj sieć', icon: '🔍', type: 'prefill', prefillText: 'skanuj sieć', variant: 'primary', description: 'Znajdź urządzenia w sieci' },
@@ -2606,7 +2619,8 @@ ${analysis}`,
 
                     {msg.role === "assistant" &&
                       !msg.loading &&
-                      msg.text.length > 50 && (
+                      msg.text.length > 50 &&
+                      (tts.isSpeaking || messages[messages.length - 1]?.id === msg.id) && (
                         <div className="mt-3 flex items-center gap-2 border-t border-gray-700/50 pt-2">
                           <TtsControls
                             isSpeaking={tts.isSpeaking}

@@ -120,82 +120,68 @@ export class ProtocolBridgePlugin implements Plugin {
   private static readonly MAX_WS_MESSAGES = 50;
   private static readonly MAX_SSE_EVENTS = 50;
 
+  /** Consolidated patterns for canHandle */
+  private static readonly CAN_HANDLE_PATTERNS: readonly RegExp[] = [
+    /bridge/i,
+    /most.*protokó?ł|most.*protokol/i,
+    /mqtt.*te[xk]st|mqtt.*g[łl]os|mqtt.*voice/i,
+    /rest.*te[xk]st|rest.*g[łl]os|rest.*voice/i,
+    /wy[śs]lij.*(?:mqtt|rest|ws)/i, /odczytaj.*(?:mqtt|rest)/i, /pobierz.*rest/i,
+    /dodaj.*bridge|usu[ńn].*bridge/i,
+    /protokó?ł.*most|protokol.*most/i,
+    /websocket|web.?socket/i, /po[łl][aą]cz.*ws/i,
+    /\bsse\b/i, /server.?sent/i, /nas[łl]uchuj.*zdarze/i,
+    /graphql/i, /zapytaj.*api/i,
+    /po[łl][aą]cz.*si[eę].*z/i, /nas[łl]uchuj/i,
+    /strumie[ńn].*danych/i,
+  ];
+
+  /** Ordered route table for execute: [route_key, patterns] */
+  private static readonly ROUTE_TABLE: ReadonlyArray<[string, readonly RegExp[]]> = [
+    ['remove',    [/usu[ńn].*bridge|remove.*bridge|delete.*bridge/i]],
+    ['list',      [/lista.*bridge|list.*bridge|bridge.*list[a]?|poka[żz].*bridge/i]],
+    ['status',    [/bridge.*status|status.*bridge|stan.*bridge/i]],
+    ['add',       [/dodaj.*bridge|add.*bridge|nowy?.*bridge|new.*bridge|konfiguruj.*bridge|configure.*bridge/i]],
+    ['send',      [/wy[śs]lij|send|publish|opublikuj|post\s/i]],
+    ['websocket', [/websocket|web.?socket|bridge.*ws\b|po[łl][aą]cz.*ws/i]],
+    ['sse',       [/\bsse\b|server.?sent|nas[łl]uchuj.*zdarze|bridge.*sse/i]],
+    ['graphql',   [/graphql|bridge.*graphql|zapytaj.*api/i]],
+  ];
+
+  private static resolveRoute(input: string): string | null {
+    const lower = input.toLowerCase();
+    for (const [key, patterns] of ProtocolBridgePlugin.ROUTE_TABLE) {
+      if (patterns.some(p => p.test(lower))) return key;
+    }
+    return null;
+  }
+
   async canHandle(input: string, _context: PluginContext): Promise<boolean> {
     const lower = input.toLowerCase();
-    return /bridge/i.test(lower) ||
-      /most.*protokół|most.*protokol/i.test(lower) ||
-      /mqtt.*text|mqtt.*tekst|mqtt.*głos|mqtt.*glos|mqtt.*voice/i.test(lower) ||
-      /rest.*text|rest.*tekst|rest.*głos|rest.*glos|rest.*voice/i.test(lower) ||
-      /wyślij.*mqtt|wyslij.*mqtt|wyślij.*rest|wyslij.*rest/i.test(lower) ||
-      /odczytaj.*mqtt|odczytaj.*rest|pobierz.*rest/i.test(lower) ||
-      /dodaj.*bridge|usuń.*bridge|usun.*bridge/i.test(lower) ||
-      /protokół.*most|protokol.*most/i.test(lower) ||
-      // WebSocket
-      /websocket|web.?socket/i.test(lower) ||
-      /połącz.*ws|polacz.*ws/i.test(lower) ||
-      /bridge.*ws\b/i.test(lower) ||
-      /wyślij.*ws|wyslij.*ws/i.test(lower) ||
-      // SSE
-      /\bsse\b/i.test(lower) ||
-      /server.?sent/i.test(lower) ||
-      /nasłuchuj.*zdarze|nasluchuj.*zdarze/i.test(lower) ||
-      /bridge.*sse/i.test(lower) ||
-      // GraphQL
-      /graphql/i.test(lower) ||
-      /zapytaj.*api/i.test(lower) ||
-      /bridge.*graphql/i.test(lower) ||
-      // Natural language shortcuts (PL)
-      /połącz.*się.*z|polacz.*sie.*z/i.test(lower) ||
-      /nasłuchuj|nasluchuj/i.test(lower) ||
-      /strumień.*danych|strumien.*danych/i.test(lower);
+    return ProtocolBridgePlugin.CAN_HANDLE_PATTERNS.some(p => p.test(lower));
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
-    const lower = input.toLowerCase();
+    const route = ProtocolBridgePlugin.resolveRoute(input);
 
-    // ── Remove bridge ────────────────────────────────────
-    if (/usuń.*bridge|usun.*bridge|remove.*bridge|delete.*bridge/i.test(lower)) {
-      return this.handleRemove(input, start);
-    }
-
-    // ── List bridges ─────────────────────────────────────
-    if (/lista.*bridge|list.*bridge|bridge.*lista|bridge.*list|pokaż.*bridge|pokaz.*bridge/i.test(lower)) {
-      return this.handleList(start);
-    }
-
-    // ── Bridge status ────────────────────────────────────
-    if (/bridge.*status|status.*bridge|stan.*bridge/i.test(lower)) {
-      return this.handleStatus(start);
-    }
-
-    // ── Add new bridge endpoint ──────────────────────────
-    if (/dodaj.*bridge|add.*bridge|nowy.*bridge|new.*bridge|konfiguruj.*bridge|configure.*bridge/i.test(lower)) {
-      return this.handleAdd(input, start);
-    }
-
-    // ── Send to protocol ─────────────────────────────────
-    if (/wyślij|wyslij|send|publish|opublikuj|post\s/i.test(lower)) {
-      return this.handleSend(input, context, start);
-    }
-
-    // ── WebSocket ────────────────────────────────────────
-    if (/websocket|web.?socket|bridge.*ws\b|połącz.*ws|polacz.*ws/i.test(lower) ||
-        (/wss?:\/\//i.test(input) && !/mqtt/i.test(lower))) {
+    // Special case: websocket via URL scheme (wss:// without mqtt)
+    if (!route && /wss?:\/\//i.test(input) && !/mqtt/i.test(input)) {
       return this.handleWebSocket(input, context, start);
     }
 
-    // ── SSE ──────────────────────────────────────────────
-    if (/\bsse\b|server.?sent|nasłuchuj.*zdarze|nasluchuj.*zdarze|bridge.*sse/i.test(lower)) {
-      return this.handleSse(input, context, start);
+    switch (route) {
+      case 'remove':    return this.handleRemove(input, start);
+      case 'list':      return this.handleList(start);
+      case 'status':    return this.handleStatus(start);
+      case 'add':       return this.handleAdd(input, start);
+      case 'send':      return this.handleSend(input, context, start);
+      case 'websocket': return this.handleWebSocket(input, context, start);
+      case 'sse':       return this.handleSse(input, context, start);
+      case 'graphql':   return this.handleGraphQL(input, context, start);
     }
 
-    // ── GraphQL ──────────────────────────────────────────
-    if (/graphql|bridge.*graphql|zapytaj.*api/i.test(lower)) {
-      return this.handleGraphQL(input, context, start);
-    }
-
-    // ── Natural language auto-detection ──────────────────
+    // Natural language auto-detection fallback
     const autoProtocol = this.detectProtocolFromInput(input);
     if (autoProtocol) {
       switch (autoProtocol) {
@@ -206,7 +192,7 @@ export class ProtocolBridgePlugin implements Plugin {
       }
     }
 
-    // ── Read from protocol (default) ─────────────────────
+    // Default: read from protocol
     return this.handleRead(input, context, start);
   }
 

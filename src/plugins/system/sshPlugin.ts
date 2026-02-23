@@ -85,15 +85,38 @@ const TEXT2SSH_PATTERNS: Array<{ patterns: RegExp[]; command: string; descriptio
 ];
 
 export class SshPlugin implements Plugin {
+  // ── Data-driven command routing table ─────────────────────────────────
+  // Each entry: [pattern, handler-key]. Checked in order; first match wins.
+  private static readonly ROUTE_TABLE: ReadonlyArray<[RegExp, string]> = [
+    // List known SSH hosts (highest priority to catch before general ssh)
+    [/\bssh\s+hosty\b|znane\s+hosty/i, 'hosts'],
+    // Plain "ssh" command - list hosts  
+    [/^ssh\s*$/i, 'hosts'],
+    // Test SSH connection
+    [/\btest\s+ssh\b|sprawd[zź]\s+ssh/i, 'test'],
+    // Direct SSH execution
+    [/^ssh\s+/i, 'execute'],
+    [/^text2ssh\s+/i, 'execute'],
+    [/\b(?:połącz|polacz)\s+ssh\b/i, 'execute'],
+    [/\bwykonaj\s+na\s+\d/i, 'execute'],
+    [/\b(?:sprawd[zź]|check|pokaż|pokaz)\s+(?:na|on)\s+\d/i, 'execute'],
+  ];
+
   readonly id = 'ssh';
   readonly name = 'SSH / text2ssh';
   readonly version = '1.0.0';
   readonly supportedIntents = ['ssh:execute', 'ssh:connect', 'ssh:test', 'ssh:hosts'];
 
-  private static readonly CAN_HANDLE_PATTERNS: readonly RegExp[] = [
+  // All patterns that canHandle should match (includes ROUTE_TABLE + general SSH)
+  private static readonly CAN_HANDLE_PATTERNS: ReadonlyArray<RegExp> = [
+    // General SSH indicators
     /ssh/i, /text2ssh/i, /zdaln/i,
+    // Connection commands
     /^połącz/i, /^polacz/i, /^wykonaj\s+na/i, /^run\s+on/i,
-    /(?:sprawdź|sprawdz|check|pokaż|pokaz)\s+(?:na|on)\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/i,
+    // Check commands with IP
+    /(?:sprawd[zź]|sprawdz|check|pokaż|pokaz)\s+(?:na|on)\s+\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/i,
+    // All route patterns
+    ...SshPlugin.ROUTE_TABLE.map(([pattern]) => pattern),
   ];
 
   async canHandle(input: string, _context: PluginContext): Promise<boolean> {
@@ -106,53 +129,63 @@ export class SshPlugin implements Plugin {
     const lower = input.toLowerCase();
 
     try {
-      // List known SSH hosts
-      if (lower.includes('ssh host') || lower.includes('znane hosty') || lower === 'ssh') {
-        return await this.listKnownHosts(context, start);
+      // Route through the command table
+      for (const [pattern, key] of SshPlugin.ROUTE_TABLE) {
+        if (!pattern.test(lower)) continue;
+
+        switch (key) {
+          case 'hosts':
+            return await this.listKnownHosts(context, start);
+          case 'test':
+            const testHost = this.extractHost(input);
+            if (!testHost) return this.errorResult('Podaj adres hosta do testu SSH.', start);
+            return await this.testConnection(testHost, input, context, start);
+          case 'execute':
+            return await this.handleExecute(input, context, start);
+        }
       }
 
-      // Test SSH connection
-      if (lower.includes('test ssh') || lower.includes('sprawdź ssh') || lower.includes('sprawdz ssh')) {
-        const host = this.extractHost(input);
-        if (!host) return this.errorResult('Podaj adres hosta do testu SSH.', start);
-        return await this.testConnection(host, input, context, start);
-      }
-
-      // text2ssh: detect command from natural language or execute raw
-      const host = this.extractHost(input);
-      if (!host) {
-        const subnet = configStore.get<string>('network.defaultSubnet');
-      return this.errorResult(
-          `📡 **SSH — Podaj adres hosta**\n\nPrzykłady:\n- "ssh ${subnet}.100 uptime"\n- "sprawdź dysk na ${subnet}.100"\n- "text2ssh ${subnet}.1 jakie procesy działają"\n- "ssh hosty" — pokaż znane hosty`,
-          start,
-        );
-      }
-
-      const { command, description } = this.resolveCommand(input, host);
-
-      if (!context.isTauri || !context.tauriInvoke) {
-        return this.errorResult(
-          `Wykonanie SSH na ${host} wymaga trybu Tauri (aplikacja desktopowa).`,
-          start,
-        );
-      }
-
-      const sshCfg = configStore.getAll().ssh;
-      const result = (await context.tauriInvoke('ssh_execute', {
-        host,
-        command,
-        user: this.extractUser(input) || sshCfg.defaultUser,
-        port: this.extractPort(input) || sshCfg.defaultPort,
-        timeout: sshCfg.defaultTimeoutSec,
-      })) as SshExecResult;
-
-      return this.formatSshResult(host, command, description, result, start);
+      // Fallback: treat as general SSH command
+      return await this.handleExecute(input, context, start);
     } catch (err) {
       return this.errorResult(
         `Błąd SSH: ${err instanceof Error ? err.message : String(err)}`,
         start,
       );
     }
+  }
+
+  // ── Execute SSH command ───────────────────────────────────────
+
+  private async handleExecute(input: string, context: PluginContext, start: number): Promise<PluginResult> {
+    const host = this.extractHost(input);
+    if (!host) {
+      const subnet = configStore.get<string>('network.defaultSubnet');
+      return this.errorResult(
+        `📡 **SSH — Podaj adres hosta**\n\nPrzykłady:\n- "ssh ${subnet}.100 uptime"\n- "sprawdź dysk na ${subnet}.100"\n- "text2ssh ${subnet}.1 jakie procesy działają"\n- "ssh hosty" — pokaż znane hosty`,
+        start,
+      );
+    }
+
+    const { command, description } = this.resolveCommand(input, host);
+
+    if (!context.isTauri || !context.tauriInvoke) {
+      return this.errorResult(
+        `Wykonanie SSH na ${host} wymaga trybu Tauri (aplikacja desktopowa).`,
+        start,
+      );
+    }
+
+    const sshCfg = configStore.getAll().ssh;
+    const result = (await context.tauriInvoke('ssh_execute', {
+      host,
+      command,
+      user: this.extractUser(input) || sshCfg.defaultUser,
+      port: this.extractPort(input) || sshCfg.defaultPort,
+      timeout: sshCfg.defaultTimeoutSec,
+    })) as SshExecResult;
+
+    return this.formatSshResult(host, command, description, result, start);
   }
 
   private async listKnownHosts(context: PluginContext, start: number): Promise<PluginResult> {
