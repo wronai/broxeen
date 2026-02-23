@@ -315,4 +315,45 @@ describe('NetworkScanPlugin execute', () => {
       }),
     }));
   });
+
+  it('forces full scan for camera discovery even when strategy recommends incremental', async () => {
+    const plugin = new NetworkScanPlugin() as any;
+
+    const tauriInvoke = vi.fn(async (cmd: string) => {
+      if (cmd === 'scan_network') {
+        return {
+          devices: [],
+          scan_duration: 10,
+          scan_method: 'tcp-connect-parallel',
+          subnet: '192.168.1',
+        };
+      }
+      return [];
+    });
+
+    plugin.determineScanStrategy = vi.fn(async () => ({
+      type: 'incremental',
+      subnet: '192.168.1',
+      targetRanges: ['192.168.1.1-10'],
+      triggeredBy: 'manual',
+    }));
+
+    plugin.persistDevices = vi.fn(async () => undefined);
+    plugin.trackScanResults = vi.fn(async () => ({
+      devicesFound: 0,
+      devicesUpdated: 0,
+      newDevices: 0,
+      scanDuration: 1,
+      efficiency: '0 devices/s',
+    }));
+
+    await plugin.execute('pokaż kamery 192.168.1', { isTauri: true, tauriInvoke } as any);
+
+    expect(tauriInvoke).toHaveBeenCalledWith('scan_network', expect.objectContaining({
+      args: expect.objectContaining({
+        incremental: false,
+        target_ranges: [],
+      }),
+    }));
+  });
 });

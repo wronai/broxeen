@@ -382,16 +382,20 @@ export class NetworkScanPlugin implements Plugin {
         try {
           // Determine scan strategy (incremental vs full)
           const scanStrategy = await this.determineScanStrategy(userSpecifiedSubnet, context);
+          // Camera discovery should prefer full scans. Incremental windows are great for periodic refresh,
+          // but they can easily miss a newly added camera IP in the same /24 (e.g. .176 not in the window).
+          const effectiveScanType: 'full' | 'incremental' | 'targeted' =
+            isCameraQuery ? 'full' : scanStrategy.type;
           const scanStart = Date.now();
 
-          console.log(`[NetworkScanPlugin] Starting ${scanStrategy.type} scan via Tauri...`);
+          console.log(`[NetworkScanPlugin] Starting ${effectiveScanType} scan via Tauri...`);
           
           const result = await context.tauriInvoke('scan_network', {
             args: {
               subnet: userSpecifiedSubnet || scanStrategy.subnet,
               timeout: 5000,
-              incremental: scanStrategy.type === 'incremental',
-              target_ranges: scanStrategy.targetRanges || [],
+              incremental: effectiveScanType === 'incremental',
+              target_ranges: effectiveScanType === 'incremental' ? (scanStrategy.targetRanges || []) : [],
             },
           }) as NetworkScanResult;
 
@@ -399,7 +403,7 @@ export class NetworkScanPlugin implements Plugin {
           const scanStats = await this.trackScanResults(
             scanId,
             userSpecifiedSubnet || scanStrategy.subnet,
-            scanStrategy.type,
+            effectiveScanType,
             result,
             scanStart,
             scanStrategy.triggeredBy,
