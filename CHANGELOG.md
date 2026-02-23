@@ -1,3 +1,22 @@
+## [1.0.61] - 2026-02-23
+
+### Summary
+
+fix(tests): configuration management system
+
+### Other
+
+- update src/App.tsx
+- update src/components/DiagnosticsModal.tsx
+- update src/components/MicSettingsModal.tsx
+- update src/components/TtsSettingsModal.tsx
+- update src/core/bootstrap.ts
+- update src/plugins/discovery/autoScanScheduler.test.ts
+- update src/plugins/discovery/autoScanScheduler.ts
+- update src/plugins/discovery/networkScanPlugin.test.ts
+- update src/plugins/discovery/networkScanPlugin.ts
+
+
 ## [1.0.60] - 2026-02-23
 
 ### Added

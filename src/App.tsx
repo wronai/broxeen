@@ -1,15 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  Settings as SettingsIcon,
   Mic,
   MicOff,
   Volume2,
   VolumeX,
+  Activity,
 } from "lucide-react";
 import { CqrsProvider } from "./contexts/CqrsContext";
 import Chat from "./components/Chat";
-import Settings from "./components/Settings";
+import MicSettingsModal from "./components/MicSettingsModal";
+import TtsSettingsModal from "./components/TtsSettingsModal";
+import DiagnosticsModal from "./components/DiagnosticsModal";
 import { HealthDiagnostic } from "./components/HealthDiagnostic";
 import { ErrorReportPanel } from "./components/ErrorReportPanel";
 import { useTts } from "./hooks/useTts";
@@ -28,7 +30,9 @@ import { runQuickHealthCheck } from "./utils/healthCheck";
 import { errorReporting } from "./utils/errorReporting";
 
 export default function App() {
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [micSettingsOpen, setMicSettingsOpen] = useState(false);
+  const [ttsSettingsOpen, setTtsSettingsOpen] = useState(false);
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
   const [errorReportOpen, setErrorReportOpen] = useState(false);
   const [settings, setSettings] = useState<AudioSettings>(
     DEFAULT_AUDIO_SETTINGS,
@@ -215,7 +219,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [settingsOpen]);
+  }, [micSettingsOpen, ttsSettingsOpen]);  
 
   useEffect(() => {
     const cleanup = () => {
@@ -348,100 +352,65 @@ export default function App() {
             v1.0.1
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <div
-            className="flex items-center gap-2 rounded-lg bg-gray-800 px-2.5 py-2"
-            title={
-              [
-                `Mikrofon: ${settings.mic_enabled ? "włączony" : "wyłączony"}`,
-                `Mic device: ${activeMic?.label || activeMic?.deviceId || "brak"}`,
-                `Speaker device: ${
-                  activeSpeaker?.label || activeSpeaker?.deviceId || "brak"
-                }`,
-                `Mic level: ${Math.round(micLevel * 100)}%`,
-                `TTS volume: ${Math.round(settings.tts_volume * 100)}%`,
-                `TTS speaking: ${tts.isSpeaking ? "true" : "false"}`,
-              ].join("\n")
-            }
+        <div className="flex items-center gap-2">
+          {/* Mic button + live level bar */}
+          <button
+            onClick={() => setMicSettingsOpen(true)}
+            className={`group flex items-center gap-2 rounded-lg px-2.5 py-2 transition ${
+              settings.mic_enabled
+                ? "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+                : "bg-gray-800/50 text-gray-500 hover:bg-gray-700 hover:text-gray-300"
+            }`}
+            title="Ustawienia mikrofonu & STT"
           >
-            <div className="flex items-center gap-2">
+            {settings.mic_enabled ? <Mic size={16} /> : <MicOff size={16} />}
+            <div className="flex items-center gap-1.5">
               <div
                 className={
-                  "h-2 w-2 rounded-full " +
+                  "h-2 w-2 rounded-full flex-shrink-0 transition-colors " +
                   (settings.mic_enabled
                     ? micLevelActive
                       ? "bg-green-400"
-                      : "bg-yellow-300"
-                    : "bg-gray-500")
+                      : "bg-yellow-400/60"
+                    : "bg-gray-600")
                 }
               />
-              <div className="h-2 w-14 overflow-hidden rounded bg-gray-700">
+              <div className="h-2 w-12 overflow-hidden rounded-full bg-gray-700">
                 <div
                   className={
-                    "h-2 transition-all " +
-                    (micLevelActive ? "bg-green-500" : "bg-gray-500")
+                    "h-2 transition-all duration-75 " +
+                    (micLevelActive ? "bg-green-500" : "bg-gray-600")
                   }
                   style={{ width: `${Math.round(micLevel * 100)}%` }}
                 />
               </div>
             </div>
-
-            <div className="h-4 w-px bg-gray-700" />
-
-            <div
-              className={
-                "text-[11px] font-medium " +
-                (activeSpeaker || settings.speaker_device_id === "default"
-                  ? "text-gray-200"
-                  : "text-yellow-300")
-              }
-            >
-              SPK {Math.round(settings.tts_volume * 100)}%
-              {tts.isSpeaking ? " • speaking" : ""}
-            </div>
-          </div>
-
-          <button
-            onClick={() => updateSettings({ mic_enabled: !settings.mic_enabled })}
-            className="flex items-center justify-center rounded-lg bg-gray-800 px-2.5 py-2 text-gray-300 transition hover:bg-gray-700 hover:text-white"
-            title={settings.mic_enabled ? "Mikrofon: włączony" : "Mikrofon: wyłączony"}
-            aria-label={settings.mic_enabled ? "Wyłącz mikrofon" : "Włącz mikrofon"}
-          >
-            {settings.mic_enabled ? <Mic size={16} /> : <MicOff size={16} />}
           </button>
 
+          {/* Speaker / TTS button */}
           <button
-            onClick={() => updateSettings({ stt_enabled: !settings.stt_enabled })}
-            className={`flex items-center justify-center rounded-lg px-2.5 py-2 transition hover:bg-gray-700 hover:text-white ${
-              settings.stt_enabled
-                ? "bg-gray-800 text-gray-300"
-                : "bg-gray-800/60 text-gray-500"
-            }`}
-            title={settings.stt_enabled ? "STT: włączone" : "STT: wyłączone"}
-            aria-label={settings.stt_enabled ? "Wyłącz STT" : "Włącz STT"}
-          >
-            <Mic size={16} />
-          </button>
-
-          <button
-            onClick={() => updateSettings({ tts_enabled: !settings.tts_enabled })}
-            className={`flex items-center justify-center rounded-lg px-2.5 py-2 transition hover:bg-gray-700 hover:text-white ${
+            onClick={() => setTtsSettingsOpen(true)}
+            className={`flex items-center gap-2 rounded-lg px-2.5 py-2 transition ${
               settings.tts_enabled
-                ? "bg-gray-800 text-gray-300"
-                : "bg-gray-800/60 text-gray-500"
+                ? "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+                : "bg-gray-800/50 text-gray-500 hover:bg-gray-700 hover:text-gray-300"
             }`}
-            title={settings.tts_enabled ? "TTS: włączone" : "TTS: wyłączone"}
-            aria-label={settings.tts_enabled ? "Wyłącz TTS" : "Włącz TTS"}
+            title="Ustawienia głośnika & TTS"
           >
             {settings.tts_enabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            <span className="text-[11px] font-medium">
+              {Math.round(settings.tts_volume * 100)}%
+              {tts.isSpeaking ? " ▶" : ""}
+            </span>
           </button>
 
+          {/* Diagnostics button */}
           <button
-            onClick={() => setSettingsOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-2 text-sm text-gray-300 transition hover:bg-gray-700 hover:text-white"
+            onClick={() => setDiagnosticsOpen(true)}
+            className="flex items-center justify-center rounded-lg bg-gray-800 px-2.5 py-2 text-gray-400 transition hover:bg-gray-700 hover:text-white"
+            title="Diagnostyka"
           >
-            <SettingsIcon size={16} />
-            Ustawienia
+            <Activity size={16} />
           </button>
         </div>
       </header>
@@ -467,12 +436,30 @@ export default function App() {
         )}
       </CqrsProvider>
 
-      {/* Settings modal */}
-      <Settings
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+      {/* Mic settings modal */}
+      <MicSettingsModal
+        isOpen={micSettingsOpen}
+        onClose={() => setMicSettingsOpen(false)}
+        settings={settings}
+        onSettingsChange={setSettings}
+        micLevel={micLevel}
+        micLevelActive={micLevelActive}
+      />
+
+      {/* TTS settings modal */}
+      <TtsSettingsModal
+        isOpen={ttsSettingsOpen}
+        onClose={() => setTtsSettingsOpen(false)}
+        settings={settings}
         onSettingsChange={setSettings}
         voices={voices}
+      />
+
+      {/* Diagnostics modal */}
+      <DiagnosticsModal
+        isOpen={diagnosticsOpen}
+        onClose={() => setDiagnosticsOpen(false)}
+        settings={settings}
       />
 
       {/* Health diagnostic */}

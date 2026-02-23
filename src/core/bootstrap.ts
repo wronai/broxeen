@@ -58,6 +58,19 @@ export async function bootstrapApp(config: {
 
   console.log(`✅ Plugin system initialized — ${pluginRegistry.getAll().length} plugins, scope: ${scopeRegistry.getActiveScope().id}`);
 
+  // Start periodic auto-scan (Tauri only)
+  let autoScanSchedulerInstance: import('../plugins/discovery/autoScanScheduler').AutoScanScheduler | null = null;
+  if (config.isTauri && config.tauriInvoke) {
+    try {
+      const { AutoScanScheduler } = await import('../plugins/discovery/autoScanScheduler');
+      autoScanSchedulerInstance = new AutoScanScheduler();
+      autoScanSchedulerInstance.start(pluginContext);
+      console.log('✅ AutoScanScheduler started');
+    } catch (e) {
+      console.warn('⚠️ AutoScanScheduler unavailable:', e);
+    }
+  }
+
   // Store the tauriInvoke for use in command bus
   const sharedTauriInvoke = config.tauriInvoke;
 
@@ -68,6 +81,7 @@ export async function bootstrapApp(config: {
     databaseManager: dbManager,
     dispose: async () => {
       console.log('🧹 Disposing plugin system...');
+      autoScanSchedulerInstance?.stop();
       await pluginRegistry.disposeAll();
       commandBus.clear();
       scopeRegistry.persist();

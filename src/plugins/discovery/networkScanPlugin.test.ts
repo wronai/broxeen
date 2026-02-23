@@ -72,6 +72,69 @@ describe('NetworkScanPlugin canHandle', () => {
     const ok = await plugin.canHandle('znajdź rpi w sieci', { isTauri: false } as any);
     expect(ok).toBe(true);
   });
+
+  it('handles device status queries', async () => {
+    const plugin = new NetworkScanPlugin();
+    expect(await plugin.canHandle('status urządzeń', { isTauri: false } as any)).toBe(true);
+    expect(await plugin.canHandle('lista urządzeń', { isTauri: false } as any)).toBe(true);
+    expect(await plugin.canHandle('znane urządzenia', { isTauri: false } as any)).toBe(true);
+    expect(await plugin.canHandle('pokaż urządzenia', { isTauri: false } as any)).toBe(true);
+    expect(await plugin.canHandle('device status', { isTauri: false } as any)).toBe(true);
+  });
+});
+
+describe('NetworkScanPlugin handleDeviceStatus', () => {
+  it('returns error when no databaseManager', async () => {
+    const plugin = new NetworkScanPlugin();
+    const result = await plugin.execute('status urządzeń', { isTauri: true } as any);
+    expect(result.status).toBe('error');
+    expect(result.content[0].data).toContain('niedostępna');
+  });
+
+  it('returns empty message when no devices in DB', async () => {
+    const plugin = new NetworkScanPlugin();
+    const mockDb = {
+      query: vi.fn(async () => []),
+      execute: vi.fn(async () => {}),
+      queryOne: vi.fn(async () => null),
+    };
+    const ctx = {
+      isTauri: true,
+      databaseManager: { getDevicesDb: () => mockDb },
+    } as any;
+
+    const result = await plugin.execute('status urządzeń', ctx);
+    expect(result.status).toBe('success');
+    expect(result.content[0].data).toContain('Brak zapisanych urządzeń');
+  });
+
+  it('classifies devices as online/offline based on last_seen', async () => {
+    const plugin = new NetworkScanPlugin();
+    const now = Date.now();
+    const mockDevices = [
+      { id: '1', ip: '192.168.1.1', hostname: 'router', mac: null, vendor: null, last_seen: now - 5 * 60 * 1000 },     // 5 min ago → online
+      { id: '2', ip: '192.168.1.100', hostname: null, mac: null, vendor: null, last_seen: now - 30 * 60 * 1000 },       // 30 min ago → niedawno
+      { id: '3', ip: '192.168.1.200', hostname: 'cam', mac: null, vendor: null, last_seen: now - 3 * 60 * 60 * 1000 }, // 3 h ago → offline
+    ];
+    const mockDb = {
+      query: vi.fn(async () => mockDevices),
+      execute: vi.fn(async () => {}),
+      queryOne: vi.fn(async () => null),
+    };
+    const ctx = {
+      isTauri: true,
+      databaseManager: { getDevicesDb: () => mockDb },
+    } as any;
+
+    const result = await plugin.execute('status urządzeń', ctx);
+    expect(result.status).toBe('success');
+    const data = result.content[0].data;
+    expect(data).toContain('🟢');
+    expect(data).toContain('🔴');
+    expect(data).toContain('online: 1');
+    expect(data).toContain('192.168.1.1');
+    expect((result.metadata as any).deviceCount).toBe(3);
+  });
 });
 
 describe('NetworkScanPlugin execute', () => {

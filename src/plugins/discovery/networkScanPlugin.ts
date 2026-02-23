@@ -40,13 +40,218 @@ export class NetworkScanPlugin implements Plugin {
       'rpi',
     ];
     
+    const statusKeywords = [
+      'status urządzeń', 'status urzadzen', 'lista urządzeń', 'lista urzadzen',
+      'znane urządzenia', 'znane urzadzenia', 'device status', 'device list',
+      'galeria urządzeń', 'galeria urzadzen', 'pokaż urządzenia', 'pokaz urzadzenia',
+    ];
+
+    const filterKeywords = [
+      'filtruj urządzenia', 'filtruj urzadzenia', 'filter devices',
+      'tylko kamery', 'tylko routery', 'tylko drukarki',
+      'urządzenia typ', 'urzadzenia typ', 'devices type',
+    ];
+
     return scanKeywords.some(keyword => lowerInput.includes(keyword)) ||
            cameraKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           raspberryPiKeywords.some(keyword => lowerInput.includes(keyword));
+           raspberryPiKeywords.some(keyword => lowerInput.includes(keyword)) ||
+           statusKeywords.some(keyword => lowerInput.includes(keyword)) ||
+           filterKeywords.some(keyword => lowerInput.includes(keyword));
+  }
+
+  private isStatusQuery(input: string): boolean {
+    const lower = input.toLowerCase();
+    return [
+      'status urządzeń', 'status urzadzen', 'lista urządzeń', 'lista urzadzen',
+      'znane urządzenia', 'znane urzadzenia', 'device status', 'device list',
+      'galeria urządzeń', 'galeria urzadzen', 'pokaż urządzenia', 'pokaz urzadzenia',
+    ].some(k => lower.includes(k));
+  }
+
+  private isFilterQuery(input: string): boolean {
+    const lower = input.toLowerCase();
+    return [
+      'filtruj urządzenia', 'filtruj urzadzenia', 'filter devices',
+      'tylko kamery', 'tylko routery', 'tylko drukarki',
+      'urządzenia typ', 'urzadzenia typ', 'devices type',
+    ].some(k => lower.includes(k));
+  }
+
+  private extractFilterType(input: string): string | null {
+    const lower = input.toLowerCase();
+    if (lower.includes('kamer') || lower.includes('camera')) return 'camera';
+    if (lower.includes('router') || lower.includes('gateway')) return 'gateway';
+    if (lower.includes('drukark') || lower.includes('print')) return 'printer';
+    if (lower.includes('raspberry') || lower.includes('rpi') || lower.includes('linux')) return 'linux-device';
+    if (lower.includes('web') || lower.includes('http')) return 'web-device';
+    if (lower.includes('iot') || lower.includes('smart')) return 'iot-device';
+    return null;
+  }
+
+  private async handleDeviceFilter(input: string, context: PluginContext, start: number): Promise<PluginResult> {
+    if (!context.databaseManager) {
+      return {
+        pluginId: this.id,
+        status: 'error',
+        content: [{ type: 'text', data: 'Baza danych niedostępna (tryb przeglądarkowy).' }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    const filterType = this.extractFilterType(input);
+    const repo = new DeviceRepository(context.databaseManager.getDevicesDb());
+    const allDevices = await repo.listDevices(200);
+
+    const DEVICE_TYPE_LABELS: Record<string, string> = {
+      'camera': '📷 Kamery',
+      'gateway': '🌐 Routery/Bramy',
+      'printer': '🖨️ Drukarki',
+      'linux-device': '🐧 Linux/RPi',
+      'web-device': '🌍 Urządzenia HTTP',
+      'iot-device': '📡 IoT/Smart',
+    };
+
+    if (!filterType) {
+      // Show type summary
+      const byType = new Map<string, number>();
+      for (const d of allDevices) {
+        const t = (d as any).device_type || 'unknown';
+        byType.set(t, (byType.get(t) ?? 0) + 1);
+      }
+      const lines = [
+        `## 🔍 Typy urządzeń (${allDevices.length} łącznie)`,
+        '',
+        ...Array.from(byType.entries())
+          .sort((a, b) => b[1] - a[1])
+          .map(([type, count]) => {
+            const label = DEVICE_TYPE_LABELS[type] ?? `❓ ${type}`;
+            return `- ${label}: **${count}**`;
+          }),
+        '',
+        `_Użyj: \`tylko kamery\`, \`tylko routery\`, \`filtruj urządzenia typ:linux\`_`,
+      ];
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data: lines.join('\n'), title: 'Typy urządzeń' }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, deviceCount: allDevices.length } as any,
+      };
+    }
+
+    const filtered = allDevices.filter(d => (d as any).device_type === filterType);
+    const typeLabel = DEVICE_TYPE_LABELS[filterType] ?? filterType;
+    const now = Date.now();
+    const ONLINE_MS = 15 * 60 * 1000;
+
+    if (filtered.length === 0) {
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data: `🔍 Brak urządzeń typu **${typeLabel}** w bazie.\n\n_Uruchom \`skanuj sieć\` aby odkryć urządzenia._` }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    const rows = filtered.map(d => {
+      const ageMs = now - d.last_seen;
+      const icon = ageMs < ONLINE_MS ? '🟢' : '🔴';
+      const name = d.hostname || d.ip;
+      const ageFmt = ageMs < 60_000 ? `${Math.round(ageMs / 1000)}s` : ageMs < 3_600_000 ? `${Math.round(ageMs / 60_000)} min` : `${Math.round(ageMs / 3_600_000)} h`;
+      return `${icon} **${name}** \`${d.ip}\` — ${ageFmt} temu`;
+    });
+
+    const lines = [
+      `## ${typeLabel} (${filtered.length})`,
+      '',
+      ...rows,
+    ];
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data: lines.join('\n'), title: typeLabel }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, deviceCount: filtered.length } as any,
+    };
+  }
+
+  private async handleDeviceStatus(context: PluginContext, start: number): Promise<PluginResult> {
+    if (!context.databaseManager) {
+      return {
+        pluginId: this.id,
+        status: 'error',
+        content: [{ type: 'text', data: 'Baza danych niedostępna (tryb przeglądarkowy).' }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    const repo = new DeviceRepository(context.databaseManager.getDevicesDb());
+    const devices = await repo.listDevices(200);
+
+    if (devices.length === 0) {
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{ type: 'text', data: '📭 Brak zapisanych urządzeń. Uruchom `skanuj sieć` aby odkryć urządzenia.' }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    const now = Date.now();
+    const ONLINE_THRESHOLD_MS = 15 * 60 * 1000;  // 15 min → online
+    const RECENT_THRESHOLD_MS = 60 * 60 * 1000;  // 1 h → recent
+
+    const rows = devices.map(d => {
+      const ageMs = now - d.last_seen;
+      let statusIcon: string;
+      let statusLabel: string;
+      if (ageMs < ONLINE_THRESHOLD_MS) {
+        statusIcon = '🟢'; statusLabel = 'online';
+      } else if (ageMs < RECENT_THRESHOLD_MS) {
+        statusIcon = '🟡'; statusLabel = 'niedawno';
+      } else {
+        statusIcon = '🔴'; statusLabel = 'offline';
+      }
+      const ageFmt = ageMs < 60_000
+        ? `${Math.round(ageMs / 1000)}s temu`
+        : ageMs < 3_600_000
+        ? `${Math.round(ageMs / 60_000)} min temu`
+        : `${Math.round(ageMs / 3_600_000)} h temu`;
+      const name = d.hostname || d.ip;
+      return `${statusIcon} **${name}** \`${d.ip}\` — ${statusLabel} (${ageFmt})`;
+    });
+
+    const online = devices.filter(d => now - d.last_seen < ONLINE_THRESHOLD_MS).length;
+    const offline = devices.length - online;
+
+    const lines = [
+      `## 📡 Znane urządzenia (${devices.length})`,
+      `🟢 online: ${online}  🔴 offline/nieaktywne: ${offline}`,
+      '',
+      ...rows,
+      '',
+      `_Ostatnia aktualizacja: ${new Date().toLocaleTimeString('pl-PL')}_`,
+      `_Uruchom \`skanuj sieć\` aby odświeżyć status._`,
+    ];
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data: lines.join('\n'), title: 'Status urządzeń' }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, deviceCount: devices.length } as any,
+    };
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
+
+    if (this.isStatusQuery(input)) {
+      return this.handleDeviceStatus(context, start);
+    }
+
+    if (this.isFilterQuery(input)) {
+      return this.handleDeviceFilter(input, context, start);
+    }
+
     const isCameraQuery = input.toLowerCase().includes('kamer') || input.toLowerCase().includes('camera');
     const isRaspberryPiQuery = /\b(rpi|raspberry)\b/i.test(input);
     const scanId = `scan:${Date.now()}`;
