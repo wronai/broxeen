@@ -436,7 +436,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
               const settings = audioSettings || await getAudioSettings();
               const transcriptValue = await invoke<string>("stt_stop", {
                 language: lang.split("-")[0],
-                apiKey: settings.stt_engine === "openrouter" ? "" : undefined, // API key from backend env
+                apiKey: undefined, // Backend will use OPENROUTER_API_KEY env var
                 model: settings.stt_model,
               });
               const normalized = (transcriptValue || "").trim();
@@ -505,7 +505,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
         const cleanupSettings = audioSettings || DEFAULT_AUDIO_SETTINGS;
         invoke("stt_stop", {
           language: lang.split("-")[0],
-          apiKey: cleanupSettings.stt_engine === "openrouter" ? "" : undefined,
+          apiKey: undefined, // Backend will use OPENROUTER_API_KEY env var
           model: cleanupSettings.stt_model,
         }).catch(
           () => undefined,

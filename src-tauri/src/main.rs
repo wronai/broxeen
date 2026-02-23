@@ -422,6 +422,9 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
 
 
 fn main() {
+    // Load environment variables from .env file
+    let _ = dotenvy::dotenv();
+    
     init_logging();
     backend_info("Booting Broxeen Tauri backend...");
 
