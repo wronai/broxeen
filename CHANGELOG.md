@@ -1,3 +1,14 @@
+## [1.0.41] - 2026-02-23
+
+### Summary
+
+feat(src-tauri): deep code analysis engine
+
+### Other
+
+- update src-tauri/src/network_scan.rs
+
+
 ## [1.0.40] - 2026-02-23
 
 ### Summary

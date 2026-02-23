@@ -21,6 +21,10 @@ pub struct CapturedFrame {
     pub base64: String,
     pub width: u32,
     pub height: u32,
+    /// Milliseconds since the RTSP worker started when this frame was captured
+    pub frame_age_ms: Option<u64>,
+    /// Total frames captured by this worker so far
+    pub frame_count: Option<u64>,
 }
 
 #[derive(Clone)]
@@ -28,11 +32,13 @@ struct LiveFrameCache {
     last_jpeg: Arc<Mutex<Option<Vec<u8>>>>,
     last_update_ms: Arc<Mutex<Option<u128>>>,
     last_error: Arc<Mutex<Option<String>>>,
+    frame_count: Arc<Mutex<u64>>,
+    started_at: Arc<Mutex<Option<Instant>>>,
 }
 
 struct RtspWorker {
     cache: LiveFrameCache,
-    url: String,
+    camera_id: String,
 }
 
 lazy_static! {
@@ -72,6 +78,8 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
         last_jpeg: Arc::new(Mutex::new(None)),
         last_update_ms: Arc::new(Mutex::new(None)),
         last_error: Arc::new(Mutex::new(None)),
+        frame_count: Arc::new(Mutex::new(0)),
+        started_at: Arc::new(Mutex::new(None)),
     };
 
     let cache_for_thread = cache.clone();
@@ -116,6 +124,10 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
         .stderr(Stdio::piped());
 
         let started_at = Instant::now();
+        {
+            let mut sa = cache_for_thread.started_at.lock().expect("started_at lock poisoned");
+            *sa = Some(started_at);
+        }
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
@@ -242,7 +254,7 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
         ));
     });
 
-    workers.insert(worker_key, RtspWorker { cache: cache.clone(), url: url.to_string() });
+    workers.insert(worker_key, RtspWorker { cache: cache.clone(), camera_id: camera_id.to_string() });
     cache
 }
 
