@@ -449,10 +449,12 @@ pub struct CameraHealthStatus {
     pub online: bool,
     pub latency_ms: Option<u64>,
     pub uptime: Option<String>,
-    pub lastSnapshot: Option<String>,
+    #[serde(rename = "lastSnapshot")]
+    pub last_snapshot: Option<String>,
     pub resolution: Option<String>,
     pub fps: Option<u32>,
-    pub errorMessage: Option<String>,
+    #[serde(rename = "errorMessage")]
+    pub error_message: Option<String>,
 }
 
 fn resolve_db_path(db: &str) -> Result<String, String> {
@@ -539,10 +541,10 @@ pub async fn camera_health_check(camera_id: Option<String>) -> Result<Vec<Camera
                     online: res.reachable,
                     latency_ms: res.avg_rtt.map(|v| v.round() as u64),
                     uptime: None,
-                    lastSnapshot: None,
+                    last_snapshot: None,
                     resolution: None,
                     fps: None,
-                    errorMessage: if res.reachable { None } else { Some("unreachable".to_string()) },
+                    error_message: if res.reachable { None } else { Some("unreachable".to_string()) },
                 });
             }
             Err(e) => {
@@ -553,10 +555,10 @@ pub async fn camera_health_check(camera_id: Option<String>) -> Result<Vec<Camera
                     online: false,
                     latency_ms: None,
                     uptime: None,
-                    lastSnapshot: None,
+                    last_snapshot: None,
                     resolution: None,
                     fps: None,
-                    errorMessage: Some(e),
+                    error_message: Some(e),
                 });
             }
         }

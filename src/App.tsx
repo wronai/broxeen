@@ -12,6 +12,7 @@ import Chat from "./components/Chat";
 import Settings from "./components/Settings";
 import { HealthDiagnostic } from "./components/HealthDiagnostic";
 import { ErrorReportPanel } from "./components/ErrorReportPanel";
+import { useTts } from "./hooks/useTts";
 import {
   DEFAULT_AUDIO_SETTINGS,
   withAudioSettingsDefaults,
@@ -35,6 +36,14 @@ export default function App() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [appCtx, setAppCtx] = useState<AppContext | null>(null);
   const startupLogger = useMemo(() => logger.scope("startup:app"), []);
+
+  const tts = useTts({
+    rate: settings.tts_rate,
+    pitch: settings.tts_pitch,
+    volume: settings.tts_volume,
+    voice: settings.tts_voice,
+    lang: settings.tts_lang,
+  });
 
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [micLevel, setMicLevel] = useState(0);
@@ -351,6 +360,7 @@ export default function App() {
                 }`,
                 `Mic level: ${Math.round(micLevel * 100)}%`,
                 `TTS volume: ${Math.round(settings.tts_volume * 100)}%`,
+                `TTS speaking: ${tts.isSpeaking ? "true" : "false"}`,
               ].join("\n")
             }
           >
@@ -387,6 +397,7 @@ export default function App() {
               }
             >
               SPK {Math.round(settings.tts_volume * 100)}%
+              {tts.isSpeaking ? " • speaking" : ""}
             </div>
           </div>
 
