@@ -9,12 +9,16 @@ import { configStore } from '../../config/configStore';
 import { DeviceRepository } from '../../persistence/deviceRepository';
 import { ScanHistoryRepository } from '../../persistence/scanHistoryRepository';
 import { createEvent } from '../../domain/chatEvents';
+import { CacheFactory, CACHE_CONFIGS } from '../../core/cache';
 
 export class NetworkScanPlugin implements Plugin {
   readonly id = 'network-scan';
   readonly name = 'Network Scanner';
   readonly version = '1.0.0';
   readonly supportedIntents = ['network:scan', 'network:discover', 'network:devices', 'camera:describe', 'camera:discover'];
+
+  private scanCache = CacheFactory.create<string, NetworkScanResult>('network-scan', CACHE_CONFIGS.NETWORK_SCAN);
+  private deviceFilterCache = CacheFactory.create<string, PluginResult>('device-filter', CACHE_CONFIGS.PLUGIN_RESULTS);
 
   async initialize(context: PluginContext): Promise<void> {
     console.log('🔧 NetworkScanPlugin.initialize called', { isTauri: context.isTauri });
@@ -123,6 +127,21 @@ export class NetworkScanPlugin implements Plugin {
       };
     }
 
+    // Check cache first
+    const cacheKey = `filter_${input}`;
+    const cachedResult = this.deviceFilterCache.get(cacheKey);
+    if (cachedResult) {
+      console.log(`[NetworkScanPlugin] Filter cache hit for ${input}`);
+      return {
+        ...cachedResult,
+        metadata: {
+          ...cachedResult.metadata,
+          duration_ms: Date.now() - start,
+          cached: true,
+        },
+      };
+    }
+
     const filterType = this.extractFilterType(input);
     const repo = new DeviceRepository(context.databaseManager.getDevicesDb());
     const allDevices = await repo.listDevices(200);
@@ -155,12 +174,19 @@ export class NetworkScanPlugin implements Plugin {
         '',
         `_Użyj: \`tylko kamery\`, \`tylko routery\`, \`filtruj urządzenia typ:linux\`_`,
       ];
-      return {
+      
+      const result = {
         pluginId: this.id,
-        status: 'success',
-        content: [{ type: 'text', data: lines.join('\n'), title: 'Typy urządzeń' }],
+        status: 'success' as const,
+        content: [{ type: 'text' as const, data: lines.join('\n'), title: 'Typy urządzeń' }],
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, deviceCount: allDevices.length } as any,
       };
+
+      // Cache the result
+      this.deviceFilterCache.set(cacheKey, result);
+      console.log(`[NetworkScanPlugin] Cached type summary result for ${input}`);
+
+      return result;
     }
 
     const filtered = allDevices.filter(d => (d as any).device_type === filterType);
@@ -189,14 +215,23 @@ export class NetworkScanPlugin implements Plugin {
       `## ${typeLabel} (${filtered.length})`,
       '',
       ...rows,
+      '',
+      `_Ostatnia aktualizacja: ${new Date().toLocaleTimeString('pl-PL')}_`,
+      `_Uruchom \`skanuj sieć\` aby odświeżyć status._`,
     ];
 
-    return {
+    const result = {
       pluginId: this.id,
-      status: 'success',
-      content: [{ type: 'text', data: lines.join('\n'), title: typeLabel }],
+      status: 'success' as const,
+      content: [{ type: 'text' as const, data: lines.join('\n'), title: typeLabel }],
       metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, deviceCount: filtered.length } as any,
     };
+
+    // Cache the result
+    this.deviceFilterCache.set(cacheKey, result);
+    console.log(`[NetworkScanPlugin] Cached filter result for ${input}`);
+
+    return result;
   }
 
   private async handleDeviceStatus(context: PluginContext, start: number): Promise<PluginResult> {
@@ -387,6 +422,63 @@ export class NetworkScanPlugin implements Plugin {
           // but they can easily miss a newly added camera IP in the same /24 (e.g. .176 not in the window).
           const effectiveScanType: 'full' | 'incremental' | 'targeted' =
             isCameraQuery ? 'full' : scanStrategy.type;
+          
+          // Create cache key for this scan
+          const cacheKey = `${userSpecifiedSubnet || 'auto'}_${effectiveScanType}_${isCameraQuery ? 'camera' : 'general'}`;
+          
+          // Check cache first
+          const cachedResult = this.scanCache.get(cacheKey);
+          if (cachedResult) {
+            console.log(`[NetworkScanPlugin] Cache hit for ${cacheKey}`);
+            
+            // Update process registry to show cached result
+            processRegistry.upsertRunning({
+              id: scanId,
+              type: 'scan',
+              label: scanLabel,
+              pluginId: this.id,
+              details: 'cached result',
+            });
+            
+            // Use cached result but update UI
+            const resultData = isRaspberryPiQuery
+              ? this.formatRaspberryPiResult(cachedResult)
+              : this.formatScanResult(cachedResult, isCameraQuery, {
+                  devicesFound: cachedResult.devices.length,
+                  devicesUpdated: 0,
+                  newDevices: 0,
+                  scanDuration: 0,
+                  efficiency: 'cached',
+                });
+
+            const cameraConfigPrompt = isCameraQuery
+              ? this.buildCameraActionsPrompt(cachedResult.devices)
+              : null;
+
+            processRegistry.remove(scanId);
+
+            return {
+              pluginId: this.id,
+              status: 'success',
+              content: [{
+                type: 'text',
+                data: resultData + '\n\n*Wynik z cache (ważny przez 10 minut)*',
+                title: isRaspberryPiQuery
+                  ? 'Urządzenia Raspberry Pi (cache)'
+                  : (isCameraQuery ? 'Wyniki wyszukiwania kamer (cache)' : 'Wyniki skanowania sieci (cache)'),
+              }],
+              metadata: {
+                duration_ms: Date.now() - start,
+                cached: true,
+                truncated: false,
+                deviceCount: cachedResult.devices.length,
+                scanDuration: cachedResult.scan_duration,
+                scanMethod: cachedResult.scan_method,
+                ...(cameraConfigPrompt ? { configPrompt: cameraConfigPrompt } : {}),
+              },
+            };
+          }
+
           const scanStart = Date.now();
 
           console.log(`[NetworkScanPlugin] Starting ${effectiveScanType} scan via Tauri...`);
@@ -399,6 +491,10 @@ export class NetworkScanPlugin implements Plugin {
               target_ranges: effectiveScanType === 'incremental' ? (scanStrategy.targetRanges || []) : [],
             },
           }) as NetworkScanResult;
+
+          // Cache the result
+          this.scanCache.set(cacheKey, result);
+          console.log(`[NetworkScanPlugin] Cached result for ${cacheKey}`);
 
           // Track scan statistics and save to history
           const scanStats = await this.trackScanResults(

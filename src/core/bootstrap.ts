@@ -6,6 +6,7 @@ import type { PluginContext, AppContext } from './types';
 import { scopeRegistry } from '../plugins/scope/scopeRegistry';
 import { DatabaseManager } from '../persistence/databaseManager';
 import { configStore } from '../config/configStore';
+import { EventStore } from '../domain/eventStore';
 
 export type { AppContext };
 import { PluginRegistry } from './pluginRegistry';
@@ -26,6 +27,7 @@ export async function bootstrapApp(config: {
   const pluginRegistry = new PluginRegistry();
   const intentRouter = new IntentRouter();
   const commandBus = new CommandBus();
+  const eventStore = new EventStore();
 
   // Initialize SQLite databases (devices.db + chat.db)
   const dbManager = new DatabaseManager(
@@ -52,6 +54,7 @@ export async function bootstrapApp(config: {
     describeImage: config.describeImage,
     scope: scopeRegistry.getActiveScope().id,
     databaseManager: dbManager,
+    eventStore,
   };
 
   await registerCorePlugins(pluginRegistry, intentRouter, commandBus, config.isTauri, config.tauriInvoke);
@@ -80,6 +83,7 @@ export async function bootstrapApp(config: {
     intentRouter,
     commandBus,
     databaseManager: dbManager,
+    eventStore,
     autoScanScheduler: autoScanSchedulerInstance,
     dispose: async () => {
       console.log('🧹 Disposing plugin system...');

@@ -907,6 +907,12 @@ fn extract_date_filter(q: &str, new_schema: bool) -> String {
     } else if q.contains("wczoraj") || q.contains("yesterday") {
         if new_schema { " AND local_date = date('now','-1 day','localtime')".into() }
         else { " AND date(timestamp) = date('now','-1 day')".into() }
+    } else if q.contains("10 minut") || q.contains("10 min") || q.contains("dziesięć minut") || q.contains("dziesiec minut") {
+        " AND timestamp > datetime('now', '-10 minutes')".into()
+    } else if q.contains("5 minut") || q.contains("5 min") || q.contains("pięć minut") || q.contains("piec minut") {
+        " AND timestamp > datetime('now', '-5 minutes')".into()
+    } else if q.contains("30 minut") || q.contains("30 min") || q.contains("pół godziny") || q.contains("pol godziny") {
+        " AND timestamp > datetime('now', '-30 minutes')".into()
     } else if q.contains("2 godzin") || q.contains("dwóch godzin") || q.contains("2h") {
         " AND timestamp > datetime('now', '-2 hours')".into()
     } else if q.contains("godzin") || q.contains("1h") || q.contains("hour") {

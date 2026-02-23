@@ -56,6 +56,7 @@ export class RealtimeSync {
         return true;
       } catch {
         syncLogger.warn('BroadcastChannel not supported');
+        return false;
       }
     }
     return false;
