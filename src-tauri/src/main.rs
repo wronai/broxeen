@@ -7,6 +7,7 @@ mod content_cleaning;
 mod content_extraction;
 mod disk_info;
 mod email;
+mod frigate_mqtt;
 mod file_search;
 mod llm;
 mod logging;
@@ -395,7 +396,7 @@ fn main() {
     }
 
     backend_info(
-        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network, file_search, file_read_content, email_send, email_poll_inbox, email_test_config",
+        "Registering command handlers: get_app_version, get_settings, save_settings, browse, llm_chat, stt_transcribe, stt_start, stt_stop, stt_status, backend_tts_speak, backend_tts_speak_base64, backend_tts_info, backend_audio_devices, tts_is_available, tts_speak, tts_stop, ping_host, scan_ports, arp_scan, discover_onvif_cameras, discover_mdns, scan_network, file_search, file_read_content, email_send, email_poll_inbox, email_test_config, frigate_mqtt_start, frigate_mqtt_stop",
     );
 
     let recording_state: SharedRecordingState = Arc::new(Mutex::new(audio_capture::RecordingState::new()));
@@ -454,6 +455,8 @@ fn main() {
             email::email_send,
             email::email_poll_inbox,
             email::email_test_config,
+            frigate_mqtt::frigate_mqtt_start,
+            frigate_mqtt::frigate_mqtt_stop,
         ])
         .run(tauri::generate_context!())
     {

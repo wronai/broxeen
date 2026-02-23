@@ -202,6 +202,14 @@ export class IntentRouter implements IIntentRouter {
       /historia.*zmian/i,
       /pokaż.*logi/i,
       /pokaz.*logi/i,
+    ]);
+
+    // Monitor config intents
+    this.intentPatterns.set('monitor:config', [
+      /zmien.*interwał/i,
+      /zmień.*interwał/i,
+      /zmien.*interwal/i,
+      /zmień.*interwal/i,
       /ustaw.*próg/i,
       /ustaw.*prog/i,
       /ustaw.*interwał/i,

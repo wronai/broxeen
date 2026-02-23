@@ -196,6 +196,15 @@ async function registerCorePlugins(
     safeRegister(registry, router, new MonitorPlugin(), 'MonitorPlugin');
   } catch (e) { console.warn('MonitorPlugin unavailable:', e); }
 
+  // ── Frigate events plugin (Tauri only) ─────────────────────────
+
+  if (isTauri) {
+    try {
+      const { FrigateEventsPlugin } = await import('../plugins/frigate/frigateEventsPlugin');
+      safeRegister(registry, router, new FrigateEventsPlugin(), 'FrigateEventsPlugin');
+    } catch (e) { console.warn('FrigateEventsPlugin unavailable:', e); }
+  }
+
   try {
     const { ProcessesPlugin } = await import('../plugins/system/processesPlugin');
     safeRegister(registry, router, new ProcessesPlugin(), 'ProcessesPlugin');

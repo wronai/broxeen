@@ -100,6 +100,17 @@ export interface EmailAppConfig {
   pollIntervalMs: number;
 }
 
+export interface FrigateAppConfig {
+  baseUrl: string;
+  mqttHost: string;
+  mqttPort: number;
+  mqttUsername: string;
+  mqttPassword: string;
+  mqttTopic: string;
+  allowedLabels: string[];
+  cooldownMs: number;
+}
+
 // ── Full App Configuration ──────────────────────────────────
 
 export interface AppConfig {
@@ -112,6 +123,7 @@ export interface AppConfig {
   camera: CameraDefaults;
   monitor: MonitorAppConfig;
   email: EmailAppConfig;
+  frigate: FrigateAppConfig;
 }
 
 // ── Defaults ────────────────────────────────────────────────
@@ -189,6 +201,16 @@ export const DEFAULT_CONFIG: AppConfig = {
     fromAddress: '',
     useTls: true,
     pollIntervalMs: 600000, // 10 minutes
+  },
+  frigate: {
+    baseUrl: 'http://localhost:5000',
+    mqttHost: 'localhost',
+    mqttPort: 1883,
+    mqttUsername: '',
+    mqttPassword: '',
+    mqttTopic: 'frigate/events',
+    allowedLabels: ['person', 'car'],
+    cooldownMs: 60000,
   },
 };
 
@@ -430,6 +452,66 @@ export const CONFIG_FIELD_META: ConfigFieldMeta[] = [
     type: 'number',
     category: 'email',
   },
+  // Frigate
+  {
+    key: 'frigate.baseUrl',
+    label: 'Frigate: base URL',
+    description: 'Adres HTTP do Frigate (np. http://192.168.1.10:5000)',
+    type: 'string',
+    category: 'frigate',
+    placeholder: 'http://localhost:5000',
+  },
+  {
+    key: 'frigate.mqttHost',
+    label: 'Frigate: MQTT host',
+    description: 'Host brokera MQTT (TCP)',
+    type: 'string',
+    category: 'frigate',
+    placeholder: 'localhost',
+  },
+  {
+    key: 'frigate.mqttPort',
+    label: 'Frigate: MQTT port',
+    description: 'Port brokera MQTT (zwykle 1883)',
+    type: 'number',
+    category: 'frigate',
+  },
+  {
+    key: 'frigate.mqttUsername',
+    label: 'Frigate: MQTT user',
+    description: 'Użytkownik MQTT (opcjonalny)',
+    type: 'string',
+    category: 'frigate',
+  },
+  {
+    key: 'frigate.mqttPassword',
+    label: 'Frigate: MQTT hasło',
+    description: 'Hasło MQTT (opcjonalne)',
+    type: 'password',
+    category: 'frigate',
+  },
+  {
+    key: 'frigate.mqttTopic',
+    label: 'Frigate: MQTT topic',
+    description: 'Topic z eventami Frigate (zwykle frigate/events)',
+    type: 'string',
+    category: 'frigate',
+    placeholder: 'frigate/events',
+  },
+  {
+    key: 'frigate.allowedLabels',
+    label: 'Frigate: dozwolone obiekty',
+    description: 'Lista klas obiektów, które wywołują alert (np. person, car)',
+    type: 'string[]',
+    category: 'frigate',
+  },
+  {
+    key: 'frigate.cooldownMs',
+    label: 'Frigate: cooldown (ms)',
+    description: 'Minimalny odstęp między alertami LLM dla tej samej kamery/klasy',
+    type: 'number',
+    category: 'frigate',
+  },
   // Camera
   {
     key: 'camera.rtspPort',
@@ -480,4 +562,5 @@ export const CONFIG_CATEGORIES: Record<string, { label: string; icon: string; de
   camera: { label: 'Kamery', icon: '📷', description: 'Kamery IP / RTSP' },
   locale: { label: 'Język', icon: '🌍', description: 'Ustawienia regionalne' },
   email: { label: 'Email', icon: '📧', description: 'Konfiguracja email (SMTP/IMAP)' },
+  frigate: { label: 'Frigate', icon: '🦅', description: 'Detekcja obiektów (person/car) + zdarzenia przez MQTT' },
 };
