@@ -234,10 +234,10 @@ export default function App() {
 
       {/* Debug controls - only in development */}
       {import.meta.env.DEV && (
-        <div className="fixed bottom-4 left-4 flex gap-2 z-40">
+        <div className="fixed bottom-36 right-4 flex gap-2 z-40">
           <button
             onClick={() => setErrorReportOpen(true)}
-            className="bg-red-600 text-white px-3 py-2 rounded-lg shadow-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+            className="bg-red-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-red-700 transition-colors flex items-center gap-1 text-xs"
             title="Pokaż raport błędów"
           >
             🚨 Błędy

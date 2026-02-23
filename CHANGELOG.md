@@ -1,14 +1,43 @@
+## [1.0.39] - 2026-02-23
+
+### Summary
+
+feat(docs): deep code analysis engine with 6 supporting modules
+
+### Docs
+
+- docs: update README
+- docs: update TODO.md
+
+### Other
+
+- update src-tauri/src/network_scan.rs
+- update src/App.tsx
+- update src/components/CameraLiveInline.tsx
+- update src/components/Chat.tsx
+- update src/components/HealthDiagnostic.tsx
+- update src/utils/healthCheck.ts
+
+
 ## [1.0.38] - 2026-02-23
 
 ### Summary
 
 feat(build): deep code analysis engine with 5 supporting modules
 
+### Fixes
+
+- dev: `tauri dev` uruchamia teraz Vite automatycznie (Tauri `beforeDevCommand`/`beforeBuildCommand`, użycie `corepack`)
+- dev: `make dev` / `make dev-nvidia` czyści procesy i port `5173` przed startem, aby uniknąć błędu "Port 5173 is already in use"
+- chat: komenda `pokaż live <ip>` renderuje tylko jeden wynik live (blok `camera_live`), bez dodatkowych wiadomości preview/diag
+- ui: pełnoekranowy podgląd live (ESC aby zamknąć) dla `camera_live` w Tauri
+
 ### Other
 
 - build: update Makefile
 - update src/App.tsx
 - update src/components/Chat.tsx
+- ui: move/compact debug + diagnostic buttons (Błędy/Kopiuj błędy/Diagnostyka) to top-right, above scope, in one line
 - update src/contexts/pluginContext.tsx
 - update src/hooks/useDatabaseManager.ts
 - update src/hooks/useHistoryPersistence.ts

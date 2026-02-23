@@ -34,11 +34,19 @@ sudo apt install -y \
 npm install
 
 # 2. Uruchom w trybie development (hot reload)
-npm run tauri dev
+make dev
+
+# (opcjonalnie) Tylko frontend (Vite)
+make dev-browser
+
+# (opcjonalnie) Linux/Nvidia: obejścia dla WebKitGTK
+make dev-nvidia
 
 # 3. Build produkcyjny (.deb / .AppImage / .exe / .dmg)
-npm run tauri build
+make build
 ```
+
+`make dev` uruchamia `tauri dev`, a Tauri automatycznie startuje Vite poprzez `beforeDevCommand` w `src-tauri/tauri.conf.json`.
 
 ### Przyspieszenie buildów (Rust + Tauri)
 W repo dostajesz `.cargo/config.toml` przygotowany pod [`sccache`](https://github.com/mozilla/sccache) i profil `dev-release`.
@@ -168,10 +176,14 @@ Ustawienia zapisywane w `~/.config/broxeen/settings.json`:
 | Problem | Rozwiązanie |
 |---------|-------------|
 | `npm: command not found` | Użyj pełnej ścieżki: `PATH="/usr/share/nodejs/corepack/shims:$PATH" npm install` |
+| `tauri dev` czeka na frontend | Upewnij się, że w `src-tauri/tauri.conf.json` jest `beforeDevCommand` i uruchamiaj przez `make dev` |
+| `Port 5173 is already in use` | Uruchom `make stop-all` i ponownie `make dev` (Makefile czyści port 5173 przed startem) |
 | Brak ikon przy `cargo check` | Uruchom `npm run tauri dev` — ikony są w `src-tauri/icons/` |
 | TTS nie działa | Sprawdź czy przeglądarka/WebView obsługuje `speechSynthesis`; na Linux wymagany `espeak` lub głosy systemowe |
 | Mikrofon nie działa | Aplikacja prosi o uprawnienia przy starcie; sprawdź ustawienia systemowe |
 | `libwebkit2gtk` brak | `sudo apt install libwebkit2gtk-4.1-dev` |
+
+Diagnostyka i raport błędów są dostępne z pływających przycisków po prawej stronie — nad selektorem zakresu (scope).
 
 ## License
 

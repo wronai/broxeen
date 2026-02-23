@@ -25,18 +25,68 @@ pub async fn rtsp_capture_frame(url: String, camera_id: String) -> Result<Captur
     // Reserved for future per-camera frame-cache/metrics tagging.
     let _ = camera_id;
 
-    let output = Command::new("ffmpeg")
-        .args([
-            "-rtsp_transport", "tcp",
-            "-i", &url,
-            "-frames:v", "1",
-            "-f", "image2pipe",
-            "-vcodec", "mjpeg",
-            "-q:v", "5",
-            "pipe:1",
-        ])
-        .output()
-        .map_err(|e| format!("ffmpeg not found: {}", e))?;
+    let output = tokio::task::spawn_blocking(move || {
+        fn run_ffmpeg(url: &str, include_timeouts: bool) -> std::io::Result<std::process::Output> {
+            let mut cmd = Command::new("ffmpeg");
+
+            cmd.args([
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-rtsp_transport",
+                "tcp",
+            ]);
+
+            if include_timeouts {
+                cmd.args(["-stimeout", "2000000", "-rw_timeout", "2000000"]);
+            }
+
+            cmd.args([
+                "-analyzeduration",
+                "500000",
+                "-probesize",
+                "32768",
+                "-fflags",
+                "nobuffer",
+                "-flags",
+                "low_delay",
+                "-i",
+                url,
+                "-frames:v",
+                "1",
+                "-vsync",
+                "0",
+                "-f",
+                "image2pipe",
+                "-vcodec",
+                "mjpeg",
+                "-q:v",
+                "5",
+                "pipe:1",
+            ]);
+
+            cmd.output()
+        }
+
+        let out_fast = run_ffmpeg(&url, true)?;
+        if out_fast.status.success() {
+            return Ok(out_fast);
+        }
+
+        let stderr = String::from_utf8_lossy(&out_fast.stderr).to_lowercase();
+        let looks_like_unknown_option = stderr.contains("unrecognized option")
+            || stderr.contains("option not found")
+            || stderr.contains("error splitting the argument list");
+
+        if looks_like_unknown_option {
+            return run_ffmpeg(&url, false);
+        }
+
+        Ok(out_fast)
+    })
+    .await
+    .map_err(|e| format!("ffmpeg task failed: {}", e))?
+    .map_err(|e| format!("ffmpeg not found: {}", e))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

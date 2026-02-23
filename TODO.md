@@ -50,6 +50,8 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [ ] **Historia z kategoriami** - sieciowe, przeglądanie, chat
 - [ ] **Szybkie odpowiedzi** - predefiniowane odpowiedzi
 - [ ] **Wizualizacja wyników** - karty, ikony, statusy
+- [x] **Pływające przyciski diagnostyki/błędów** - przeniesione na prawą stronę nad scope i skompresowane do jednej linii
+- [ ] **Responsywność pływających przycisków** - dopasowanie na bardzo wąskich oknach (opcjonalne skrócone etykiety)
 
 ### 🌐 Wieloplatformowość
 - [ ] **Android tablet/smartphone** - responsywny UI

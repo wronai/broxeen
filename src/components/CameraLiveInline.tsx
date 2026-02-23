@@ -6,6 +6,7 @@ export function CameraLiveInline(props: {
   cameraId: string;
   fps?: number;
   className?: string;
+  imageClassName?: string;
   onClickImage?: (data: { base64: string; mimeType: string }) => void;
 }) {
   const fps = Math.max(0.2, props.fps ?? 1);
@@ -83,7 +84,10 @@ export function CameraLiveInline(props: {
         <img
           src={`data:${frame.mimeType};base64,${frame.base64}`}
           alt={`Live ${props.cameraId}`}
-          className="w-full h-auto object-contain max-h-80 rounded cursor-pointer hover:opacity-90 transition-opacity"
+          className={
+            props.imageClassName ??
+            "w-full h-auto object-contain max-h-80 rounded cursor-pointer hover:opacity-90 transition-opacity"
+          }
           onClick={() => props.onClickImage?.(frame)}
         />
       ) : (

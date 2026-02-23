@@ -216,6 +216,36 @@ class HealthChecker {
       }
     });
 
+    // SQLite persistence check
+    this.addCheck('dependencies', 'sqlite-persistence', async () => {
+      try {
+        const { DatabaseManager } = await import('../persistence/databaseManager');
+        // Try to create a quick in-memory manager to verify the module loads
+        const testMgr = new DatabaseManager(
+          { devicesDbPath: ':memory:', chatDbPath: ':memory:', walMode: false, connectionPoolSize: 1 },
+        );
+        await testMgr.initialize();
+        const stats = await testMgr.getStats();
+        await testMgr.close();
+
+        return {
+          status: 'healthy',
+          category: 'dependencies',
+          name: 'sqlite-persistence',
+          message: `SQLite persistence layer operational (devices: ${stats.devices.tableCount} tables, chat: ${stats.chat.tableCount} tables)`,
+          details: { stats, migrationsRan: true },
+        };
+      } catch (error) {
+        return {
+          status: 'warning',
+          category: 'dependencies',
+          name: 'sqlite-persistence',
+          message: `SQLite persistence unavailable: ${error instanceof Error ? error.message : String(error)}`,
+          details: { error: error instanceof Error ? error.message : String(error) },
+        };
+      }
+    });
+
     // Dependencies
     this.addCheck('dependencies', 'critical-modules', async () => {
       const isTauri = typeof window !== 'undefined' && !!(window as any).__TAURI__;

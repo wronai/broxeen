@@ -45,6 +45,7 @@ import { runAutoConfig } from "../config/autoConfig";
 import { errorReporting, capturePluginError, captureNetworkError } from "../utils/errorReporting";
 import { useDatabaseManager } from "../hooks/useDatabaseManager";
 import { useHistoryPersistence } from "../hooks/useHistoryPersistence";
+import { isTauriRuntime } from "../lib/runtime";
 
 const INITIAL_MESSAGES: ChatMessage[] = [
   {
@@ -77,6 +78,7 @@ export default function Chat({ settings }: ChatProps) {
 
   const [input, setInput] = useState("");
   const [expandedImage, setExpandedImage] = useState<{ data: string; mimeType?: string } | null>(null);
+  const [expandedLive, setExpandedLive] = useState<{ url: string; cameraId: string; fps?: number } | null>(null);
   const [pageContent, setPageContent] = useState<string>("");
   const [showNetworkSelector, setShowNetworkSelector] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkConfig | null>(null);
@@ -1001,9 +1003,26 @@ ${analysis}`,
       });
 
       if (result.status === 'success') {
+        const hasCameraLiveBlock = result.content.some((block) => {
+          if (block.type !== 'structured') return false;
+          try {
+            const parsed = JSON.parse(String(block.data ?? '')) as any;
+            return parsed?.kind === 'camera_live' && typeof parsed.url === 'string' && typeof parsed.cameraId === 'string';
+          } catch {
+            return false;
+          }
+        });
+
+        const contentBlocks = hasCameraLiveBlock
+          ? result.content.filter((b) => b.type === 'structured')
+          : result.content;
+
+        const runtimeIsTauri = isTauriRuntime();
+        let firstLivePayload: { url: string; cameraId: string; fps?: number } | null = null;
+
         // Convert plugin content blocks to chat messages
         let fullResult = '';
-        for (const block of result.content) {
+        for (const block of contentBlocks) {
           let messageText = '';
           let messageType: 'content' | 'image' | 'camera_live' = 'content';
           let livePayload: { url: string; cameraId: string; fps?: number } | undefined;
@@ -1020,6 +1039,7 @@ ${analysis}`,
               if (parsed && parsed.kind === 'camera_live' && typeof parsed.url === 'string' && typeof parsed.cameraId === 'string') {
                 messageType = 'camera_live';
                 livePayload = { url: parsed.url, cameraId: parsed.cameraId, fps: typeof parsed.fps === 'number' ? parsed.fps : undefined };
+                if (!firstLivePayload) firstLivePayload = livePayload;
                 messageText = '';
               } else {
                 messageText = String(block.data);
@@ -1046,6 +1066,10 @@ ${analysis}`,
               live: livePayload,
             },
           });
+        }
+
+        if (runtimeIsTauri && firstLivePayload) {
+          setExpandedLive(firstLivePayload);
         }
         
         // Auto-play TTS for plugin responses (bypass loading-wait mechanism)
@@ -1227,11 +1251,14 @@ ${analysis}`,
       if (event.key === 'Escape' && expandedImage) {
         setExpandedImage(null);
       }
+      if (event.key === 'Escape' && expandedLive) {
+        setExpandedLive(null);
+      }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [expandedImage]);
+  }, [expandedImage, expandedLive]);
 
   return (
     <>
@@ -1253,6 +1280,31 @@ ${analysis}`,
               className="max-h-[90vh] max-w-full rounded-lg object-contain"
               onClick={(e) => e.stopPropagation()}
             />
+          </div>
+        </div>
+      )}
+
+      {expandedLive && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setExpandedLive(null)}
+        >
+          <div className="relative h-full w-full max-w-6xl">
+            <button
+              className="absolute -top-10 right-0 p-2 text-white hover:text-gray-300"
+              onClick={() => setExpandedLive(null)}
+            >
+              Zamknij (ESC)
+            </button>
+            <div className="h-full w-full" onClick={(e) => e.stopPropagation()}>
+              <CameraLiveInline
+                url={expandedLive.url}
+                cameraId={expandedLive.cameraId}
+                fps={expandedLive.fps}
+                className="h-full w-full"
+                imageClassName="w-full h-auto object-contain max-h-[90vh] rounded"
+              />
+            </div>
           </div>
         </div>
       )}

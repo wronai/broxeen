@@ -151,17 +151,17 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
 
   if (!isVisible) {
     return (
-      <div className="fixed bottom-4 right-4 flex gap-2 z-50">
+      <div className="fixed bottom-24 right-4 flex flex-nowrap items-center gap-1 z-50">
         <button
           onClick={() => copyErrorsToClipboard()}
-          className="bg-orange-600 text-white px-3 py-2 rounded-lg shadow-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+          className="bg-orange-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-orange-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
           title="Kopiuj błędy do schowka (Ctrl+Shift+E)"
         >
           📋 Kopiuj błędy
         </button>
         <button
           onClick={() => setIsVisible(true)}
-          className="bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+          className="bg-blue-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
           title="Pokaż diagnostykę systemu"
         >
           🏥 Diagnostyka
