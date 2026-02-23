@@ -497,7 +497,29 @@ export class MonitorPlugin implements Plugin {
     allLogs.sort((a, b) => b.timestamp - a.timestamp);
     const recent = allLogs.slice(0, 20);
 
-    let data = `📋 **Logi monitoringu** — ostatnie ${recent.length} wpisów\n\n`;
+    // Summary stats across all targets
+    const allChecks = allLogs.filter(l => l.type === 'check');
+    const allErrors = allLogs.filter(l => l.type === 'error');
+    const allChanges = allLogs.filter(l => l.type === 'change');
+    const lastCapture = [...allLogs].find(l => l.capture);
+
+    let data = `📋 **Logi monitoringu** — ostatnie ${recent.length} wpisów\n`;
+    data += `📊 Sprawdzeń: ${allChecks.length} | Zmian: ${allChanges.length} | Błędów: ${allErrors.length}\n`;
+
+    if (lastCapture?.capture) {
+      const c = lastCapture.capture;
+      data += `🔧 Metoda: **${c.method || '?'}**`;
+      if (c.resolution) data += ` | ${c.resolution}`;
+      if (c.frameBytes) data += ` | ${Math.round(c.frameBytes / 1024)}kB`;
+      if (c.captureMs) data += ` | ${c.captureMs}ms`;
+      data += '\n';
+      if (c.failReason) data += `⚠️ ${c.failReason}\n`;
+    } else if (allErrors.length > 0) {
+      data += `⚠️ Ostatni błąd: ${allErrors[allErrors.length - 1].message}\n`;
+    }
+
+    data += '\n';
+
     for (const log of recent) {
       const time = new Date(log.timestamp).toLocaleString('pl-PL', {
         hour: '2-digit',
@@ -506,37 +528,39 @@ export class MonitorPlugin implements Plugin {
       });
       const icon = this.logIcon(log.type);
       
-      // Formatowanie wiadomości - skróć długie błędy
       let message = log.message;
+      // Shorten ffmpeg errors
       if (message.includes('ffmpeg exited:')) {
-        // Wyodrębnij kluczową informację z błędu ffmpeg
         const authMatch = message.match(/401 (Unauthorized|authorization failed)/);
         const timeoutMatch = message.match(/timeout|Connection timed out/i);
         const connMatch = message.match(/Connection refused|No route to host/i);
-        const notFoundMatch = message.match(/404 Not Found|No such file/i);
         
-        if (authMatch) {
-          message = '❌ Błąd autentykacji RTSP (sprawdź hasło)';
-        } else if (timeoutMatch) {
-          message = '⏰ Przekroczenie czasu połączenia';
-        } else if (connMatch) {
-          message = '🔌 Błąd połączenia z kamerą';
-        } else if (notFoundMatch) {
-          message = '🔍 Nie znaleziono zasobu (sprawdź URL)';
-        } else {
-          message = '❌ Błąd pobierania snapshotu';
-        }
-      } else if (message.includes('Brak snapshotu')) {
-        message = '⚪ Brak snapshotu (pomijam)';
-      } else if (message.includes('Zmiana wykryta')) {
-        message = '🔔 Zmiana wykryta';
-      } else if (message.includes('Brak zmian')) {
-        message = '✅ Brak zmian';
+        if (authMatch) message = '❌ Błąd autentykacji RTSP';
+        else if (timeoutMatch) message = '⏰ Timeout połączenia';
+        else if (connMatch) message = '🔌 Błąd połączenia';
+        else message = '❌ Błąd snapshotu';
       }
       
       data += `${icon} **${time}** \`${log.targetName}\` ${message}`;
       if (log.changeScore != null) data += ` (zmiana: ${(log.changeScore * 100).toFixed(1)}%)`;
       data += '\n';
+      if (log.details) {
+        data += `   ${log.details}\n`;
+      }
+    }
+
+    // Diagnostic hints when capture is failing
+    if (allChecks.length === 0 && allErrors.length > 0) {
+      data += '\n---\n';
+      data += '💡 **Diagnostyka:** Żadna klatka nie została pobrana.\n';
+      const lastErr = allErrors[allErrors.length - 1];
+      if (lastErr.capture?.attemptsDetail) {
+        data += `Próby: ${lastErr.capture.attemptsDetail}\n`;
+      }
+      data += '**Sugestie:**\n';
+      data += '- Uruchom w Tauri: `make tauri-dev` (RTSP via ffmpeg)\n';
+      data += '- Podaj credentials: `monitoruj IP user:admin admin:HASŁO`\n';
+      data += '- Sprawdź HTTP snapshot w przeglądarce: `http://IP/snap.jpg`\n';
     }
 
     return {
@@ -621,12 +645,7 @@ export class MonitorPlugin implements Plugin {
       if (target.type === 'camera' && target.address) {
         const snapshot = await this.captureCameraSnapshot(target, context);
         if (!snapshot) {
-          target.logs.push({
-            timestamp: Date.now(),
-            type: 'check',
-            message: `Brak snapshotu (pomijam)`,
-            changeScore: 0,
-          });
+          // captureCameraSnapshot already logged the error with metadata
           return;
         }
 
@@ -639,18 +658,24 @@ export class MonitorPlugin implements Plugin {
             type: 'snapshot',
             message: `Snapshot zapisany (pierwsza klatka)`,
             snapshot: snapshot.base64,
+            capture: snapshot.capture,
+            details: this.formatCaptureDetails(snapshot.capture),
           });
           return;
         }
 
         const changeScore = await this.computeImageChangeScore(previousSnapshot, snapshot.base64);
 
+        const captureInfo = this.formatCaptureDetails(snapshot.capture);
         target.logs.push({
           timestamp: Date.now(),
           type: 'check',
-          message: changeScore > target.threshold ? `Zmiana wykryta!` : `Brak zmian`,
+          message: changeScore > target.threshold
+            ? `Zmiana wykryta! (${(changeScore * 100).toFixed(1)}%)`
+            : `Brak zmian (${(changeScore * 100).toFixed(1)}%)`,
           changeScore,
-          details: `image-change:${(changeScore * 100).toFixed(1)}%`,
+          details: `${captureInfo} | diff:${(changeScore * 100).toFixed(1)}% próg:${(target.threshold * 100).toFixed(0)}%`,
+          capture: snapshot.capture,
         });
 
         if (changeScore > target.threshold) {
@@ -662,9 +687,10 @@ export class MonitorPlugin implements Plugin {
             target.logs.push({
               timestamp: Date.now(),
               type: 'change',
-              message: `Zmiana poniżej progu LLM (pomijam opis i powiadomienie)`,
+              message: `Zmiana poniżej progu LLM (pomijam opis)`,
               changeScore,
-              details: `llmMinChangeScore:${(llmMinChangeScore * 100).toFixed(1)}%`,
+              details: `diff:${(changeScore * 100).toFixed(1)}% < llmPróg:${(llmMinChangeScore * 100).toFixed(1)}%`,
+              capture: snapshot.capture,
             });
             return;
           }
@@ -679,8 +705,9 @@ export class MonitorPlugin implements Plugin {
             type: 'change',
             message: `🔔 Zmiana na ${target.name}: ${(changeScore * 100).toFixed(1)}%`,
             changeScore,
-            details: summary,
+            details: `${summary} | ${captureInfo}`,
             snapshot: thumbnail?.base64 ?? snapshot.base64,
+            capture: snapshot.capture,
           });
 
           if (this.isNoSignificantChangeSummary(summary)) {
@@ -770,37 +797,155 @@ export class MonitorPlugin implements Plugin {
   private async captureCameraSnapshot(
     target: MonitorTarget,
     context: PluginContext,
-  ): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null> {
-    try {
-      // Prefer RTSP via Tauri when available
-      if (context.isTauri && context.tauriInvoke && target.rtspUrl) {
+  ): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null> {
+    const captureStart = Date.now();
+    const attempts: string[] = [];
+
+    // ── 1. RTSP via Tauri (preferred) ──
+    if (context.isTauri && context.tauriInvoke && target.rtspUrl) {
+      attempts.push(`RTSP: ${target.rtspUrl}`);
+      try {
         const result = await context.tauriInvoke('rtsp_capture_frame', {
           url: target.rtspUrl,
           cameraId: target.id,
           camera_id: target.id,
         }) as { base64: string };
-        if (result?.base64) return { base64: result.base64, mimeType: 'image/jpeg' };
+        if (result?.base64) {
+          const capture: CaptureMetadata = {
+            method: 'rtsp',
+            url: target.rtspUrl,
+            frameBytes: result.base64.length,
+            captureMs: Date.now() - captureStart,
+            attemptsDetail: attempts.join(' → '),
+          };
+          // Try to extract resolution from base64 image
+          capture.resolution = await this.detectResolution(result.base64, 'image/jpeg');
+          return { base64: result.base64, mimeType: 'image/jpeg', capture };
+        }
+        attempts.push('RTSP: pusta odpowiedź');
+      } catch (err) {
+        attempts.push(`RTSP fail: ${err instanceof Error ? err.message : String(err)}`);
       }
+    } else if (!context.isTauri) {
+      attempts.push('RTSP: niedostępny (tryb przeglądarkowy, brak Tauri)');
+    } else if (!target.rtspUrl) {
+      attempts.push('RTSP: brak URL');
+    }
 
-      // HTTP snapshot fallback
-      if (target.snapshotUrl) {
-        const resp = await fetch(target.snapshotUrl);
-        if (!resp.ok) throw new Error(`Snapshot HTTP ${resp.status}`);
-        const blob = await resp.blob();
-        const base64 = await this.blobToBase64(blob);
-        const mimeType = (blob.type === 'image/png' ? 'image/png' : 'image/jpeg') as 'image/jpeg' | 'image/png';
-        return { base64, mimeType };
+    // ── 2. Configured HTTP snapshot URL ──
+    if (target.snapshotUrl) {
+      attempts.push(`HTTP: ${target.snapshotUrl}`);
+      try {
+        const result = await this.fetchHttpSnapshot(target.snapshotUrl, captureStart, attempts);
+        if (result) return result;
+      } catch (err) {
+        attempts.push(`HTTP fail: ${err instanceof Error ? err.message : String(err)}`);
       }
+    }
 
-      return null;
-    } catch (err) {
-      target.logs.push({
-        timestamp: Date.now(),
-        type: 'error',
-        message: `Snapshot error: ${err instanceof Error ? err.message : String(err)}`,
-      });
+    // ── 3. Auto-probe HTTP snapshot URLs (vendor database) ──
+    if (target.address) {
+      try {
+        const { detectCameraVendor, getVendorInfo } = await import('../camera/cameraVendorDatabase');
+        const vendorId = detectCameraVendor({ hostname: target.address });
+        const vendor = getVendorInfo(vendorId);
+
+        const auth = target.rtspUsername && target.rtspPassword
+          ? `${target.rtspUsername}:${target.rtspPassword}@`
+          : target.rtspUsername ? `${target.rtspUsername}@` : '';
+
+        // Try vendor-specific snapshot URLs
+        for (const snap of vendor.httpSnapshotPaths.slice(0, 4)) {
+          const url = `http://${auth}${target.address}${snap.path}`;
+          if (url === target.snapshotUrl) continue; // already tried above
+          attempts.push(`HTTP probe: ${snap.description} (${url})`);
+          try {
+            const result = await this.fetchHttpSnapshot(url, captureStart, attempts);
+            if (result) {
+              // Cache the working URL for future polls
+              target.snapshotUrl = url;
+              return result;
+            }
+          } catch (err) {
+            attempts.push(`  → fail: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+      } catch {
+        attempts.push('Vendor DB: nie udało się załadować');
+      }
+    }
+
+    // ── 4. All methods failed ──
+    const failCapture: CaptureMetadata = {
+      method: 'none',
+      captureMs: Date.now() - captureStart,
+      failReason: this.summarizeCaptureFailure(attempts, context),
+      attemptsDetail: attempts.join(' → '),
+    };
+
+    target.logs.push({
+      timestamp: Date.now(),
+      type: 'error',
+      message: `Brak snapshotu: ${failCapture.failReason}`,
+      capture: failCapture,
+    });
+    return null;
+  }
+
+  private async fetchHttpSnapshot(
+    url: string,
+    captureStart: number,
+    attempts: string[],
+  ): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null> {
+    const resp = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!resp.ok) {
+      attempts.push(`  → HTTP ${resp.status}`);
       return null;
     }
+    const blob = await resp.blob();
+    if (blob.size < 100) {
+      attempts.push(`  → pusta odpowiedź (${blob.size}B)`);
+      return null;
+    }
+    const base64 = await this.blobToBase64(blob);
+    const mimeType = (blob.type === 'image/png' ? 'image/png' : 'image/jpeg') as 'image/jpeg' | 'image/png';
+    const capture: CaptureMetadata = {
+      method: 'http',
+      url,
+      frameBytes: base64.length,
+      captureMs: Date.now() - captureStart,
+      attemptsDetail: attempts.join(' → '),
+    };
+    capture.resolution = await this.detectResolution(base64, mimeType);
+    return { base64, mimeType, capture };
+  }
+
+  private summarizeCaptureFailure(attempts: string[], context: PluginContext): string {
+    const text = attempts.join(' ');
+    if (!context.isTauri && !attempts.some(a => a.includes('HTTP')))
+      return 'Tryb przeglądarkowy — brak RTSP. Podaj credentials lub snapshotUrl kamery.';
+    if (text.includes('401') || text.includes('Unauthorized'))
+      return 'Błąd autentykacji — sprawdź hasło kamery.';
+    if (text.includes('timeout') || text.includes('Timeout'))
+      return 'Przekroczenie czasu — kamera nie odpowiada.';
+    if (text.includes('ECONNREFUSED') || text.includes('Connection refused'))
+      return 'Połączenie odrzucone — kamera offline lub zły port.';
+    if (text.includes('pusta odpowiedź'))
+      return 'Kamera zwraca puste dane.';
+    if (text.includes('brak Tauri'))
+      return 'Tryb przeglądarkowy — uruchom Tauri (make tauri-dev) lub podaj HTTP snapshot URL kamery.';
+    return 'Wszystkie metody pobierania snapshotu nie powiodły się.';
+  }
+
+  private async detectResolution(base64: string, mimeType: string): Promise<string | undefined> {
+    if (typeof document === 'undefined') return undefined;
+    try {
+      const img = await this.loadBase64Image(base64, mimeType);
+      const w = img.naturalWidth || (img as any).width;
+      const h = img.naturalHeight || (img as any).height;
+      if (w && h) return `${w}x${h}`;
+    } catch { /* ignore */ }
+    return undefined;
   }
 
   private async describeCameraChange(
@@ -817,26 +962,87 @@ export class MonitorPlugin implements Plugin {
     }
   }
 
+  private formatCaptureDetails(capture: CaptureMetadata): string {
+    const parts: string[] = [];
+    if (capture.method) parts.push(`via:${capture.method}`);
+    if (capture.resolution) parts.push(capture.resolution);
+    if (capture.frameBytes) parts.push(`${Math.round(capture.frameBytes / 1024)}kB`);
+    if (capture.captureMs) parts.push(`${capture.captureMs}ms`);
+    if (capture.failReason) parts.push(`⚠ ${capture.failReason}`);
+    return parts.join(' ') || 'brak danych';
+  }
+
   private async computeImageChangeScore(prevBase64: string, currBase64: string): Promise<number> {
-    // Lightweight heuristic: compare base64 prefixes in blocks.
-    // This is not perceptual diff, but is stable and cheap.
     if (!prevBase64 || !currBase64) return 0;
     if (prevBase64 === currBase64) return 0;
 
-    const a = prevBase64;
-    const b = currBase64;
-    const len = Math.min(a.length, b.length);
-    if (len === 0) return 0;
+    // ── Canvas pixel-level comparison (browser) ──
+    if (typeof document !== 'undefined') {
+      try {
+        return await this.pixelDiff(prevBase64, currBase64);
+      } catch {
+        // fall through to base64 heuristic
+      }
+    }
 
+    // ── Fallback: base64 block comparison (server / no canvas) ──
+    const len = Math.min(prevBase64.length, currBase64.length);
+    if (len === 0) return 0;
     const step = 128;
     let same = 0;
     let total = 0;
     for (let i = 0; i < len; i += step) {
       total++;
-      if (a.slice(i, i + step) === b.slice(i, i + step)) same++;
+      if (prevBase64.slice(i, i + step) === currBase64.slice(i, i + step)) same++;
     }
-    const diff = 1 - same / Math.max(1, total);
-    return Math.max(0, Math.min(1, diff));
+    return Math.max(0, Math.min(1, 1 - same / Math.max(1, total)));
+  }
+
+  /**
+   * Canvas-based pixel diff: compares actual pixel values between two images.
+   * Downscales both images to a comparison resolution (200px wide) for speed.
+   * Returns 0..1 ratio of significantly changed pixels.
+   */
+  private async pixelDiff(prevBase64: string, currBase64: string): Promise<number> {
+    const COMPARE_WIDTH = 200;
+    const PIXEL_THRESHOLD = 30; // per-channel diff threshold (0-255)
+
+    const [imgA, imgB] = await Promise.all([
+      this.loadBase64Image(prevBase64, 'image/jpeg'),
+      this.loadBase64Image(currBase64, 'image/jpeg'),
+    ]);
+
+    const wA = imgA.naturalWidth || (imgA as any).width || COMPARE_WIDTH;
+    const hA = imgA.naturalHeight || (imgA as any).height || COMPARE_WIDTH;
+    const scale = COMPARE_WIDTH / wA;
+    const w = COMPARE_WIDTH;
+    const h = Math.max(1, Math.round(hA * scale));
+
+    const canvasA = document.createElement('canvas');
+    canvasA.width = w; canvasA.height = h;
+    const ctxA = canvasA.getContext('2d')!;
+    ctxA.drawImage(imgA, 0, 0, w, h);
+    const dataA = ctxA.getImageData(0, 0, w, h).data;
+
+    const canvasB = document.createElement('canvas');
+    canvasB.width = w; canvasB.height = h;
+    const ctxB = canvasB.getContext('2d')!;
+    ctxB.drawImage(imgB, 0, 0, w, h);
+    const dataB = ctxB.getImageData(0, 0, w, h).data;
+
+    const totalPixels = w * h;
+    let changedPixels = 0;
+
+    for (let i = 0; i < dataA.length; i += 4) {
+      const dr = Math.abs(dataA[i] - dataB[i]);
+      const dg = Math.abs(dataA[i + 1] - dataB[i + 1]);
+      const db = Math.abs(dataA[i + 2] - dataB[i + 2]);
+      if (dr > PIXEL_THRESHOLD || dg > PIXEL_THRESHOLD || db > PIXEL_THRESHOLD) {
+        changedPixels++;
+      }
+    }
+
+    return changedPixels / Math.max(1, totalPixels);
   }
 
   private async createThumbnail(
@@ -1006,7 +1212,32 @@ export class MonitorPlugin implements Plugin {
 
   private formatTargetLogs(target: MonitorTarget, start: number): PluginResult {
     const recent = target.logs.slice(-20).reverse();
-    let data = `📋 **Logi: ${target.name}** — ${recent.length} wpisów\n\n`;
+
+    // Compute stats
+    const checks = target.logs.filter(l => l.type === 'check');
+    const errors = target.logs.filter(l => l.type === 'error');
+    const changes = target.logs.filter(l => l.type === 'change');
+    const lastCapture = [...target.logs].reverse().find(l => l.capture);
+
+    let data = `📋 **Logi: ${target.name}** — ${recent.length} wpisów\n`;
+    data += `📊 Sprawdzeń: ${checks.length} | Zmian: ${changes.length} | Błędów: ${errors.length}\n`;
+
+    // Show capture pipeline info
+    if (lastCapture?.capture) {
+      const c = lastCapture.capture;
+      data += `🔧 Metoda: **${c.method || '?'}**`;
+      if (c.resolution) data += ` | ${c.resolution}`;
+      if (c.frameBytes) data += ` | ${Math.round(c.frameBytes / 1024)}kB`;
+      if (c.captureMs) data += ` | ${c.captureMs}ms`;
+      data += '\n';
+      if (c.failReason) data += `⚠️ ${c.failReason}\n`;
+    } else if (errors.length > 0) {
+      const lastErr = errors[errors.length - 1];
+      data += `⚠️ Ostatni błąd: ${lastErr.message}\n`;
+    }
+
+    data += `⏱️ Interwał: ${target.intervalMs / 1000}s | Próg: ${(target.threshold * 100).toFixed(0)}%\n\n`;
+
     for (const log of recent) {
       const time = new Date(log.timestamp).toLocaleString('pl-PL', {
         hour: '2-digit',
@@ -1015,38 +1246,43 @@ export class MonitorPlugin implements Plugin {
       });
       const icon = this.logIcon(log.type);
       
-      // Formatowanie wiadomości - skróć długie błędy
       let message = log.message;
+      // Shorten ffmpeg errors
       if (message.includes('ffmpeg exited:')) {
-        // Wyodrębnij kluczową informację z błędu ffmpeg
         const authMatch = message.match(/401 (Unauthorized|authorization failed)/);
         const timeoutMatch = message.match(/timeout|Connection timed out/i);
         const connMatch = message.match(/Connection refused|No route to host/i);
-        const notFoundMatch = message.match(/404 Not Found|No such file/i);
         
-        if (authMatch) {
-          message = '❌ Błąd autentykacji RTSP (sprawdź hasło)';
-        } else if (timeoutMatch) {
-          message = '⏰ Przekroczenie czasu połączenia';
-        } else if (connMatch) {
-          message = '🔌 Błąd połączenia z kamerą';
-        } else if (notFoundMatch) {
-          message = '🔍 Nie znaleziono zasobu (sprawdź URL)';
-        } else {
-          message = '❌ Błąd pobierania snapshotu';
-        }
-      } else if (message.includes('Brak snapshotu')) {
-        message = '⚪ Brak snapshotu (pomijam)';
-      } else if (message.includes('Zmiana wykryta')) {
-        message = '🔔 Zmiana wykryta';
-      } else if (message.includes('Brak zmian')) {
-        message = '✅ Brak zmian';
+        if (authMatch) message = '❌ Błąd autentykacji RTSP';
+        else if (timeoutMatch) message = '⏰ Timeout połączenia';
+        else if (connMatch) message = '🔌 Błąd połączenia';
+        else message = '❌ Błąd snapshotu';
       }
       
-      data += `${icon} **${time}** ${message}`;
-      if (log.changeScore != null) data += ` (${(log.changeScore * 100).toFixed(1)}%)`;
+      data += `${icon} **${time}** \`${target.name}\` ${message}`;
+      if (log.changeScore != null) data += ` (zmiana: ${(log.changeScore * 100).toFixed(1)}%)`;
       data += '\n';
+
+      // Show technical details inline for recent entries
+      if (log.details) {
+        data += `   ${log.details}\n`;
+      }
     }
+
+    // Add diagnostic hint if all checks failed
+    if (checks.length === 0 && errors.length > 0) {
+      data += '\n---\n';
+      data += '💡 **Diagnostyka:**\n';
+      const lastErr = errors[errors.length - 1];
+      if (lastErr.capture?.attemptsDetail) {
+        data += `Próby: ${lastErr.capture.attemptsDetail}\n`;
+      }
+      data += '**Sugestie:**\n';
+      data += '- Jeśli Tauri: `make tauri-dev` (RTSP via ffmpeg)\n';
+      data += '- Podaj credentials: `monitoruj IP user:admin admin:HASŁO`\n';
+      data += '- Sprawdź HTTP snapshot: `http://IP/snap.jpg` w przeglądarce\n';
+    }
+
     return {
       pluginId: this.id,
       status: 'success',

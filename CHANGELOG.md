@@ -1,3 +1,18 @@
+## [1.0.58] - 2026-02-23
+
+### Summary
+
+refactor(None): deep code analysis engine with 3 supporting modules
+
+### Other
+
+- update src/persistence/migrations.ts
+- update src/persistence/scanHistoryRepository.ts
+- update src/persistence/types.ts
+- update src/plugins/discovery/networkScanPlugin.ts
+- update src/plugins/monitor/monitorPlugin.ts
+
+
 ## [1.0.57] - 2026-02-23
 
 ### Summary

@@ -93,6 +93,39 @@ export const devicesDbMigrations: Migration[] = [
         DROP TABLE IF EXISTS devices;
       `);
     }
+  },
+  {
+    version: 2,
+    description: 'Add scan history for incremental scanning',
+    up: (db) => {
+      // Scan history table
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS scan_history (
+          id TEXT PRIMARY KEY,
+          subnet TEXT NOT NULL,
+          scan_type TEXT NOT NULL CHECK (scan_type IN ('full', 'incremental', 'targeted')),
+          devices_found INTEGER NOT NULL DEFAULT 0,
+          devices_updated INTEGER NOT NULL DEFAULT 0,
+          new_devices INTEGER NOT NULL DEFAULT 0,
+          scan_duration_ms INTEGER NOT NULL,
+          scan_range TEXT NOT NULL, -- JSON array of IP ranges scanned
+          triggered_by TEXT NOT NULL, -- 'manual', 'scheduled', 'auto'
+          metadata TEXT, -- JSON: includes scan strategy, excluded IPs, etc.
+          started_at INTEGER NOT NULL,
+          completed_at INTEGER NOT NULL
+        )
+      `);
+
+      // Indexes for scan history
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_scan_history_subnet ON scan_history(subnet);
+        CREATE INDEX IF NOT EXISTS idx_scan_history_started_at ON scan_history(started_at);
+        CREATE INDEX IF NOT EXISTS idx_scan_history_scan_type ON scan_history(scan_type);
+      `);
+    },
+    down: (db) => {
+      db.exec(`DROP TABLE IF EXISTS scan_history`);
+    }
   }
 ];
 
