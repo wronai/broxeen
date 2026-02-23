@@ -9,12 +9,14 @@ interface HealthDiagnosticProps {
   showOnStartup?: boolean;
   autoRefresh?: boolean;
   refreshInterval?: number;
+  onOpenErrorReport?: () => void;
 }
 
 export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
   showOnStartup = true,
   autoRefresh = false,
-  refreshInterval = 30000
+  refreshInterval = 30000,
+  onOpenErrorReport
 }) => {
   const [report, setReport] = useState<HealthReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -159,6 +161,15 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
         >
           📋 Kopiuj błędy
         </button>
+        {onOpenErrorReport && (
+          <button
+            onClick={onOpenErrorReport}
+            className="bg-red-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-red-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
+            title="Pokaż raport błędów"
+          >
+            🚨 Błędy
+          </button>
+        )}
         <button
           onClick={() => setIsVisible(true)}
           className="bg-blue-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"

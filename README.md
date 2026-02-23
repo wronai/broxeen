@@ -76,7 +76,7 @@ npm run test:watch
 npm run test:coverage
 ```
 
-Aktualny wynik: **171 testów, 0 błędów** (phonetic: 42, resolver: 19, useTts: 13, useSpeech: 12, TtsControls: 9, Chat: 16, Settings: 19, plus nowe plugin system tests).
+Aktualny wynik: **577 testów, 0 błędów**.
 
 ## Architektura
 
@@ -130,6 +130,10 @@ broxeen/
 | `browse` | `url: string` | Pobiera stronę i ekstrahuje tekst |
 | `get_settings` | — | Wczytuje ustawienia z `~/.config/broxeen/settings.json` |
 | `save_settings` | `settings: AudioSettings` | Zapisuje ustawienia audio |
+| `rtsp_capture_frame` | `url: string`, `camera_id: string` | Zrzuca pojedynczą klatkę z RTSP (JPEG base64). Frontend wysyła też `cameraId` dla kompatybilności |
+| `db_execute` | `db_path: string`, `sql: string`, `params: any[]` | Wykonuje SQL (gdy `params` puste, obsługuje multi-statement przez `execute_batch`) |
+| `db_query` | `db_path: string`, `sql: string`, `params: any[]` | Zapytania SELECT do SQLite |
+| `db_close` | `db_path: string` | Zamknięcie połączenia do SQLite |
 
 ## Pipeline rozwiązywania URL
 
@@ -182,6 +186,7 @@ Ustawienia zapisywane w `~/.config/broxeen/settings.json`:
 | TTS nie działa | Sprawdź czy przeglądarka/WebView obsługuje `speechSynthesis`; na Linux wymagany `espeak` lub głosy systemowe |
 | Mikrofon nie działa | Aplikacja prosi o uprawnienia przy starcie; sprawdź ustawienia systemowe |
 | `libwebkit2gtk` brak | `sudo apt install libwebkit2gtk-4.1-dev` |
+| Live RTSP nie działa / brak klatki | Upewnij się, że w systemie jest dostępne `ffmpeg`. Niektóre buildy ffmpeg nie wspierają flag timeout (`-stimeout`, `-rw_timeout`) — backend automatycznie retry bez nich |
 
 Diagnostyka i raport błędów są dostępne z pływających przycisków po prawej stronie — nad selektorem zakresu (scope).
 

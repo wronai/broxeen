@@ -295,6 +295,8 @@ export class CameraLivePlugin implements Plugin {
                 url: workingRtspUrl,
                 cameraId: ip,
                 fps: 1,
+                initialBase64: previewBase64 ?? undefined,
+                initialMimeType: previewMimeType ?? undefined,
               }),
               title: `Live (1fps): ${ip}`,
               mimeType: 'application/json',

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
+const FRAME_CACHE = new Map<string, { base64: string; mimeType: string; ts: number }>();
+
 export function CameraLiveInline(props: {
   url: string;
   cameraId: string;
@@ -8,11 +10,17 @@ export function CameraLiveInline(props: {
   className?: string;
   imageClassName?: string;
   onClickImage?: (data: { base64: string; mimeType: string }) => void;
+  initialFrame?: { base64: string; mimeType: string } | null;
 }) {
   const fps = Math.max(0.2, props.fps ?? 1);
   const intervalMs = useMemo(() => Math.round(1000 / fps), [fps]);
 
-  const [frame, setFrame] = useState<{ base64: string; mimeType: string } | null>(null);
+  const cacheKey = useMemo(() => `${props.cameraId}|${props.url}`, [props.cameraId, props.url]);
+  const [frame, setFrame] = useState<{ base64: string; mimeType: string } | null>(() => {
+    if (props.initialFrame) return props.initialFrame;
+    const cached = FRAME_CACHE.get(`${props.cameraId}|${props.url}`);
+    return cached ? { base64: cached.base64, mimeType: cached.mimeType } : null;
+  });
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(true);
 
@@ -21,6 +29,11 @@ export function CameraLiveInline(props: {
 
   useEffect(() => {
     let cancelled = false;
+
+    // If caller provides an initial frame later, use it as an instant preview.
+    if (props.initialFrame) {
+      setFrame(props.initialFrame);
+    }
 
     async function tick() {
       if (cancelled || !running) return;
@@ -35,7 +48,9 @@ export function CameraLiveInline(props: {
         })) as { base64?: string };
 
         if (!cancelled && res?.base64) {
-          setFrame({ base64: res.base64, mimeType: "image/jpeg" });
+          const next = { base64: res.base64, mimeType: "image/jpeg" };
+          setFrame(next);
+          FRAME_CACHE.set(cacheKey, { ...next, ts: Date.now() });
           setError(null);
         }
       } catch (e) {
@@ -58,7 +73,7 @@ export function CameraLiveInline(props: {
         timerRef.current = null;
       }
     };
-  }, [intervalMs, props.url, props.cameraId, running]);
+  }, [intervalMs, props.url, props.cameraId, running, cacheKey, props.initialFrame]);
 
   return (
     <div className={props.className}>

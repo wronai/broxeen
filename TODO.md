@@ -34,7 +34,8 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [ ] **Uczenie się preferencji** - system zapamiętuje wybory użytkownika
 
 ### 📺 Podgląd Kamier i Urządzeń
-- [ ] **Live preview kamer** - podgląd wideo (1 FPS dla oszczędności)
+- [x] **Live preview kamer** - podgląd wideo (1 FPS dla oszczędności)
+- [x] **RTSP kompatybilność Tauri (cameraId/camera_id)** - spójne argumenty `rtsp_capture_frame` + testy regresyjne
 - [ ] **Status urządzeń** - online/offline, ostatnia aktywność
 - [ ] **Szybkie akcje** - kliknij aby zobaczyć szczegóły
 - [ ] **Galeria znalezionych** - przeglądaj wszystkie odkryte urządzenia
@@ -69,9 +70,19 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [x] **Plugin system v2** - dynamiczne ładowanie pluginów ✅ v2.0.0
 - [x] **Scoped plugins** - foldery per scope (local-network, cameras, marketplace) ✅ v2.0.0
 - [x] **Marketplace** - zdalne ładowanie pluginów community ✅ v2.0.0
+- [x] **Dev workflow (Tauri+Vite)** - `tauri dev` uruchamia Vite przez `beforeDevCommand`, `make dev` czyści port 5173 ✅
+- [x] **SQLite migracje deterministyczne** - migracje wykonywane sekwencyjnie + `db_execute` obsługuje multi-statement SQL ✅
 - [ ] **Real-time updates** - WebSocket dla natychmiastowych zmian
 - [ ] **Cache system** - przyspieszenie powtarzających się zapytań
 - [ ] **Error recovery** - automatyczne ponawianie błędnych operacji
+
+### 🧪 Stabilność testów
+- [ ] **Vitest: "Worker exited unexpectedly"** — zdiagnozować crash tinypool/worker i dodać stabilny tryb uruchamiania testów (np. pool/config)
+- [ ] **React tests: warning act(...)** — uspokoić warningi w `Chat.test.tsx` (wrap state updates w `act` lub `await` na asynchroniczne efekty)
+
+### 📌 Kamera live — follow-up
+- [ ] **Typowanie payload `camera_live`** — usunąć `any` dla `initialBase64/initialMimeType` i ujednolicić typy między pluginami a `Chat.tsx`
+- [ ] **`camera_id` jako cache/metrics tag** — rozważyć cache ostatniej klatki per kamera / metryki opóźnień w backendzie
 
 ---
 

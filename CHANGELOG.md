@@ -2,7 +2,16 @@
 
 ### Summary
 
-feat(docs): deep code analysis engine with 6 supporting modules
+fix(camera/live): RTSP compatibility + SQLite migrations reliability
+
+### Fixes
+
+- camera: `rtsp_capture_frame` is now invoked with both `cameraId` and `camera_id` (frontend call-sites) to remain compatible with Tauri command arg naming
+- camera: `rtsp_capture_frame` Rust command uses `camera_id` parameter name (kept reserved for future per-camera tagging)
+- db: migrations run deterministically (migration SQL executed sequentially and awaited)
+- db: `db_execute` supports multi-statement SQL via `execute_batch` when params are empty
+- rtsp: ffmpeg runner retries without timeout flags when the local ffmpeg build doesn't support them
+- ui: `camera_live` blocks can include an initial preview frame and open a full-screen live overlay in Tauri
 
 ### Docs
 

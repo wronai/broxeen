@@ -1038,7 +1038,13 @@ ${analysis}`,
               const parsed = JSON.parse(String(block.data ?? '')) as any;
               if (parsed && parsed.kind === 'camera_live' && typeof parsed.url === 'string' && typeof parsed.cameraId === 'string') {
                 messageType = 'camera_live';
-                livePayload = { url: parsed.url, cameraId: parsed.cameraId, fps: typeof parsed.fps === 'number' ? parsed.fps : undefined };
+                livePayload = {
+                  url: parsed.url,
+                  cameraId: parsed.cameraId,
+                  fps: typeof parsed.fps === 'number' ? parsed.fps : undefined,
+                  initialBase64: typeof parsed.initialBase64 === 'string' ? parsed.initialBase64 : undefined,
+                  initialMimeType: typeof parsed.initialMimeType === 'string' ? parsed.initialMimeType : undefined,
+                } as any;
                 if (!firstLivePayload) firstLivePayload = livePayload;
                 messageText = '';
               } else {
@@ -1478,7 +1484,17 @@ ${analysis}`,
                             url={msg.live.url}
                             cameraId={msg.live.cameraId}
                             fps={msg.live.fps}
-                            onClickImage={(frame) => setExpandedImage({ data: frame.base64, mimeType: frame.mimeType })}
+                            initialFrame={
+                              (msg.live as any).initialBase64
+                                ? {
+                                    base64: (msg.live as any).initialBase64,
+                                    mimeType: (msg.live as any).initialMimeType || 'image/jpeg',
+                                  }
+                                : null
+                            }
+                            className="w-full"
+                            imageClassName="w-full h-auto object-contain max-h-64 rounded cursor-pointer hover:opacity-90 transition-opacity"
+                            onClickImage={(img) => setExpandedImage({ data: img.base64, mimeType: img.mimeType })}
                           />
                         </div>
                       )}
