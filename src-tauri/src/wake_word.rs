@@ -164,12 +164,18 @@ pub fn start_wake_word_listening(
                     let audio_vec: Vec<f32> = s.audio_buffer.iter().copied().collect();
                     let confidence = match_wake_word(&audio_vec, s.sample_rate);
                     
+                    if confidence > 0.5 {
+                        println!("[wake-word] Voice activity detected - confidence: {:.2}, rms: {:.4}, buffer_size: {}", 
+                            confidence, rms_value, audio_vec.len());
+                    }
+                    
                     if confidence > 0.7 {
-                        println!("[wake-word] HEYKEN detected! Confidence: {:.2}", confidence);
+                        println!("[wake-word] ✓ HEYKEN DETECTED! Confidence: {:.2}, RMS: {:.4}", confidence, rms_value);
                         s.triggered = true;
                         s.trigger_time = Some(std::time::Instant::now());
                         
                         // Emit Tauri event
+                        println!("[wake-word] Emitting wake-word-detected event to frontend");
                         let _ = app_handle.emit("wake-word-detected", serde_json::json!({
                             "confidence": confidence,
                             "timestamp": std::time::SystemTime::now()
@@ -180,6 +186,7 @@ pub fn start_wake_word_listening(
                         
                         // Clear buffer to avoid re-triggering
                         s.audio_buffer.clear();
+                        println!("[wake-word] Buffer cleared, waiting for reset");
                     }
                 }
             },

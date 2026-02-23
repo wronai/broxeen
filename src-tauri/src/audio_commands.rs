@@ -81,13 +81,15 @@ pub fn stt_start(
             crate::backend_warn("stt_start rejected: already recording");
             return Err("Already recording".into());
         }
+        crate::backend_info(format!("Current recording state: is_recording={}, samples={}", s.is_recording, s.samples.len()));
     }
 
+    crate::backend_info("Starting native audio capture...");
     let stream = audio_capture::start_recording(&recording_state)?;
 
     // Store stream handle so it stays alive
     *active_stream.0.lock().unwrap() = Some(stream);
-    crate::backend_info("Native microphone recording started");
+    crate::backend_info("✓ Native microphone recording started successfully");
 
     Ok("Recording started".into())
 }
@@ -110,14 +112,17 @@ pub async fn stt_stop(
     // Drop the stream to stop recording
     {
         let mut stream = active_stream.0.lock().unwrap();
+        crate::backend_info("Stopping audio capture stream...");
         *stream = None; // drops the cpal::Stream, stopping capture
     }
 
     // Small delay to let the last buffer flush
+    crate::backend_info("Waiting 100ms for buffer flush...");
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
     // Encode recorded audio to WAV base64
-    let (wav_base64, _sample_rate) = audio_capture::stop_and_encode_wav(&recording_state)?;
+    crate::backend_info("Encoding recorded audio to WAV...");
+    let (wav_base64, sample_rate) = audio_capture::stop_and_encode_wav(&recording_state)?;
     let lang = language
         .as_deref()
         .map(str::trim)
@@ -125,9 +130,10 @@ pub async fn stt_stop(
         .unwrap_or("pl");
 
     crate::backend_info(format!(
-        "Forwarding recorded audio to STT provider (lang={}, payload_kb={})",
-        lang,
-        wav_base64.len() / 1024
+        "✓ Audio encoded: sample_rate={}, payload_kb={}, sending to STT provider (lang={})",
+        sample_rate,
+        wav_base64.len() / 1024,
+        lang
     ));
 
     // Send to OpenRouter Whisper for transcription
@@ -140,7 +146,8 @@ pub async fn stt_stop(
     .await?;
 
     crate::backend_info(format!(
-        "STT transcript ready (len={})",
+        "✓ STT transcript ready: \"{}\" (len={})",
+        transcript.chars().take(50).collect::<String>(),
         transcript.len()
     ));
     Ok(transcript)
