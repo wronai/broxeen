@@ -61,15 +61,19 @@ async function tryLlmFallback(options: FallbackOptions): Promise<FallbackResult 
     // Build LLM context from all action schemas
     const schemasContext = schemasToLlmContext(ACTION_SCHEMAS as unknown as ActionSchema[]);
 
-    const systemPrompt = `Jesteś asystentem systemu Broxeen — inteligentnego monitora sieci i kamer.
+    const sysCtx = buildSystemContextPrompt();
+
+    const systemPrompt = `Jesteś asystentem systemu Broxeen — inteligentnego monitora sieci, kamer i plików.
 Użytkownik wpisał zapytanie, którego system nie rozpoznał automatycznie.
+
+${sysCtx}
 
 Oto WSZYSTKIE dostępne akcje w systemie:
 
 ${schemasContext}
 
 Twoim zadaniem jest:
-1. Zrozumieć intencję użytkownika
+1. Zrozumieć intencję użytkownika w kontekście systemu (OS, ścieżki, możliwości)
 2. Wybrać 3-5 najlepiej pasujących akcji z powyższej listy
 3. Odpowiedzieć w formacie JSON (i TYLKO JSON, bez markdown):
 
@@ -80,8 +84,8 @@ Twoim zadaniem jest:
   ]
 }
 
-Jeśli zapytanie dotyczy konkretnej domeny (np. kamery), preferuj akcje z tej domeny.
-Jeśli zapytanie jest bardzo ogólne, zaproponuj akcje z różnych domen.
+Jeśli zapytanie dotyczy konkretnej domeny (np. kamery, pliki, sieć), preferuj akcje z tej domeny.
+NIGDY nie proponuj poradników dla wielu systemów — odpowiadaj TYLKO w kontekście wykrytego OS.
 Zawsze odpowiadaj po polsku. Zwróć TYLKO JSON.`;
 
     fallbackLogger.info('Asking LLM for fallback suggestions', {

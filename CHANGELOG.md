@@ -1,3 +1,18 @@
+## [1.0.51] - 2026-02-23
+
+### Summary
+
+feat(tests): deep code analysis engine with 3 supporting modules
+
+### Other
+
+- update src/components/Chat.tsx
+- update src/core/actionSchema.ts
+- update src/core/fallbackHandler.ts
+- update src/core/systemContext.test.ts
+- update src/domain/chatEvents.ts
+
+
 ## [1.0.50] - 2026-02-23
 
 ### Summary

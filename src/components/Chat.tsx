@@ -1845,6 +1845,7 @@ ${analysis}`,
                             cameraId={msg.live.cameraId}
                             fps={msg.live.fps}
                             snapshotUrl={msg.live.snapshotUrl}
+                            startInSnapshotMode={msg.live.startInSnapshotMode}
                             initialFrame={
                               msg.live.initialBase64
                                 ? {

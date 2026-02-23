@@ -23,7 +23,9 @@ export type ActionDomain =
   | 'iot'
   | 'bridge'
   | 'marketplace'
-  | 'chat';
+  | 'chat'
+  | 'file'
+  | 'email';
 
 export interface ActionSchema {
   /** Intent id, e.g. "camera:snapshot" */
@@ -213,6 +215,70 @@ export const ACTION_SCHEMAS: readonly ActionSchema[] = [
     executeQuery: 'procesy',
   },
 
+  // ── File domain ───────────────────────────────────
+  {
+    intent: 'file:search',
+    domain: 'file',
+    label: 'Wyszukaj pliki',
+    description: 'Znajdź pliki na dysku lokalnym po nazwie lub rozszerzeniu',
+    icon: '📁',
+    keywords: ['plik', 'pliki', 'znajdź', 'szukaj', 'wyszukaj', 'dokument', 'folder', 'katalog', 'file', 'search'],
+    examples: ['znajdź pliki pdf', 'wyszukaj dokumenty', 'pliki w folderze domowym'],
+    executeQuery: 'znajdź pliki ',
+  },
+  {
+    intent: 'file:list',
+    domain: 'file',
+    label: 'Lista plików',
+    description: 'Pokaż zawartość folderu (pliki i katalogi)',
+    icon: '📂',
+    keywords: ['lista', 'listuj', 'pokaż', 'wylistuj', 'zawartość', 'folderu', 'katalogu', 'usera', 'użytkownika', 'domowy', 'home', 'ls'],
+    examples: ['lista plików w folderze usera', 'pokaż pliki na pulpicie', 'co jest w katalogu domowym'],
+    executeQuery: 'lista plików w folderze usera',
+  },
+  {
+    intent: 'file:read',
+    domain: 'file',
+    label: 'Przeczytaj plik',
+    description: 'Odczytaj zawartość pliku tekstowego',
+    icon: '📄',
+    keywords: ['przeczytaj', 'odczytaj', 'otwórz', 'zawartość', 'plik', 'treść'],
+    examples: ['przeczytaj plik /home/user/notes.txt', 'co jest w pliku config.json'],
+    executeQuery: 'przeczytaj plik ',
+  },
+
+  // ── Email domain ──────────────────────────────────
+  {
+    intent: 'email:check',
+    domain: 'email',
+    label: 'Sprawdź pocztę',
+    description: 'Odczytaj nowe wiadomości email ze skrzynki',
+    icon: '📬',
+    keywords: ['email', 'poczta', 'skrzynka', 'inbox', 'wiadomości', 'mail', 'sprawdź'],
+    examples: ['sprawdź skrzynkę email', 'nowe wiadomości', 'inbox'],
+    executeQuery: 'sprawdź skrzynkę email',
+  },
+  {
+    intent: 'email:send',
+    domain: 'email',
+    label: 'Wyślij email',
+    description: 'Wyślij wiadomość email lub plik jako załącznik',
+    icon: '📧',
+    keywords: ['wyślij', 'email', 'mail', 'załącznik', 'send', 'smtp'],
+    examples: ['wyślij email', 'wyślij plik na email'],
+    executeQuery: 'wyślij email ',
+  },
+  {
+    intent: 'email:config',
+    domain: 'email',
+    label: 'Konfiguracja email',
+    description: 'Skonfiguruj połączenie ze skrzynką email (IMAP/SMTP)',
+    icon: '⚙️',
+    keywords: ['konfiguruj', 'email', 'imap', 'smtp', 'skonfiguruj', 'poczta'],
+    examples: ['konfiguruj email', 'ustaw pocztę'],
+    executeQuery: 'konfiguruj email',
+  },
+
   // ── Monitor domain ───────────────────────────────
   {
     intent: 'monitor:start',
@@ -376,6 +442,21 @@ export function findDomainSchemas(query: string): ActionSchema[] {
     'temperatur': 'iot',
     'marketplace': 'marketplace',
     'plugin': 'marketplace',
+    'plik': 'file',
+    'pliki': 'file',
+    'folder': 'file',
+    'katalog': 'file',
+    'dokument': 'file',
+    'file': 'file',
+    'lista plik': 'file',
+    'usera': 'file',
+    'email': 'email',
+    'mail': 'email',
+    'poczta': 'email',
+    'skrzynk': 'email',
+    'inbox': 'email',
+    'smtp': 'email',
+    'imap': 'email',
   };
 
   const matchedDomains = new Set<ActionDomain>();
@@ -421,6 +502,8 @@ export function schemasToLlmContext(schemas: ActionSchema[]): string {
     bridge: 'Protocol Bridge',
     marketplace: 'Marketplace',
     chat: 'Rozmowa',
+    file: 'Pliki',
+    email: 'Email',
   };
 
   const lines: string[] = [];
