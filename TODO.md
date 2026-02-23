@@ -27,42 +27,14 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 
 ## 🚀 NOWE ULEPSZENIA SYSTEMU (v2.0+)
 
-### 🤖 Inteligentny Asystent z Propozycjami
-- [x] **System proponowania akcji** — `MessageQuickActions` + `quickActionResolver` — kontekstowe przyciski na dole każdej odpowiedzi asystenta ✅
-- [x] **Kontekstowe sugestie** — auto-detekcja IP, URL, kamer, portów, SSH w treści wiadomości → odpowiednie akcje ✅
-- [x] **Interaktywne wybieranie** — klikalne karty na ekranie powitalnym (6 akcji) + inline buttons na wiadomościach ✅
-- [x] **Uczenie się preferencji** — `PreferenceLearningStore` + tracking w `ChatConfigPrompt` + ranking w `fallbackHandler` ✅
-
-### 📺 Podgląd Kamier i Urządzeń
-- [x] **Live preview kamer** - podgląd wideo (1 FPS dla oszczędności)
-- [x] **RTSP kompatybilność Tauri (cameraId/camera_id)** - spójne argumenty `rtsp_capture_frame` + testy regresyjne
-- [x] **Status urządzeń** - online/offline, ostatnia aktywność → `device_status` w DeviceRepository + ping-based health check ✅
-- [x] **Szybkie akcje** — kliknij przycisk na wiadomości → ping, porty, SSH, monitor, live kamera ✅
-- [x] **Galeria znalezionych** - przeglądaj wszystkie odkryte urządzenia ✅ (DeviceDashboardModal z filtrowaniem)
-
 ### 🔍 Inteligentne Skanowanie
-- [x] **Skanowanie przyrostowe** - tylko nowe urządzenia (`calculateIncrementalRanges()`, `determineScanStrategy()`) ✅
-- [x] **Historia skanowań** - zapamiętaj co znaleziono (`ScanHistoryRepository`, `scan_history` table) ✅
-- [x] **Automatyczne ponawianie** - periodiczne sprawdzanie statusu
 - [ ] **Filtrowanie wyników** - tylko kamery, tylko konkretne typy
 
 ### 💬 Ulepszenia Chat UI
-- [x] **Sugerowane komendy** — ekran powitalny z 6 kartami akcji + `ActionSuggestions` z uczeniem się ✅
-- [x] **Historia z kategoriami** — `CommandHistory` category filter tabs (Sieć/Kamery/Strony/Czat/Inne) z licznikami i aktywnym podświetleniem ✅
-- [x] **Szybkie odpowiedzi** — `MessageQuickActions` generuje predefiniowane follow-up komendy per wiadomość ✅
-- [x] **Wizualizacja wyników** — `MessageResultCard` auto-detects domain → colored border + icon badge + status pill ✅
-- [x] **Pływające przyciski diagnostyki/błędów** - przeniesione na prawą stronę nad scope i skompresowane do jednej linii
 - [ ] **Responsywność pływających przycisków** - dopasowanie na bardzo wąskich oknach (opcjonalne skrócone etykiety)
 
 ### 🎯 Interakcja i Wsparcie Użytkownika
-- [x] **Quick-start welcome screen** — 6 klikalnych kart akcji na ekranie powitalnym (skanuj, kamery, przeglądaj, konfiguracja, monitoruj, pomoc) ✅
-- [x] **Context-aware message actions** — `quickActionResolver` analizuje treść → generuje do 5 akcji (ping, porty, SSH, browse, monitor, snapshot) ✅
-- [x] **Execute/Prefill/Link actions** — trzy tryby akcji: execute (natychmiast), prefill (wstaw do inputa), link (otwórz URL) ✅
-- [x] **Wizard konfiguracyjny** — step-by-step setup: API key → model → podsieć → kamery ✅ (`SetupWizardModal.tsx`)
-- [x] **Onboarding flow** — pierwszy start z interaktywnym tutorialem ✅ (auto-open wizard gdy brak API key)
-- [x] **Feedback na akcjach** — animacja sukcesu (green pulse + bounce checkmark 600ms) w `ChatConfigPrompt` dla buttons/cards/inline ✅
 - [ ] **Drag & drop reorder** — użytkownik sortuje ulubione akcje na ekranie powitalnym
-- [x] **Keyboard shortcuts** — Ctrl+1..8 dla szybkich akcji z welcome screen ✅
 
 ### 🌐 Wieloplatformowość
 - [ ] **Android tablet/smartphone** - responsywny UI
@@ -71,18 +43,10 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [ ] **Synchronizacja** - między urządzeniami
 
 ### 📊 Analiza i Monitorowanie
-- [x] **Dashboard urządzeń** - podsumowanie stanu sieci ✅ (`DeviceDashboardModal.tsx`, filtr: kamery/online/offline)
-- [x] **Alerty o zmianach** - automatyczne powiadomienia (`AlertBridge` + `useAlertBridge` + `AlertBridgeComponent`) ✅
 - [ ] **Statystyki użycia** - najczęściej używane funkcje
 - [ ] **Export danych** - CSV, JSON raporty
 
 ### 🔧 Techniczne Ulepszenia
-- [x] **Action Schema + Fallback Handler** — `actionSchema.ts` (25+ schemas) + `fallbackHandler.ts` (LLM/keyword/generic) + scope fix (`chat-llm` w `local`) ✅
-- [x] **Plugin system v2** - dynamiczne ładowanie pluginów ✅ v2.0.0
-- [x] **Scoped plugins** - foldery per scope (local-network, cameras, marketplace) ✅ v2.0.0
-- [x] **Marketplace** - zdalne ładowanie pluginów community ✅ v2.0.0
-- [x] **Dev workflow (Tauri+Vite)** - `tauri dev` uruchamia Vite przez `beforeDevCommand`, `make dev` czyści port 5173 ✅
-- [x] **SQLite migracje deterministyczne** - migracje wykonywane sekwencyjnie + `db_execute` obsługuje multi-statement SQL ✅
 - [ ] **Real-time updates** - WebSocket dla natychmiastowych zmian
 - [ ] **Cache system** - przyspieszenie powtarzających się zapytań
 - [ ] **Error recovery** - automatyczne ponawianie błędnych operacji
@@ -90,10 +54,6 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 ### 🧪 Stabilność testów
 - [ ] **Vitest: "Worker exited unexpectedly"** — zdiagnozować crash tinypool/worker i dodać stabilny tryb uruchamiania testów (np. pool/config)
 - [ ] **React tests: warning act(...)** — uspokoić warningi w `Chat.test.tsx` (wrap state updates w `act` lub `await` na asynchroniczne efekty)
-
-### 📌 Kamera live — follow-up
-- [x] **Typowanie payload `camera_live`** — usunięto `any` dla `initialBase64/initialMimeType`, ujednolicono typy w `chatEvents.ts` i `Chat.tsx`
-- [x] **`camera_id` jako cache/metrics tag** — dodano `frame_count`, `frame_age_ms`, `started_at` do `LiveFrameCache` + komenda `rtsp_worker_stats` + wyświetlanie w `CameraLiveInline`
 
 ---
 

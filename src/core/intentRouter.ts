@@ -4,13 +4,16 @@
 
 import type { IntentDetection, IntentRouter as IIntentRouter, Plugin, PluginContext, DataSourcePlugin } from './types';
 import { scopeRegistry } from '../plugins/scope/scopeRegistry';
+import { classifyIntent, type LlmIntentResult } from './llmIntentClassifier';
 
 export class IntentRouter implements IIntentRouter {
   private intentPatterns = new Map<string, RegExp[]>();
   private plugins = new Map<string, Plugin>();
   private dataSourcePlugins = new Map<string, DataSourcePlugin>();
+  private useLlmClassifier: boolean;
 
-  constructor() {
+  constructor(options?: { useLlmClassifier?: boolean }) {
+    this.useLlmClassifier = options?.useLlmClassifier ?? false;
     this.initializeDefaultPatterns();
   }
 
@@ -578,8 +581,27 @@ export class IntentRouter implements IIntentRouter {
   }
 
   async detect(input: string): Promise<IntentDetection> {
-    const normalizedInput = input.toLowerCase().trim();
     console.log(`🔍 Detecting intent for input: "${input}"`);
+    
+    // Try LLM classifier first if enabled
+    if (this.useLlmClassifier) {
+      try {
+        const llmResult = await classifyIntent(input);
+        if (llmResult && llmResult.confidence > 0.5) {
+          console.log(`✅ LLM Intent detected: ${llmResult.intent} (confidence: ${llmResult.confidence})`);
+          return {
+            intent: llmResult.intent,
+            confidence: llmResult.confidence,
+            entities: llmResult.entities,
+          };
+        }
+      } catch (error) {
+        console.warn('LLM classification failed, falling back to regex:', error);
+      }
+    }
+    
+    // Fallback to regex patterns
+    const normalizedInput = input.toLowerCase().trim();
     
     // Check specific intents first (in order of priority)
     for (const [intent, patterns] of this.intentPatterns) {
@@ -587,7 +609,7 @@ export class IntentRouter implements IIntentRouter {
       
       for (const pattern of patterns) {
         if (pattern.test(normalizedInput)) {
-          console.log(`✅ Intent detected: ${intent} with pattern: ${pattern}`);
+          console.log(`✅ Regex Intent detected: ${intent} with pattern: ${pattern}`);
           return {
             intent,
             confidence: this.calculateConfidence(normalizedInput, intent),

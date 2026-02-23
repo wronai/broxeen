@@ -25,7 +25,16 @@ export async function bootstrapApp(config: {
   scopeRegistry.restore();
 
   const pluginRegistry = new PluginRegistry();
-  const intentRouter = new IntentRouter();
+  // Enable LLM classifier if API key is configured
+  const useLlmClassifier = (() => {
+    try {
+      const { configStore } = require('../config/configStore');
+      return !!(configStore.get('llm.apiKey') as string);
+    } catch {
+      return false;
+    }
+  })();
+  const intentRouter = new IntentRouter({ useLlmClassifier });
   const commandBus = new CommandBus();
   const eventStore = new EventStore();
 

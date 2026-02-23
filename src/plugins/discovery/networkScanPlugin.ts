@@ -20,84 +20,53 @@ export class NetworkScanPlugin implements Plugin {
   private scanCache = CacheFactory.create<string, NetworkScanResult>('network-scan', CACHE_CONFIGS.NETWORK_SCAN);
   private deviceFilterCache = CacheFactory.create<string, PluginResult>('device-filter', CACHE_CONFIGS.PLUGIN_RESULTS);
 
+  /** Data-driven command routing table: [route_key, keywords] */
+  private static readonly ROUTE_TABLE: ReadonlyArray<[string, readonly string[]]> = [
+    ['scan',   ['skanuj sieć', 'skanuj', 'odkryj urządzenia', 'znajdź urządzenia',
+               'scan network', 'discover devices', 'network scan', 'find devices']],
+    ['camera', ['pokaż kamery', 'pokaż kamerę', 'pokaz kamery', 'pokaz kamera',
+               'znajdź kamery', 'znajdź kamerę', 'wyszukaj kamery', 'wyszukaj kamerę',
+               'kamery w sieci', 'kamera w sieci', 'discover cameras', 'find cameras']],
+    ['rpi',    ['znajdź rpi', 'znajdz rpi', 'raspberry pi', 'raspberry', 'rpi']],
+    ['status', ['status urządzeń', 'status urzadzen', 'lista urządzeń', 'lista urzadzen',
+               'znane urządzenia', 'znane urzadzenia', 'device status', 'device list',
+               'galeria urządzeń', 'galeria urzadzen', 'pokaż urządzenia', 'pokaz urzadzenia']],
+    ['filter', ['filtruj urządzenia', 'filtruj urzadzenia', 'filter devices',
+               'tylko kamery', 'tylko routery', 'tylko drukarki',
+               'urządzenia typ', 'urzadzenia typ', 'devices type']],
+    ['export', ['exportuj urządzenia', 'exportuj urzadzenia', 'eksportuj urządzenia', 'eksportuj urzadzenia',
+               'export devices', 'export urządzenia', 'pobierz urządzenia',
+               'eksport csv', 'export csv', 'eksport json', 'export json',
+               'zapisz urządzenia', 'pobierz listę urządzeń']],
+  ];
+
+  /** Resolve route key for a given input (null = no match) */
+  private static resolveRoute(input: string): string | null {
+    const lower = input.toLowerCase();
+    for (const [key, keywords] of NetworkScanPlugin.ROUTE_TABLE) {
+      if (keywords.some(kw => lower.includes(kw))) return key;
+    }
+    return null;
+  }
+
   async initialize(context: PluginContext): Promise<void> {
     console.log('🔧 NetworkScanPlugin.initialize called', { isTauri: context.isTauri });
   }
 
-  async canHandle(input: string, context: PluginContext): Promise<boolean> {
-    const lowerInput = input.toLowerCase();
-    const scanKeywords = [
-      'skanuj sieć', 'skanuj', 'odkryj urządzenia', 'znajdź urządzenia',
-      'scan network', 'discover devices', 'network scan', 'find devices'
-    ];
-    
-    const cameraKeywords = [
-      'pokaż kamery', 'pokaż kamerę', 'pokaz kamery', 'pokaz kamera',
-      'znajdź kamery', 'znajdź kamerę', 'wyszukaj kamery', 'wyszukaj kamerę',
-      'kamery w sieci', 'kamera w sieci', 'discover cameras', 'find cameras'
-    ];
-
-    const raspberryPiKeywords = [
-      'znajdź rpi',
-      'znajdz rpi',
-      'raspberry pi',
-      'raspberry',
-      'rpi',
-    ];
-    
-    const statusKeywords = [
-      'status urządzeń', 'status urzadzen', 'lista urządzeń', 'lista urzadzen',
-      'znane urządzenia', 'znane urzadzenia', 'device status', 'device list',
-      'galeria urządzeń', 'galeria urzadzen', 'pokaż urządzenia', 'pokaz urzadzenia',
-    ];
-
-    const filterKeywords = [
-      'filtruj urządzenia', 'filtruj urzadzenia', 'filter devices',
-      'tylko kamery', 'tylko routery', 'tylko drukarki',
-      'urządzenia typ', 'urzadzenia typ', 'devices type',
-    ];
-
-    const exportKeywords = [
-      'exportuj urządzenia', 'exportuj urzadzenia', 'eksportuj urządzenia', 'eksportuj urzadzenia',
-      'export devices', 'export urządzenia', 'pobierz urządzenia',
-      'eksport csv', 'export csv', 'eksport json', 'export json',
-      'zapisz urządzenia', 'pobierz listę urządzeń',
-    ];
-
-    return scanKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           cameraKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           raspberryPiKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           statusKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           filterKeywords.some(keyword => lowerInput.includes(keyword)) ||
-           exportKeywords.some(keyword => lowerInput.includes(keyword));
+  async canHandle(input: string, _context: PluginContext): Promise<boolean> {
+    return NetworkScanPlugin.resolveRoute(input) !== null;
   }
 
   private isStatusQuery(input: string): boolean {
-    const lower = input.toLowerCase();
-    return [
-      'status urządzeń', 'status urzadzen', 'lista urządzeń', 'lista urzadzen',
-      'znane urządzenia', 'znane urzadzenia', 'device status', 'device list',
-      'galeria urządzeń', 'galeria urzadzen', 'pokaż urządzenia', 'pokaz urzadzenia',
-    ].some(k => lower.includes(k));
+    return NetworkScanPlugin.resolveRoute(input) === 'status';
   }
 
   private isFilterQuery(input: string): boolean {
-    const lower = input.toLowerCase();
-    return [
-      'filtruj urządzenia', 'filtruj urzadzenia', 'filter devices',
-      'tylko kamery', 'tylko routery', 'tylko drukarki',
-      'urządzenia typ', 'urzadzenia typ', 'devices type',
-    ].some(k => lower.includes(k));
+    return NetworkScanPlugin.resolveRoute(input) === 'filter';
   }
 
   private isExportQuery(input: string): boolean {
-    const lower = input.toLowerCase();
-    return [
-      'exportuj urządzenia', 'exportuj urzadzenia', 'eksportuj urządzenia', 'eksportuj urzadzenia',
-      'export devices', 'export urządzenia', 'pobierz urządzenia',
-      'eksport csv', 'export csv', 'eksport json', 'export json',
-      'zapisz urządzenia', 'pobierz listę urządzeń',
-    ].some(k => lower.includes(k));
+    return NetworkScanPlugin.resolveRoute(input) === 'export';
   }
 
   private extractExportFormat(input: string): 'csv' | 'json' {
