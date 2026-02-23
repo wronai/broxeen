@@ -23,7 +23,7 @@ pub async fn transcribe_wav_base64(
         return Err("OPENROUTER_API_KEY not set — STT requires cloud transcription".into());
     }
 
-    let default_model = env::var("STT_MODEL").unwrap_or_else(|_| "openai/whisper-large-v3".to_string());
+    let default_model = env::var("STT_MODEL").unwrap_or_else(|_| env::var("VITE_STT_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string()));
     let model = model_override
         .map(|s| s.trim().to_string())
         .filter(|value| !value.is_empty())

@@ -103,8 +103,14 @@ VITE_LLM_TEMPERATURE=0.7
 VITE_LLM_API_URL=https://openrouter.ai/api/v1/chat/completions
 
 # STT
-VITE_STT_MODEL=google/gemini-2.0-flash
+VITE_STT_MODEL=google/gemini-2.0-flash-exp:free
 VITE_STT_LANG=pl
+
+# Vision / Motion Detection
+VITE_VISION_OPENROUTER_MODEL=google/gemini-2.0-flash-exp:free
+VITE_VISION_LOCAL_MODEL=llava:7b
+VITE_MOTION_LLM_VERIFY_MODEL=anthropic/claude-haiku-4-5
+VITE_BROWSE_LLM_MODEL=google/gemini-2.0-flash-001
 
 # Sieć
 VITE_DEFAULT_SUBNET=192.168.1

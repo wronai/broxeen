@@ -3,6 +3,7 @@
 //! Tier 3: Chrome `--screenshot` → Vision LLM (image → text description)
 
 use std::process::Command;
+use std::env;
 
 // ── Chrome Detection ─────────────────────────────────
 
@@ -304,7 +305,7 @@ async fn describe_image_with_vision(
     let img_base64 = base64::engine::general_purpose::STANDARD.encode(img_bytes);
 
     let payload = serde_json::json!({
-        "model": "google/gemini-2.0-flash-001",
+        "model": env::var("VITE_BROWSE_LLM_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-001".to_string()),
         "messages": [
             {
                 "role": "user",

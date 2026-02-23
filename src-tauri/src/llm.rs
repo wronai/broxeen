@@ -45,7 +45,7 @@ pub async fn llm_chat(
 
     let mdl = if model.is_empty() {
         crate::backend_info("Model not provided in payload, falling back to LLM_MODEL env var or default");
-        env::var("LLM_MODEL").unwrap_or_else(|_| "google/gemini-3-flash-preview".into())
+        env::var("LLM_MODEL").unwrap_or_else(|_| env::var("VITE_LLM_MODEL").unwrap_or_else(|_| "google/gemini-3-flash-preview".into()))
     } else {
         model
     };

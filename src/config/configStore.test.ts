@@ -32,21 +32,21 @@ describe('ConfigStore', () => {
     const listener = vi.fn();
     const unsub = configStore.onChange(listener);
 
-    configStore.set('llm.model', 'openai/gpt-4o');
-    expect(configStore.get<string>('llm.model')).toBe('openai/gpt-4o');
-    expect(listener).toHaveBeenCalledWith('llm.model', 'openai/gpt-4o');
+    configStore.set('llm.model', import.meta.env?.VITE_LLM_MODEL || 'openai/gpt-4o');
+    expect(configStore.get<string>('llm.model')).toBe(import.meta.env?.VITE_LLM_MODEL || 'openai/gpt-4o');
+    expect(listener).toHaveBeenCalledWith('llm.model', import.meta.env?.VITE_LLM_MODEL || 'openai/gpt-4o');
 
     unsub();
   });
 
   it('setMany() batch-updates multiple paths', () => {
     configStore.setMany({
-      'llm.model': 'anthropic/claude-3.5-sonnet',
+      'llm.model': import.meta.env?.VITE_LLM_MODEL || 'anthropic/claude-3.5-sonnet',
       'ssh.defaultPort': 2222,
       'network.batchSize': 20,
     });
 
-    expect(configStore.get<string>('llm.model')).toBe('anthropic/claude-3.5-sonnet');
+    expect(configStore.get<string>('llm.model')).toBe(import.meta.env?.VITE_LLM_MODEL || 'anthropic/claude-3.5-sonnet');
     expect(configStore.get<number>('ssh.defaultPort')).toBe(2222);
     expect(configStore.get<number>('network.batchSize')).toBe(20);
   });

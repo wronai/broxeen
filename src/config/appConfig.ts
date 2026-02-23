@@ -166,14 +166,14 @@ export const DEFAULT_CONFIG: AppConfig = {
   llm: {
     apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
     apiKey: '',
-    model: 'google/gemini-3-flash-preview',
+    model: import.meta.env?.VITE_LLM_MODEL || 'google/gemini-3-flash-preview',
     maxTokens: 2048,
     temperature: 0.7,
     httpReferer: 'https://broxeen.local',
     appTitle: 'broxeen',
   },
   stt: {
-    model: 'google/gemini-2.0-flash',
+    model: import.meta.env?.VITE_STT_MODEL || 'google/gemini-2.0-flash-exp:free',
     language: 'pl',
     maxTokens: 256,
     temperature: 0.0,
@@ -258,7 +258,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     cooldownSec: 10,
     maxCropPx: 500,
     detectionsDbPath: 'detections.db',
-    llmVerifyModel: 'anthropic/claude-haiku-4-5',
+    llmVerifyModel: import.meta.env?.VITE_MOTION_LLM_VERIFY_MODEL || 'anthropic/claude-haiku-4-5',
     platform: 'auto',
     nightModePersonAlwaysLlm: true,
   },
@@ -333,6 +333,7 @@ export const CONFIG_FIELD_META: ConfigFieldMeta[] = [
     type: 'string',
     category: 'stt',
     options: [
+      { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash Free' },
       { value: 'google/gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
       { value: 'openai/whisper-large-v3', label: 'Whisper Large v3' },
     ],

@@ -20,7 +20,7 @@ pub async fn text_to_sql(question: &str, data_source: DataSource) -> Result<Stri
     }
 
     let model = env::var("LLM_MODEL")
-        .unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".into());
+        .unwrap_or_else(|_| env::var("VITE_LLM_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".into()));
 
     let system_prompt = query_schema::build_text_to_sql_prompt(data_source.schema());
 

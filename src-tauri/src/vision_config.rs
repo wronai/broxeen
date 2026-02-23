@@ -249,10 +249,10 @@ pub struct LlmConfig {
 }
 
 fn default_openrouter_model() -> String {
-    "google/gemini-2.0-flash-exp:free".to_string()
+    env::var("VITE_VISION_OPENROUTER_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string())
 }
 fn default_local_model() -> String {
-    "llava:7b".to_string()
+    env::var("VITE_VISION_LOCAL_MODEL").unwrap_or_else(|_| "llava:7b".to_string())
 }
 fn default_max_tokens() -> u32 {
     80

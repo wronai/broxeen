@@ -26,7 +26,7 @@ export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
   tts_engine: "auto",
   stt_enabled: true,
   stt_engine: "openrouter",
-  stt_model: "whisper-1",
+  stt_model: "google/gemini-2.0-flash-exp:free",
   mic_enabled: true,
   mic_device_id: "default",
   speaker_device_id: "default",

@@ -26,6 +26,8 @@ use std::io::{BufRead, BufReader};
 #[cfg(not(feature = "vision"))]
 use std::process::{Child, Command, Stdio};
 #[cfg(not(feature = "vision"))]
+use std::env;
+#[cfg(not(feature = "vision"))]
 use std::thread;
 
 #[cfg(feature = "vision")]
@@ -279,7 +281,7 @@ pub async fn motion_pipeline_start(
     let max_crop = request.max_crop_px.unwrap_or(500).to_string();
     let llm_model = request
         .llm_model
-        .unwrap_or_else(|| "anthropic/claude-haiku-4-5".to_string());
+        .unwrap_or_else(|| env::var("VITE_MOTION_LLM_VERIFY_MODEL").unwrap_or_else(|_| "anthropic/claude-haiku-4-5".to_string()));
     let platform = request.platform.unwrap_or_else(|| "auto".to_string());
     let stats_interval = request.stats_interval.unwrap_or(60).to_string();
 

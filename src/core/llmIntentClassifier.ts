@@ -122,7 +122,7 @@ export async function classifyIntent(query: string): Promise<LlmIntentResult | n
     }
 
     const systemPrompt = buildIntentPrompt(ACTION_SCHEMAS as unknown as ActionSchema[]);
-    const model = configStore.get('llm.model') as string || 'google/gemini-2.0-flash-exp:free';
+    const model = configStore.get('llm.model') as string || import.meta.env?.VITE_LLM_MODEL || 'google/gemini-2.0-flash-exp:free';
 
     // Import llmClient dynamically to avoid circular dependencies
     // eslint-disable-next-line @typescript-eslint/no-var-requires

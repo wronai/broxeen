@@ -188,7 +188,7 @@ export default function Chat({ settings }: ChatProps) {
     else if (hour >= 12 && hour < 17) timeOfDay = 'afternoon';
     else if (hour >= 17 && hour < 22) timeOfDay = 'evening';
     else timeOfDay = 'night';
-    
+
     // Get last category from recent queries
     const lastQuery = getRecentQueries()[0] || '';
     let lastCategory: string | undefined;
@@ -196,7 +196,7 @@ export default function Chat({ settings }: ChatProps) {
     else if (lastQuery.includes('sieci') || lastQuery.includes('network')) lastCategory = 'network';
     else if (lastQuery.includes('.pl') || lastQuery.includes('.com')) lastCategory = 'browse';
     else if (lastQuery.includes('wyszukaj')) lastCategory = 'search';
-    
+
     return {
       timeOfDay,
       lastCategory,
@@ -232,20 +232,20 @@ export default function Chat({ settings }: ChatProps) {
     // Listen for new messages and trigger auto-watch logic
     const unsub = eventStore.on("message_added", async (event) => {
       const message = event.payload;
-      
+
       // Integrate with AutoWatchIntegration for user messages
       if (message.role === 'user') {
-        chatLogger.info('User message for auto-watch analysis:', { 
+        chatLogger.info('User message for auto-watch analysis:', {
           text: message.text,
           timestamp: new Date().toISOString()
         });
-        
+
         // TODO: Initialize and integrate AutoWatchIntegration
         // const autoWatchIntegration = new AutoWatchIntegration(watchManager, dbManager, autoWatchConfig);
         // await autoWatchIntegration.processMessage(message);
       }
     });
-    
+
     return unsub;
   }, [eventStore, chatLogger]);
 
@@ -777,14 +777,14 @@ export default function Chat({ settings }: ChatProps) {
   const handleNetworkSelect = (networkConfig: NetworkConfig) => {
     setSelectedNetwork(networkConfig);
     setShowNetworkSelector(false);
-    chatLogger.info('Network selected', { 
-      scope: networkConfig.scope, 
-      name: networkConfig.name 
+    chatLogger.info('Network selected', {
+      scope: networkConfig.scope,
+      name: networkConfig.name
     });
-    
+
     // Add to history
     addToNetworkHistory(networkConfig.scope, networkConfig.name, `${configStore.get<string>('network.defaultSubnet')}.0/24`);
-    
+
     // Execute the pending query with network context
     if (pendingNetworkQuery) {
       setInput(pendingNetworkQuery);
@@ -794,12 +794,12 @@ export default function Chat({ settings }: ChatProps) {
   };
 
   const handleHistorySelect = (historyItem: NetworkHistoryItem) => {
-    chatLogger.info('History network selected', { 
+    chatLogger.info('History network selected', {
       address: historyItem.address,
       name: historyItem.name,
       scope: historyItem.scope
     });
-    
+
     // Convert to NetworkConfig
     const networkConfig = {
       scope: historyItem.scope,
@@ -808,10 +808,10 @@ export default function Chat({ settings }: ChatProps) {
       icon: null,
       features: []
     } as NetworkConfig;
-    
+
     setSelectedNetwork(networkConfig);
     setShowNetworkSelector(false);
-    
+
     // Execute the pending query with history context
     if (pendingNetworkQuery) {
       const enhancedQuery = `${pendingNetworkQuery} (adres: ${historyItem.address})`;
@@ -828,7 +828,7 @@ export default function Chat({ settings }: ChatProps) {
     setInput(command);
     setShowCommandHistory(false);
     setShowQuickHistory(false);
-    
+
     // Auto-execute the command
     setTimeout(() => {
       handleSubmit(command);
@@ -840,7 +840,7 @@ export default function Chat({ settings }: ChatProps) {
     setInput(command);
     setShowQuickHistory(false);
     setInputFocused(true);
-    
+
     // Focus back to input
     setTimeout(() => {
       const inputElement = document.querySelector('input[type="text"]') as HTMLInputElement;
@@ -878,14 +878,14 @@ export default function Chat({ settings }: ChatProps) {
 
   const sendAmbiguousQuerySuggestions = async (userQuery: string) => {
     chatLogger.info('Sending suggestions for ambiguous query', { userQuery });
-    
+
     // Add user message to chat
     eventStore.append({
       type: "message_added",
-      payload: { 
-        id: nextMessageId(), 
-        role: "user", 
-        text: userQuery 
+      payload: {
+        id: nextMessageId(),
+        role: "user",
+        text: userQuery
       },
     });
 
@@ -921,21 +921,21 @@ Wybierz jedną z poniższych opcji, aby kontynuować:`;
     // File-related suggestions
     if (lowerQuery.includes('pdf') || lowerQuery.includes('plik') || lowerQuery.includes('dokument')) {
       suggestions.push(
-        { 
-          action: 'find_files', 
-          text: '📄 Znajdź pliki PDF', 
+        {
+          action: 'find_files',
+          text: '📄 Znajdź pliki PDF',
           description: 'Przeszukaj wszystkie dokumenty PDF w systemie',
           query: 'znajdź pliki pdf'
         },
-        { 
-          action: 'find_documents', 
-          text: '📂 Przeszukaj dokumenty', 
+        {
+          action: 'find_documents',
+          text: '📂 Przeszukaj dokumenty',
           description: 'Znajdź pliki w folderze Dokumenty i Pulpit',
           query: 'znajdź dokumenty'
         },
-        { 
-          action: 'recent_files', 
-          text: '🕐 Najnowsze pliki', 
+        {
+          action: 'recent_files',
+          text: '🕐 Najnowsze pliki',
           description: 'Pokaż ostatnio modyfikowane dokumenty',
           query: 'znajdź ostatnie dokumenty'
         }
@@ -945,21 +945,21 @@ Wybierz jedną z poniższych opcji, aby kontynuować:`;
     // Network-related suggestions
     if (lowerQuery.includes('sieci') || lowerQuery.includes('kamer') || lowerQuery.includes('urządzen')) {
       suggestions.push(
-        { 
-          action: 'network_scan', 
-          text: '🔍 Skanuj sieć w poszukiwaniu kamer', 
+        {
+          action: 'network_scan',
+          text: '🔍 Skanuj sieć w poszukiwaniu kamer',
           description: 'Znajdź wszystkie kamery IP w Twojej sieci lokalnej',
           query: 'znajdź kamere w sieci'
         },
-        { 
-          action: 'network_global', 
-          text: '🌐 Przeszukaj internet globalny', 
+        {
+          action: 'network_global',
+          text: '🌐 Przeszukaj internet globalny',
           description: 'Wyszukaj publiczne urządzenia w sieci',
           query: 'skanuj siec globalnie'
         },
-        { 
-          action: 'camera_status', 
-          text: '📷 Sprawdź status kamer', 
+        {
+          action: 'camera_status',
+          text: '📷 Sprawdź status kamer',
           description: 'Zobacz które kamery są online',
           query: 'sprawdz status kamer'
         }
@@ -969,15 +969,15 @@ Wybierz jedną z poniższych opcji, aby kontynuować:`;
     // Browse-related suggestions
     if (lowerQuery.includes('stron') || lowerQuery.includes('www') || lowerQuery.includes('http')) {
       suggestions.push(
-        { 
-          action: 'browse_url', 
-          text: '🌍 Przeglądaj stronę internetową', 
+        {
+          action: 'browse_url',
+          text: '🌍 Przeglądaj stronę internetową',
           description: 'Otwórz i przeczytaj zawartość strony',
           query: 'przeglądaj stronę'
         },
-        { 
-          action: 'search_web', 
-          text: '🔎 Wyszukaj w internecie', 
+        {
+          action: 'search_web',
+          text: '🔎 Wyszukaj w internecie',
           description: 'Znajdź informacje w wyszukiwarce',
           query: 'wyszukaj w internecie'
         }
@@ -986,15 +986,15 @@ Wybierz jedną z poniższych opcji, aby kontynuować:`;
 
     // General help suggestions
     suggestions.push(
-      { 
-        action: 'help', 
-        text: '❓ Pokaż pomoc', 
+      {
+        action: 'help',
+        text: '❓ Pokaż pomoc',
         description: 'Zobacz dostępne komendy i funkcje',
         query: 'pomoc'
       },
-      { 
-        action: 'chat', 
-        text: '💬 Porozmawiaj ze mną', 
+      {
+        action: 'chat',
+        text: '💬 Porozmawiaj ze mną',
         description: 'Zadaj pytanie i porozmawiaj z asystentem',
         query: 'jak mogę Ci pomóc?'
       }
@@ -1005,7 +1005,7 @@ Wybierz jedną z poniższych opcji, aby kontynuować:`;
 
   const handleSuggestionClick = (suggestion: any) => {
     chatLogger.info('Suggestion clicked', { action: suggestion.action, query: suggestion.query });
-    
+
     // Add confirmation message
     eventStore.append({
       type: "message_added",
@@ -1020,7 +1020,7 @@ Wykonuję akcję: ${suggestion.query}`,
         type: "content"
       },
     });
-    
+
     // Execute the suggested query
     setTimeout(() => {
       handleSubmit(suggestion.query);
@@ -1029,14 +1029,14 @@ Wykonuję akcję: ${suggestion.query}`,
 
   const sendNetworkSelectionMessage = async (userQuery: string) => {
     chatLogger.info('Sending network selection message', { userQuery });
-    
+
     // Add user message to chat
     eventStore.append({
       type: "message_added",
-      payload: { 
-        id: nextMessageId(), 
-        role: "user", 
-        text: userQuery 
+      payload: {
+        id: nextMessageId(),
+        role: "user",
+        text: userQuery
       },
     });
 
@@ -1073,7 +1073,7 @@ Skanowanie urządzeń w sieci, takich jak kamery IP, jest standardową procedur�
 
   const handleNetworkOptionClick = (scope: string, name: string) => {
     chatLogger.info('Network option clicked', { scope, name });
-    
+
     // Find the network config
     const networkConfig = {
       scope: scope as NetworkScope,
@@ -1082,10 +1082,10 @@ Skanowanie urządzeń w sieci, takich jak kamery IP, jest standardową procedur�
       icon: null,
       features: []
     } as NetworkConfig;
-    
+
     setSelectedNetwork(networkConfig);
     setShowNetworkSelector(false);
-    
+
     // Execute the pending query directly with plugin system
     if (pendingNetworkQuery) {
       setInput(pendingNetworkQuery);
@@ -1124,18 +1124,18 @@ Skanowanie urządzeń w sieci, takich jak kamery IP, jest standardową procedur�
 
   const parseCameraResults = (result: string): CameraPreviewProps['camera'][] => {
     const cameras: CameraPreviewProps['camera'][] = [];
-    
+
     // Parse camera information from the result
     const lines = result.split('\n');
     let currentCamera: Partial<CameraPreviewProps['camera']> | null = null;
-    
+
     for (const line of lines) {
       // Look for camera entries
       if (line.includes('Kamera') || line.includes('kamera')) {
         if (currentCamera) {
           cameras.push(currentCamera as CameraPreviewProps['camera']);
         }
-        
+
         // Extract camera name and IP
         const cameraMatch = line.match(/(.+?)\s*(\d+\.\d+\.\d+\.\d+)/);
         if (cameraMatch) {
@@ -1151,19 +1151,19 @@ Skanowanie urządzeń w sieci, takich jak kamery IP, jest standardową procedur�
         }
       }
     }
-    
+
     // Add the last camera if exists
     if (currentCamera) {
       cameras.push(currentCamera as CameraPreviewProps['camera']);
     }
-    
+
     return cameras;
   };
 
   const handleCameraSelect = (camera: CameraPreviewProps['camera']) => {
     chatLogger.info('Camera selected', { camera: camera.name });
     setSelectedCamera(camera);
-    
+
     // Add camera selection message
     eventStore.append({
       type: "message_added",
@@ -1186,7 +1186,7 @@ Kliknij przycisk odtwarzania, aby rozpocząć monitoring z AI.`,
 
   const handleCameraAnalysisComplete = (cameraId: string, analysis: string) => {
     chatLogger.info('Camera analysis completed', { cameraId, analysis });
-    
+
     // Add AI analysis message to chat
     eventStore.append({
       type: "message_added",
@@ -1211,7 +1211,7 @@ ${analysis}`,
 
   const categorizeCommand = (command: string): CommandHistoryItem['category'] => {
     const lowerCommand = command.toLowerCase();
-    
+
     if (lowerCommand.includes('znajdź') && lowerCommand.includes('sieci')) {
       return 'network';
     }
@@ -1224,15 +1224,15 @@ ${analysis}`,
     if (lowerCommand.includes('co') || lowerCommand.includes('jak') || lowerCommand.includes('dlaczego')) {
       return 'chat';
     }
-    
+
     return 'other';
   };
 
   const checkIfAmbiguousQuery = (query: string): boolean => {
     const lowerQuery = query.toLowerCase();
-    
+
     chatLogger.info('Checking ambiguous query', { query, length: query.length });
-    
+
     // Check for ambiguous patterns
     const ambiguousPatterns = [
       // Very short queries
@@ -1246,7 +1246,7 @@ ${analysis}`,
       // Very general requests
       /^(pokaż|zobacz|wejdź|otwórz|uruchom|włącz|sprawdź|znajdź|szukaj|testuj|odśwież|reload|refresh)$/,
     ];
-    
+
     const isAmbiguous = ambiguousPatterns.some(pattern => {
       if (typeof pattern === 'boolean') return pattern;
       if (pattern instanceof RegExp) {
@@ -1258,7 +1258,7 @@ ${analysis}`,
       }
       return false;
     });
-    
+
     chatLogger.info('Ambiguous query result', { query, isAmbiguous });
     return isAmbiguous;
   };
@@ -1273,8 +1273,8 @@ ${analysis}`,
       'sieć lokalna',
       'network scan'
     ];
-    
-    return networkKeywords.some(keyword => 
+
+    return networkKeywords.some(keyword =>
       query.toLowerCase().includes(keyword)
     );
   };
@@ -1284,17 +1284,17 @@ ${analysis}`,
       /https?:\/\/[^\s]+/i,
       /^(www\.)?[a-z0-9-]+\.[a-z]{2,}/i,
     ];
-    
+
     return urlPatterns.some(pattern => pattern.test(query));
   };
 
   /** Data-driven config command route table: [route_key, pattern] */
   const CONFIG_COMMAND_ROUTES: ReadonlyArray<[string, RegExp]> = [
-    ['monitor',  /^(konfiguruj\s*monitoring|monitoring\s*konfiguracja|ustaw\s*monitoring)$/i],
-    ['ai',       /konfiguruj\s*(ai|llm|model)|config\s*(ai|llm)|ustaw\s*(ai|model|klucz)/i],
-    ['network',  /^(konfiguruj\s*sie[cć]|konfiguracja\s*sieci|ustaw\s*sie[cć])$/i],
-    ['reset',    /reset.*konfig|resetuj.*konfig|przywróć.*domyśl|restore.*default/i],
-    ['help',     /^(pomoc|help|co\s+umiesz|co\s+potrafisz|jak\s+zacząć|jak\s+zaczac|start)$/i],
+    ['monitor', /^(konfiguruj\s*monitoring|monitoring\s*konfiguracja|ustaw\s*monitoring)$/i],
+    ['ai', /konfiguruj\s*(ai|llm|model)|config\s*(ai|llm)|ustaw\s*(ai|model|klucz)/i],
+    ['network', /^(konfiguruj\s*sie[cć]|konfiguracja\s*sieci|ustaw\s*sie[cć])$/i],
+    ['reset', /reset.*konfig|resetuj.*konfig|przywróć.*domyśl|restore.*default/i],
+    ['help', /^(pomoc|help|co\s+umiesz|co\s+potrafisz|jak\s+zacząć|jak\s+zaczac|start)$/i],
     ['overview', /^(konfigur|config|ustawieni|settings|setup)/i],
   ];
 
@@ -1478,7 +1478,7 @@ ${analysis}`,
         type: "message_updated",
         payload: { id: thinkingId, updates: { type: "content", text: "", thinkingInfo: undefined } },
       });
-      
+
       chatLogger.info("Plugin system result", {
         status: result.status,
         contentBlocks: result.content.length,
@@ -1530,7 +1530,7 @@ ${analysis}`,
           let messageText = '';
           let messageType: 'content' | 'image' | 'camera_live' = 'content';
           let livePayload: { url: string; cameraId: string; fps?: number; initialBase64?: string; initialMimeType?: string; snapshotUrl?: string | null; startInSnapshotMode?: boolean } | undefined;
-          
+
           if (block.type === 'text') {
             messageText = block.data as string;
           } else if (block.type === 'image') {
@@ -1596,7 +1596,7 @@ ${analysis}`,
         if (runtimeIsTauri && firstLivePayload) {
           setExpandedLive(firstLivePayload);
         }
-        
+
         // Auto-play TTS for plugin responses (bypass loading-wait mechanism)
         if (settings.tts_enabled && tts.isSupported && fullResult.trim().length > 0) {
           tts.speak(fullResult.trim().slice(0, 3000));
@@ -1999,12 +1999,12 @@ ${analysis}`,
 
       <div className="flex h-full flex-col">
         {/* Chat messages area */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-transparent via-gray-950/50 to-transparent">
           <div className="mx-auto max-w-3xl px-4 py-6">
             <div className="space-y-4">
               {/* Command History - show when no messages */}
               {!hasNonSystemMessages && showCommandHistory && (
-                <CommandHistory 
+                <CommandHistory
                   onSelect={handleCommandHistorySelect}
                   className="mb-6"
                   maxItems={10}
@@ -2065,7 +2065,7 @@ ${analysis}`,
                       </button>
                     </div>
                   </div>
-                  
+
                   {/* Action Suggestions */}
                   <ActionSuggestions
                     onActionSelect={(query) => {
@@ -2077,7 +2077,7 @@ ${analysis}`,
                     currentContext={getCurrentContext()}
                     onLearn={handleSuggestionLearning}
                   />
-                  
+
                   {/* Quick Commands */}
                   <div className="mt-4">
                     <QuickCommands
@@ -2093,31 +2093,41 @@ ${analysis}`,
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  className={`flex ${msg.role === "user"
+                    ? "justify-end slide-in-right"
+                    : msg.role === "system"
+                      ? "justify-start"
+                      : "justify-start slide-in-left"
+                    }`}
                   data-testid="message"
                 >
+                  {/* Bot avatar for assistant messages */}
+                  {msg.role === "assistant" && (
+                    <div className="mr-2.5 mt-1 flex-shrink-0">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-broxeen-500 to-broxeen-700 text-xs shadow-lg shadow-broxeen-500/20">
+                        <Bot size={14} className="text-white" />
+                      </div>
+                    </div>
+                  )}
                   <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                      msg.role === "user"
-                        ? "bg-broxeen-600 text-white cursor-pointer transition-colors hover:bg-broxeen-500"
-                        : msg.role === "system"
-                          ? "bg-gray-800/50 text-gray-300"
-                          : "bg-gray-800 text-gray-100"
-                    }`}
+                    className={`rounded-2xl px-4 py-3 ${msg.role === "user"
+                      ? "max-w-[85%] bg-gradient-to-br from-broxeen-500 to-broxeen-700 text-white cursor-pointer transition-all hover:from-broxeen-400 hover:to-broxeen-600 shadow-lg shadow-broxeen-500/10"
+                      : msg.role === "system"
+                        ? `max-w-[95%] border-l-2 text-xs py-2 px-3 rounded-lg ${msg.text.includes('Błąd') || msg.text.includes('Error') ? 'border-amber-500/60 bg-amber-950/20 text-amber-300/80' : 'border-blue-500/40 bg-blue-950/20 text-gray-400'}`
+                        : "max-w-[85%] bg-gray-800/60 backdrop-blur-sm border border-gray-700/40 text-gray-100 shadow-md"
+                      }`}
                     onClick={
                       msg.role === "user"
                         ? () => {
-                            setInput(msg.text);
-                            // Focus input field
-                            const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
-                            if (inputElement) {
-                              inputElement.focus();
-                              // Move cursor to end
-                              setTimeout(() => {
-                                inputElement.selectionStart = inputElement.selectionEnd = msg.text.length;
-                              }, 0);
-                            }
+                          setInput(msg.text);
+                          const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
+                          if (inputElement) {
+                            inputElement.focus();
+                            setTimeout(() => {
+                              inputElement.selectionStart = inputElement.selectionEnd = msg.text.length;
+                            }, 0);
                           }
+                        }
                         : undefined
                     }
                     title={
@@ -2173,9 +2183,9 @@ ${analysis}`,
                             initialFrame={
                               msg.live.initialBase64
                                 ? {
-                                    base64: msg.live.initialBase64,
-                                    mimeType: msg.live.initialMimeType || 'image/jpeg',
-                                  }
+                                  base64: msg.live.initialBase64,
+                                  mimeType: msg.live.initialMimeType || 'image/jpeg',
+                                }
                                 : null
                             }
                             className="w-full"
@@ -2206,74 +2216,74 @@ ${analysis}`,
                             )}
                             <MessageResultCard text={msg.text} msgType={msg.type}>
                               <div className="prose prose-invert max-w-none prose-sm">
-                                <ReactMarkdown 
+                                <ReactMarkdown
                                   urlTransform={(url) => url}
                                   remarkPlugins={[remarkGfm, remarkBreaks]}
                                   components={{
-                                  // Customize styling for common elements
-                                  p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
-                                  strong: ({children}) => <strong className="font-bold text-white">{children}</strong>,
-                                  em: ({children}) => <em className="italic">{children}</em>,
-                                  code: ({className, children}) => {
-                                    const isInline = !className?.includes('language-');
-                                    const codeText = String(children).replace(/\n$/, '');
-                                    
-                                    return isInline ? 
-                                      <code 
-                                        className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono cursor-pointer hover:bg-gray-600 transition-colors"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setInput(codeText);
-                                          const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
-                                          if (inputElement) {
-                                            inputElement.focus();
-                                            setTimeout(() => {
-                                              inputElement.selectionStart = inputElement.selectionEnd = codeText.length;
-                                            }, 0);
-                                          }
-                                        }}
-                                        title="Kliknij, aby skopiować do pola chat"
+                                    // Customize styling for common elements
+                                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                    strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                                    em: ({ children }) => <em className="italic">{children}</em>,
+                                    code: ({ className, children }) => {
+                                      const isInline = !className?.includes('language-');
+                                      const codeText = String(children).replace(/\n$/, '');
+
+                                      return isInline ?
+                                        <code
+                                          className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono cursor-pointer hover:bg-gray-600 transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setInput(codeText);
+                                            const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
+                                            if (inputElement) {
+                                              inputElement.focus();
+                                              setTimeout(() => {
+                                                inputElement.selectionStart = inputElement.selectionEnd = codeText.length;
+                                              }, 0);
+                                            }
+                                          }}
+                                          title="Kliknij, aby skopiować do pola chat"
+                                        >
+                                          {children}
+                                        </code> :
+                                        <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>;
+                                    },
+                                    ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                                    ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                                    li: ({ children }) => <li className="text-gray-200">{children}</li>,
+                                    a: ({ href, children }) => (
+                                      <a
+                                        href={href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-400 hover:text-blue-300 underline"
                                       >
                                         {children}
-                                      </code> :
-                                      <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>;
-                                  },
-                                  ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-                                  ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-                                  li: ({children}) => <li className="text-gray-200">{children}</li>,
-                                a: ({href, children}) => (
-                                  <a 
-                                    href={href} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-blue-400 hover:text-blue-300 underline"
-                                  >
-                                    {children}
-                                  </a>
-                                ),
-                                blockquote: ({children}) => (
-                                  <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-2">
-                                    {children}
-                                  </blockquote>
-                                ),
-                                img: ({ src, alt }) => {
-                                  if (!src) return null;
-                                  const isDataUrl = src.startsWith('data:');
-                                  const canPreview = isDataUrl;
-                                  return (
-                                    <img
-                                      src={src}
-                                      alt={alt || 'Obraz'}
-                                      className="max-w-full h-auto rounded border border-gray-700 bg-black/30 cursor-pointer hover:opacity-90 transition-opacity"
-                                      onClick={() => {
-                                        if (!canPreview) return;
-                                        const m = src.match(/^data:([^;]+);base64,(.+)$/);
-                                        if (!m) return;
-                                        setExpandedImage({ data: m[2], mimeType: m[1] });
-                                      }}
-                                    />
-                                  );
-                                },
+                                      </a>
+                                    ),
+                                    blockquote: ({ children }) => (
+                                      <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-2">
+                                        {children}
+                                      </blockquote>
+                                    ),
+                                    img: ({ src, alt }) => {
+                                      if (!src) return null;
+                                      const isDataUrl = src.startsWith('data:');
+                                      const canPreview = isDataUrl;
+                                      return (
+                                        <img
+                                          src={src}
+                                          alt={alt || 'Obraz'}
+                                          className="max-w-full h-auto rounded border border-gray-700 bg-black/30 cursor-pointer hover:opacity-90 transition-opacity"
+                                          onClick={() => {
+                                            if (!canPreview) return;
+                                            const m = src.match(/^data:([^;]+);base64,(.+)$/);
+                                            if (!m) return;
+                                            setExpandedImage({ data: m[2], mimeType: m[1] });
+                                          }}
+                                        />
+                                      );
+                                    },
                                   }}
                                 >
                                   {(() => {
@@ -2340,10 +2350,10 @@ ${analysis}`,
                             if (query.length > 200) continue;
                             if (seen.has(query)) continue;
                             seen.add(query);
-                            
+
                             // Detect if this is a template to prefill (contains HASŁO, PASSWORD, etc.)
                             const isPrefill = /HASŁO|PASSWORD|HASLO|USER|USERNAME|NAZWA/i.test(query);
-                            
+
                             hints.push({ query, label, isPrefill });
                             if (hints.length >= 10) break;
                           }
@@ -2489,26 +2499,26 @@ ${analysis}`,
                                   AI Analiza Kamery
                                 </div>
                                 <div className="text-sm text-gray-300 prose prose-invert max-w-none prose-sm">
-                                  <ReactMarkdown 
+                                  <ReactMarkdown
                                     urlTransform={(url) => url}
                                     remarkPlugins={[remarkGfm, remarkBreaks]}
                                     components={{
-                                      p: ({children}) => <p className="mb-2 last:mb-0">{children}</p>,
-                                      strong: ({children}) => <strong className="font-bold text-white">{children}</strong>,
-                                      em: ({children}) => <em className="italic">{children}</em>,
-                                      code: ({className, children}) => {
+                                      p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                      strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                                      em: ({ children }) => <em className="italic">{children}</em>,
+                                      code: ({ className, children }) => {
                                         const isInline = !className?.includes('language-');
-                                        return isInline ? 
+                                        return isInline ?
                                           <code className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code> :
                                           <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>;
                                       },
-                                      ul: ({children}) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-                                      ol: ({children}) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-                                      li: ({children}) => <li className="text-gray-200">{children}</li>,
-                                      a: ({href, children}) => (
-                                        <a 
-                                          href={href} 
-                                          target="_blank" 
+                                      ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                                      ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                                      li: ({ children }) => <li className="text-gray-200">{children}</li>,
+                                      a: ({ href, children }) => (
+                                        <a
+                                          href={href}
+                                          target="_blank"
                                           rel="noopener noreferrer"
                                           className="text-blue-400 hover:text-blue-300 underline"
                                         >
@@ -2561,7 +2571,7 @@ ${analysis}`,
                                 <a
                                   href={
                                     msg.contactUrl.startsWith("http") ||
-                                    msg.contactUrl.startsWith("mailto:")
+                                      msg.contactUrl.startsWith("mailto:")
                                       ? msg.contactUrl
                                       : msg.url
                                         ? new URL(msg.contactUrl, msg.url).href
@@ -2652,7 +2662,7 @@ ${analysis}`,
         </div>
 
         {/* Input bar */}
-        <div className="border-t border-gray-800 bg-gray-900/80 px-4 py-4 backdrop-blur">
+        <div className="border-t border-gray-800/50 bg-gray-900/90 px-4 py-4 backdrop-blur-lg">
           <div className="mx-auto max-w-3xl">
             {/* Scope Selector */}
             <div className="mb-3 flex items-center justify-between scope-selector-container">
@@ -2660,11 +2670,10 @@ ${analysis}`,
                 <span className="text-xs text-gray-400">Zakres:</span>
                 <button
                   onClick={() => setShowScopeSelector(!showScopeSelector)}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition ${
-                    currentScope === 'local' 
-                      ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
-                      : 'bg-broxeen-600/20 text-broxeen-400 border border-broxeen-600/30 hover:bg-broxeen-600/30'
-                  }`}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition ${currentScope === 'local'
+                    ? 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white'
+                    : 'bg-broxeen-600/20 text-broxeen-400 border border-broxeen-600/30 hover:bg-broxeen-600/30'
+                    }`}
                 >
                   {scopeOptions.find(option => option.id === currentScope)?.icon}
                   <span>{scopeOptions.find(option => option.id === currentScope)?.name}</span>
@@ -2676,7 +2685,7 @@ ${analysis}`,
                   </span>
                 )}
               </div>
-              
+
               {/* Scope Selector Dropdown */}
               {showScopeSelector && (
                 <div className="absolute bottom-full left-4 right-4 mb-2 z-50 rounded-lg bg-gray-800 border border-gray-700 shadow-lg">
@@ -2689,11 +2698,10 @@ ${analysis}`,
                           setShowScopeSelector(false);
                           chatLogger.info('Scope changed', { from: currentScope, to: option.id });
                         }}
-                        className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left transition ${
-                          currentScope === option.id
-                            ? 'bg-broxeen-600 text-white'
-                            : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                        }`}
+                        className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left transition ${currentScope === option.id
+                          ? 'bg-broxeen-600 text-white'
+                          : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                          }`}
                       >
                         {option.icon}
                         <div className="flex-1">
@@ -2709,16 +2717,15 @@ ${analysis}`,
                 </div>
               )}
             </div>
-            
+
             <div className="flex items-center gap-3">
               {settings.mic_enabled && (speechSupported || stt.isSupported) && (
                 <button
                   onClick={toggleMic}
-                  className={`rounded-xl p-2.5 transition ${
-                    isListening || stt.isRecording
-                      ? "animate-pulse bg-red-600 text-white"
-                      : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
-                  }`}
+                  className={`rounded-xl p-2.5 transition ${isListening || stt.isRecording
+                    ? "animate-pulse bg-red-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
+                    }`}
                   title={
                     isListening || stt.isRecording
                       ? "Zatrzymaj"
@@ -2738,13 +2745,12 @@ ${analysis}`,
               {(settings.mic_enabled && (speechSupported || stt.isSupported)) && (
                 <div className="flex items-center">
                   <span
-                    className={`ml-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                      micPhase === 'transcribing'
-                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                        : micPhase === 'recording' || micPhase === 'listening'
-                          ? 'border-red-500/40 bg-red-500/10 text-red-300'
-                          : 'border-gray-700 bg-gray-800/40 text-gray-400'
-                    }`}
+                    className={`ml-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${micPhase === 'transcribing'
+                      ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                      : micPhase === 'recording' || micPhase === 'listening'
+                        ? 'border-red-500/40 bg-red-500/10 text-red-300'
+                        : 'border-gray-700 bg-gray-800/40 text-gray-400'
+                      }`}
                     title={
                       micPhase === 'transcribing'
                         ? 'Transkrybuję'
@@ -2790,13 +2796,13 @@ ${analysis}`,
                   disabled={
                     isListening || stt.isRecording || stt.isTranscribing
                   }
-                  className="w-full rounded-xl bg-gray-800 px-4 py-3 pr-12 text-sm text-white placeholder-gray-500 outline-none ring-1 ring-gray-700 transition focus:ring-broxeen-500 disabled:opacity-50"
+                  className="w-full rounded-xl bg-gray-800/80 px-4 py-3 pr-12 text-sm text-white placeholder-gray-500 outline-none ring-1 ring-gray-700/60 transition-all duration-200 focus:ring-2 focus:ring-broxeen-500/70 focus:shadow-[0_0_20px_rgba(14,165,233,0.12)] disabled:opacity-50"
                 />
-                
+
                 {/* Quick Command History Dropdown */}
                 {showQuickHistory && (
                   <div className="absolute bottom-full left-0 right-0 mb-2 z-50">
-                    <QuickCommandHistory 
+                    <QuickCommandHistory
                       onSelect={handleQuickHistorySelect}
                       maxItems={5}
                       selectedNetwork={selectedNetwork}
@@ -2820,11 +2826,10 @@ ${analysis}`,
                             handleAutocompleteSelect(s);
                           }}
                           onMouseEnter={() => setAutocompleteActiveIndex(idx)}
-                          className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${
-                            idx === autocompleteActiveIndex
-                              ? 'bg-broxeen-600/30 text-white'
-                              : 'text-gray-200 hover:bg-gray-700/50'
-                          }`}
+                          className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm transition ${idx === autocompleteActiveIndex
+                            ? 'bg-broxeen-600/30 text-white'
+                            : 'text-gray-200 hover:bg-gray-700/50'
+                            }`}
                           data-testid={`chat-autocomplete-item-${idx}`}
                         >
                           <span className="truncate">{s}</span>

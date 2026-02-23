@@ -29,7 +29,7 @@ const { configStore } = await import("../config/configStore");
 
 function mockFetchSuccess(
   responseText: string,
-  model = "google/gemini-3-flash-preview",
+  model = import.meta.env?.VITE_LLM_MODEL || "google/gemini-3-flash-preview",
 ) {
   global.fetch = vi.fn().mockResolvedValue({
     ok: true,
@@ -56,7 +56,7 @@ describe("llmClient", () => {
   beforeEach(() => {
     vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
     configStore.set('llm.apiKey', 'test-key-123');
-    configStore.set('llm.model', 'google/gemini-3-flash-preview');
+    configStore.set('llm.model', import.meta.env?.VITE_LLM_MODEL || 'google/gemini-3-flash-preview');
   });
 
   afterEach(() => {
@@ -70,13 +70,13 @@ describe("llmClient", () => {
       const resp = await chat([{ role: "user", content: "Cześć" }]);
 
       expect(resp.text).toBe("Cześć, jestem asystentem!");
-      expect(resp.model).toBe("google/gemini-3-flash-preview");
+      expect(resp.model).toBe(import.meta.env?.VITE_LLM_MODEL || 'google/gemini-3-flash-preview');
       expect(global.fetch).toHaveBeenCalledTimes(1);
 
       const [url, opts] = (global.fetch as any).mock.calls[0];
       expect(url).toContain("openrouter.ai");
       const body = JSON.parse(opts.body);
-      expect(body.model).toBe("google/gemini-3-flash-preview");
+      expect(body.model).toBe(import.meta.env?.VITE_LLM_MODEL || 'google/gemini-3-flash-preview');
       expect(body.messages).toHaveLength(1);
     });
 

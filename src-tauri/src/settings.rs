@@ -1,6 +1,7 @@
 /// Settings management — load, save, and migrate audio settings.
 
 use crate::logging::{backend_info, backend_warn, backend_error};
+use std::env;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -45,7 +46,7 @@ fn default_tts_lang() -> String { "pl-PL".to_string() }
 fn default_tts_engine() -> String { "auto".to_string() }
 fn default_stt_enabled() -> bool { true }
 fn default_stt_engine() -> String { "openrouter".to_string() }
-fn default_stt_model() -> String { "whisper-1".to_string() }
+fn default_stt_model() -> String { env::var("VITE_STT_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string()) }
 fn default_mic_enabled() -> bool { true }
 fn default_device_id() -> String { "default".to_string() }
 fn default_auto_listen() -> bool { false }

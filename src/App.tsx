@@ -81,7 +81,7 @@ export default function App() {
         try {
           const healthStatus = await runQuickHealthCheck();
           startupLogger.info("Health check completed", { status: healthStatus });
-          
+
           if (healthStatus === 'unhealthy') {
             startupLogger.warn("Application has critical health issues - some features may not work");
           } else if (healthStatus === 'degraded') {
@@ -191,7 +191,7 @@ export default function App() {
         );
         window.speechSynthesis.onvoiceschanged = null;
       }
-      
+
       // Cleanup plugin system
       if (appCtx) {
         void appCtx.dispose().catch((error: unknown) => {
@@ -234,7 +234,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [micSettingsOpen, ttsSettingsOpen]);  
+  }, [micSettingsOpen, ttsSettingsOpen]);
 
   useEffect(() => {
     const cleanup = () => {
@@ -357,9 +357,9 @@ export default function App() {
   return (
     <div className="flex h-screen flex-col bg-gray-950 text-white">
       {/* Top bar */}
-      <header className="flex items-center justify-between border-b border-gray-800 bg-gray-900/80 px-5 py-3 backdrop-blur">
+      <header className="flex items-center justify-between border-b border-gray-800/40 bg-gray-900/70 px-5 py-3 backdrop-blur-xl shadow-[0_1px_12px_rgba(0,0,0,0.3)]">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-broxeen-600 text-sm font-bold">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-broxeen-500 to-broxeen-700 text-sm font-bold shadow-lg shadow-broxeen-500/20">
             B
           </div>
           <h1 className="text-lg font-semibold tracking-tight">Broxeen</h1>
@@ -371,11 +371,10 @@ export default function App() {
           {/* Mic button + live level bar */}
           <button
             onClick={() => setMicSettingsOpen(true)}
-            className={`group flex items-center gap-2 rounded-lg px-2.5 py-2 transition ${
-              settings.mic_enabled
-                ? "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-                : "bg-gray-800/50 text-gray-500 hover:bg-gray-700 hover:text-gray-300"
-            }`}
+            className={`group flex items-center gap-2 rounded-lg px-2.5 py-2 transition ${settings.mic_enabled
+              ? "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+              : "bg-gray-800/50 text-gray-500 hover:bg-gray-700 hover:text-gray-300"
+              }`}
             title="Ustawienia mikrofonu & STT"
           >
             {settings.mic_enabled ? <Mic size={16} /> : <MicOff size={16} />}
@@ -405,11 +404,10 @@ export default function App() {
           {/* Speaker / TTS button */}
           <button
             onClick={() => setTtsSettingsOpen(true)}
-            className={`flex items-center gap-2 rounded-lg px-2.5 py-2 transition ${
-              settings.tts_enabled
-                ? "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
-                : "bg-gray-800/50 text-gray-500 hover:bg-gray-700 hover:text-gray-300"
-            }`}
+            className={`flex items-center gap-2 rounded-lg px-2.5 py-2 transition ${settings.tts_enabled
+              ? "bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white"
+              : "bg-gray-800/50 text-gray-500 hover:bg-gray-700 hover:text-gray-300"
+              }`}
             title="Ustawienia głośnika & TTS"
           >
             {settings.tts_enabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
@@ -539,9 +537,9 @@ export default function App() {
       />
 
       {/* Error report panel */}
-      <ErrorReportPanel 
-        isVisible={errorReportOpen} 
-        onClose={() => setErrorReportOpen(false)} 
+      <ErrorReportPanel
+        isVisible={errorReportOpen}
+        onClose={() => setErrorReportOpen(false)}
       />
     </div>
   );
