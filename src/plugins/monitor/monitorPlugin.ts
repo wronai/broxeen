@@ -146,6 +146,18 @@ export class MonitorPlugin implements Plugin {
       /wyja[śs]ni[jć].*monitor/i.test(lower) ||
       /tryb.*detekcji|tryb.*wykrywan/i.test(lower) ||
       /monitor.*explain|monitor.*help/i.test(lower) ||
+      /vision.*pipeline/i.test(lower) ||
+      /pipeline.*vision/i.test(lower) ||
+      /ai.*monitor/i.test(lower) ||
+      /monitoring.*ai/i.test(lower) ||
+      /detekcja.*ai/i.test(lower) ||
+      /yolo.*monitor/i.test(lower) ||
+      /start.*vision/i.test(lower) ||
+      /uruchom.*vision/i.test(lower) ||
+      /w[łl]ącz.*vision/i.test(lower) ||
+      /status.*vision/i.test(lower) ||
+      /stop.*vision/i.test(lower) ||
+      /zatrzymaj.*vision/i.test(lower) ||
       /watch/i.test(lower) && /start|stop|list|log/i.test(lower);
   }
 
@@ -177,6 +189,11 @@ export class MonitorPlugin implements Plugin {
     }
     if (/jak.*dzia[łl]a.*monitor|wyja[śs]ni[jć].*monitor|tryb.*detekcji|tryb.*wykrywan|monitor.*explain|monitor.*help/i.test(lower)) {
       return this.handleExplain(start);
+    }
+    
+    // Vision Pipeline commands
+    if (/vision.*pipeline|pipeline.*vision|ai.*monitor|monitoring.*ai|detekcja.*ai|yolo.*monitor/i.test(lower)) {
+      return await this.handleVisionPipeline(input, context, start);
     }
 
     // Default: start monitoring
