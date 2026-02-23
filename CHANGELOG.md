@@ -1,3 +1,16 @@
+## [1.0.43] - 2026-02-23
+
+### Summary
+
+feat(None): configuration management system
+
+### Other
+
+- update src-tauri/src/network_scan.rs
+- update src/components/MessageQuickActions.tsx
+- update src/utils/quickActionResolver.ts
+
+
 ## [1.0.42] - 2026-02-23
 
 ### Summary
