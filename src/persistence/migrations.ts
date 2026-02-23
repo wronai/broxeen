@@ -238,3 +238,46 @@ export const chatDbMigrations: Migration[] = [
     }
   }
 ];
+
+export const devicesDbMigrationV3: Migration[] = [
+  {
+    version: 3,
+    description: 'Add configured_devices table for persistent device configurations',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS configured_devices (
+          id TEXT PRIMARY KEY,
+          device_id TEXT,
+          label TEXT NOT NULL,
+          ip TEXT NOT NULL,
+          device_type TEXT NOT NULL DEFAULT 'camera'
+            CHECK (device_type IN ('camera', 'server', 'sensor', 'other')),
+          rtsp_url TEXT,
+          http_url TEXT,
+          username TEXT,
+          password TEXT,
+          stream_path TEXT,
+          monitor_enabled INTEGER NOT NULL DEFAULT 1,
+          monitor_interval_ms INTEGER NOT NULL DEFAULT 3000,
+          last_snapshot_at INTEGER,
+          notes TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (device_id) REFERENCES devices(id) ON DELETE SET NULL
+        )
+      `);
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_configured_devices_ip ON configured_devices(ip);
+        CREATE INDEX IF NOT EXISTS idx_configured_devices_type ON configured_devices(device_type);
+        CREATE INDEX IF NOT EXISTS idx_configured_devices_monitor ON configured_devices(monitor_enabled);
+      `);
+    },
+    down: (db) => {
+      db.exec(`DROP TABLE IF EXISTS configured_devices`);
+    }
+  }
+];
+
+// Append v3 migrations to devices DB migrations
+devicesDbMigrations.push(...devicesDbMigrationV3);

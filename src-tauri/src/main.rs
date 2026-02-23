@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod audio_capture;
+mod autostart;
 mod audio_commands;
 mod browse_rendered;
 mod motion_detection;
@@ -479,6 +480,9 @@ fn main() {
             motion_detection::motion_pipeline_status,
             motion_detection::motion_pipeline_stats,
             motion_detection::motion_pipeline_detections,
+            autostart::autostart_enable,
+            autostart::autostart_disable,
+            autostart::autostart_status,
         ])
         .run(tauri::generate_context!())
     {

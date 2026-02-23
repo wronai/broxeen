@@ -220,7 +220,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     defaultStreamPath: '/stream',
   },
   monitor: {
-    defaultIntervalMs: 30000,
+    defaultIntervalMs: 3000,
     defaultChangeThreshold: 0.15,
     llmMinChangeScore: 0.25,
     thumbnailMaxWidth: 500,
@@ -249,7 +249,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   motionDetection: {
     pythonPath: 'python3',
     pipelinePath: 'scripts/motion_pipeline.py',
-    processEveryNFrames: 5,
+    processEveryNFrames: 3,
     minContourArea: 2000,
     maxContourArea: 200000,
     varThreshold: 50,
