@@ -73,6 +73,17 @@ export interface CameraDefaults {
   defaultStreamPath: string;
 }
 
+// ── Monitoring / Watch Configuration ───────────────────────
+
+export interface MonitorAppConfig {
+  /** Default polling interval for camera monitoring (ms) */
+  defaultIntervalMs: number;
+  /** Default change threshold for camera scene changes (0.0 - 1.0) */
+  defaultChangeThreshold: number;
+  /** Thumbnail width used for LLM + chat rendering (px) */
+  thumbnailMaxWidth: number;
+}
+
 // ── Full App Configuration ──────────────────────────────────
 
 export interface AppConfig {
@@ -83,6 +94,7 @@ export interface AppConfig {
   ssh: SshAppConfig;
   locale: LocaleConfig;
   camera: CameraDefaults;
+  monitor: MonitorAppConfig;
 }
 
 // ── Defaults ────────────────────────────────────────────────
@@ -143,6 +155,11 @@ export const DEFAULT_CONFIG: AppConfig = {
     rtspPort: 554,
     httpPort: 80,
     defaultStreamPath: '/stream',
+  },
+  monitor: {
+    defaultIntervalMs: 30000,
+    defaultChangeThreshold: 0.15,
+    thumbnailMaxWidth: 500,
   },
 };
 
@@ -218,6 +235,29 @@ export const CONFIG_FIELD_META: ConfigFieldMeta[] = [
       { value: 'google/gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
       { value: 'openai/whisper-large-v3', label: 'Whisper Large v3' },
     ],
+  },
+
+  // Monitor
+  {
+    key: 'monitor.defaultIntervalMs',
+    label: 'Monitoring: interwał (ms)',
+    description: 'Domyślny interwał sprawdzania kamery w milisekundach',
+    type: 'number',
+    category: 'monitor',
+  },
+  {
+    key: 'monitor.defaultChangeThreshold',
+    label: 'Monitoring: próg zmian',
+    description: 'Próg wykrycia zmiany (0.0–1.0). Np. 0.15 = 15%',
+    type: 'number',
+    category: 'monitor',
+  },
+  {
+    key: 'monitor.thumbnailMaxWidth',
+    label: 'Monitoring: max szerokość miniatury',
+    description: 'Maksymalna szerokość miniatury wysyłanej do LLM i na czat (px)',
+    type: 'number',
+    category: 'monitor',
   },
   {
     key: 'stt.language',

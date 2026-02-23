@@ -355,6 +355,62 @@ export default function Chat({ settings }: ChatProps) {
   }, [messages]);
 
   useEffect(() => {
+    const handler = (ev: Event) => {
+      const custom = ev as CustomEvent<{
+        targetId: string;
+        targetName: string;
+        targetType: string;
+        timestamp: number;
+        changeScore: number;
+        summary: string;
+        thumbnailBase64?: string;
+        thumbnailMimeType?: string;
+      }>;
+
+      const detail = custom.detail;
+      if (!detail?.summary) return;
+
+      // Image thumbnail message (optional)
+      if (detail.thumbnailBase64) {
+        eventStore.append({
+          type: "message_added",
+          payload: {
+            id: nextMessageId(),
+            role: "assistant",
+            text: detail.thumbnailBase64,
+            type: "image",
+            mimeType: detail.thumbnailMimeType || "image/jpeg",
+            title: `Monitoring: ${detail.targetName}`,
+            timestamp: detail.timestamp,
+          },
+        });
+      }
+
+      // One-sentence summary message
+      eventStore.append({
+        type: "message_added",
+        payload: {
+          id: nextMessageId(),
+          role: "assistant",
+          text:
+            `📷 **${detail.targetName}** (${Math.round(detail.changeScore * 100)}%): ${detail.summary}`,
+          type: "content",
+          timestamp: detail.timestamp,
+        },
+      });
+
+      if (settings.tts_enabled) {
+        tts.speak(detail.summary.slice(0, 3000));
+      }
+    };
+
+    window.addEventListener("broxeen:monitor_change", handler);
+    return () => {
+      window.removeEventListener("broxeen:monitor_change", handler);
+    };
+  }, [eventStore, settings.tts_enabled, tts]);
+
+  useEffect(() => {
     if (transcript && transcript !== lastSpeechSubmitRef.current && !isListening) {
       chatLogger.info("Applying finalized speech transcript", {
         transcriptLength: transcript.length,

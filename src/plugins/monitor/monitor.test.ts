@@ -142,7 +142,8 @@ describe('MonitorPlugin', () => {
       await plugin.execute('monitoruj kamerę wejściową co 10s user: :', browserCtx);
       
       // Advance time past one interval
-      vi.advanceTimersByTime(11000);
+      await vi.advanceTimersByTimeAsync(11000);
+      await vi.runOnlyPendingTimersAsync();
       
       // Check logs show a check entry
       const result = await plugin.execute('pokaż logi monitoringu wejściowa', browserCtx);

@@ -48,6 +48,17 @@ export interface MonitorLogEntry {
   snapshot?: string; // base64 image for visual changes
 }
 
+type MonitorUiEventDetail = {
+  targetId: string;
+  targetName: string;
+  targetType: MonitorTarget['type'];
+  timestamp: number;
+  changeScore: number;
+  summary: string;
+  thumbnailBase64?: string;
+  thumbnailMimeType?: string;
+};
+
 export class MonitorPlugin implements Plugin {
   readonly id = 'monitor';
   readonly name = 'Device Monitor';
@@ -510,21 +521,88 @@ export class MonitorPlugin implements Plugin {
     target.lastChecked = Date.now();
 
     try {
+      // Camera mode: capture snapshot frames, compare to previous snapshot
+      if (target.type === 'camera' && target.address) {
+        const snapshot = await this.captureCameraSnapshot(target, context);
+        if (!snapshot) {
+          target.logs.push({
+            timestamp: Date.now(),
+            type: 'check',
+            message: `Brak snapshotu (pomijam)`,
+            changeScore: 0,
+          });
+          return;
+        }
+
+        const previousSnapshot = target.lastSnapshot;
+        target.lastSnapshot = snapshot.base64;
+
+        if (!previousSnapshot) {
+          target.logs.push({
+            timestamp: Date.now(),
+            type: 'snapshot',
+            message: `Snapshot zapisany (pierwsza klatka)`,
+            snapshot: snapshot.base64,
+          });
+          return;
+        }
+
+        const changeScore = await this.computeImageChangeScore(previousSnapshot, snapshot.base64);
+
+        target.logs.push({
+          timestamp: Date.now(),
+          type: 'check',
+          message: changeScore > target.threshold ? `Zmiana wykryta!` : `Brak zmian`,
+          changeScore,
+          details: `image-change:${(changeScore * 100).toFixed(1)}%`,
+        });
+
+        if (changeScore > target.threshold) {
+          target.changeCount++;
+          target.lastChange = Date.now();
+
+          const thumbMaxWidth = configStore.get<number>('monitor.thumbnailMaxWidth') || 500;
+          const thumbnail = await this.createThumbnail(snapshot.base64, snapshot.mimeType, thumbMaxWidth);
+
+          const summary = await this.describeCameraChange(previousSnapshot, snapshot.base64, snapshot.mimeType);
+
+          target.logs.push({
+            timestamp: Date.now(),
+            type: 'change',
+            message: `🔔 Zmiana na ${target.name}: ${(changeScore * 100).toFixed(1)}%`,
+            changeScore,
+            details: summary,
+            snapshot: thumbnail?.base64 ?? snapshot.base64,
+          });
+
+          this.emitUiEvent({
+            targetId: target.id,
+            targetName: target.name,
+            targetType: target.type,
+            timestamp: Date.now(),
+            changeScore,
+            summary,
+            thumbnailBase64: thumbnail?.base64,
+            thumbnailMimeType: thumbnail?.mimeType,
+          });
+        }
+
+        return;
+      }
+
+      // Non-camera legacy: text polling via simulated content (or backend monitor_poll)
       let currentContent: string;
 
       if (context.isTauri && context.tauriInvoke) {
-        // Real polling via Tauri backend
         currentContent = await context.tauriInvoke('monitor_poll', {
           targetId: target.id,
           targetType: target.type,
           address: target.address,
         }) as string;
       } else {
-        // Browser demo: simulate periodic content
         currentContent = this.simulateContent(target);
       }
 
-      // Simple diff: compare with last known content
       const lastLog = target.logs.filter(l => l.type === 'check').pop();
       const previousContent = lastLog?.details || '';
       const changeScore = this.quickDiff(previousContent, currentContent);
@@ -560,6 +638,144 @@ export class MonitorPlugin implements Plugin {
     }
   }
 
+  private emitUiEvent(detail: MonitorUiEventDetail): void {
+    if (typeof window === 'undefined') return;
+    try {
+      window.dispatchEvent(new CustomEvent<MonitorUiEventDetail>('broxeen:monitor_change', { detail }));
+    } catch {
+      // ignore
+    }
+  }
+
+  private async captureCameraSnapshot(
+    target: MonitorTarget,
+    context: PluginContext,
+  ): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null> {
+    try {
+      // Prefer RTSP via Tauri when available
+      if (context.isTauri && context.tauriInvoke && target.rtspUrl) {
+        const result = await context.tauriInvoke('rtsp_capture_frame', {
+          url: target.rtspUrl,
+          cameraId: target.id,
+          camera_id: target.id,
+        }) as { base64: string };
+        if (result?.base64) return { base64: result.base64, mimeType: 'image/jpeg' };
+      }
+
+      // HTTP snapshot fallback
+      if (target.snapshotUrl) {
+        const resp = await fetch(target.snapshotUrl);
+        if (!resp.ok) throw new Error(`Snapshot HTTP ${resp.status}`);
+        const blob = await resp.blob();
+        const base64 = await this.blobToBase64(blob);
+        const mimeType = (blob.type === 'image/png' ? 'image/png' : 'image/jpeg') as 'image/jpeg' | 'image/png';
+        return { base64, mimeType };
+      }
+
+      return null;
+    } catch (err) {
+      target.logs.push({
+        timestamp: Date.now(),
+        type: 'error',
+        message: `Snapshot error: ${err instanceof Error ? err.message : String(err)}`,
+      });
+      return null;
+    }
+  }
+
+  private async describeCameraChange(
+    prevBase64: string,
+    currBase64: string,
+    mimeType: 'image/jpeg' | 'image/png',
+  ): Promise<string> {
+    try {
+      const { describeImageChange } = await import('../../lib/llmClient');
+      const text = await describeImageChange(prevBase64, currBase64, mimeType);
+      return (text || '').trim();
+    } catch (err) {
+      return `Zmiana wykryta, ale opis LLM nie powiódł się: ${err instanceof Error ? err.message : String(err)}`;
+    }
+  }
+
+  private async computeImageChangeScore(prevBase64: string, currBase64: string): Promise<number> {
+    // Lightweight heuristic: compare base64 prefixes in blocks.
+    // This is not perceptual diff, but is stable and cheap.
+    if (!prevBase64 || !currBase64) return 0;
+    if (prevBase64 === currBase64) return 0;
+
+    const a = prevBase64;
+    const b = currBase64;
+    const len = Math.min(a.length, b.length);
+    if (len === 0) return 0;
+
+    const step = 128;
+    let same = 0;
+    let total = 0;
+    for (let i = 0; i < len; i += step) {
+      total++;
+      if (a.slice(i, i + step) === b.slice(i, i + step)) same++;
+    }
+    const diff = 1 - same / Math.max(1, total);
+    return Math.max(0, Math.min(1, diff));
+  }
+
+  private async createThumbnail(
+    base64: string,
+    mimeType: 'image/jpeg' | 'image/png',
+    maxWidth: number,
+  ): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null> {
+    if (typeof document === 'undefined') return null;
+
+    try {
+      const img = await this.loadBase64Image(base64, mimeType);
+      const width = img.naturalWidth || (img as any).width;
+      const height = img.naturalHeight || (img as any).height;
+      if (!width || !height) return null;
+
+      if (width <= maxWidth) {
+        return { base64, mimeType };
+      }
+
+      const scale = maxWidth / width;
+      const targetW = Math.max(1, Math.round(width * scale));
+      const targetH = Math.max(1, Math.round(height * scale));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetW;
+      canvas.height = targetH;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return null;
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+
+      const outMime = mimeType === 'image/png' ? 'image/png' : 'image/jpeg';
+      const dataUrl = canvas.toDataURL(outMime, outMime === 'image/jpeg' ? 0.85 : undefined);
+      const outBase64 = dataUrl.split(',')[1] || '';
+      if (!outBase64) return null;
+      return { base64: outBase64, mimeType: outMime as any };
+    } catch {
+      return null;
+    }
+  }
+
+  private loadBase64Image(base64: string, mimeType: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = (e) => reject(e);
+      img.src = `data:${mimeType};base64,${base64}`;
+    });
+  }
+
+  private async blobToBase64(blob: Blob): Promise<string> {
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
+  }
+
   // ── Helpers ─────────────────────────────────────────────
 
   private parseTarget(input: string): {
@@ -570,7 +786,7 @@ export class MonitorPlugin implements Plugin {
     const lower = input.toLowerCase();
 
     // Extract interval: "co 30s" / "co 5m"
-    let intervalMs = 30000;
+    let intervalMs = configStore.get<number>('monitor.defaultIntervalMs') || 30000;
     const intervalMatch = lower.match(/co\s+(\d+)\s*(s|m|min)/);
     if (intervalMatch) {
       const val = parseInt(intervalMatch[1]);
@@ -578,7 +794,7 @@ export class MonitorPlugin implements Plugin {
     }
 
     // Extract threshold: "próg 10%"
-    let threshold = 0.15;
+    let threshold = configStore.get<number>('monitor.defaultChangeThreshold') || 0.15;
     const thresholdMatch = lower.match(/(?:próg|prog)\s*(\d+)\s*%/);
     if (thresholdMatch) threshold = parseInt(thresholdMatch[1]) / 100;
 
@@ -687,7 +903,15 @@ export class MonitorPlugin implements Plugin {
   }
 
   private logIcon(type: MonitorLogEntry['type']): string {
-    return { start: '▶️', stop: '⏹️', change: '🔔', error: '❌', check: '✅' }[type] || '📝';
+    const icons: Record<MonitorLogEntry['type'], string> = {
+      start: '▶️',
+      stop: '⏹️',
+      change: '🔔',
+      error: '❌',
+      check: '✅',
+      snapshot: '📸',
+    };
+    return icons[type] || '📝';
   }
 
   private formatDuration(ms: number): string {

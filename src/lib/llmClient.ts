@@ -246,6 +246,61 @@ export async function describeImage(
   return runDescribe();
 }
 
+/** Describe change between two images (previous vs current) — Gemini multimodal */
+export async function describeImageChange(
+  previousBase64Image: string,
+  currentBase64Image: string,
+  mimeType = "image/jpeg",
+  prompt =
+    "Porównaj dwa obrazy z kamery monitoringu (poprzedni i aktualny). " +
+    "Napisz JEDNO zdanie po polsku: co się zmieniło względem poprzedniego obrazu. " +
+    "Jeśli nie widać istotnej zmiany, napisz jedno zdanie: Brak istotnych zmian.",
+): Promise<string> {
+  const runDescribe = logAsyncDecorator(
+    "llm:client",
+    "describeImageChange",
+    async () => {
+      llmClientLogger.debug("Building image change description prompt", {
+        mimeType,
+      });
+
+      const messages: LlmMessage[] = [
+        {
+          role: "system",
+          content:
+            "Jesteś asystentem wizualnym aplikacji Broxeen. " +
+            "Porównujesz klatki z kamer monitoringu i opisujesz RÓŻNICĘ po polsku, zwięźle.",
+        },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "text", text: "Obraz 1 (poprzedni):" },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${previousBase64Image}`,
+              },
+            },
+            { type: "text", text: "Obraz 2 (aktualny):" },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${currentBase64Image}`,
+              },
+            },
+          ],
+        },
+      ];
+
+      const resp = await chat(messages);
+      return resp.text;
+    },
+  );
+
+  return runDescribe();
+}
+
 /** Summarize page content for TTS readout */
 export async function summarizeForTts(
   pageContent: string,
