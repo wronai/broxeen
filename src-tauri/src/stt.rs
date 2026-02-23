@@ -23,11 +23,11 @@ pub async fn transcribe_wav_base64(
         return Err("OPENROUTER_API_KEY not set — STT requires cloud transcription".into());
     }
 
-    let default_model = env::var("STT_MODEL").unwrap_or_else(|_| "openai/whisper-large-v3".into());
+    let default_model = env::var("STT_MODEL").unwrap_or_else(|_| "openai/whisper-large-v3".to_string());
     let model = model_override
-        .map(str::trim)
+        .map(|s| s.trim().to_string())
         .filter(|value| !value.is_empty())
-        .unwrap_or(default_model.trim());
+        .unwrap_or_else(|| default_model.trim().to_string());
 
     println!("[stt] Sending {}KB of audio to {model}", wav_base64.len() / 1024);
 
@@ -43,7 +43,7 @@ pub async fn transcribe_wav_base64(
                 .mime_str("audio/wav")
                 .map_err(|e| format!("MIME error: {e}"))?,
         )
-        .text("model", model.clone())
+        .text("model", model)
         .text("language", lang.to_string())
         .text("response_format", "json".to_string());
 
@@ -94,11 +94,11 @@ pub async fn stt_transcribe(
 
     // If format is already WAV, use directly
     if format == "wav" {
-        return transcribe_wav_base64(&audio_base64, lang).await;
+        return transcribe_wav_base64(&audio_base64, lang, None, None).await;
     }
 
     // For other formats (webm, ogg), try anyway — Whisper handles many formats
-    transcribe_wav_base64(&audio_base64, lang).await
+    transcribe_wav_base64(&audio_base64, lang, None, None).await
 }
 
 fn base64_decode(input: &str) -> Result<Vec<u8>, String> {

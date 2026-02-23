@@ -1,3 +1,16 @@
+## [1.0.45] - 2026-02-23
+
+### Summary
+
+refactor(None): multi-language support with 3 supporting modules
+
+### Other
+
+- update src-tauri/src/stt.rs
+- update src/components/Chat.tsx
+- update src/plugins/discovery/advancedPortScanPlugin.ts
+
+
 ## [1.0.44] - 2026-02-23
 
 ### Summary
