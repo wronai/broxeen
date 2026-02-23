@@ -140,9 +140,7 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
                 "error",
                 "-nostdin",
             ]);
-            if include_timeouts {
-                cmd.args(["-rw_timeout", "900000"]);
-            }
+            // Removed -rw_timeout as it's not supported in this ffmpeg version
             cmd.args([
                 "-fflags",
                 "nobuffer",

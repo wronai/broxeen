@@ -492,7 +492,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
     });
 
     run();
-  }, [isRecording, lang, stopTracks]);
+  }, [audioSettings, lang, stopTracks]);
 
   useEffect(() => {
     isRecordingRef.current = isRecording;

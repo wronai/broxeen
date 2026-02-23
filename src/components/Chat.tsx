@@ -1487,7 +1487,8 @@ ${analysis}`,
       });
 
       // Use plugin system to handle the query with scope information
-      const result = await ask(query, isListening || stt.isRecording ? "voice" : "text", currentScope);
+      const isVoiceInput = isListening || stt.isRecording;
+      const result = await ask(query, isVoiceInput ? "voice" : "text", currentScope);
 
       // Remove thinking message once we have a response
       eventStore.append({
@@ -1500,7 +1501,40 @@ ${analysis}`,
         contentBlocks: result.content.length,
         executionTime: result.metadata.duration_ms,
         scope: currentScope,
+        pluginId: result.pluginId,
+        isVoiceInput,
       });
+
+      // For voice input that falls back to chat plugin, show action suggestions instead of LLM hallucination
+      if (result.status === 'success' && isVoiceInput && result.pluginId === 'chat') {
+        chatLogger.info("Voice input fell back to chat plugin, generating action suggestions", { query });
+        try {
+          const { generateFallback } = await import('../core/fallbackHandler');
+          const fallback = await generateFallback({
+            query,
+            detectedIntent: 'voice:unknown',
+            scope: currentScope,
+          });
+
+          eventStore.append({
+            type: "message_added",
+            payload: {
+              id: nextMessageId(),
+              role: "assistant",
+              text: `🎤 Transkrypcja: "${query}"\n\n${fallback.text}`,
+              type: "config_prompt",
+              configPrompt: fallback.configPrompt,
+            },
+          });
+          addToCommandHistory(query, fallback.text, 'other', true);
+          processRegistry.complete(processId);
+          processRegistry.remove(processId);
+          return;
+        } catch (fallbackError) {
+          chatLogger.warn("Failed to generate fallback suggestions", { error: fallbackError });
+          // Continue with normal chat plugin response as fallback
+        }
+      }
 
       if (result.status === 'success') {
         // Handle fallback results with configPrompt (action suggestions)

@@ -422,11 +422,22 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
 
 
 fn main() {
-    // Load environment variables from .env file
-    let _ = dotenvy::dotenv();
+    // Load environment variables from .env file (in project root)
+    match dotenvy::from_filename("../.env") {
+        Ok(path) => backend_info(format!("Loaded .env from: {:?}", path)),
+        Err(e) => backend_warn(format!("Failed to load .env: {}", e)),
+    }
     
     init_logging();
     backend_info("Booting Broxeen Tauri backend...");
+    
+    // Log API key status (without revealing the key)
+    let api_key = std::env::var("OPENROUTER_API_KEY");
+    match api_key {
+        Ok(key) if !key.is_empty() => backend_info(format!("OPENROUTER_API_KEY loaded (length: {})", key.len())),
+        Ok(_) => backend_warn("OPENROUTER_API_KEY is empty"),
+        Err(_) => backend_warn("OPENROUTER_API_KEY not found"),
+    }
 
     let tts_engine = tts_backend::detect_tts_engine();
     backend_info(format!("Detected native backend TTS engine: {:?}", tts_engine));

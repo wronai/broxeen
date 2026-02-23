@@ -3,7 +3,7 @@
 
 use std::env;
 
-const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/audio/transcriptions";
+const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 
 /// Transcribe WAV audio (base64-encoded) using OpenRouter Whisper.
 ///
@@ -31,21 +31,29 @@ pub async fn transcribe_wav_base64(
 
     println!("[stt] Sending {}KB of audio to {model}", wav_base64.len() / 1024);
 
-    // Decode base64 to bytes for multipart upload
-    let wav_bytes = base64_decode(wav_base64)?;
-
-    // Build multipart form
-    let form = reqwest::multipart::Form::new()
-        .part(
-            "file",
-            reqwest::multipart::Part::bytes(wav_bytes)
-                .file_name("recording.wav")
-                .mime_str("audio/wav")
-                .map_err(|e| format!("MIME error: {e}"))?,
-        )
-        .text("model", model)
-        .text("language", lang.to_string())
-        .text("response_format", "json".to_string());
+    // Build JSON body for chat completions API with audio input
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": format!("Transkrybuj to nagranie na język {}. ZWRÓĆ TYLKO DOKŁADNĄ TRANSTRYPCJĘ tego co usłyszałeś. NIE DODAWAJ żadnych komentarzy, wyjaśnień, opowiadań ani tekstu którego nie było na nagraniu. Jeśli na nagraniu nie było mowy, zwróć pusty string.", lang)
+                    },
+                    {
+                        "type": "input_audio",
+                        "input_audio": {
+                            "data": wav_base64,
+                            "format": "wav"
+                        }
+                    }
+                ]
+            }
+        ],
+        "response_format": {"type": "text"}
+    });
 
     let client = reqwest::Client::new();
     let resp = client
@@ -53,7 +61,7 @@ pub async fn transcribe_wav_base64(
         .header("Authorization", format!("Bearer {api_key}"))
         .header("HTTP-Referer", "https://broxeen.local")
         .header("X-Title", "broxeen-stt")
-        .multipart(form)
+        .json(&body)
         .send()
         .await
         .map_err(|e| format!("STT request failed: {e}"))?;
@@ -69,8 +77,11 @@ pub async fn transcribe_wav_base64(
         .await
         .map_err(|e| format!("STT JSON parse error: {e}"))?;
 
-    let text = data["text"]
-        .as_str()
+    // Extract transcription from chat completions response
+    let text = data["choices"]
+        .get(0)
+        .and_then(|choice| choice["message"].as_object())
+        .and_then(|msg| msg["content"].as_str())
         .unwrap_or("")
         .trim()
         .to_string();
@@ -101,9 +112,3 @@ pub async fn stt_transcribe(
     transcribe_wav_base64(&audio_base64, lang, None, None).await
 }
 
-fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
-    use base64::Engine;
-    base64::engine::general_purpose::STANDARD
-        .decode(input)
-        .map_err(|e| format!("Base64 decode error: {e}"))
-}
