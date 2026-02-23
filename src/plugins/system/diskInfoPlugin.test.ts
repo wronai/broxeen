@@ -85,7 +85,7 @@ describe('DiskInfoPlugin', () => {
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('test-host');
       expect(result.content[0].data).toContain('/');
-      expect(result.metadata.configPrompt).toBeDefined();
+      expect((result.metadata as any).configPrompt).toBeDefined();
     });
 
     it('calls get_disk_usage for specific path', async () => {
