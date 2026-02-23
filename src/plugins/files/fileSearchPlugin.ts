@@ -9,6 +9,7 @@
  */
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
+import { getSystemContext } from '../../core/systemContext';
 
 export interface FileSearchResult {
   path: string;
@@ -48,7 +49,9 @@ export class FileSearchPlugin implements Plugin {
 
   async canHandle(input: string, _context: PluginContext): Promise<boolean> {
     const lower = input.toLowerCase();
-    return (
+
+    // Exact phrase matches
+    if (
       lower.includes('znajdź plik') ||
       lower.includes('znajdz plik') ||
       lower.includes('wyszukaj plik') ||
@@ -67,10 +70,29 @@ export class FileSearchPlugin implements Plugin {
       lower.includes('odczytaj plik') ||
       lower.includes('file search') ||
       lower.includes('find file') ||
-      lower.includes('search file') ||
-      /pliki?\s+(na|w|z)\s+(dysku|komputerze|folderze)/i.test(lower) ||
-      /dokument[yów]?\s+(na|w|z)\s+(dysku|komputerze|folderze)/i.test(lower)
-    );
+      lower.includes('search file')
+    ) return true;
+
+    // Broader regex patterns for natural queries
+    if (
+      /lista\s+plik[óo]?w/i.test(lower) ||
+      /poka[zż]\s+(mi\s+)?plik/i.test(lower) ||
+      /wylistuj\s+plik/i.test(lower) ||
+      /co\s+(jest|mam|znajduje\s+się)\s+(w|na)\s+(folderze|katalogu|dysku)/i.test(lower) ||
+      /zawarto[śs][ćc]\s+(folderu|katalogu|dysku)/i.test(lower) ||
+      /plik[iy]?\s+(w|na|z)\s+(folderze|katalogu|dysku|komputerze|pulpicie)/i.test(lower) ||
+      /dokument[yów]?\s+(w|na|z)\s+(folderze|katalogu|dysku|komputerze|pulpicie)/i.test(lower) ||
+      /(folder|katalog|pulpit)\s+(usera|u[żz]ytkownika|domowy|home)/i.test(lower) ||
+      /plik[iy]?\s+(usera|u[żz]ytkownika)/i.test(lower) ||
+      /ls\s+(~|\/home|\/)/i.test(lower) ||
+      /list\s+(files|directory|folder)/i.test(lower) ||
+      /poka[żz]\s+(folder|katalog)/i.test(lower) ||
+      /co\s+mam\s+na\s+dysku/i.test(lower) ||
+      /przejrzyj\s+(pliki|folder|katalog)/i.test(lower) ||
+      /wy[śs]wietl\s+plik/i.test(lower)
+    ) return true;
+
+    return false;
   }
 
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
@@ -342,22 +364,48 @@ export class FileSearchPlugin implements Plugin {
     let query = input;
     let searchPath: string | null = null;
     const extensions: string[] = [];
+    const ctx = getSystemContext();
 
-    // Extract path: "w ~/Documents", "w /home/user", "w folderze Dokumenty"
-    const pathPatterns = [
-      /(?:w|z|na)\s+(\/\S+)/i,
-      /(?:w|z|na)\s+(~\/\S+)/i,
-      /(?:w\s+folderze|w\s+katalogu)\s+(\S+)/i,
-      /(?:path|ścieżka|sciezka)\s+(\S+)/i,
+    // 1. Resolve semantic path references to actual system paths
+    const semanticPaths: Array<{ pattern: RegExp; resolve: () => string }> = [
+      { pattern: /(folder|katalog|pliki?)\s+(usera|u[żz]ytkownika|domowy|home)/i, resolve: () => ctx.homeDir },
+      { pattern: /folder\s+domowy/i, resolve: () => ctx.homeDir },
+      { pattern: /(na\s+)?pulpicie/i, resolve: () => `${ctx.homeDir}/${ctx.os === 'windows' ? 'Desktop' : 'Pulpit'}` },
+      { pattern: /(w\s+)?dokumentach/i, resolve: () => `${ctx.homeDir}/${ctx.os === 'windows' ? 'Documents' : 'Dokumenty'}` },
+      { pattern: /(w\s+)?pobranych/i, resolve: () => `${ctx.homeDir}/${ctx.os === 'windows' ? 'Downloads' : 'Pobrane'}` },
     ];
 
-    for (const pattern of pathPatterns) {
-      const m = input.match(pattern);
+    for (const sp of semanticPaths) {
+      const m = input.match(sp.pattern);
       if (m) {
-        searchPath = m[1];
+        searchPath = sp.resolve();
         query = query.replace(m[0], '').trim();
         break;
       }
+    }
+
+    // 2. Extract explicit paths: "w ~/Documents", "w /home/user"
+    if (!searchPath) {
+      const pathPatterns = [
+        /(?:w|z|na)\s+(\/\S+)/i,
+        /(?:w|z|na)\s+(~\/\S+)/i,
+        /(?:w\s+folderze|w\s+katalogu)\s+(\S+)/i,
+        /(?:path|ścieżka|sciezka)\s+(\S+)/i,
+      ];
+
+      for (const pattern of pathPatterns) {
+        const m = input.match(pattern);
+        if (m) {
+          searchPath = m[1];
+          query = query.replace(m[0], '').trim();
+          break;
+        }
+      }
+    }
+
+    // 3. Default to home dir for listing-type queries with no explicit path
+    if (!searchPath && /lista|wylistuj|poka[zż]|co\s+(jest|mam)|zawarto|przejrzyj|wyświetl/i.test(input)) {
+      searchPath = ctx.homeDir;
     }
 
     // Extract extensions: ".pdf", "pdf", "pliki pdf"
@@ -390,6 +438,13 @@ export class FileSearchPlugin implements Plugin {
       .replace(/find\s+file/gi, '')
       .replace(/search\s+file/gi, '')
       .replace(/file\s+search/gi, '')
+      .replace(/lista\s+plik[óo]?w/gi, '')
+      .replace(/wylistuj\s+plik[iy]?/gi, '')
+      .replace(/poka[zż]\s+(mi\s+)?plik[iy]?/gi, '')
+      .replace(/co\s+(jest|mam|znajduje\s+się)\s+(w|na)/gi, '')
+      .replace(/zawartość/gi, '')
+      .replace(/przejrzyj/gi, '')
+      .replace(/wyświetl/gi, '')
       .trim();
 
     return { query, searchPath, extensions };

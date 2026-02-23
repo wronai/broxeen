@@ -1372,7 +1372,7 @@ ${analysis}`,
         for (const block of contentBlocks) {
           let messageText = '';
           let messageType: 'content' | 'image' | 'camera_live' = 'content';
-          let livePayload: { url: string; cameraId: string; fps?: number; initialBase64?: string; initialMimeType?: string } | undefined;
+          let livePayload: { url: string; cameraId: string; fps?: number; initialBase64?: string; initialMimeType?: string; snapshotUrl?: string | null; startInSnapshotMode?: boolean } | undefined;
           
           if (block.type === 'text') {
             messageText = block.data as string;
@@ -1391,6 +1391,8 @@ ${analysis}`,
                   fps: typeof parsed.fps === 'number' ? parsed.fps : undefined,
                   initialBase64: typeof parsed.initialBase64 === 'string' ? parsed.initialBase64 : undefined,
                   initialMimeType: typeof parsed.initialMimeType === 'string' ? parsed.initialMimeType : undefined,
+                  snapshotUrl: typeof parsed.snapshotUrl === 'string' ? parsed.snapshotUrl : null,
+                  startInSnapshotMode: parsed.startInSnapshotMode === true,
                 };
                 if (!firstLivePayload) firstLivePayload = livePayload;
                 messageText = '';
@@ -1842,6 +1844,7 @@ ${analysis}`,
                             url={msg.live.url}
                             cameraId={msg.live.cameraId}
                             fps={msg.live.fps}
+                            snapshotUrl={msg.live.snapshotUrl}
                             initialFrame={
                               msg.live.initialBase64
                                 ? {

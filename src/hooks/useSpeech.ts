@@ -34,7 +34,7 @@ declare global {
 const speechLogger = logger.scope("speech:recognition");
 
 const STT_UNAVAILABLE_TAURI_REASON =
-  "Analiza mowy (STT) nie jest dostępna w aplikacji desktop Tauri na Linux (WebKitGTK).";
+  "Rozpoznawanie mowy (Web Speech API) nie jest dostępne w aplikacji desktop Tauri na Linux (WebKitGTK). Użyj trybu STT z natywnego backendu (Tauri).";
 const STT_UNAVAILABLE_BROWSER_REASON =
   "Analiza mowy (STT) nie jest wspierana w tym środowisku (brak Web Speech API).";
 

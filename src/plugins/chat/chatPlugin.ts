@@ -1,8 +1,11 @@
 /**
- * Chat LLM Plugin - handles general chat and LLM conversations
+ * Chat LLM Plugin - handles general chat and LLM conversations.
+ * Injects system context (OS, runtime, capabilities) so LLM responses
+ * are actionable and specific to the user's environment.
  */
 
 import type { Plugin, PluginResult, PluginContext, PluginContentBlock } from '../../core/types';
+import { buildSystemContextPrompt } from '../../core/systemContext';
 
 export class ChatLlmPlugin implements Plugin {
   readonly id = 'chat-llm';
@@ -44,9 +47,17 @@ export class ChatLlmPlugin implements Plugin {
       };
       }
 
-      // Generate response
+      // Build system-aware prompt so LLM knows the OS, runtime, and capabilities
+      const systemPrompt =
+        `Jesteś asystentem systemu Broxeen — inteligentnego monitora sieci, kamer i plików.\n` +
+        `Odpowiadaj po polsku, zwięźle i konkretnie.\n` +
+        `Jeśli użytkownik prosi o wykonanie akcji (pliki, sieć, system) — zaproponuj GOTOWĄ komendę lub WYKONAJ akcję, NIE dawaj poradników dla wielu systemów.\n` +
+        `Jeśli system ma dostępną funkcję (np. wyszukiwanie plików) — zasugeruj jej użycie przez chat.\n\n` +
+        buildSystemContextPrompt();
+
       const response = await llmModule.chat([
-        { role: 'user', content: input }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: input },
       ]);
       
       return {

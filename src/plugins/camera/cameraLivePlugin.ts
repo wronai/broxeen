@@ -293,16 +293,19 @@ export class CameraLivePlugin implements Plugin {
               title: `Podgląd: ${ip}`,
             }]
           : []),
-        ...(workingRtspUrl
+        ...((workingRtspUrl || workingSnapshotUrl)
           ? [{
               type: 'structured' as const,
               data: JSON.stringify({
                 kind: 'camera_live',
-                url: workingRtspUrl,
+                url: workingRtspUrl ?? workingSnapshotUrl,
                 cameraId: ip,
                 fps: 1,
                 initialBase64: previewBase64 ?? undefined,
                 initialMimeType: previewMimeType ?? undefined,
+                snapshotUrl: workingSnapshotUrl ?? undefined,
+                // If RTSP failed but snapshot works, start in snapshot mode immediately
+                startInSnapshotMode: !workingRtspUrl && !!workingSnapshotUrl,
               }),
               title: `Live (1fps): ${ip}`,
               mimeType: 'application/json',

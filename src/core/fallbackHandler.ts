@@ -18,6 +18,7 @@ import {
 } from './actionSchema';
 import type { ConfigPromptData, ConfigAction } from '../components/ChatConfigPrompt';
 import { preferenceLearning } from './preferenceLearning';
+import { buildSystemContextPrompt } from './systemContext';
 import { logger } from '../lib/logger';
 
 const fallbackLogger = logger.scope('fallback');

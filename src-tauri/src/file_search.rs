@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::fs;
 use std::time::SystemTime;
 
-use crate::logging::{backend_info, backend_warn, backend_error};
+use crate::logging::backend_info;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FileSearchResult {

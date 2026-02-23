@@ -155,6 +155,17 @@ pub fn stt_status(
     })
 }
 
+/// Check if the last N seconds of recorded audio are silence.
+/// Used by the frontend to auto-stop recording when the user stops speaking.
+#[tauri::command]
+pub fn stt_is_silence(
+    recording_state: tauri::State<SharedRecordingState>,
+    threshold_seconds: f32,
+    rms_threshold: f32,
+) -> bool {
+    audio_capture::is_silence(&recording_state, threshold_seconds, rms_threshold)
+}
+
 #[derive(serde::Serialize)]
 pub struct SttStatus {
     pub is_recording: bool,
