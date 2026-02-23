@@ -11,6 +11,7 @@ import { invoke } from "@tauri-apps/api/core";
 import Chat from "./Chat";
 import { CqrsProvider } from "../contexts/CqrsContext";
 import { PluginProvider } from "../contexts/pluginContext";
+import { configStore } from "../config/configStore";
 
 // Shared mock ask spy — reassigned per test in beforeEach
 let mockAskFn = vi.fn();
@@ -25,6 +26,19 @@ const makePluginResponse = (data: string) => ({
 vi.mock("../contexts/pluginContext", () => ({
   PluginProvider: ({ children }: { children: React.ReactNode }) => children,
   usePlugins: () => ({ ask: mockAskFn }),
+}));
+
+const mockSpeak = vi.fn();
+
+vi.mock("../hooks/useTts", () => ({
+  useTts: () => ({
+    isSupported: true,
+    unsupportedReason: null,
+    speak: mockSpeak,
+    stop: vi.fn(),
+    voices: [],
+    isSpeaking: false,
+  }),
 }));
 
 // Mock bootstrap to avoid plugin system initialization in tests
@@ -151,6 +165,7 @@ describe("Chat — renderowanie", () => {
     vi.clearAllMocks();
     // Ensure LLM is not available by default in Chat tests
     vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
+    configStore.reset('monitor');
   });
 
   afterEach(() => {
@@ -179,6 +194,7 @@ describe("Chat — wpisywanie i wysyłanie", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("VITE_OPENROUTER_API_KEY", "");
+    configStore.reset('monitor');
   });
 
   afterEach(() => {
@@ -216,15 +232,60 @@ describe("Chat — wpisywanie i wysyłanie", () => {
     fireEvent.change(input, { target: { value: "test" } });
     fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
     expect((input as HTMLInputElement).value).toBe("test");
+    expect(invoke).not.toHaveBeenCalled();
   });
 
-  it("pusty input nie wysyła wiadomości", async () => {
+  it("konfiguruj monitoring pokazuje config prompt", async () => {
     render(<Chat settings={defaultSettings} />);
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
+
+    fireEvent.change(input, { target: { value: "konfiguruj monitoring" } });
     fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+
     await waitFor(() => {
-      expect(invoke).not.toHaveBeenCalled();
+      expect(screen.getByTestId("config-prompt")).toBeInTheDocument();
     });
+
+    expect(screen.getByTestId("config-action-monitor-interval-30s")).toBeInTheDocument();
+    expect(screen.getByTestId("config-action-monitor-threshold-15")).toBeInTheDocument();
+    expect(screen.getByTestId("config-action-monitor-thumb-500")).toBeInTheDocument();
+  });
+
+  it("monitor_change tworzy jedną wiadomość z miniaturką w markdown i odpala TTS", async () => {
+    render(
+      <Chat
+        settings={{
+          ...defaultSettings,
+          tts_enabled: true,
+        }}
+      />
+    );
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent("broxeen:monitor_change", {
+          detail: {
+            targetId: "cam-1",
+            targetName: "Kamera testowa",
+            targetType: "camera",
+            timestamp: Date.now(),
+            changeScore: 0.23,
+            summary: "Ktoś wszedł do pokoju.",
+            thumbnailBase64: "ZmFrZV9pbWFnZV9iYXNlNjQ=",
+            thumbnailMimeType: "image/jpeg",
+          },
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Monitoring/i)).toBeInTheDocument();
+      expect(screen.getByText(/Kamera testowa/i)).toBeInTheDocument();
+      expect(screen.getByText(/Ktoś wszedł do pokoju/i)).toBeInTheDocument();
+    });
+
+    const img = document.querySelector("img[alt='Obraz']") as HTMLImageElement | null;
+    expect(img).not.toBeNull();
   });
 });
 

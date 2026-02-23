@@ -1,3 +1,20 @@
+## [1.0.48] - 2026-02-23
+
+### Summary
+
+feat(tests): deep code analysis engine with 5 supporting modules
+
+### Other
+
+- docker: update Dockerfile
+- update docker/ssh-test/authorized_keys
+- docker: update docker-compose.yml
+- scripts: update setup.sh
+- update e2e/ssh-integration.spec.ts
+- update src-tauri/src/main.rs
+- update src/components/Chat.test.tsx
+
+
 ## [1.0.47] - 2026-02-23
 
 ### Summary
