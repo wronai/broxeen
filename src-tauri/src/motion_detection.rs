@@ -28,6 +28,13 @@ use std::process::{Child, Command, Stdio};
 #[cfg(not(feature = "vision"))]
 use std::thread;
 
+#[cfg(feature = "vision")]
+use crate::vision_db::{VisionDatabase, SCHEMA};
+#[cfg(feature = "vision")]
+use crate::vision_llm::LlmClient;
+#[cfg(feature = "vision")]
+use crate::vision_query_engine::QueryEngine;
+
 use crate::logging::{backend_info, backend_warn, backend_error};
 
 // ── Shared state ──────────────────────────────────────────────────────────────
@@ -649,8 +656,7 @@ pub struct VisionQueryResult {
 }
 
 /// Natural language → SQL → real DB results.
-/// Uses LLM text-to-SQL to convert the question, then executes against monitoring.db.
-/// Falls back to direct keyword-based SQL if LLM is unavailable.
+/// Uses LLM text-to-SQL when vision feature is available, falls back to keyword matching.
 #[tauri::command]
 pub async fn vision_query(
     question: String,
@@ -659,9 +665,54 @@ pub async fn vision_query(
     let db_file = db_path.unwrap_or_else(|| "monitoring.db".to_string());
     let resolved = resolve_db_path(&db_file);
 
+    #[cfg(feature = "vision")]
+    {
+        // Try to use LLM-powered QueryEngine first
+        match try_llm_query(&question, &resolved).await {
+            Ok(result) => return Ok(result),
+            Err(e) => {
+                backend_warn!("LLM query failed, falling back to keyword matching: {}", e);
+            }
+        }
+    }
+
+    // Fallback: Use keyword-based nl_to_sql
+    keyword_based_query(&question, &resolved).await
+}
+
+#[cfg(feature = "vision")]
+async fn try_llm_query(question: &str, db_path: &str) -> Result<VisionQueryResult, String> {
+    // Open database using VisionDatabase
+    let db = VisionDatabase::open(db_path).map_err(|e| {
+        format!("Cannot open monitoring DB at {}: {}", db_path, e)
+    })?;
+
+    // Create LLM client
+    let llm_client = LlmClient::new().map_err(|e| {
+        format!("Cannot create LLM client: {}", e)
+    })?;
+
+    // Create query engine and ask
+    let engine = QueryEngine::new(&db, &llm_client);
+    let query_result = engine.ask(question).await.map_err(|e| {
+        format!("LLM query failed: {}", e)
+    })?;
+
+    // Convert to VisionQueryResult
+    Ok(VisionQueryResult {
+        question: question.to_string(),
+        sql: query_result.sql,
+        columns: query_result.columns,
+        rows: query_result.rows,
+        row_count: query_result.rows.len(),
+        source: db_path.to_string(),
+    })
+}
+
+async fn keyword_based_query(question: &str, db_path: &str) -> Result<VisionQueryResult, String> {
     // Open the DB directly with rusqlite (works with both old and new schema)
-    let conn = rusqlite::Connection::open(&resolved).map_err(|e| {
-        format!("Cannot open monitoring DB at {}: {}", resolved, e)
+    let conn = rusqlite::Connection::open(db_path).map_err(|e| {
+        format!("Cannot open monitoring DB at {}: {}", db_path, e)
     })?;
 
     // Try to detect schema version by checking for new columns
@@ -669,8 +720,8 @@ pub async fn vision_query(
         .prepare("SELECT track_id FROM detections LIMIT 1")
         .is_ok();
 
-    // Convert natural language to SQL using keyword matching (no LLM needed)
-    let sql = nl_to_sql(&question, has_new_schema);
+    // Convert natural language to SQL using keyword matching
+    let sql = nl_to_sql(question, has_new_schema);
 
     // Execute the query
     let mut stmt = conn.prepare(&sql).map_err(|e| {
@@ -702,12 +753,12 @@ pub async fn vision_query(
     let row_count = rows.len();
 
     Ok(VisionQueryResult {
-        question,
+        question: question.to_string(),
         sql,
         columns: col_names,
         rows,
         row_count,
-        source: resolved,
+        source: db_path.to_string(),
     })
 }
 

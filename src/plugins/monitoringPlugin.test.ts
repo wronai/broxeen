@@ -66,6 +66,39 @@ describe('MonitoringPlugin', () => {
     });
   });
 
+  it('should handle complex LLM-generated queries', async () => {
+    const mockResult = {
+      question: 'pokaż wszystkie osoby które poruszały się szybko między 17:00 a 18:00',
+      sql: "SELECT timestamp, camera_id, track_id, speed_label FROM detections WHERE label='person' AND speed_label='fast' AND time(timestamp) BETWEEN '17:00' AND '18:00' ORDER BY timestamp DESC",
+      columns: ['timestamp', 'camera_id', 'track_id', 'speed_label'],
+      rows: [
+        ['2026-02-23T17:45:30Z', 'front-door', 'track-123', 'fast'],
+        ['2026-02-23T17:32:15Z', 'backyard', 'track-456', 'fast']
+      ],
+      row_count: 2,
+      source: '/path/to/monitoring.db'
+    };
+
+    const { invoke } = await import('@tauri-apps/api/core');
+    vi.mocked(invoke).mockResolvedValue(mockResult);
+
+    const query = {
+      intent: 'monitoring:query',
+      rawInput: 'pokaż wszystkie osoby które poruszały się szybko między 17:00 a 18:00',
+      params: {}
+    };
+
+    const result = await plugin.execute(query);
+
+    expect(result.status).toBe('success');
+    expect(result.content[0].data).toContain('2 rekord(ów)');
+    expect(result.content[0].data).toContain('speed_label');
+    expect(invoke).toHaveBeenCalledWith('vision_query', {
+      question: 'pokaż wszystkie osoby które poruszały się szybko między 17:00 a 18:00',
+      dbPath: 'monitoring.db'
+    });
+  });
+
   it('should handle missing database gracefully', async () => {
     const { invoke } = await import('@tauri-apps/api/core');
     vi.mocked(invoke)
