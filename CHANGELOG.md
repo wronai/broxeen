@@ -1,3 +1,21 @@
+## [1.0.54] - 2026-02-23
+
+### Summary
+
+feat(tests): deep code analysis engine with 3 supporting modules
+
+### Test
+
+- update test-intent-detection.mjs
+- update test-parse-pdf.mjs
+
+### Other
+
+- update src/core/plugin.types.ts
+- update src/plugins/files/fileSearchPlugin.ts
+- update src/plugins/system/diskInfoPlugin.test.ts
+
+
 ## [1.0.53] - 2026-02-23
 
 ### Summary

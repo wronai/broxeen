@@ -133,11 +133,11 @@ export class FileSearchPlugin implements Plugin {
     context: PluginContext,
     start: number,
   ): Promise<PluginResult> {
-    if (!context.isTauri || !context.tauriInvoke) {
-      return this.browserFallback(start);
-    }
-
     const { query, searchPath, extensions } = this.parseSearchParams(input);
+    
+    if (!context.isTauri || !context.tauriInvoke) {
+      return this.browserFallback(start, query, extensions);
+    }
 
     const response = (await context.tauriInvoke('file_search', {
       query,
@@ -246,14 +246,8 @@ export class FileSearchPlugin implements Plugin {
   }
 
   private buildGridResult(response: FileSearchResponse, start: number): PluginResult {
-    const lines: string[] = [
-      `🔍 Znaleziono **${response.total_found}** plik${response.total_found === 1 ? '' : response.total_found <= 4 ? 'i' : 'ów'} (${response.duration_ms}ms)\n`,
-    ];
-
-    const blocks: Array<{ type: 'text' | 'image'; data: string; mimeType?: string; title?: string }> = [];
-
-    // Text header
-    blocks.push({ type: 'text', data: lines.join('\n') });
+    const blocks: Array<{ type: 'text' | 'image'; data: string; mimeType?: string }> = [];
+    const actions: string[] = [];
 
     for (const file of response.results) {
       const sizeStr = this.formatBytes(file.size_bytes);
@@ -267,47 +261,59 @@ export class FileSearchPlugin implements Plugin {
         fileInfo += `\n\`\`\`\n${file.preview.slice(0, 300)}\n\`\`\`\n`;
       }
 
-      fileInfo += `\n💡 **Sugerowane akcje:**\n`;
-      fileInfo += `- "przeczytaj plik ${file.path}" — odczytaj zawartość\n`;
-      fileInfo += `- "wyślij plik ${file.path} na email" — wyślij mailem\n`;
-
       blocks.push({ type: 'text', data: fileInfo });
+      
+      // Build actions for ConfigPrompt
+      actions.push(`Przeczytaj ${file.path}`);
+      const dirPath = file.path.substring(0, file.path.lastIndexOf('/'));
+      if (dirPath) actions.push(`Pokaż folder ${dirPath}`);
     }
 
     return {
       pluginId: this.id,
       status: 'success',
       content: blocks,
-      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      metadata: { 
+        duration_ms: Date.now() - start, 
+        cached: false, 
+        truncated: false,
+        configPrompt: actions.join('\n'),
+      },
     };
   }
 
   private buildListResult(response: FileSearchResponse, start: number): PluginResult {
     const lines: string[] = [
       `🔍 Znaleziono **${response.total_found}** plików (${response.duration_ms}ms)\n`,
-      '| # | Nazwa | Typ | Rozmiar | Zmieniony |',
-      '|---|-------|-----|---------|-----------|',
+      '| Nazwa | Typ | Rozmiar | Zmieniony |',
+      '|-------|-----|---------|-----------|',
     ];
 
+    const actions: string[] = [];
     for (let i = 0; i < response.results.length; i++) {
       const f = response.results[i];
       lines.push(
-        `| ${i + 1} | \`${f.name}\` | ${f.file_type} | ${this.formatBytes(f.size_bytes)} | ${f.modified || '—'} |`,
+        `| **${f.name}** | ${f.file_type} | ${this.formatBytes(f.size_bytes)} | ${f.modified || '—'} |`,
       );
+      
+      // Build actions for ConfigPrompt
+      if (i < 5) {
+        actions.push(`Przeczytaj ${f.path}`);
+        const dirPath = f.path.substring(0, f.path.lastIndexOf('/'));
+        if (dirPath) actions.push(`Pokaż folder ${dirPath}`);
+      }
     }
-
-    lines.push('');
-    lines.push('💡 **Sugerowane akcje:**');
-    for (const f of response.results.slice(0, 3)) {
-      lines.push(`- "przeczytaj plik ${f.path}" — odczytaj zawartość`);
-    }
-    lines.push(`- "wyślij pliki na email" — wyślij znalezione pliki mailem`);
 
     return {
       pluginId: this.id,
       status: 'success',
       content: [{ type: 'text', data: lines.join('\n') }],
-      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      metadata: { 
+        duration_ms: Date.now() - start, 
+        cached: false, 
+        truncated: false,
+        configPrompt: actions.join('\n'),
+      },
     };
   }
 
@@ -335,14 +341,16 @@ export class FileSearchPlugin implements Plugin {
       `📂 **Przykładowe pliki:**`,
     ];
 
+    const actions: string[] = [];
     for (let i = 0; i < sample.length; i++) {
       lines.push(`${i + 1}. \`${sample[i].name}\` (${sample[i].file_type}, ${this.formatBytes(sample[i].size_bytes)})`);
+      actions.push(`Przeczytaj ${sample[i].path}`);
     }
 
     lines.push(`\n❓ **Doprecyzuj zapytanie**, np.:`);
-    lines.push(`- "znajdź pliki pdf z ${query}" — szukaj tylko PDF`);
-    lines.push(`- "znajdź pliki ${query} w ~/Dokumenty" — ogranicz ścieżkę`);
-    lines.push(`- "znajdź ostatnie pliki ${query}" — najnowsze pliki`);
+    actions.push(`Znajdź pliki pdf z ${query}`);
+    actions.push(`Znajdź pliki ${query} w ~/Dokumenty`);
+    actions.push(`Znajdź ostatnie pliki ${query}`);
 
     return {
       pluginId: this.id,
@@ -352,6 +360,7 @@ export class FileSearchPlugin implements Plugin {
         duration_ms: Date.now() - start,
         cached: false,
         truncated: true,
+        configPrompt: actions.join('\n'),
       },
     };
   }
@@ -467,17 +476,32 @@ export class FileSearchPlugin implements Plugin {
     return null;
   }
 
-  private browserFallback(start: number): PluginResult {
+  private browserFallback(start: number, query?: string, extensions?: string[]): PluginResult {
+    const extHint = extensions && extensions.length > 0 ? ` (rozszerzenie: ${extensions.join(', ')})` : '';
+    const actions: string[] = [];
+    
+    if (extensions && extensions.includes('pdf')) {
+      actions.push('Wyszukaj faktury w Google Drive');
+      actions.push('Pokaż ostatnie dokumenty PDF');
+    }
+    actions.push('Uruchom aplikację desktopową Broxeen');
+    actions.push('Pomoc: jak wyszukiwać pliki');
+    
     return {
       pluginId: this.id,
       status: 'partial',
       content: [
         {
           type: 'text',
-          data: '📁 **Wyszukiwanie plików**\n\n⚠️ Wyszukiwanie plików na dysku jest dostępne tylko w trybie Tauri (aplikacja desktopowa).\nW przeglądarce nie ma dostępu do systemu plików.\n\n💡 Uruchom Broxeen jako aplikację desktopową.',
+          data: `🔍 **Wyszukiwanie plików${extHint}**\n\n⚠️ Wyszukiwanie lokalnych plików wymaga aplikacji desktopowej Broxeen (Tauri).\nW przeglądarce nie ma dostępu do systemu plików.\n\n💡 **Alternatywy:**\n- Uruchom Broxeen jako aplikację desktopową\n- Użyj wyszukiwarki plików systemowych\n- Sprawdź chmurę (Google Drive, Dropbox)`,
         },
       ],
-      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      metadata: { 
+        duration_ms: Date.now() - start, 
+        cached: false, 
+        truncated: false,
+        configPrompt: actions.join('\n'),
+      },
     };
   }
 
