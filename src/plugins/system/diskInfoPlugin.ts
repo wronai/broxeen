@@ -135,6 +135,7 @@ export class DiskInfoPlugin implements Plugin {
         duration_ms: Date.now() - start, 
         cached: false, 
         truncated: false,
+        configPrompt: this.buildConfigPrompt(info),
       },
     };
   }

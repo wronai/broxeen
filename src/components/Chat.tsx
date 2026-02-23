@@ -1379,6 +1379,19 @@ ${analysis}`,
           } else if (block.type === 'image') {
             messageText = block.data as string;
             messageType = 'image';
+          } else if (block.type === 'config_prompt') {
+            // Config prompt blocks: create separate message with interactive buttons
+            eventStore.append({
+              type: "message_added",
+              payload: {
+                id: nextMessageId(),
+                role: "assistant",
+                text: block.data as string,
+                type: "config_prompt",
+                configPrompt: block.configPrompt,
+              },
+            });
+            continue; // Skip adding to fullResult
           } else if (block.type === 'structured') {
             // Structured blocks: support camera_live payload
             try {

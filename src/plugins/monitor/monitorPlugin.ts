@@ -431,13 +431,17 @@ export class MonitorPlugin implements Plugin {
       status: 'success',
       content: [
         { type: 'text', data, title: 'Aktywne monitoringi' },
-        { type: 'text', data: '', title: '⚙️ Szybkie ustawienia' }
+        { 
+          type: 'config_prompt', 
+          data: '⚙️ Szybkie ustawienia',
+          title: '⚙️ Zarządzanie monitoringiem',
+          configPrompt
+        }
       ],
       metadata: { 
         duration_ms: Date.now() - start, 
         cached: false, 
         truncated: false,
-        configPrompt
       },
     };
   }

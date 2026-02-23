@@ -44,11 +44,12 @@ export interface PluginResult {
 }
 
 export interface ContentBlock {
-  readonly type: "text" | "html" | "image" | "stream" | "structured";
+  readonly type: "text" | "html" | "image" | "stream" | "structured" | "config_prompt";
   readonly data: string;
   readonly mimeType?: string;
   readonly title?: string;
   readonly summary?: string; // Short version for TTS
+  readonly configPrompt?: import('../components/ChatConfigPrompt').ConfigPromptData; // For config_prompt type
 }
 
 export interface ResultMetadata {
