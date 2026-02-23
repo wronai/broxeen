@@ -371,6 +371,29 @@ describe("Chat — browse flow", () => {
     expect(anyAction).not.toBeNull();
   });
 
+  it("gdy plugin zwraca timeout — pokazuje fallback z config prompt i akcjami", async () => {
+    mockAskFn = vi.fn().mockResolvedValue({
+      pluginId: 'network-scan',
+      status: 'error' as const,
+      content: [{ type: 'text' as const, data: 'Timeout while scanning network (ETIMEDOUT)' }],
+      metadata: { duration_ms: 10, cached: false, truncated: false },
+    });
+
+    render(<Chat settings={defaultSettings} />);
+    const input = screen.getByPlaceholderText(/Wpisz adres/i);
+    fireEvent.change(input, { target: { value: "skanuj sieć" } });
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: false });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("config-prompt")).toBeInTheDocument();
+    });
+
+    const anyAction =
+      document.querySelector('[data-testid^="config-action-"]') ||
+      document.querySelector('[data-testid^="config-card-"]');
+    expect(anyAction).not.toBeNull();
+  });
+
   it("zapytanie fonetyczne → URL + wiadomość ładowania", async () => {
     mockAskFn = vi.fn().mockResolvedValue(makePluginResponse('Treść strony onet.pl'));
 

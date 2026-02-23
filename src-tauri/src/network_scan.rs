@@ -1151,26 +1151,69 @@ pub struct NetworkScanResult {
     pub subnet: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ScanNetworkArgs {
+    pub subnet: Option<String>,
+    pub timeout: Option<u64>,
+    pub incremental: Option<bool>,
+    pub target_ranges: Option<Vec<String>>,
+}
+
 #[tauri::command]
-pub async fn scan_network(subnet: Option<String>, timeout: Option<u64>) -> Result<NetworkScanResult, String> {
+pub async fn scan_network(args: Option<ScanNetworkArgs>) -> Result<NetworkScanResult, String> {
+    let subnet = args.as_ref().and_then(|a| a.subnet.clone());
+    let timeout = args.as_ref().and_then(|a| a.timeout);
+    let incremental = args.as_ref().and_then(|a| a.incremental).unwrap_or(false);
+    let target_ranges = args
+        .as_ref()
+        .and_then(|a| a.target_ranges.clone())
+        .unwrap_or_default();
+
     let timeout_ms = timeout.unwrap_or(5000);
     let per_port_timeout = std::cmp::max(timeout_ms / 100, 50);
     let target_subnet = subnet.unwrap_or_else(|| detect_local_subnet());
     let t0 = Instant::now();
 
-    backend_info(format!("scan_network: subnet={} timeout={}ms (per-port={}ms)", target_subnet, timeout_ms, per_port_timeout));
+    let scan_mode = if incremental { "incremental" } else { "full" };
+    backend_info(format!(
+        "scan_network: mode={} subnet={} timeout={}ms (per-port={}ms) ranges={}",
+        scan_mode,
+        target_subnet,
+        timeout_ms,
+        per_port_timeout,
+        target_ranges.len()
+    ));
 
     let camera_ports: Vec<u16> = vec![80, 443, 554, 8080, 8443, 8554, 8000, 9000];
+
+    // Build host list
+    let mut hosts: Vec<u16> = if incremental && !target_ranges.is_empty() {
+        let mut out: Vec<u16> = Vec::new();
+        for r in &target_ranges {
+            out.extend(parse_target_range(&target_subnet, r));
+        }
+        out.sort_unstable();
+        out.dedup();
+        out
+    } else {
+        (1u16..=254).collect()
+    };
+    hosts.retain(|h| (1..=254).contains(h));
+
+    backend_info(format!(
+        "scan_network: scanning {} hosts (mode={})",
+        hosts.len(),
+        scan_mode
+    ));
 
     // Parallel scan: spawn a blocking task per IP, batched to avoid fd exhaustion
     let batch_size = 50usize;
     let mut devices = Vec::new();
 
-    for batch_start in (1u16..=254).step_by(batch_size) {
-        let batch_end = std::cmp::min(batch_start + batch_size as u16 - 1, 254);
+    for batch in hosts.chunks(batch_size) {
         let mut handles = Vec::new();
 
-        for i in batch_start..=batch_end {
+        for &i in batch {
             let ip = format!("{}.{}", target_subnet, i);
             let ports = camera_ports.clone();
             let ppt = per_port_timeout;
@@ -1184,7 +1227,9 @@ pub async fn scan_network(subnet: Option<String>, timeout: Option<u64>) -> Resul
                     if let Ok(addr) = addr_str.parse::<SocketAddr>() {
                         let pt = Instant::now();
                         if TcpStream::connect_timeout(&addr, Duration::from_millis(ppt)).is_ok() {
-                            if response_time == 0 { response_time = pt.elapsed().as_millis() as u64; }
+                            if response_time == 0 {
+                                response_time = pt.elapsed().as_millis() as u64;
+                            }
                             open_ports.push(port);
                         }
                     }
@@ -1232,9 +1277,60 @@ pub async fn scan_network(subnet: Option<String>, timeout: Option<u64>) -> Resul
     Ok(NetworkScanResult {
         devices,
         scan_duration,
-        scan_method: "tcp-connect-parallel".to_string(),
+        scan_method: if incremental {
+            "tcp-connect-parallel-incremental".to_string()
+        } else {
+            "tcp-connect-parallel".to_string()
+        },
         subnet: target_subnet,
     })
+}
+
+fn parse_target_range(target_subnet: &str, raw: &str) -> Vec<u16> {
+    let s = raw.trim();
+    if s.is_empty() {
+        return vec![];
+    }
+
+    // Accept:
+    // - "x-y" (last octet range)
+    // - "a.b.c.x-y" (full prefix)
+    // - "a.b.c.d" (single ip)
+    // - "a.b.c.x" (single host)
+    if let Some((a, b)) = s.split_once('-') {
+        let a = a.trim();
+        let b = b.trim();
+
+        // "a.b.c.x-y" -> take last part for start
+        let start = a.split('.').last().and_then(|p| p.parse::<u16>().ok());
+        let end = b.parse::<u16>().ok();
+        if let (Some(start), Some(end)) = (start, end) {
+            let lo = std::cmp::min(start, end);
+            let hi = std::cmp::max(start, end);
+            return (lo..=hi).filter(|h| (1..=254).contains(h)).collect();
+        }
+        return vec![];
+    }
+
+    // Single IP or host
+    if s.contains('.') {
+        if let Some(last) = s.split('.').last().and_then(|p| p.parse::<u16>().ok()) {
+            if s.starts_with(target_subnet) {
+                return vec![last];
+            }
+            // If it's an IP from another subnet, ignore.
+            return vec![];
+        }
+        return vec![];
+    }
+
+    if let Ok(h) = s.parse::<u16>() {
+        if (1..=254).contains(&h) {
+            return vec![h];
+        }
+    }
+
+    vec![]
 }
 
 fn detect_local_subnet() -> String {

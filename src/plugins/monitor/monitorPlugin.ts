@@ -196,10 +196,18 @@ export class MonitorPlugin implements Plugin {
       };
     }
 
-    // Save credentials to configStore for reuse
+    // Save credentials to configStore for reuse / load stored ones
     if (parsed.address && parsed.rtspUsername) {
       configStore.set(`camera.credentials.${parsed.address}.username`, parsed.rtspUsername);
       configStore.set(`camera.credentials.${parsed.address}.password`, parsed.rtspPassword ?? '');
+    } else if (parsed.address && !parsed.rtspUsername) {
+      // Auto-load stored credentials
+      const storedUser = configStore.get(`camera.credentials.${parsed.address}.username`) as string | undefined;
+      const storedPass = configStore.get(`camera.credentials.${parsed.address}.password`) as string | undefined;
+      if (storedUser) {
+        parsed.rtspUsername = storedUser;
+        parsed.rtspPassword = storedPass || '';
+      }
     }
 
     // Generate RTSP URL + candidate HTTP snapshot URLs using vendor database
@@ -584,7 +592,12 @@ export class MonitorPlugin implements Plugin {
         data += `Próby: ${lastErr.capture.attemptsDetail}\n`;
       }
       data += '**Sugestie:**\n';
-      data += '- Uruchom w Tauri: `make tauri-dev` (RTSP via ffmpeg)\n';
+      if ((import.meta as any)?.env?.DEV) {
+        data += '- DEV: uruchom Vite: `pnpm dev` (proxy /api/camera-proxy dla HTTP snapshotów)\n';
+        data += '- Jeśli Tauri DEV: `make tauri-dev` (RTSP via ffmpeg)\n';
+      } else {
+        data += '- Uruchom w Tauri: `make tauri-dev` (RTSP via ffmpeg)\n';
+      }
       data += '- Podaj credentials: `monitoruj IP user:admin admin:HASŁO`\n';
       data += '- Sprawdź HTTP snapshot w przeglądarce: `http://IP/snap.jpg`\n';
     }
@@ -939,27 +952,74 @@ export class MonitorPlugin implements Plugin {
     }
 
     // ── 3. Reolink token-based API snapshot ──
-    if (target.address && target.rtspUsername) {
-      try {
-        const token = await this.ensureApiToken(target);
-        if (token) {
-          const url = `http://${target.address}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=broxeen&token=${token}`;
-          attempts.push(`Reolink API: ${url}`);
-          try {
-            const result = await this.fetchHttpSnapshot(url, captureStart, attempts);
-            if (result) {
-              target.snapshotUrl = url;
-              return result;
-            }
-          } catch (err) {
-            attempts.push(`  → Reolink fail: ${err instanceof Error ? err.message : String(err)}`);
-            // Token might be expired, clear it
-            target.apiToken = undefined;
-            target.apiTokenExpiry = undefined;
-          }
+    // Try even without explicit credentials — use stored creds or common defaults
+    if (target.address) {
+      // Ensure we have some credentials to try
+      if (!target.rtspUsername) {
+        const storedUser = configStore.get(`camera.credentials.${target.address}.username`) as string | undefined;
+        if (storedUser) {
+          target.rtspUsername = storedUser;
+          target.rtspPassword = (configStore.get(`camera.credentials.${target.address}.password`) as string) || '';
+          attempts.push(`Loaded stored credentials: ${storedUser}`);
         }
-      } catch (err) {
-        attempts.push(`Reolink login fail: ${err instanceof Error ? err.message : String(err)}`);
+      }
+
+      const credsToTry: Array<{ user: string; pass: string }> = [];
+      if (target.rtspUsername) {
+        credsToTry.push({ user: target.rtspUsername, pass: target.rtspPassword || '' });
+      }
+      // Common defaults as last resort
+      credsToTry.push({ user: 'admin', pass: '123456' });
+      credsToTry.push({ user: 'admin', pass: 'admin' });
+      credsToTry.push({ user: 'admin', pass: '' });
+
+      // Deduplicate
+      const seen = new Set<string>();
+      const uniqueCreds = credsToTry.filter(c => {
+        const key = `${c.user}:${c.pass}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      for (const creds of uniqueCreds) {
+        try {
+          // Temporarily set credentials for token login
+          const origUser = target.rtspUsername;
+          const origPass = target.rtspPassword;
+          target.rtspUsername = creds.user;
+          target.rtspPassword = creds.pass;
+
+          const token = await this.ensureApiToken(target);
+          if (token) {
+            const url = `http://${target.address}/cgi-bin/api.cgi?cmd=Snap&channel=0&rs=broxeen&token=${token}`;
+            attempts.push(`Reolink API (${creds.user}): token OK`);
+            try {
+              const result = await this.fetchHttpSnapshot(url, captureStart, attempts);
+              if (result) {
+                // Save working credentials
+                configStore.set(`camera.credentials.${target.address}.username`, creds.user);
+                configStore.set(`camera.credentials.${target.address}.password`, creds.pass);
+                target.snapshotUrl = url;
+                return result;
+              }
+            } catch (err) {
+              attempts.push(`  → Reolink snap fail: ${err instanceof Error ? err.message : String(err)}`);
+              target.apiToken = undefined;
+              target.apiTokenExpiry = undefined;
+            }
+          } else {
+            attempts.push(`Reolink login (${creds.user}): failed`);
+          }
+
+          // Restore if this attempt didn't work
+          if (!target.snapshotUrl) {
+            target.rtspUsername = origUser;
+            target.rtspPassword = origPass;
+          }
+        } catch (err) {
+          attempts.push(`Reolink (${creds.user}): ${err instanceof Error ? err.message : String(err)}`);
+        }
       }
     }
 
@@ -1043,9 +1103,15 @@ export class MonitorPlugin implements Plugin {
   }
 
   private proxyUrl(url: string): string {
-    // In browser mode, route camera HTTP requests through Vite dev proxy to bypass CORS
-    if (typeof window !== 'undefined' && !window.__TAURI_INTERNALS__) {
-      return `/api/camera-proxy?url=${encodeURIComponent(url)}`;
+    // Route camera HTTP requests through Vite dev proxy to bypass CORS.
+    // Even in Tauri dev mode, browser-side fetch() to LAN camera IPs is CORS-blocked.
+    // The proxy is only available in dev mode (vite dev server middleware).
+    if (typeof window !== 'undefined') {
+      // Check if proxy endpoint is likely available (dev mode)
+      const isDev = import.meta.env?.DEV ?? false;
+      if (isDev) {
+        return `/api/camera-proxy?url=${encodeURIComponent(url)}`;
+      }
     }
     return url;
   }
@@ -1081,24 +1147,29 @@ export class MonitorPlugin implements Plugin {
       attemptsDetail: attempts.join(' → '),
     };
     capture.resolution = await this.detectResolution(base64, mimeType);
+
     return { base64, mimeType, capture };
   }
 
-  private summarizeCaptureFailure(attempts: string[], context: PluginContext): string {
+  private summarizeCaptureFailure(attempts: string[], _context: PluginContext): string {
     const text = attempts.join(' ');
-    if (!context.isTauri && !attempts.some(a => a.includes('HTTP')))
-      return 'Tryb przeglądarkowy — brak RTSP. Podaj credentials lub snapshotUrl kamery.';
+    const isDev = (import.meta as any)?.env?.DEV ?? false;
+    if (text.includes('Load failed') || text.includes('Failed to fetch')) {
+      return isDev
+        ? 'Żądania HTTP do kamery zablokowane (CORS/sieć). Uruchom Vite dev i użyj proxy (/api/camera-proxy) lub uruchom Tauri.'
+        : 'Żądania HTTP do kamery zablokowane (CORS/sieć). Uruchom Tauri albo podaj snapshot URL dostępny bez CORS.';
+    }
+    if (text.includes('Reolink login') && text.includes('failed'))
+      return 'Logowanie do kamery nie powiodło się. Sprawdź hasło: `monitoruj IP user:admin admin:HASŁO`';
     if (text.includes('401') || text.includes('Unauthorized'))
-      return 'Błąd autentykacji — sprawdź hasło kamery.';
+      return 'Błąd autentykacji RTSP/HTTP — sprawdź hasło kamery.';
     if (text.includes('timeout') || text.includes('Timeout'))
       return 'Przekroczenie czasu — kamera nie odpowiada.';
     if (text.includes('ECONNREFUSED') || text.includes('Connection refused'))
       return 'Połączenie odrzucone — kamera offline lub zły port.';
-    if (text.includes('pusta odpowiedź'))
-      return 'Kamera zwraca puste dane.';
-    if (text.includes('brak Tauri'))
-      return 'Tryb przeglądarkowy — uruchom Tauri (make tauri-dev) lub podaj HTTP snapshot URL kamery.';
-    return 'Wszystkie metody pobierania snapshotu nie powiodły się.';
+    if (text.includes('pusta odpowiedź') || text.includes('auth error'))
+      return 'Kamera wymaga autoryzacji. Podaj credentials: `monitoruj IP user:admin admin:HASŁO`';
+    return 'Wszystkie metody pobierania snapshotu nie powiodły się. Podaj credentials: `monitoruj IP user:admin admin:HASŁO`';
   }
 
   private async ensureApiToken(target: MonitorTarget): Promise<string | null> {
@@ -1115,7 +1186,7 @@ export class MonitorPlugin implements Plugin {
         param: { User: { userName: target.rtspUsername, password: target.rtspPassword || '' } },
       }]);
 
-      const loginUrl = `http://${target.address}/api.cgi?cmd=Login`;
+      const loginUrl = `http://${target.address}/cgi-bin/api.cgi?cmd=Login`;
       const resp = await fetch(this.proxyUrl(loginUrl), {
         method: 'POST',
         body: loginPayload,
@@ -1487,7 +1558,12 @@ export class MonitorPlugin implements Plugin {
         data += `Próby: ${lastErr.capture.attemptsDetail}\n`;
       }
       data += '**Sugestie:**\n';
-      data += '- Jeśli Tauri: `make tauri-dev` (RTSP via ffmpeg)\n';
+      if ((import.meta as any)?.env?.DEV) {
+        data += '- DEV: uruchom Vite: `pnpm dev` (proxy /api/camera-proxy dla HTTP snapshotów)\n';
+        data += '- Jeśli Tauri DEV: `make tauri-dev` (RTSP via ffmpeg)\n';
+      } else {
+        data += '- Jeśli Tauri: `make tauri-dev` (RTSP via ffmpeg)\n';
+      }
       data += '- Podaj credentials: `monitoruj IP user:admin admin:HASŁO`\n';
       data += '- Sprawdź HTTP snapshot: `http://IP/snap.jpg` w przeglądarce\n';
     }

@@ -80,8 +80,12 @@ export class NetworkScanPlugin implements Plugin {
           console.log(`[NetworkScanPlugin] Starting ${scanStrategy.type} scan via Tauri...`);
           
           const result = await context.tauriInvoke('scan_network', {
-            subnet: userSpecifiedSubnet || scanStrategy.subnet,
-            timeout: 5000,
+            args: {
+              subnet: userSpecifiedSubnet || scanStrategy.subnet,
+              timeout: 5000,
+              incremental: scanStrategy.type === 'incremental',
+              target_ranges: scanStrategy.targetRanges || [],
+            },
           }) as NetworkScanResult;
 
           // Track scan statistics and save to history
@@ -198,6 +202,10 @@ export class NetworkScanPlugin implements Plugin {
           const action = isCameraQuery ? `pokaż kamery ${subnet}` : `skanuj ${subnet}`;
           lines.push(`- "${action}" — Skanuj ${ifaceName} (${ip})`);
         });
+
+        // Global useful actions
+        lines.push(`- "aktywne monitoringi" — Lista aktywnych monitoringów`);
+        lines.push(`- "jak działa monitoring" — Wyjaśnij pipeline i diagnostykę`);
         
         return {
           pluginId: this.id,
@@ -315,6 +323,9 @@ export class NetworkScanPlugin implements Plugin {
       lines.push(`- "ping ${subnet}.1" — Sprawdź gateway`);
       lines.push(`- "skanuj porty ${subnet}.1" — Porty routera`);
       lines.push(`- "bridge rest GET http://${gatewayIp}" — Pobierz stronę routera`);
+      lines.push(`- "aktywne monitoringi" — Lista aktywnych monitoringów`);
+      lines.push(`- "ustaw próg zmian 10%" — Większa czułość (globalnie)`);
+      lines.push(`- "zmień interwał co 10s" — Częstsze sprawdzanie (globalnie)`);
     } else {
       const cameras: string[] = [];
       const others: string[] = [];
@@ -330,6 +341,8 @@ export class NetworkScanPlugin implements Plugin {
           lines.push(`   🎥 RTSP: \`rtsp://${ip}:${rtspPort}/stream\``);
           if (port !== 554 && port !== 8554) lines.push(`   🌐 HTTP: \`http://${ip}:${port}\``);
           lines.push(`   💬 Monitoruj: *"monitoruj ${ip}"*`);
+          lines.push(`   💬 Logi: *"pokaż logi monitoringu ${ip}"*`);
+          lines.push(`   💬 Stop: *"stop monitoring ${ip}"*`);
         } else {
           others.push(ip);
           lines.push(`🖥️ **${ip}** — port: ${port}`);
@@ -731,11 +744,18 @@ export class NetworkScanPlugin implements Plugin {
             const rtspPort = device.open_ports.includes(554) ? 554 : 8554;
             content += `- "pokaż live ${device.ip}" — Podgląd na żywo z kamery\n`;
             content += `- "monitoruj ${device.ip}" — Rozpocznij monitoring kamery\n`;
+            content += `- "pokaż logi monitoringu ${device.ip}" — Logi zmian dla tej kamery\n`;
+            content += `- "stop monitoring ${device.ip}" — Zatrzymaj monitoring tej kamery\n`;
+            content += `- "ustaw próg zmian 10%" — Większa czułość (globalnie)\n`;
+            content += `- "zmień interwał co 10s" — Częstsze sprawdzanie (globalnie)\n`;
+            content += `- "jak działa monitoring" — Wyjaśnij pipeline i diagnostykę\n`;
+            content += `- "test streams ${device.ip} user:admin admin:HASŁO" — Sprawdź warianty RTSP\n`;
           }
           if (hasHttp) {
             const httpPort = device.open_ports.includes(80) ? 80 : 8000;
             content += `- "przeglądaj http://${device.ip}:${httpPort}" — Otwórz interfejs web\n`;
           }
+          content += `- "aktywne monitoringi" — Lista aktywnych monitoringów\n`;
           content += `- "skanuj porty ${device.ip}" — Zaawansowana analiza portów i producenta\n`;
         });
       }
@@ -813,7 +833,8 @@ export class NetworkScanPlugin implements Plugin {
         // Calculate incremental target ranges based on last scan
         const targetRanges = await this.calculateIncrementalRanges(
           subnet, 
-          recommendation.lastScan
+          recommendation.lastScan,
+          context,
         );
         
         console.log(`[NetworkScanPlugin] Using incremental scan: ${recommendation.reason}`);
@@ -836,19 +857,86 @@ export class NetworkScanPlugin implements Plugin {
   /** Calculate target IP ranges for incremental scanning */
   private async calculateIncrementalRanges(
     subnet: string,
-    lastScan: any
+    lastScan: any,
+    context: PluginContext,
   ): Promise<string[]> {
-    // For now, use a simple strategy: scan ranges that weren't thoroughly checked
-    // This could be enhanced based on device discovery patterns, failed ranges, etc.
-    const baseRanges = [`${subnet}.1-254`, `${subnet}.100-200`];
-    
-    // If last scan was recent and found many devices, focus on gaps
-    if (lastScan.devicesFound > 5 && lastScan.scanDurationMs > 10000) {
-      // Focus on less densely scanned ranges
-      return [`${subnet}.1-50`, `${subnet}.200-254`];
+    // Strategy:
+    // - Prefer focusing around known devices from devices.db in this subnet
+    // - Build small windows around last octet values and merge overlapping windows
+    // - Cap host count to keep scan fast
+    const FALLBACK = [`${subnet}.1-254`];
+
+    try {
+      if (!context.databaseManager || !context.databaseManager.isReady()) {
+        return FALLBACK;
+      }
+
+      const repo = new DeviceRepository(context.databaseManager.getDevicesDb());
+      const devices = await repo.listDevices(200);
+      const prefix = `${subnet}.`;
+      const octets = devices
+        .map((d) => d.ip)
+        .filter((ip) => typeof ip === 'string' && ip.startsWith(prefix))
+        .map((ip) => {
+          const last = ip.split('.').pop();
+          const n = last ? Number(last) : NaN;
+          return Number.isFinite(n) ? n : null;
+        })
+        .filter((n): n is number => n !== null && n >= 1 && n <= 254);
+
+      if (octets.length === 0) {
+        return FALLBACK;
+      }
+
+      // Build windows around known devices.
+      // If last scan found many devices and was slow, use narrower windows.
+      const slowScan = lastScan?.devicesFound > 5 && lastScan?.scanDurationMs > 10_000;
+      const window = slowScan ? 2 : 4;
+
+      const intervals: Array<[number, number]> = octets.map((n) => [
+        Math.max(1, n - window),
+        Math.min(254, n + window),
+      ]);
+
+      intervals.sort((a, b) => a[0] - b[0]);
+      const merged: Array<[number, number]> = [];
+      for (const [start, end] of intervals) {
+        const last = merged[merged.length - 1];
+        if (!last || start > last[1] + 1) {
+          merged.push([start, end]);
+        } else {
+          last[1] = Math.max(last[1], end);
+        }
+      }
+
+      // Cap total host count to keep scans quick.
+      const MAX_HOSTS = slowScan ? 60 : 100;
+      const ranges: string[] = [];
+      let hosts = 0;
+      for (const [start, end] of merged) {
+        const size = end - start + 1;
+        if (hosts >= MAX_HOSTS) break;
+        if (hosts + size <= MAX_HOSTS) {
+          ranges.push(`${subnet}.${start}-${end}`);
+          hosts += size;
+        } else {
+          const allowedEnd = start + (MAX_HOSTS - hosts) - 1;
+          ranges.push(`${subnet}.${start}-${allowedEnd}`);
+          hosts = MAX_HOSTS;
+          break;
+        }
+      }
+
+      // If the merged windows are too small (e.g. only 1-2 hosts), widen slightly.
+      if (ranges.length === 0) {
+        return FALLBACK;
+      }
+
+      return ranges;
+    } catch (err) {
+      console.warn('[NetworkScanPlugin] Failed to calculate incremental ranges:', err);
+      return FALLBACK;
     }
-    
-    return baseRanges;
   }
 
   /** Track scan results and save to history */

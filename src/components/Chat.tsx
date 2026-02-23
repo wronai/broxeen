@@ -1482,11 +1482,22 @@ ${analysis}`,
         });
 
         const errorMessage = (result.content[0]?.data as string) ?? "Wystąpił błąd podczas przetwarzania zapytania.";
-        const looksLikeMissingCommand = /\bcommand\b.*\bnot found\b/i.test(errorMessage)
+        const looksLikeRecoverableError =
+          /\bcommand\b.*\bnot found\b/i.test(errorMessage)
           || /\bno handler registered\b/i.test(errorMessage)
-          || /\bhandler\b.*\bnot found\b/i.test(errorMessage);
+          || /\bhandler\b.*\bnot found\b/i.test(errorMessage)
+          || /\btimeout\b/i.test(errorMessage)
+          || /\btimed out\b/i.test(errorMessage)
+          || /\betimedout\b/i.test(errorMessage)
+          || /\beconnrefused\b/i.test(errorMessage)
+          || /\benetunreach\b/i.test(errorMessage)
+          || /\bnetwork is unreachable\b/i.test(errorMessage)
+          || /\bpermission denied\b/i.test(errorMessage)
+          || /\beacces\b/i.test(errorMessage)
+          || /\bffmpeg\b.*\bnot found\b/i.test(errorMessage)
+          || /\bno such file or directory\b/i.test(errorMessage);
 
-        if (looksLikeMissingCommand) {
+        if (looksLikeRecoverableError) {
           try {
             const { generateFallback } = await import('../core/fallbackHandler');
             const fallback = await generateFallback({
@@ -1542,11 +1553,22 @@ ${analysis}`,
       });
 
       const errorMessage = (error as any)?.message ?? "Wystąpił błąd podczas przetwarzania zapytania.";
-      const looksLikeMissingCommand = /\bcommand\b.*\bnot found\b/i.test(errorMessage)
+      const looksLikeRecoverableError =
+        /\bcommand\b.*\bnot found\b/i.test(errorMessage)
         || /\bno handler registered\b/i.test(errorMessage)
-        || /\bhandler\b.*\bnot found\b/i.test(errorMessage);
+        || /\bhandler\b.*\bnot found\b/i.test(errorMessage)
+        || /\btimeout\b/i.test(errorMessage)
+        || /\btimed out\b/i.test(errorMessage)
+        || /\betimedout\b/i.test(errorMessage)
+        || /\beconnrefused\b/i.test(errorMessage)
+        || /\benetunreach\b/i.test(errorMessage)
+        || /\bnetwork is unreachable\b/i.test(errorMessage)
+        || /\bpermission denied\b/i.test(errorMessage)
+        || /\beacces\b/i.test(errorMessage)
+        || /\bffmpeg\b.*\bnot found\b/i.test(errorMessage)
+        || /\bno such file or directory\b/i.test(errorMessage);
 
-      if (looksLikeMissingCommand) {
+      if (looksLikeRecoverableError) {
         try {
           const { generateFallback } = await import('../core/fallbackHandler');
           const fallback = await generateFallback({
@@ -2060,7 +2082,23 @@ ${analysis}`,
                                 },
                                   }}
                                 >
-                                  {msg.text}
+                                  {(() => {
+                                    const markers = [
+                                      '💡 **Sugerowane akcje:**',
+                                      '💡 **Sugerowane akcje**:',
+                                      'Sugerowane akcje:',
+                                      'Sugerowane akcje',
+                                    ];
+
+                                    for (const candidate of markers) {
+                                      const idx = msg.text.indexOf(candidate);
+                                      if (idx !== -1) {
+                                        return msg.text.slice(0, idx).trimEnd();
+                                      }
+                                    }
+
+                                    return msg.text;
+                                  })()}
                                 </ReactMarkdown>
                               </div>
                             </MessageResultCard>
@@ -2113,7 +2151,7 @@ ${analysis}`,
                             const isPrefill = /HASŁO|PASSWORD|HASLO|USER|USERNAME|NAZWA/i.test(query);
                             
                             hints.push({ query, label, isPrefill });
-                            if (hints.length >= 6) break;
+                            if (hints.length >= 10) break;
                           }
 
                           if (hints.length === 0) return null;

@@ -167,6 +167,14 @@ function chatApiPlugin(): Plugin {
           return;
         }
         try {
+          const parsedUrl = new URL(url);
+          const basicUser = parsedUrl.username ? decodeURIComponent(parsedUrl.username) : '';
+          const basicPass = parsedUrl.password ? decodeURIComponent(parsedUrl.password) : '';
+          if (basicUser) {
+            parsedUrl.username = '';
+            parsedUrl.password = '';
+          }
+
           const method = req.method === 'POST' ? 'POST' : 'GET';
           let body: string | undefined;
           if (method === 'POST') {
@@ -174,10 +182,17 @@ function chatApiPlugin(): Plugin {
             for await (const chunk of req) chunks.push(chunk as Buffer);
             body = Buffer.concat(chunks).toString();
           }
-          const upstream = await fetch(url, {
+
+          const headers: Record<string, string> = {};
+          if (body) headers['Content-Type'] = 'application/json';
+          if (basicUser) {
+            headers['Authorization'] = `Basic ${Buffer.from(`${basicUser}:${basicPass}`).toString('base64')}`;
+          }
+
+          const upstream = await fetch(parsedUrl.toString(), {
             method,
             body,
-            headers: body ? { 'Content-Type': 'application/json' } : undefined,
+            headers: Object.keys(headers).length ? headers : undefined,
             signal: AbortSignal.timeout(10000),
           });
           const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
@@ -185,7 +200,7 @@ function chatApiPlugin(): Plugin {
           res.writeHead(upstream.status, {
             'Content-Type': contentType,
             'Access-Control-Allow-Origin': '*',
-            'X-Proxy-Url': url,
+            'X-Proxy-Url': parsedUrl.toString(),
           });
           res.end(buffer);
         } catch (e: any) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   Settings as SettingsIcon,
@@ -35,6 +35,13 @@ export default function App() {
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [appCtx, setAppCtx] = useState<AppContext | null>(null);
   const startupLogger = useMemo(() => logger.scope("startup:app"), []);
+
+  const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
+  const [micLevel, setMicLevel] = useState(0);
+  const [micLevelActive, setMicLevelActive] = useState(false);
+  const micStreamRef = useRef<MediaStream | null>(null);
+  const micAudioCtxRef = useRef<AudioContext | null>(null);
+  const micAnimationFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     startupLogger.info("App mounted. Running startup initialization...");
@@ -178,6 +185,132 @@ export default function App() {
     };
   }, [appCtx, startupLogger]);
 
+  useEffect(() => {
+    const md = typeof navigator !== "undefined" ? navigator.mediaDevices : null;
+    if (!md?.enumerateDevices) {
+      setAudioDevices([]);
+      return;
+    }
+
+    let cancelled = false;
+    md.enumerateDevices()
+      .then((devices) => {
+        if (cancelled) return;
+        setAudioDevices(devices);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAudioDevices([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [settingsOpen]);
+
+  useEffect(() => {
+    const cleanup = () => {
+      if (micAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(micAnimationFrameRef.current);
+        micAnimationFrameRef.current = null;
+      }
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach((t) => t.stop());
+        micStreamRef.current = null;
+      }
+      if (micAudioCtxRef.current) {
+        micAudioCtxRef.current.close().catch(() => undefined);
+        micAudioCtxRef.current = null;
+      }
+      setMicLevel(0);
+      setMicLevelActive(false);
+    };
+
+    if (!settings.mic_enabled) {
+      cleanup();
+      return;
+    }
+
+    const md = typeof navigator !== "undefined" ? navigator.mediaDevices : null;
+    if (!md?.getUserMedia || typeof AudioContext === "undefined") {
+      cleanup();
+      return;
+    }
+
+    let cancelled = false;
+    const constraints: MediaStreamConstraints = {
+      audio:
+        settings.mic_device_id && settings.mic_device_id !== "default"
+          ? { deviceId: { exact: settings.mic_device_id } }
+          : true,
+    };
+
+    md.getUserMedia(constraints)
+      .then((stream) => {
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+
+        micStreamRef.current = stream;
+        const ctx = new AudioContext();
+        micAudioCtxRef.current = ctx;
+        const src = ctx.createMediaStreamSource(stream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 1024;
+        src.connect(analyser);
+        const buf = new Float32Array(analyser.fftSize);
+
+        const loop = () => {
+          analyser.getFloatTimeDomainData(buf);
+          let sum = 0;
+          for (let i = 0; i < buf.length; i++) {
+            const v = buf[i] ?? 0;
+            sum += v * v;
+          }
+          const rms = Math.sqrt(sum / Math.max(1, buf.length));
+          const level = Math.max(0, Math.min(1, rms * 4));
+          setMicLevel(level);
+          setMicLevelActive(level > 0.02);
+          micAnimationFrameRef.current = requestAnimationFrame(loop);
+        };
+
+        loop();
+      })
+      .catch(() => {
+        cleanup();
+      });
+
+    return () => {
+      cancelled = true;
+      cleanup();
+    };
+  }, [settings.mic_enabled, settings.mic_device_id]);
+
+  const micDevices = useMemo(
+    () => audioDevices.filter((d) => d.kind === "audioinput"),
+    [audioDevices],
+  );
+  const speakerDevices = useMemo(
+    () => audioDevices.filter((d) => d.kind === "audiooutput"),
+    [audioDevices],
+  );
+  const activeMic = useMemo(() => {
+    if (!settings.mic_device_id || settings.mic_device_id === "default") {
+      return micDevices[0] || null;
+    }
+    return micDevices.find((d) => d.deviceId === settings.mic_device_id) || null;
+  }, [micDevices, settings.mic_device_id]);
+  const activeSpeaker = useMemo(() => {
+    if (!settings.speaker_device_id || settings.speaker_device_id === "default") {
+      return speakerDevices[0] || null;
+    }
+    return (
+      speakerDevices.find((d) => d.deviceId === settings.speaker_device_id) ||
+      null
+    );
+  }, [speakerDevices, settings.speaker_device_id]);
+
   const persistSettings = async (next: AudioSettings) => {
     if (!isTauriRuntime()) return;
     await invoke("save_settings", { settings: next });
@@ -206,7 +339,57 @@ export default function App() {
             v1.0.1
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <div
+            className="flex items-center gap-2 rounded-lg bg-gray-800 px-2.5 py-2"
+            title={
+              [
+                `Mikrofon: ${settings.mic_enabled ? "włączony" : "wyłączony"}`,
+                `Mic device: ${activeMic?.label || activeMic?.deviceId || "brak"}`,
+                `Speaker device: ${
+                  activeSpeaker?.label || activeSpeaker?.deviceId || "brak"
+                }`,
+                `Mic level: ${Math.round(micLevel * 100)}%`,
+                `TTS volume: ${Math.round(settings.tts_volume * 100)}%`,
+              ].join("\n")
+            }
+          >
+            <div className="flex items-center gap-2">
+              <div
+                className={
+                  "h-2 w-2 rounded-full " +
+                  (settings.mic_enabled
+                    ? micLevelActive
+                      ? "bg-green-400"
+                      : "bg-yellow-300"
+                    : "bg-gray-500")
+                }
+              />
+              <div className="h-2 w-14 overflow-hidden rounded bg-gray-700">
+                <div
+                  className={
+                    "h-2 transition-all " +
+                    (micLevelActive ? "bg-green-500" : "bg-gray-500")
+                  }
+                  style={{ width: `${Math.round(micLevel * 100)}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="h-4 w-px bg-gray-700" />
+
+            <div
+              className={
+                "text-[11px] font-medium " +
+                (activeSpeaker || settings.speaker_device_id === "default"
+                  ? "text-gray-200"
+                  : "text-yellow-300")
+              }
+            >
+              SPK {Math.round(settings.tts_volume * 100)}%
+            </div>
+          </div>
+
           <button
             onClick={() => updateSettings({ mic_enabled: !settings.mic_enabled })}
             className="flex items-center justify-center rounded-lg bg-gray-800 px-2.5 py-2 text-gray-300 transition hover:bg-gray-700 hover:text-white"
