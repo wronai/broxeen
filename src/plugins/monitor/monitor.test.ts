@@ -7,6 +7,11 @@ import { MonitorPlugin } from './monitorPlugin';
 import { BUILTIN_SCOPES, ScopeRegistry } from '../scope/scopeRegistry';
 import type { PluginContext } from '../../core/types';
 import { DeviceRepository } from '../../persistence/deviceRepository';
+import { ConfiguredDeviceRepository } from '../../persistence/configuredDeviceRepository';
+import type { ConfiguredDevice } from '../../persistence/configuredDeviceRepository';
+import { DatabaseManager } from '../../persistence/databaseManager';
+import { InMemoryDbAdapter } from '../../persistence/databaseManager';
+import { processRegistry } from '../../core/processRegistry';
 
 const browserCtx: PluginContext = { isTauri: false };
 
@@ -93,6 +98,51 @@ describe('MonitorPlugin', () => {
       const result = await plugin.execute('monitoruj rpi co 60s', ctx);
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('192.168.50.10');
+    });
+  });
+
+  describe('initialize: monitored devices from DB', () => {
+    it('loads monitored configured_devices and schedules polling', async () => {
+      processRegistry.clear();
+
+      vi.spyOn(ConfiguredDeviceRepository.prototype, 'listMonitored').mockResolvedValue([
+        {
+          id: 'cd_1',
+          device_id: null,
+          label: 'Kamera DB',
+          ip: '192.168.1.200',
+          device_type: 'camera',
+          rtsp_url: 'rtsp://192.168.1.200:554/stream',
+          http_url: 'http://192.168.1.200/snap.jpg',
+          username: 'admin',
+          password: 'pass',
+          stream_path: null,
+          monitor_enabled: true,
+          monitor_interval_ms: 5_000,
+          last_snapshot_at: null,
+          notes: null,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        },
+      ] as any);
+
+      const pollSpy = vi.spyOn(plugin as any, 'poll').mockResolvedValue(undefined);
+
+      const ctx = {
+        isTauri: false,
+        databaseManager: {
+          getDevicesDb: () => ({}) as any,
+        },
+      } as any as PluginContext;
+
+      await plugin.initialize(ctx);
+
+      expect(processRegistry.listActive().some(p => p.id === 'monitor:configured-cd_1')).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(5_100);
+      await vi.runOnlyPendingTimersAsync();
+
+      expect(pollSpy).toHaveBeenCalled();
     });
   });
 
@@ -324,5 +374,43 @@ describe('Scope: VPN + Tor', () => {
     expect(registry.getAllScopes()).toHaveLength(6);
     expect(registry.getScope('vpn')).toBeDefined();
     expect(registry.getScope('tor')).toBeDefined();
+  });
+
+  describe('persistence and restore', () => {
+    let plugin: MonitorPlugin;
+    
+    beforeEach(() => { 
+      plugin = new MonitorPlugin();
+    });
+    
+    afterEach(async () => { 
+      await plugin.dispose(); 
+    });
+
+    it('handles database errors gracefully during initialize', async () => {
+      const ctx: PluginContext = {
+        isTauri: false,
+        databaseManager: {
+          isReady: () => true,
+          getDevicesDb: () => {
+            throw new Error('Database connection failed');
+          },
+        },
+      };
+
+      // Should not throw, should handle error gracefully
+      await expect(plugin.initialize(ctx)).resolves.not.toThrow();
+      expect(plugin['targets'].size).toBe(0);
+    });
+
+    it('does not initialize when no database manager available', async () => {
+      const ctx: PluginContext = {
+        isTauri: false,
+      };
+
+      // Should not throw when no database manager
+      await expect(plugin.initialize(ctx)).resolves.not.toThrow();
+      expect(plugin['targets'].size).toBe(0);
+    });
   });
 });

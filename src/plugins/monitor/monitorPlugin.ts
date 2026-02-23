@@ -40,6 +40,7 @@ export interface MonitorTarget {
   rtspPassword?: string;
   lastSnapshot?: string; // base64 image data
   snapshotUrl?: string; // HTTP snapshot URL
+  httpUrl?: string; // HTTP interface URL
   apiToken?: string; // Reolink/API session token
   apiTokenExpiry?: number; // token expiry timestamp
   needsCredentials?: boolean;
@@ -126,7 +127,7 @@ export class MonitorPlugin implements Plugin {
     const lower = input.toLowerCase();
 
     if (/stop.*monitor|zatrzymaj.*monitor|przestań.*monitor|przestan.*monitor/i.test(lower)) {
-      return this.handleStop(input, start);
+      return await this.handleStop(input, start);
     }
     if (/aktywne.*monitor|lista.*monitor|list.*watch/i.test(lower)) {
       return this.handleList(start);
@@ -375,7 +376,7 @@ export class MonitorPlugin implements Plugin {
 
   // ── Stop Monitoring ─────────────────────────────────────
 
-  private handleStop(input: string, start: number): PluginResult {
+  private async handleStop(input: string, start: number): Promise<PluginResult> {
     const targetName = input.replace(/^.*(?:stop|zatrzymaj|przestań|przestan)\s*(?:monitoring?\s*)?/i, '').trim().toLowerCase();
 
     // Handle "stop wszystkie monitoringi"
@@ -396,6 +397,16 @@ export class MonitorPlugin implements Plugin {
           message: `Monitoring zatrzymany (komendą "stop wszystkie")`,
         });
         stoppedTargets.push(t.name);
+        
+        // Update database to disable monitoring for configured devices
+        if (this.configuredDeviceRepo && t.id.startsWith('configured-')) {
+          try {
+            const deviceId = t.id.replace('configured-', '');
+            await this.configuredDeviceRepo.setMonitorEnabled(deviceId, false);
+          } catch (err) {
+            console.warn(`Failed to disable monitoring for ${t.name} in database:`, err);
+          }
+        }
       }
       
       return {
@@ -447,6 +458,17 @@ export class MonitorPlugin implements Plugin {
       `Sprawdzeń: ${found.logs.filter(l => l.type === 'check').length}`;
 
     this.targets.delete(found.id);
+
+    // Update database to disable monitoring
+    if (this.configuredDeviceRepo && found.id.startsWith('configured-')) {
+      try {
+        const deviceId = found.id.replace('configured-', '');
+        await this.configuredDeviceRepo.setMonitorEnabled(deviceId, false);
+        console.log(`Disabled monitoring for ${found.name} in database`);
+      } catch (err) {
+        console.warn('Failed to disable monitoring in database:', err);
+      }
+    }
 
     processRegistry.remove(`monitor:${found.id}`);
 
@@ -1727,7 +1749,7 @@ export class MonitorPlugin implements Plugin {
     if (context.databaseManager) {
       try {
         this.configuredDeviceRepo = new ConfiguredDeviceRepository(context.databaseManager.getDevicesDb());
-        await this.loadMonitoredDevices();
+        await this.loadMonitoredDevices(context);
         console.log(`Loaded ${this.targets.size} monitored devices from database`);
       } catch (err) {
         console.warn('Failed to initialize ConfiguredDeviceRepository:', err);
@@ -1736,24 +1758,29 @@ export class MonitorPlugin implements Plugin {
   }
 
   /** Load monitored devices from database and start monitoring */
-  private async loadMonitoredDevices(): Promise<void> {
+  private async loadMonitoredDevices(context: PluginContext): Promise<void> {
     if (!this.configuredDeviceRepo) return;
 
     try {
       const configuredDevices = await this.configuredDeviceRepo.listMonitored();
       
       for (const device of configuredDevices) {
+        const startedAt = Date.now();
         const target: MonitorTarget = {
           id: `configured-${device.id}`,
-          type: device.device_type,
+          type: device.device_type === 'camera' ? 'camera' : 'device',
           name: device.label,
           address: device.ip,
           intervalMs: device.monitor_interval_ms,
           threshold: 0.1, // Default threshold - could be stored in DB in future
           active: true,
-          startedAt: Date.now(), // Could be restored from DB in future
+          startedAt, // Could be restored from DB in future
           changeCount: 0,
-          logs: [],
+          logs: [{
+            timestamp: startedAt,
+            type: 'start',
+            message: `Rozpoczęto monitoring (z bazy): ${device.label}`,
+          }],
           rtspUrl: device.rtsp_url || undefined,
           httpUrl: device.http_url || undefined,
           rtspUsername: device.username || undefined,
@@ -1762,11 +1789,20 @@ export class MonitorPlugin implements Plugin {
         };
 
         this.targets.set(target.id, target);
+
+        processRegistry.upsertRunning({
+          id: `monitor:${target.id}`,
+          type: 'monitor',
+          label: `Monitoring: ${target.name}`,
+          pluginId: this.id,
+          stopCommand: `stop monitoring ${target.name}`,
+        });
         
-        // Start monitoring if it's a camera
-        if (target.type === 'camera' && target.address) {
-          this.startMonitoringPolling(target);
-        }
+        // Start polling timer for any active target.
+        const timer = setInterval(() => {
+          this.poll(target, context);
+        }, target.intervalMs);
+        this.timers.set(target.id, timer);
       }
     } catch (err) {
       console.error('Failed to load monitored devices:', err);

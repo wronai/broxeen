@@ -1,3 +1,19 @@
+## [1.0.64] - 2026-02-23
+
+### Summary
+
+feat(goal): deep code analysis engine with 3 supporting modules
+
+### Config
+
+- config: update goal.yaml
+
+### Other
+
+- update src/plugins/monitor/monitor.test.ts
+- update src/plugins/monitor/monitorPlugin.ts
+
+
 ## [1.0.63] - 2026-02-23
 
 ### Summary
