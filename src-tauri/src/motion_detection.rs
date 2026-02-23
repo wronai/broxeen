@@ -2,16 +2,19 @@
  * Motion Detection Pipeline — Tauri backend commands
  *
  * When compiled with `vision` feature:
- *   Native Rust pipeline: RTSP → MOG2 → YOLOv8n (ONNX) → Claude Haiku LLM
+ *   Native Rust pipeline: RTSP → MOG2 → YOLOv8s (ONNX) → OpenRouter/Ollama LLM
  *
  * Without `vision` feature:
  *   Manages Python subprocess running motion_pipeline.py.
  *
  * Commands:
- *   motion_pipeline_start  — start pipeline for a camera
- *   motion_pipeline_stop   — stop pipeline for a camera
- *   motion_pipeline_status — list active pipelines + stats
- *   motion_pipeline_stats  — query SQLite detections DB
+ *   motion_pipeline_start      — start pipeline for a camera
+ *   motion_pipeline_stop       — stop pipeline for a camera
+ *   motion_pipeline_status     — list active pipelines + stats
+ *   motion_pipeline_stats      — query SQLite detections DB
+ *   motion_pipeline_detections — get detection rows
+ *   vision_query               — natural language → SQL → real DB results
+ *   vision_query_direct        — run raw SQL SELECT on monitoring DB
  */
 
 use serde::{Deserialize, Serialize};
@@ -631,4 +634,309 @@ pub async fn motion_pipeline_detections(
     }
 
     Ok(result)
+}
+
+// ── Vision Query commands ────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize)]
+pub struct VisionQueryResult {
+    pub question: String,
+    pub sql: String,
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<String>>,
+    pub row_count: usize,
+    pub source: String,
+}
+
+/// Natural language → SQL → real DB results.
+/// Uses LLM text-to-SQL to convert the question, then executes against monitoring.db.
+/// Falls back to direct keyword-based SQL if LLM is unavailable.
+#[tauri::command]
+pub async fn vision_query(
+    question: String,
+    db_path: Option<String>,
+) -> Result<VisionQueryResult, String> {
+    let db_file = db_path.unwrap_or_else(|| "monitoring.db".to_string());
+    let resolved = resolve_db_path(&db_file);
+
+    // Open the DB directly with rusqlite (works with both old and new schema)
+    let conn = rusqlite::Connection::open(&resolved).map_err(|e| {
+        format!("Cannot open monitoring DB at {}: {}", resolved, e)
+    })?;
+
+    // Try to detect schema version by checking for new columns
+    let has_new_schema = conn
+        .prepare("SELECT track_id FROM detections LIMIT 1")
+        .is_ok();
+
+    // Convert natural language to SQL using keyword matching (no LLM needed)
+    let sql = nl_to_sql(&question, has_new_schema);
+
+    // Execute the query
+    let mut stmt = conn.prepare(&sql).map_err(|e| {
+        format!("SQL error: {} — query: {}", e, sql)
+    })?;
+
+    let col_names: Vec<String> = stmt.column_names()
+        .into_iter().map(String::from).collect();
+
+    let rows: Vec<Vec<String>> = stmt.query_map([], |row| {
+        let n = row.as_ref().column_count();
+        let mut vals = Vec::with_capacity(n);
+        for i in 0..n {
+            let v = match row.get_ref(i) {
+                Ok(rusqlite::types::ValueRef::Null)       => "—".into(),
+                Ok(rusqlite::types::ValueRef::Integer(i))  => i.to_string(),
+                Ok(rusqlite::types::ValueRef::Real(f))     => format!("{:.2}", f),
+                Ok(rusqlite::types::ValueRef::Text(t))     => String::from_utf8_lossy(t).into_owned(),
+                Ok(rusqlite::types::ValueRef::Blob(b))     => format!("[BLOB {}B]", b.len()),
+                Err(_) => "?".into(),
+            };
+            vals.push(v);
+        }
+        Ok(vals)
+    }).map_err(|e| e.to_string())?
+    .filter_map(|r| r.ok())
+    .collect();
+
+    let row_count = rows.len();
+
+    Ok(VisionQueryResult {
+        question,
+        sql,
+        columns: col_names,
+        rows,
+        row_count,
+        source: resolved,
+    })
+}
+
+/// Run a raw SQL SELECT on the monitoring DB (for advanced users / frontend).
+#[tauri::command]
+pub async fn vision_query_direct(
+    sql: String,
+    db_path: Option<String>,
+) -> Result<VisionQueryResult, String> {
+    let trimmed = sql.trim().to_uppercase();
+    if !trimmed.starts_with("SELECT") && !trimmed.starts_with("WITH") {
+        return Err("Only SELECT queries are allowed".into());
+    }
+
+    let db_file = db_path.unwrap_or_else(|| "monitoring.db".to_string());
+    let resolved = resolve_db_path(&db_file);
+
+    let conn = rusqlite::Connection::open(&resolved).map_err(|e| {
+        format!("Cannot open monitoring DB at {}: {}", resolved, e)
+    })?;
+
+    let mut stmt = conn.prepare(&sql).map_err(|e| {
+        format!("SQL error: {} — query: {}", e, sql)
+    })?;
+
+    let col_names: Vec<String> = stmt.column_names()
+        .into_iter().map(String::from).collect();
+
+    let rows: Vec<Vec<String>> = stmt.query_map([], |row| {
+        let n = row.as_ref().column_count();
+        let mut vals = Vec::with_capacity(n);
+        for i in 0..n {
+            let v = match row.get_ref(i) {
+                Ok(rusqlite::types::ValueRef::Null)       => "—".into(),
+                Ok(rusqlite::types::ValueRef::Integer(i))  => i.to_string(),
+                Ok(rusqlite::types::ValueRef::Real(f))     => format!("{:.2}", f),
+                Ok(rusqlite::types::ValueRef::Text(t))     => String::from_utf8_lossy(t).into_owned(),
+                Ok(rusqlite::types::ValueRef::Blob(b))     => format!("[BLOB {}B]", b.len()),
+                Err(_) => "?".into(),
+            };
+            vals.push(v);
+        }
+        Ok(vals)
+    }).map_err(|e| e.to_string())?
+    .filter_map(|r| r.ok())
+    .collect();
+
+    let row_count = rows.len();
+
+    Ok(VisionQueryResult {
+        question: "(direct SQL)".into(),
+        sql,
+        columns: col_names,
+        rows,
+        row_count,
+        source: resolved,
+    })
+}
+
+/// Keyword-based natural language → SQL converter.
+/// Works without LLM — pattern matches common Polish monitoring questions.
+fn nl_to_sql(question: &str, new_schema: bool) -> String {
+    let q = question.to_lowercase();
+
+    // ── "last person" / "when did someone enter" ─────────────────────────
+    if (q.contains("ostatni") || q.contains("kiedy") || q.contains("o której") || q.contains("o ktorej"))
+        && (q.contains("osob") || q.contains("ktoś") || q.contains("ktos") || q.contains("wszed") || q.contains("weszł") || q.contains("weszl") || q.contains("człowiek") || q.contains("czlowiek"))
+    {
+        return if new_schema {
+            "SELECT id, timestamp, camera_id, track_id, label, confidence, movement, direction, duration_s \
+             FROM detections WHERE label='person' ORDER BY timestamp DESC LIMIT 5".into()
+        } else {
+            "SELECT id, timestamp, camera_id, label, confidence, llm_label, llm_description \
+             FROM detections WHERE label='person' ORDER BY timestamp DESC LIMIT 5".into()
+        };
+    }
+
+    // ── "how many people today" ──────────────────────────────────────────
+    if (q.contains("ile") || q.contains("policz") || q.contains("liczba"))
+        && (q.contains("osób") || q.contains("osob") || q.contains("ludzi") || q.contains("person"))
+    {
+        let date_filter = if q.contains("dzisiaj") || q.contains("dziś") || q.contains("dzis") || q.contains("today") {
+            if new_schema { "AND local_date = date('now','localtime')" } else { "AND date(timestamp) = date('now')" }
+        } else if q.contains("wczoraj") || q.contains("yesterday") {
+            if new_schema { "AND local_date = date('now','-1 day','localtime')" } else { "AND date(timestamp) = date('now','-1 day')" }
+        } else {
+            ""
+        };
+        return format!(
+            "SELECT COUNT(*) as count, MIN(timestamp) as first_seen, MAX(timestamp) as last_seen \
+             FROM detections WHERE label='person' {}", date_filter
+        );
+    }
+
+    // ── "show cars" / "samochody" ────────────────────────────────────────
+    if q.contains("samochod") || q.contains("samochód") || (q.contains("car") && !q.contains("card")) || q.contains("auto ") || q.contains("auta") {
+        let date_filter = extract_date_filter(&q, new_schema);
+        return if new_schema {
+            format!("SELECT id, timestamp, camera_id, track_id, label, confidence, movement, direction, duration_s \
+                     FROM detections WHERE label IN ('car','truck','bus') {} ORDER BY timestamp DESC LIMIT 20", date_filter)
+        } else {
+            format!("SELECT id, timestamp, camera_id, label, confidence, llm_label \
+                     FROM detections WHERE label IN ('car','truck','bus') {} ORDER BY timestamp DESC LIMIT 20", date_filter)
+        };
+    }
+
+    // ── "show all between hours" / "między godzinami" ────────────────────
+    if q.contains("między") || q.contains("miedzy") || q.contains("between") {
+        // Try to extract hour range
+        let re = regex_lite::Regex::new(r"(\d{1,2})[:.:]?(\d{2})?\s*(?:a|i|do|-|—)\s*(\d{1,2})[:.:]?(\d{2})?").ok();
+        if let Some(caps) = re.and_then(|r| r.captures(&q)) {
+            let h1: String = caps.get(1).map(|m| m.as_str()).unwrap_or("0").to_string();
+            let m1: String = caps.get(2).map(|m| m.as_str()).unwrap_or("00").to_string();
+            let h2: String = caps.get(3).map(|m| m.as_str()).unwrap_or("23").to_string();
+            let m2: String = caps.get(4).map(|m| m.as_str()).unwrap_or("59").to_string();
+            return if new_schema {
+                format!("SELECT id, timestamp, camera_id, label, confidence, movement, direction \
+                         FROM detections WHERE time(timestamp) BETWEEN '{h1:0>2}:{m1:0>2}' AND '{h2:0>2}:{m2:0>2}' \
+                         ORDER BY timestamp DESC LIMIT 50")
+            } else {
+                format!("SELECT id, timestamp, camera_id, label, confidence, llm_label \
+                         FROM detections WHERE time(timestamp) BETWEEN '{h1:0>2}:{m1:0>2}' AND '{h2:0>2}:{m2:0>2}' \
+                         ORDER BY timestamp DESC LIMIT 50")
+            };
+        }
+    }
+
+    // ── "most active hours" / "najbardziej aktywne" ──────────────────────
+    if q.contains("aktywn") || q.contains("godzin") || q.contains("active") || q.contains("peak") {
+        return if new_schema {
+            "SELECT local_hour as hour, COUNT(*) as detections, \
+             COUNT(DISTINCT track_id) as unique_objects \
+             FROM detections GROUP BY local_hour ORDER BY detections DESC".into()
+        } else {
+            "SELECT strftime('%H', timestamp) as hour, COUNT(*) as detections \
+             FROM detections GROUP BY hour ORDER BY detections DESC".into()
+        };
+    }
+
+    // ── "last N detections" / "ostatnie wykrycia" ────────────────────────
+    if q.contains("ostatni") || q.contains("recent") || q.contains("pokaz") || q.contains("pokaż") || q.contains("wyświetl") {
+        let limit = extract_limit(&q).unwrap_or(10);
+        let label_filter = extract_label_filter(&q);
+        let date_filter = extract_date_filter(&q, new_schema);
+        return if new_schema {
+            format!("SELECT id, timestamp, camera_id, track_id, label, confidence, movement, direction, speed_label, duration_s \
+                     FROM detections WHERE 1=1 {}{} ORDER BY timestamp DESC LIMIT {}", label_filter, date_filter, limit)
+        } else {
+            format!("SELECT id, timestamp, camera_id, label, confidence, llm_label, llm_description \
+                     FROM detections WHERE 1=1 {}{} ORDER BY timestamp DESC LIMIT {}", label_filter, date_filter, limit)
+        };
+    }
+
+    // ── "statistics" / "statystyki" ──────────────────────────────────────
+    if q.contains("statyst") || q.contains("podsumow") || q.contains("summary") || q.contains("stats") {
+        return if new_schema {
+            "SELECT label, COUNT(*) as count, \
+             COUNT(DISTINCT track_id) as unique_tracks, \
+             ROUND(AVG(confidence),2) as avg_conf, \
+             MIN(timestamp) as first, MAX(timestamp) as last \
+             FROM detections GROUP BY label ORDER BY count DESC".into()
+        } else {
+            "SELECT label, COUNT(*) as count, \
+             ROUND(AVG(confidence),2) as avg_conf, \
+             MIN(timestamp) as first, MAX(timestamp) as last \
+             FROM detections GROUP BY label ORDER BY count DESC".into()
+        };
+    }
+
+    // ── "which cameras" / "ile kamer" ────────────────────────────────────
+    if q.contains("kamer") || q.contains("camera") {
+        return "SELECT camera_id, COUNT(*) as detections, \
+                MIN(timestamp) as first, MAX(timestamp) as last \
+                FROM detections GROUP BY camera_id ORDER BY detections DESC".into();
+    }
+
+    // ── LLM events / narratives ──────────────────────────────────────────
+    if new_schema && (q.contains("narr") || q.contains("llm") || q.contains("opis") || q.contains("description")) {
+        return "SELECT id, timestamp, camera_id, narrative, provider, crops_sent \
+                FROM llm_events ORDER BY timestamp DESC LIMIT 10".into();
+    }
+
+    // ── Fallback: show recent detections ─────────────────────────────────
+    if new_schema {
+        format!("SELECT id, timestamp, camera_id, track_id, label, confidence, movement, direction, duration_s \
+                 FROM detections ORDER BY timestamp DESC LIMIT 10")
+    } else {
+        format!("SELECT id, timestamp, camera_id, label, confidence, llm_label, llm_description \
+                 FROM detections ORDER BY timestamp DESC LIMIT 10")
+    }
+}
+
+fn extract_date_filter(q: &str, new_schema: bool) -> String {
+    if q.contains("dzisiaj") || q.contains("dziś") || q.contains("dzis") || q.contains("today") {
+        if new_schema { " AND local_date = date('now','localtime')".into() }
+        else { " AND date(timestamp) = date('now')".into() }
+    } else if q.contains("wczoraj") || q.contains("yesterday") {
+        if new_schema { " AND local_date = date('now','-1 day','localtime')".into() }
+        else { " AND date(timestamp) = date('now','-1 day')".into() }
+    } else if q.contains("2 godzin") || q.contains("dwóch godzin") || q.contains("2h") {
+        " AND timestamp > datetime('now', '-2 hours')".into()
+    } else if q.contains("godzin") || q.contains("1h") || q.contains("hour") {
+        " AND timestamp > datetime('now', '-1 hours')".into()
+    } else {
+        String::new()
+    }
+}
+
+fn extract_label_filter(q: &str) -> String {
+    if q.contains("osob") || q.contains("osób") || q.contains("person") || q.contains("ludzi") {
+        " AND label='person'".into()
+    } else if q.contains("samochod") || q.contains("car") || q.contains("auto") {
+        " AND label IN ('car','truck','bus')".into()
+    } else if q.contains("rower") || q.contains("bicycle") {
+        " AND label='bicycle'".into()
+    } else if q.contains("pies") || q.contains("dog") {
+        " AND label='dog'".into()
+    } else if q.contains("kot") || q.contains("cat") {
+        " AND label='cat'".into()
+    } else {
+        String::new()
+    }
+}
+
+fn extract_limit(q: &str) -> Option<u32> {
+    let re = regex_lite::Regex::new(r"(\d+)\s*(ostatni|recent|wykry|detect|rekord|record|wynik)").ok()?;
+    re.captures(q).and_then(|c| c.get(1)?.as_str().parse().ok())
+        .or_else(|| {
+            let re2 = regex_lite::Regex::new(r"(ostatni|recent|pokaz|pokaż)\s*(\d+)").ok()?;
+            re2.captures(q).and_then(|c| c.get(2)?.as_str().parse().ok())
+        })
 }

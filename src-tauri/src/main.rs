@@ -488,6 +488,8 @@ fn main() {
             motion_detection::motion_pipeline_status,
             motion_detection::motion_pipeline_stats,
             motion_detection::motion_pipeline_detections,
+            motion_detection::vision_query,
+            motion_detection::vision_query_direct,
             autostart::autostart_enable,
             autostart::autostart_disable,
             autostart::autostart_status,

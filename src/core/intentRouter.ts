@@ -506,6 +506,44 @@ export class IntentRouter implements IIntentRouter {
       /search.*for/i,
     ]);
 
+    // Monitoring / detection DB query intents
+    this.intentPatterns.set('monitoring:query', [
+      // Polish: when did someone enter / last detection
+      /o\s+kt[óo]rej.*(?:kto[śs]|osob|wszed|weszł|weszl)/i,
+      /kiedy.*(?:kto[śs]|osob|wszed|weszł|weszl|ostatni)/i,
+      /ostatni.*(?:wykryci|detekcj|ruch|osob|wej[śs]ci)/i,
+      // Polish: how many people/cars
+      /ile\s+(?:os[óo]b|ludzi|samochod|aut|rower|zwierz|wykry[ćc])/i,
+      /policz.*(?:os[óo]b|ludzi|samochod|auto|wykry)/i,
+      /liczba.*(?:os[óo]b|ludzi|samochod|auto|wykry)/i,
+      // Polish: show detections / what happened
+      /poka[żz].*(?:wykryci|detekcj|zdarzeni|histori|ostatni)/i,
+      /wy[śs]wietl.*(?:wykryci|detekcj|zdarzeni|histori)/i,
+      /co\s+(?:si[ęe]\s+)?(?:działo|wydarzył|wykryto|zarejestrow)/i,
+      /co\s+(?:było|jest)\s+(?:na|w)\s+(?:kamer|monitor)/i,
+      // Polish: statistics / summary
+      /statystyk.*(?:wykry|detekcj|monitor|kamer)/i,
+      /podsumow.*(?:wykry|detekcj|monitor|kamer|dzi[śs])/i,
+      // Polish: which cameras / camera activity
+      /aktywno[śs][ćc].*kamer/i,
+      /kt[óo]r[ae]?\s+kamer.*(?:wykry|aktywn|najwęcej|najwięcej)/i,
+      // Polish: time-based queries about monitoring
+      /mi[ęe]dzy.*(?:godzin|:\d).*(?:wykry|detekcj|osob|ruch)/i,
+      /(?:godzin|por[ae])\s+(?:aktywn|szczyto|peak)/i,
+      // English equivalents
+      /last\s+(?:detection|person|car|motion|event)/i,
+      /how\s+many\s+(?:people|person|car|detection)/i,
+      /show\s+(?:detection|event|monitoring|history)/i,
+      /when\s+(?:did|was)\s+(?:someone|person|last)/i,
+      /monitoring\s+(?:histor|stat|summar|event|log)/i,
+      /detection\s+(?:histor|stat|summar|event|log)/i,
+      // Direct DB query keywords
+      /(?:baza|baz[ęe])\s+(?:dan|detekcj|wykry|monitor)/i,
+      /przeszukaj.*(?:baz[ęe]|log|histori|detekcj)/i,
+      /zapytaj.*(?:baz[ęe]|monitoring|detekcj)/i,
+      /query\s+(?:db|database|detection|monitoring)/i,
+    ]);
+
     // Camera live preview intents
     this.intentPatterns.set('camera:live', [
       /^rtsp:\/\//i,

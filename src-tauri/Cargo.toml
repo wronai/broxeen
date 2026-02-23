@@ -31,6 +31,7 @@ local-ip-address = "0.6"
 lazy_static = "1"
 dns-lookup = "2"
 rusqlite = { version = "0.31", features = ["bundled"] }
+regex-lite = "0.1"
 rumqttc = "0.24"
 
 # ── Vision pipeline (optional, heavy native deps) ────────────────────────────

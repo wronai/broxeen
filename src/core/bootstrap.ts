@@ -236,6 +236,15 @@ async function registerCorePlugins(
     } catch (e) { console.warn('MotionDetectionPlugin unavailable:', e); }
   }
 
+  // ── Monitoring DB Query plugin (Tauri only) ──────────────────────
+
+  if (isTauri) {
+    try {
+      const { MonitoringPlugin } = await import('../plugins/monitoringPlugin');
+      safeRegister(registry, router, new MonitoringPlugin(), 'MonitoringPlugin (DB Query)');
+    } catch (e) { console.warn('MonitoringPlugin unavailable:', e); }
+  }
+
   try {
     const { ProcessesPlugin } = await import('../plugins/system/processesPlugin');
     safeRegister(registry, router, new ProcessesPlugin(), 'ProcessesPlugin');
