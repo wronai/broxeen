@@ -70,24 +70,17 @@ lazy_static! {
 
 fn find_jpeg_frame(buffer: &[u8]) -> Option<(usize, usize)> {
     // Find SOI (FFD8) then EOI (FFD9) after it.
-    let mut soi: Option<usize> = None;
-    let mut i = 0usize;
-    while i + 1 < buffer.len() {
-        if buffer[i] == 0xFF && buffer[i + 1] == 0xD8 {
-            soi = Some(i);
-            break;
-        }
-        i += 1;
-    }
-    let start = soi?;
-    let mut j = start + 2;
-    while j + 1 < buffer.len() {
-        if buffer[j] == 0xFF && buffer[j + 1] == 0xD9 {
-            return Some((start, j + 2));
-        }
-        j += 1;
-    }
-    None
+    let start = buffer
+        .windows(2)
+        .position(|w| w == [0xFF, 0xD8])?;
+
+    let end = buffer
+        .get(start + 2..)?
+        .windows(2)
+        .position(|w| w == [0xFF, 0xD9])
+        .map(|p| start + 2 + p + 2)?;
+
+    Some((start, end))
 }
 
 fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
@@ -1410,30 +1403,52 @@ fn classify_device(ports: &[u16]) -> String {
 }
 
 fn enrich_with_arp(devices: &mut Vec<NetworkDevice>) {
-    let arp = Command::new("arp").arg("-a").output();
-    if let Ok(out) = arp {
-        let stdout = String::from_utf8_lossy(&out.stdout).to_string();
-        for device in devices.iter_mut() {
-            for line in stdout.lines() {
-                if line.contains(&device.ip) {
-                    // Parse MAC
-                    let parts: Vec<&str> = line.split_whitespace().collect();
-                    for (i, part) in parts.iter().enumerate() {
-                        if *part == "at" && i + 1 < parts.len() {
-                            let mac = parts[i + 1];
-                            if mac != "<incomplete>" {
-                                device.mac = Some(mac.to_string());
-                            }
-                        }
-                    }
-                    // Parse hostname
-                    if let Some(hostname) = parts.first() {
-                        if *hostname != "?" {
-                            device.hostname = Some(hostname.to_string());
-                        }
-                    }
-                }
-            }
+    fn parse_arp_line(line: &str) -> Option<(String, Option<String>, Option<String>)> {
+        // Format: hostname (ip) at mac [ether] on interface
+        let ip = line
+            .split('(')
+            .nth(1)?
+            .split(')')
+            .next()?
+            .trim()
+            .to_string();
+
+        let mac_str = line
+            .split("at ")
+            .nth(1)?
+            .split_whitespace()
+            .next()?
+            .trim();
+        if mac_str == "<incomplete>" || mac_str.is_empty() {
+            return None;
+        }
+
+        let mac = Some(mac_str.to_string());
+        let hostname = line
+            .split_whitespace()
+            .next()
+            .filter(|s| *s != "?" && !s.starts_with('('))
+            .map(|s| s.to_string());
+
+        Some((ip, mac, hostname))
+    }
+
+    let Ok(out) = Command::new("arp").arg("-a").output() else {
+        return;
+    };
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+
+    let arp_map: HashMap<String, (Option<String>, Option<String>)> = stdout
+        .lines()
+        .filter_map(parse_arp_line)
+        .map(|(ip, mac, hostname)| (ip, (mac, hostname)))
+        .collect();
+
+    for device in devices.iter_mut() {
+        if let Some((mac, hostname)) = arp_map.get(&device.ip) {
+            device.mac = mac.clone();
+            device.hostname = hostname.clone();
         }
     }
 }
