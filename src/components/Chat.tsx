@@ -78,7 +78,7 @@ export default function Chat({ settings }: ChatProps) {
 
   const [input, setInput] = useState("");
   const [expandedImage, setExpandedImage] = useState<{ data: string; mimeType?: string } | null>(null);
-  const [expandedLive, setExpandedLive] = useState<{ url: string; cameraId: string; fps?: number } | null>(null);
+  const [expandedLive, setExpandedLive] = useState<{ url: string; cameraId: string; fps?: number; initialBase64?: string; initialMimeType?: string } | null>(null);
   const [pageContent, setPageContent] = useState<string>("");
   const [showNetworkSelector, setShowNetworkSelector] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkConfig | null>(null);
@@ -1018,14 +1018,14 @@ ${analysis}`,
           : result.content;
 
         const runtimeIsTauri = isTauriRuntime();
-        let firstLivePayload: { url: string; cameraId: string; fps?: number } | null = null;
+        let firstLivePayload: { url: string; cameraId: string; fps?: number; initialBase64?: string; initialMimeType?: string } | null = null;
 
         // Convert plugin content blocks to chat messages
         let fullResult = '';
         for (const block of contentBlocks) {
           let messageText = '';
           let messageType: 'content' | 'image' | 'camera_live' = 'content';
-          let livePayload: { url: string; cameraId: string; fps?: number } | undefined;
+          let livePayload: { url: string; cameraId: string; fps?: number; initialBase64?: string; initialMimeType?: string } | undefined;
           
           if (block.type === 'text') {
             messageText = block.data as string;
@@ -1044,7 +1044,7 @@ ${analysis}`,
                   fps: typeof parsed.fps === 'number' ? parsed.fps : undefined,
                   initialBase64: typeof parsed.initialBase64 === 'string' ? parsed.initialBase64 : undefined,
                   initialMimeType: typeof parsed.initialMimeType === 'string' ? parsed.initialMimeType : undefined,
-                } as any;
+                };
                 if (!firstLivePayload) firstLivePayload = livePayload;
                 messageText = '';
               } else {
@@ -1307,6 +1307,11 @@ ${analysis}`,
                 url={expandedLive.url}
                 cameraId={expandedLive.cameraId}
                 fps={expandedLive.fps}
+                initialFrame={
+                  expandedLive.initialBase64
+                    ? { base64: expandedLive.initialBase64, mimeType: expandedLive.initialMimeType || 'image/jpeg' }
+                    : null
+                }
                 className="h-full w-full"
                 imageClassName="w-full h-auto object-contain max-h-[90vh] rounded"
               />
@@ -1485,10 +1490,10 @@ ${analysis}`,
                             cameraId={msg.live.cameraId}
                             fps={msg.live.fps}
                             initialFrame={
-                              (msg.live as any).initialBase64
+                              msg.live.initialBase64
                                 ? {
-                                    base64: (msg.live as any).initialBase64,
-                                    mimeType: (msg.live as any).initialMimeType || 'image/jpeg',
+                                    base64: msg.live.initialBase64,
+                                    mimeType: msg.live.initialMimeType || 'image/jpeg',
                                   }
                                 : null
                             }

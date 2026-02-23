@@ -4,12 +4,17 @@
  */
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr, TcpStream};
+use std::sync::{Arc, Mutex};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
 use std::process::Command;
+use std::process::Stdio;
 
 use crate::logging::{backend_info, backend_warn};
+
+use lazy_static::lazy_static;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CapturedFrame {
@@ -18,86 +23,271 @@ pub struct CapturedFrame {
     pub height: u32,
 }
 
+#[derive(Clone)]
+struct LiveFrameCache {
+    last_jpeg: Arc<Mutex<Option<Vec<u8>>>>,
+    last_update_ms: Arc<Mutex<Option<u128>>>,
+    last_error: Arc<Mutex<Option<String>>>,
+}
+
+struct RtspWorker {
+    cache: LiveFrameCache,
+    url: String,
+}
+
+lazy_static! {
+    static ref RTSP_WORKERS: Mutex<HashMap<String, RtspWorker>> = Mutex::new(HashMap::new());
+}
+
+fn find_jpeg_frame(buffer: &[u8]) -> Option<(usize, usize)> {
+    // Find SOI (FFD8) then EOI (FFD9) after it.
+    let mut soi: Option<usize> = None;
+    let mut i = 0usize;
+    while i + 1 < buffer.len() {
+        if buffer[i] == 0xFF && buffer[i + 1] == 0xD8 {
+            soi = Some(i);
+            break;
+        }
+        i += 1;
+    }
+    let start = soi?;
+    let mut j = start + 2;
+    while j + 1 < buffer.len() {
+        if buffer[j] == 0xFF && buffer[j + 1] == 0xD9 {
+            return Some((start, j + 2));
+        }
+        j += 1;
+    }
+    None
+}
+
+fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
+    let worker_key = format!("{}|{}", camera_id, url);
+    let mut workers = RTSP_WORKERS.lock().expect("RTSP_WORKERS lock poisoned");
+    if let Some(existing) = workers.get(&worker_key) {
+        return existing.cache.clone();
+    }
+
+    let cache = LiveFrameCache {
+        last_jpeg: Arc::new(Mutex::new(None)),
+        last_update_ms: Arc::new(Mutex::new(None)),
+        last_error: Arc::new(Mutex::new(None)),
+    };
+
+    let cache_for_thread = cache.clone();
+    let camera_id_for_thread = camera_id.to_string();
+    let url_for_thread = url.to_string();
+
+    std::thread::spawn(move || {
+        let mut cmd = Command::new("ffmpeg");
+        cmd.args([
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-nostdin",
+            "-rtsp_transport",
+            "tcp",
+            "-stimeout",
+            "900000",
+            "-rw_timeout",
+            "900000",
+            "-fflags",
+            "nobuffer",
+            "-flags",
+            "low_delay",
+            "-analyzeduration",
+            "100000",
+            "-probesize",
+            "8192",
+            "-i",
+            &url_for_thread,
+            // Decode continuously, but emit ~1fps as MJPEG frames to stdout.
+            "-vf",
+            "fps=1",
+            "-f",
+            "image2pipe",
+            "-vcodec",
+            "mjpeg",
+            "-q:v",
+            "5",
+            "pipe:1",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+        let started_at = Instant::now();
+        let mut child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(e) => {
+                let mut err = cache_for_thread
+                    .last_error
+                    .lock()
+                    .expect("last_error lock poisoned");
+                *err = Some(format!(
+                    "ffmpeg spawn failed for {}: {}",
+                    camera_id_for_thread, e
+                ));
+                return;
+            }
+        };
+
+        backend_info(&format!(
+            "rtsp worker started: camera_id={} elapsed_ms={} url={}",
+            camera_id_for_thread,
+            started_at.elapsed().as_millis(),
+            url_for_thread
+        ));
+
+        let mut stdout = match child.stdout.take() {
+            Some(s) => s,
+            None => {
+                let mut err = cache_for_thread
+                    .last_error
+                    .lock()
+                    .expect("last_error lock poisoned");
+                *err = Some("ffmpeg stdout not available".to_string());
+                return;
+            }
+        };
+
+        let mut stderr = child.stderr.take();
+
+        let mut buf: Vec<u8> = Vec::with_capacity(1024 * 256);
+        let mut tmp = [0u8; 8192];
+
+        loop {
+            use std::io::Read;
+            match stdout.read(&mut tmp) {
+                Ok(0) => {
+                    break;
+                }
+                Ok(n) => {
+                    buf.extend_from_slice(&tmp[..n]);
+
+                    while let Some((start, end)) = find_jpeg_frame(&buf) {
+                        let frame = buf[start..end].to_vec();
+                        {
+                            let mut last = cache_for_thread
+                                .last_jpeg
+                                .lock()
+                                .expect("last_jpeg lock poisoned");
+                            *last = Some(frame);
+                        }
+                        {
+                            let mut ts = cache_for_thread
+                                .last_update_ms
+                                .lock()
+                                .expect("last_update_ms lock poisoned");
+                            *ts = Some(started_at.elapsed().as_millis());
+                        }
+                        {
+                            let mut err = cache_for_thread
+                                .last_error
+                                .lock()
+                                .expect("last_error lock poisoned");
+                            *err = None;
+                        }
+
+                        // Drop consumed bytes, keep remainder.
+                        buf.drain(0..end);
+                    }
+
+                    // Avoid unbounded growth if we fail to detect frames.
+                    if buf.len() > 8 * 1024 * 1024 {
+                        backend_warn(&format!(
+                            "rtsp worker buffer overflow; dropping buffer camera_id={} size={}",
+                            camera_id_for_thread,
+                            buf.len()
+                        ));
+                        buf.clear();
+                    }
+                }
+                Err(e) => {
+                    let mut err = cache_for_thread
+                        .last_error
+                        .lock()
+                        .expect("last_error lock poisoned");
+                    *err = Some(format!("ffmpeg read error: {}", e));
+                    break;
+                }
+            }
+        }
+
+        // Worker ended — collect stderr for better diagnostics.
+        let mut stderr_text: Option<String> = None;
+        if let Some(mut st) = stderr.take() {
+            use std::io::Read;
+            let mut buf_err = Vec::new();
+            if st.read_to_end(&mut buf_err).is_ok() {
+                let s = String::from_utf8_lossy(&buf_err).to_string();
+                let trimmed = s.trim().to_string();
+                if !trimmed.is_empty() {
+                    stderr_text = Some(trimmed);
+                }
+            }
+        }
+
+        if let Some(msg) = stderr_text {
+            let mut err = cache_for_thread
+                .last_error
+                .lock()
+                .expect("last_error lock poisoned");
+            *err = Some(format!("ffmpeg exited: {}", msg));
+        }
+
+        let status = child.wait();
+        backend_warn(&format!(
+            "rtsp worker exited: camera_id={} status={:?}",
+            camera_id_for_thread, status
+        ));
+    });
+
+    workers.insert(worker_key, RtspWorker { cache: cache.clone(), url: url.to_string() });
+    cache
+}
+
 #[tauri::command]
 pub async fn rtsp_capture_frame(url: String, camera_id: String) -> Result<CapturedFrame, String> {
     use base64::{engine::general_purpose, Engine as _};
+    let cache = ensure_rtsp_worker(&camera_id, &url);
 
-    // Reserved for future per-camera frame-cache/metrics tagging.
-    let _ = camera_id;
-
-    let output = tokio::task::spawn_blocking(move || {
-        fn run_ffmpeg(url: &str, include_timeouts: bool) -> std::io::Result<std::process::Output> {
-            let mut cmd = Command::new("ffmpeg");
-
-            cmd.args([
-                "-hide_banner",
-                "-loglevel",
-                "error",
-                "-rtsp_transport",
-                "tcp",
-            ]);
-
-            if include_timeouts {
-                cmd.args(["-stimeout", "2000000", "-rw_timeout", "2000000"]);
-            }
-
-            cmd.args([
-                "-analyzeduration",
-                "500000",
-                "-probesize",
-                "32768",
-                "-fflags",
-                "nobuffer",
-                "-flags",
-                "low_delay",
-                "-i",
-                url,
-                "-frames:v",
-                "1",
-                "-vsync",
-                "0",
-                "-f",
-                "image2pipe",
-                "-vcodec",
-                "mjpeg",
-                "-q:v",
-                "5",
-                "pipe:1",
-            ]);
-
-            cmd.output()
+    // Wait briefly for an up-to-date frame, but never block for multiple seconds.
+    // If the worker already has a cached frame, we return it immediately.
+    let deadline = Instant::now() + Duration::from_millis(1200);
+    loop {
+        if let Some(err_msg) = cache
+            .last_error
+            .lock()
+            .expect("last_error lock poisoned")
+            .clone()
+        {
+            return Err(err_msg);
         }
 
-        let out_fast = run_ffmpeg(&url, true)?;
-        if out_fast.status.success() {
-            return Ok(out_fast);
+        if let Some(jpeg) = cache
+            .last_jpeg
+            .lock()
+            .expect("last_jpeg lock poisoned")
+            .clone()
+        {
+            return Ok(CapturedFrame {
+                base64: general_purpose::STANDARD.encode(&jpeg),
+                width: 1920,
+                height: 1080,
+            });
         }
 
-        let stderr = String::from_utf8_lossy(&out_fast.stderr).to_lowercase();
-        let looks_like_unknown_option = stderr.contains("unrecognized option")
-            || stderr.contains("option not found")
-            || stderr.contains("error splitting the argument list");
-
-        if looks_like_unknown_option {
-            return run_ffmpeg(&url, false);
+        if Instant::now() >= deadline {
+            let err = cache
+                .last_error
+                .lock()
+                .expect("last_error lock poisoned")
+                .clone();
+            return Err(err.unwrap_or_else(|| "RTSP frame not available yet".to_string()));
         }
 
-        Ok(out_fast)
-    })
-    .await
-    .map_err(|e| format!("ffmpeg task failed: {}", e))?
-    .map_err(|e| format!("ffmpeg not found: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("ffmpeg failed: {}", stderr));
+        tokio::time::sleep(Duration::from_millis(40)).await;
     }
-
-    Ok(CapturedFrame {
-        base64: general_purpose::STANDARD.encode(&output.stdout),
-        width: 1920,
-        height: 1080,
-    })
 }
 
 #[derive(Debug, Serialize, Deserialize)]

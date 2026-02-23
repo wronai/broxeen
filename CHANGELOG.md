@@ -1,3 +1,22 @@
+## [1.0.40] - 2026-02-23
+
+### Summary
+
+feat(docs): deep code analysis engine with 4 supporting modules
+
+### Docs
+
+- docs: update TODO.md
+
+### Other
+
+- update src-tauri/src/network_scan.rs
+- update src/components/Chat.tsx
+- update src/components/HealthDiagnostic.tsx
+- update src/domain/chatEvents.ts
+- update src/plugins/camera/cameraLivePlugin.ts
+
+
 ## [1.0.39] - 2026-02-23
 
 ### Summary

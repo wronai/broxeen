@@ -81,7 +81,7 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [ ] **React tests: warning act(...)** — uspokoić warningi w `Chat.test.tsx` (wrap state updates w `act` lub `await` na asynchroniczne efekty)
 
 ### 📌 Kamera live — follow-up
-- [ ] **Typowanie payload `camera_live`** — usunąć `any` dla `initialBase64/initialMimeType` i ujednolicić typy między pluginami a `Chat.tsx`
+- [x] **Typowanie payload `camera_live`** — usunięto `any` dla `initialBase64/initialMimeType`, ujednolicono typy w `chatEvents.ts` i `Chat.tsx`
 - [ ] **`camera_id` jako cache/metrics tag** — rozważyć cache ostatniej klatki per kamera / metryki opóźnień w backendzie
 
 ---

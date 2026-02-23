@@ -16,7 +16,7 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
   showOnStartup = true,
   autoRefresh = false,
   refreshInterval = 30000,
-  onOpenErrorReport
+  onOpenErrorReport,
 }) => {
   const [report, setReport] = useState<HealthReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -154,13 +154,6 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
   if (!isVisible) {
     return (
       <div className="fixed bottom-24 right-4 flex flex-nowrap items-center gap-1 z-50">
-        <button
-          onClick={() => copyErrorsToClipboard()}
-          className="bg-orange-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-orange-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
-          title="Kopiuj błędy do schowka (Ctrl+Shift+E)"
-        >
-          📋 Kopiuj błędy
-        </button>
         {onOpenErrorReport && (
           <button
             onClick={onOpenErrorReport}
@@ -170,6 +163,13 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
             🚨 Błędy
           </button>
         )}
+        <button
+          onClick={() => copyErrorsToClipboard()}
+          className="bg-orange-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-orange-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
+          title="Kopiuj błędy do schowka (Ctrl+Shift+E)"
+        >
+          📋 Kopiuj błędy
+        </button>
         <button
           onClick={() => setIsVisible(true)}
           className="bg-blue-600 text-white px-2 py-1.5 rounded-lg shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"

@@ -24,7 +24,7 @@ export interface ChatMessage {
   networkOptions?: Array<{ scope: string; name: string; description: string }>;
   cameras?: Array<{ id: string; name: string; address: string; status: string }>;
   analysis?: string;
-  live?: { url: string; cameraId: string; fps?: number };
+  live?: { url: string; cameraId: string; fps?: number; initialBase64?: string; initialMimeType?: string };
   /** Interactive config prompt data (buttons, fields, actions) */
   configPrompt?: import('../components/ChatConfigPrompt').ConfigPromptData;
 }

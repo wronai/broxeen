@@ -116,15 +116,21 @@ export class CameraLivePlugin implements Plugin {
         const { configStore } = await import('../../config/configStore');
         const storedUsername = configStore.get(`camera.credentials.${ip}.username`) as string | undefined;
         const storedPassword = configStore.get(`camera.credentials.${ip}.password`) as string | undefined;
+        const storedRtspUrl = configStore.get(`camera.rtspPath.${ip}`) as string | undefined;
         
         if (storedUsername) {
           username = storedUsername;
           password = storedPassword || '';
         }
-        
-        // Build RTSP URL
-        const auth = username && password ? `${username}:${password}@` : '';
-        rtspUrl = `rtsp://${auth}${ip}:554/stream`;
+
+        // Prefer last known working RTSP URL (saved when user pasted a full RTSP URL)
+        if (storedRtspUrl) {
+          rtspUrl = this.sanitizeRtspInput(storedRtspUrl);
+        } else {
+          // Build RTSP URL (fallback)
+          const auth = username && password ? `${username}:${password}@` : '';
+          rtspUrl = `rtsp://${auth}${ip}:554/stream`;
+        }
       }
     }
     
