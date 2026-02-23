@@ -125,7 +125,10 @@ fn default_stt_engine() -> String {
 }
 
 fn default_stt_model() -> String {
-    "whisper-1".to_string()
+    std::env::var("STT_MODEL").unwrap_or_else(|_| {
+        std::env::var("VITE_STT_MODEL")
+            .unwrap_or_else(|_| "whisper-1".to_string())
+    })
 }
 
 fn default_mic_enabled() -> bool {
@@ -142,6 +145,11 @@ fn default_auto_listen() -> bool {
 
 impl Default for AudioSettings {
     fn default() -> Self {
+        let stt_model = std::env::var("STT_MODEL").unwrap_or_else(|_| {
+            std::env::var("VITE_STT_MODEL")
+                .unwrap_or_else(|_| "whisper-1".to_string())
+        });
+        
         Self {
             tts_enabled: true,
             tts_rate: 1.0,
@@ -152,7 +160,7 @@ impl Default for AudioSettings {
             tts_engine: "auto".to_string(),
             stt_enabled: true,
             stt_engine: "openrouter".to_string(),
-            stt_model: "whisper-1".to_string(),
+            stt_model,
             mic_enabled: true,
             mic_device_id: "default".to_string(),
             speaker_device_id: "default".to_string(),
@@ -361,7 +369,10 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
             final_content.len()
         ));
 
-        let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_default();
+        let api_key = std::env::var("OPENROUTER_API_KEY").unwrap_or_else(|_| {
+            std::env::var("VITE_OPENROUTER_API_KEY")
+                .unwrap_or_default()
+        });
         if !api_key.is_empty() {
             match browse_rendered::screenshot_and_describe(&url, &api_key, 10).await {
                 Ok((vision_title, vision_content)) => {
@@ -480,6 +491,7 @@ fn main() {
             network::db_query,
             network::db_close,
             audio_commands::stt_is_silence,
+            audio_commands::stt_get_mic_level,
             file_search::file_search,
             file_search::file_read_content,
             email::email_send,

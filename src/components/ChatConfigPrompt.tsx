@@ -206,13 +206,12 @@ export function ChatConfigPrompt({ data, onPrefill, onExecute, className = '' }:
                 key={action.id}
                 onClick={() => handleAction(action)}
                 disabled={isCompleted || isClicked}
-                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-300 ${
-                  isClicked
+                className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-all duration-300 ${isClicked
                     ? 'bg-green-500/30 border-green-500/50 text-green-200 scale-95 animate-pulse'
                     : isCompleted
-                    ? 'bg-green-600/20 border-green-600/30 text-green-300 opacity-60 cursor-default'
-                    : getVariantClasses(action.variant)
-                }`}
+                      ? 'bg-green-600/20 border-green-600/30 text-green-300 opacity-60 cursor-default'
+                      : getVariantClasses(action.variant)
+                  }`}
                 title={action.description || action.label}
                 data-testid={`config-action-${action.id}`}
               >
@@ -243,22 +242,24 @@ export function ChatConfigPrompt({ data, onPrefill, onExecute, className = '' }:
                 key={action.id}
                 onClick={() => handleAction(action)}
                 disabled={isCompleted || isClicked}
-                className={`w-full text-left p-3 rounded-lg border transition-all duration-300 group ${
-                  isClicked
+                className={`w-full text-left p-3 rounded-xl border transition-all duration-300 group shadow-sm ${isClicked
                     ? 'bg-green-500/20 border-green-500/40 scale-[0.98] ring-1 ring-green-500/30'
                     : isCompleted
-                    ? 'bg-green-600/10 border-green-600/20 opacity-60 cursor-default'
-                    : 'bg-gray-700 border-gray-600 hover:bg-gray-600 hover:border-gray-500'
-                }`}
+                      ? 'bg-green-600/10 border-green-600/20 opacity-60 cursor-default'
+                      : 'bg-gray-800/60 backdrop-blur-md border border-gray-700/50 hover:bg-gray-700/60 hover:border-broxeen-500/50 hover:shadow-md hover:shadow-broxeen-500/10'
+                  }`}
                 data-testid={`config-card-${action.id}`}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {action.icon && <span className={`text-lg transition-transform duration-300 ${isClicked ? 'scale-125' : ''}`}>{action.icon}</span>}
+                  <div className="flex items-center gap-3">
+                    {action.icon && (
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gray-900/50 border border-gray-700/50 group-hover:border-broxeen-500/30 group-hover:bg-broxeen-900/30 transition-all duration-300">
+                        <span className={`text-lg transition-transform duration-300 ${isClicked ? 'scale-125' : 'group-hover:scale-110'}`}>{action.icon}</span>
+                      </div>
+                    )}
                     <div>
-                      <div className={`font-medium text-sm transition-colors duration-300 ${
-                        isClicked ? 'text-green-300' : isCompleted ? 'text-green-300' : 'text-gray-200 group-hover:text-broxeen-400'
-                      }`}>
+                      <div className={`font-medium text-sm transition-colors duration-300 ${isClicked ? 'text-green-300' : isCompleted ? 'text-green-300' : 'text-gray-200 group-hover:text-broxeen-400'
+                        }`}>
                         {action.label}
                       </div>
                       {action.description && (
@@ -271,7 +272,7 @@ export function ChatConfigPrompt({ data, onPrefill, onExecute, className = '' }:
                   ) : isCompleted ? (
                     <Check size={16} className="text-green-400" />
                   ) : (
-                    <ChevronRight size={16} className="text-gray-400 group-hover:text-broxeen-400" />
+                    <ChevronRight size={16} className="text-gray-500 group-hover:text-broxeen-400 transition-colors duration-300" />
                   )}
                 </div>
               </button>
@@ -291,13 +292,12 @@ export function ChatConfigPrompt({ data, onPrefill, onExecute, className = '' }:
                 key={action.id}
                 onClick={() => handleAction(action)}
                 disabled={isCompleted || isClicked}
-                className={`rounded-md px-2.5 py-1 text-xs transition-all duration-300 ${
-                  isClicked
-                    ? 'bg-green-500/30 text-green-200 scale-95'
+                className={`rounded-md px-2.5 py-1 text-xs transition-all duration-300 border ${isClicked
+                    ? 'bg-green-500/30 text-green-200 scale-95 border-green-500/30'
                     : isCompleted
-                    ? 'bg-green-600/20 text-green-300 opacity-60 cursor-default'
-                    : 'bg-gray-700/80 text-gray-300 hover:bg-gray-600 hover:text-white'
-                }`}
+                      ? 'bg-green-600/20 text-green-300 opacity-60 cursor-default border-transparent'
+                      : 'bg-gray-800/60 backdrop-blur-md text-gray-300 border-gray-700/50 hover:bg-gray-700/80 hover:text-white hover:border-broxeen-500/30 shadow-sm'
+                  }`}
               >
                 {isClicked ? (
                   <><Check size={10} className="inline mr-1 animate-bounce" />{action.label}</>

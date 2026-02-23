@@ -50,6 +50,7 @@ class ConfigStoreImpl {
     if (env.VITE_LLM_TEMPERATURE) merged.llm.temperature = Number(env.VITE_LLM_TEMPERATURE);
     if (env.VITE_STT_MODEL) merged.stt.model = env.VITE_STT_MODEL;
     if (env.VITE_STT_LANG) merged.stt.language = env.VITE_STT_LANG;
+    if (env.VITE_MOTION_LLM_VERIFY_MODEL) merged.motionDetection.llmVerifyModel = env.VITE_MOTION_LLM_VERIFY_MODEL;
     if (env.VITE_LLM_API_URL) merged.llm.apiUrl = env.VITE_LLM_API_URL;
     if (env.VITE_DEFAULT_SUBNET) merged.network.defaultSubnet = env.VITE_DEFAULT_SUBNET;
     if (env.VITE_LOCALE) merged.locale.locale = env.VITE_LOCALE;

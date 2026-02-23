@@ -333,6 +333,7 @@ export const CONFIG_FIELD_META: ConfigFieldMeta[] = [
     type: 'string',
     category: 'stt',
     options: [
+      { value: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash Preview' },
       { value: 'google/gemini-2.0-flash-exp:free', label: 'Gemini 2.0 Flash Free' },
       { value: 'google/gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
       { value: 'openai/whisper-large-v3', label: 'Whisper Large v3' },

@@ -22,6 +22,36 @@ export interface SttConfig {
   language: string;
 }
 
+export function buildSttRequestBody(params: {
+  model: string;
+  prompt: string;
+  audioBase64: string;
+  format: SttAudioFormat;
+  maxTokens: number;
+  temperature: number;
+}) {
+  return {
+    model: params.model,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: params.prompt },
+          {
+            type: "input_audio",
+            inputAudio: {
+              data: params.audioBase64,
+              format: params.format,
+            },
+          },
+        ],
+      },
+    ],
+    max_tokens: params.maxTokens,
+    temperature: params.temperature,
+  };
+}
+
 export function getSttConfig(): SttConfig {
   const cfg = configStore.getAll();
   return {
@@ -89,26 +119,16 @@ export async function transcribeAudio(
         "HTTP-Referer": appCfg.llm.httpReferer,
         "X-Title": appCfg.llm.appTitle,
       },
-      body: JSON.stringify({
-        model: cfg.model,
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              {
-                type: "input_audio",
-                input_audio: {
-                  data: audioBase64,
-                  format,
-                },
-              },
-            ],
-          },
-        ],
-        max_tokens: appCfg.stt.maxTokens,
-        temperature: appCfg.stt.temperature,
-      }),
+      body: JSON.stringify(
+        buildSttRequestBody({
+          model: cfg.model,
+          prompt,
+          audioBase64,
+          format,
+          maxTokens: appCfg.stt.maxTokens,
+          temperature: appCfg.stt.temperature,
+        }),
+      ),
     });
 
     if (!resp.ok) {

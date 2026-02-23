@@ -155,6 +155,14 @@ pub fn stt_status(
     })
 }
 
+/// Get current microphone level (0.0-1.0).
+#[tauri::command]
+pub fn stt_get_mic_level(
+    recording_state: tauri::State<SharedRecordingState>,
+) -> f32 {
+    audio_capture::get_mic_level(&recording_state)
+}
+
 /// Check if the last N seconds of recorded audio are silence.
 /// Used by the frontend to auto-stop recording when the user stops speaking.
 #[tauri::command]

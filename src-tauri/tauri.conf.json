@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Broxeen",
-        "width": 768,
-        "height": 1024,
+        "width": 800,
+        "height": 1050,
         "resizable": true,
         "fullscreen": false,
         "center": true

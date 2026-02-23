@@ -259,6 +259,31 @@ export default function App() {
       return;
     }
 
+    // In Tauri, use backend for mic level instead of Web Audio API
+    if (isTauriRuntime()) {
+      let cancelled = false;
+      const interval = setInterval(async () => {
+        if (cancelled) return;
+        
+        try {
+          const level = await invoke<number>('stt_get_mic_level');
+          setMicLevel(level);
+          setMicLevelActive(level > 0.02);
+        } catch (error) {
+          // Backend not recording, set level to 0
+          setMicLevel(0);
+          setMicLevelActive(false);
+        }
+      }, 100); // Update every 100ms for smooth animation
+
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+        cleanup();
+      };
+    }
+
+    // Browser fallback - use Web Audio API
     const md = typeof navigator !== "undefined" ? navigator.mediaDevices : null;
     if (!md?.getUserMedia || typeof AudioContext === "undefined") {
       cleanup();

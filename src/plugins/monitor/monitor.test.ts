@@ -4,13 +4,13 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { MonitorPlugin } from './monitorPlugin';
+import { InMemoryDbAdapter } from '../../persistence/databaseManager';
 import { BUILTIN_SCOPES, ScopeRegistry } from '../scope/scopeRegistry';
 import type { PluginContext } from '../../core/types';
 import { DeviceRepository } from '../../persistence/deviceRepository';
 import { ConfiguredDeviceRepository } from '../../persistence/configuredDeviceRepository';
 import type { ConfiguredDevice } from '../../persistence/configuredDeviceRepository';
 import { DatabaseManager } from '../../persistence/databaseManager';
-import { InMemoryDbAdapter } from '../../persistence/databaseManager';
 import { processRegistry } from '../../core/processRegistry';
 import { configStore } from '../../config/configStore';
 
@@ -47,7 +47,7 @@ describe('MonitorPlugin', () => {
       const ctx = {
         isTauri: false,
         databaseManager: {
-          getDevicesDb: () => ({}) as any,
+          getDevicesDb: () => new InMemoryDbAdapter(':memory:'),
         },
       } as any as PluginContext;
 
@@ -204,7 +204,7 @@ describe('MonitorPlugin', () => {
         isTauri: false,
         databaseManager: {
           isReady: () => true,
-          getDevicesDb: () => ({}) as any,
+          getDevicesDb: () => new InMemoryDbAdapter(':memory:'),
         },
       } as any as PluginContext;
 
@@ -244,7 +244,7 @@ describe('MonitorPlugin', () => {
       const ctx = {
         isTauri: false,
         databaseManager: {
-          getDevicesDb: () => ({}) as any,
+          getDevicesDb: () => new InMemoryDbAdapter(':memory:'),
         },
       } as any as PluginContext;
 
@@ -310,7 +310,7 @@ describe('MonitorPlugin', () => {
       const ctx = {
         isTauri: false,
         databaseManager: {
-          getDevicesDb: () => ({}) as any,
+          getDevicesDb: () => new InMemoryDbAdapter(':memory:'),
         },
       } as any as PluginContext;
 
@@ -382,7 +382,7 @@ describe('MonitorPlugin', () => {
       const ctx = {
         isTauri: false,
         databaseManager: {
-          getDevicesDb: () => ({}) as any,
+          getDevicesDb: () => new InMemoryDbAdapter(':memory:'),
         },
       } as any as PluginContext;
 
@@ -472,7 +472,7 @@ describe('MonitorPlugin', () => {
       const ctx = {
         isTauri: false,
         databaseManager: {
-          getDevicesDb: () => ({}) as any,
+          getDevicesDb: () => new InMemoryDbAdapter(':memory:'),
         },
       } as any as PluginContext;
 

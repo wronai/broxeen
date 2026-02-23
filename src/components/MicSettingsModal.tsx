@@ -9,6 +9,7 @@ import { logger } from "../lib/logger";
 import { isTauriRuntime } from "../lib/runtime";
 import { useSpeech } from "../hooks/useSpeech";
 import { useStt } from "../hooks/useStt";
+import { CONFIG_FIELD_META } from "../config/appConfig";
 
 interface MicSettingsModalProps {
   isOpen: boolean;
@@ -28,6 +29,8 @@ export default function MicSettingsModal({
   micLevelActive,
 }: MicSettingsModalProps) {
   const [local, setLocal] = useState<AudioSettings>(settings);
+  
+  const STT_MODELS = CONFIG_FIELD_META.find((field: any) => field.key === 'stt.model')?.options || [];
   const [audioDevices, setAudioDevices] = useState<MediaDeviceInfo[]>([]);
   const [saved, setSaved] = useState(false);
   const [micPermissionState, setMicPermissionState] = useState<
@@ -239,8 +242,11 @@ export default function MicSettingsModal({
                 onChange={(e) => update({ stt_model: e.target.value })}
                 className="mt-1 block w-full rounded-lg bg-gray-700 px-3 py-2 text-sm text-white"
               >
-                <option value="whisper-1">Whisper-1 (OpenRouter)</option>
-                <option value="whisper-1-turbo">Whisper-1 Turbo (szybszy)</option>
+                {STT_MODELS.map((model: any) => (
+                  <option key={model.value} value={model.value}>
+                    {model.label}
+                  </option>
+                ))}
               </select>
             </label>
 

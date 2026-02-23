@@ -195,6 +195,33 @@ fn base64_encode(data: &[u8]) -> String {
 
 // ── Silence detection (auto-stop) ────────────────────
 
+/// Get current microphone level (0.0-1.0) from recent audio samples.
+pub fn get_mic_level(state: &SharedRecordingState) -> f32 {
+    let s = state.lock().unwrap();
+    if !s.is_recording || s.samples.is_empty() {
+        return 0.0;
+    }
+
+    // Use last ~50ms of samples for responsive level
+    let window_samples = (s.sample_rate as f32 * 0.05) as usize;
+    let start_idx = if s.samples.len() > window_samples {
+        s.samples.len() - window_samples
+    } else {
+        0
+    };
+    
+    let window = &s.samples[start_idx..];
+    if window.is_empty() {
+        return 0.0;
+    }
+
+    let rms: f32 = (window.iter().map(|&s| (s as f32).powi(2)).sum::<f32>() / window.len() as f32).sqrt();
+    let normalized_rms = rms / i16::MAX as f32;
+    
+    // Scale for better visual response (multiply by 4, clamp to 1.0)
+    (normalized_rms * 4.0).clamp(0.0, 1.0)
+}
+
 /// Check if the last N seconds of audio are silence.
 #[allow(dead_code)]
 pub fn is_silence(state: &SharedRecordingState, threshold_seconds: f32, rms_threshold: f32) -> bool {

@@ -10,6 +10,7 @@
 ///   - DetectorConfig: model_path now default yolov8s, input_size 640, 20 classes
 
 use serde::Deserialize;
+use std::env;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct VisionConfig {
@@ -249,10 +250,15 @@ pub struct LlmConfig {
 }
 
 fn default_openrouter_model() -> String {
-    env::var("VITE_VISION_OPENROUTER_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string())
+    env::var("VISION_OPENROUTER_MODEL").unwrap_or_else(|_| {
+        env::var("VITE_VISION_OPENROUTER_MODEL")
+            .unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string())
+    })
 }
 fn default_local_model() -> String {
-    env::var("VITE_VISION_LOCAL_MODEL").unwrap_or_else(|_| "llava:7b".to_string())
+    env::var("VISION_LOCAL_MODEL").unwrap_or_else(|_| {
+        env::var("VITE_VISION_LOCAL_MODEL").unwrap_or_else(|_| "llava:7b".to_string())
+    })
 }
 fn default_max_tokens() -> u32 {
     80

@@ -2090,426 +2090,171 @@ ${analysis}`,
                   </div>
                 </>
               )}
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === "user"
-                    ? "justify-end slide-in-right"
-                    : msg.role === "system"
-                      ? "justify-start"
-                      : "justify-start slide-in-left"
-                    }`}
-                  data-testid="message"
-                >
-                  {/* Bot avatar for assistant messages */}
-                  {msg.role === "assistant" && (
-                    <div className="mr-2.5 mt-1 flex-shrink-0">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-broxeen-500 to-broxeen-700 text-xs shadow-lg shadow-broxeen-500/20">
-                        <Bot size={14} className="text-white" />
-                      </div>
-                    </div>
-                  )}
+              {messages.map((msg, index) => {
+                const isSystem = msg.role === "system";
+                const prevIsSystem = index > 0 && messages[index - 1].role === "system";
+                const nextIsSystem = index < messages.length - 1 && messages[index + 1].role === "system";
+
+                return (
                   <div
-                    className={`rounded-2xl px-4 py-3 ${msg.role === "user"
-                      ? "max-w-[85%] bg-gradient-to-br from-broxeen-500 to-broxeen-700 text-white cursor-pointer transition-all hover:from-broxeen-400 hover:to-broxeen-600 shadow-lg shadow-broxeen-500/10"
-                      : msg.role === "system"
-                        ? `max-w-[95%] border-l-2 text-xs py-2 px-3 rounded-lg ${msg.text.includes('Błąd') || msg.text.includes('Error') ? 'border-amber-500/60 bg-amber-950/20 text-amber-300/80' : 'border-blue-500/40 bg-blue-950/20 text-gray-400'}`
-                        : "max-w-[85%] bg-gray-800/60 backdrop-blur-sm border border-gray-700/40 text-gray-100 shadow-md"
+                    key={msg.id}
+                    className={`flex ${msg.role === "user"
+                      ? "justify-end slide-in-right"
+                      : isSystem
+                        ? `justify-start ${prevIsSystem ? '!mt-[2px]' : ''}`
+                        : "justify-start slide-in-left"
                       }`}
-                    onClick={
-                      msg.role === "user"
-                        ? () => {
-                          setInput(msg.text);
-                          const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
-                          if (inputElement) {
-                            inputElement.focus();
-                            setTimeout(() => {
-                              inputElement.selectionStart = inputElement.selectionEnd = msg.text.length;
-                            }, 0);
-                          }
-                        }
-                        : undefined
-                    }
-                    title={
-                      msg.role === "user"
-                        ? "Kliknij, aby skopiować do pola chat"
-                        : undefined
-                    }
+                    data-testid="message"
                   >
-                    {msg.url && (
-                      <div className="mb-2 flex items-center gap-1.5 text-xs text-gray-400">
-                        {resolveIcon(msg.resolveType)}
-                        <span className="truncate">{msg.url}</span>
+                    {/* Bot avatar for assistant messages */}
+                    {msg.role === "assistant" && (
+                      <div className="mr-2.5 mt-1 flex-shrink-0">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-broxeen-500 to-broxeen-700 text-xs shadow-lg shadow-broxeen-500/20">
+                          <Bot size={14} className="text-white" />
+                        </div>
                       </div>
                     )}
-
-                    <div className="flex flex-col sm:flex-row gap-4">
-                      {msg.role === "assistant" && msg.screenshotBase64 && (
-                        <div className="shrink-0 max-w-[256px] max-h-[300px] overflow-y-auto rounded-lg border border-gray-700 bg-black/50 scrollbar-thin scrollbar-thumb-gray-600">
-                          <img
-                            src={`data:image/png;base64,${msg.screenshotBase64}`}
-                            alt="Screenshot strony"
-                            className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => msg.screenshotBase64 && setExpandedImage({ data: msg.screenshotBase64, mimeType: 'image/png' })}
-                          />
-                        </div>
-                      )}
-                      {msg.role === "assistant" && msg.type === "image" && msg.text && (
-                        <div className="shrink-0 w-full max-w-sm rounded-lg border border-gray-700 bg-black/50 overflow-hidden">
-                          {msg.title && (
-                            <div className="px-3 py-1.5 text-xs text-gray-400 border-b border-gray-700 truncate">
-                              📷 {msg.title}
-                            </div>
-                          )}
-                          <img
-                            src={`data:${msg.mimeType || 'image/jpeg'};base64,${msg.text}`}
-                            alt={msg.title || "Podgląd kamery"}
-                            className="w-full h-auto object-contain max-h-64 cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={() => setExpandedImage({ data: msg.text, mimeType: msg.mimeType || 'image/jpeg' })}
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
-                      {msg.role === "assistant" && msg.type === "camera_live" && msg.live && (
-                        <div className="shrink-0 w-full max-w-sm rounded-lg border border-gray-700 bg-black/50 overflow-hidden p-3">
-                          <CameraLiveInline
-                            url={msg.live.url}
-                            cameraId={msg.live.cameraId}
-                            fps={msg.live.fps}
-                            snapshotUrl={msg.live.snapshotUrl}
-                            startInSnapshotMode={msg.live.startInSnapshotMode}
-                            initialFrame={
-                              msg.live.initialBase64
-                                ? {
-                                  base64: msg.live.initialBase64,
-                                  mimeType: msg.live.initialMimeType || 'image/jpeg',
-                                }
-                                : null
+                    <div
+                      className={`${msg.role === "user"
+                        ? "rounded-2xl px-4 py-3 max-w-[85%] bg-gradient-to-br from-broxeen-500 to-broxeen-700 text-white cursor-pointer transition-all hover:from-broxeen-400 hover:to-broxeen-600 shadow-lg shadow-broxeen-500/10"
+                        : isSystem
+                          ? `max-w-[95%] border-l-2 text-xs py-1.5 px-3 ${prevIsSystem ? 'rounded-t-sm' : 'rounded-t-lg'} ${nextIsSystem ? 'rounded-b-sm' : 'rounded-b-lg'} ${msg.text.includes('Błąd') || msg.text.includes('Error') ? 'border-amber-500/60 bg-amber-950/20 text-amber-300/80' : 'border-blue-500/40 bg-blue-950/20 text-gray-400'}`
+                          : "rounded-2xl px-4 py-3 max-w-[85%] bg-gray-800/60 backdrop-blur-sm border border-gray-700/40 text-gray-100 shadow-md"
+                        }`}
+                      onClick={
+                        msg.role === "user"
+                          ? () => {
+                            setInput(msg.text);
+                            const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
+                            if (inputElement) {
+                              inputElement.focus();
+                              setTimeout(() => {
+                                inputElement.selectionStart = inputElement.selectionEnd = msg.text.length;
+                              }, 0);
                             }
-                            className="w-full"
-                            imageClassName="w-full h-auto object-contain max-h-64 rounded cursor-pointer hover:opacity-90 transition-opacity"
-                            onClickImage={(img) => setExpandedImage({ data: img.base64, mimeType: img.mimeType })}
-                          />
+                          }
+                          : undefined
+                      }
+                      title={
+                        msg.role === "user"
+                          ? "Kliknij, aby skopiować do pola chat"
+                          : undefined
+                      }
+                    >
+                      {msg.url && (
+                        <div className="mb-2 flex items-center gap-1.5 text-xs text-gray-400">
+                          {resolveIcon(msg.resolveType)}
+                          <span className="truncate">{msg.url}</span>
                         </div>
                       )}
-                      <div className="flex-1 w-full min-w-0">
-                        {/* Thinking / processing indicator */}
-                        {msg.type === 'thinking' && msg.thinkingInfo ? (
-                          <ThinkingMessage
-                            label={msg.thinkingInfo.label}
-                            estimatedSeconds={msg.thinkingInfo.estimatedSeconds}
-                            startedAt={msg.thinkingInfo.startedAt}
-                          />
-                        ) : msg.loading ? (
-                          <div className="flex items-center gap-2 text-gray-400">
-                            <Loader2 size={16} className="animate-spin" />
-                            <span>{msg.text}</span>
+
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        {msg.role === "assistant" && msg.screenshotBase64 && (
+                          <div className="shrink-0 max-w-[256px] max-h-[300px] overflow-y-auto rounded-lg border border-gray-700 bg-black/50 scrollbar-thin scrollbar-thumb-gray-600">
+                            <img
+                              src={`data:image/png;base64,${msg.screenshotBase64}`}
+                              alt="Screenshot strony"
+                              className="w-full h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => msg.screenshotBase64 && setExpandedImage({ data: msg.screenshotBase64, mimeType: 'image/png' })}
+                            />
                           </div>
-                        ) : msg.type === 'thinking' && !msg.thinkingInfo ? null : msg.type === 'image' || msg.type === 'camera_live' ? null : (
-                          <div className="text-sm leading-relaxed">
-                            {msg.pageTitle && (
-                              <div className="font-bold mb-2">
-                                {msg.pageTitle}
+                        )}
+                        {msg.role === "assistant" && msg.type === "image" && msg.text && (
+                          <div className="shrink-0 w-full max-w-sm rounded-lg border border-gray-700 bg-black/50 overflow-hidden">
+                            {msg.title && (
+                              <div className="px-3 py-1.5 text-xs text-gray-400 border-b border-gray-700 truncate">
+                                📷 {msg.title}
                               </div>
                             )}
-                            <MessageResultCard text={msg.text} msgType={msg.type}>
-                              <div className="prose prose-invert max-w-none prose-sm">
-                                <ReactMarkdown
-                                  urlTransform={(url) => url}
-                                  remarkPlugins={[remarkGfm, remarkBreaks]}
-                                  components={{
-                                    // Customize styling for common elements
-                                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                    strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
-                                    em: ({ children }) => <em className="italic">{children}</em>,
-                                    code: ({ className, children }) => {
-                                      const isInline = !className?.includes('language-');
-                                      const codeText = String(children).replace(/\n$/, '');
-
-                                      return isInline ?
-                                        <code
-                                          className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono cursor-pointer hover:bg-gray-600 transition-colors"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setInput(codeText);
-                                            const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
-                                            if (inputElement) {
-                                              inputElement.focus();
-                                              setTimeout(() => {
-                                                inputElement.selectionStart = inputElement.selectionEnd = codeText.length;
-                                              }, 0);
-                                            }
-                                          }}
-                                          title="Kliknij, aby skopiować do pola chat"
-                                        >
-                                          {children}
-                                        </code> :
-                                        <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>;
-                                    },
-                                    ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
-                                    ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
-                                    li: ({ children }) => <li className="text-gray-200">{children}</li>,
-                                    a: ({ href, children }) => (
-                                      <a
-                                        href={href}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-blue-400 hover:text-blue-300 underline"
-                                      >
-                                        {children}
-                                      </a>
-                                    ),
-                                    blockquote: ({ children }) => (
-                                      <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-2">
-                                        {children}
-                                      </blockquote>
-                                    ),
-                                    img: ({ src, alt }) => {
-                                      if (!src) return null;
-                                      const isDataUrl = src.startsWith('data:');
-                                      const canPreview = isDataUrl;
-                                      return (
-                                        <img
-                                          src={src}
-                                          alt={alt || 'Obraz'}
-                                          className="max-w-full h-auto rounded border border-gray-700 bg-black/30 cursor-pointer hover:opacity-90 transition-opacity"
-                                          onClick={() => {
-                                            if (!canPreview) return;
-                                            const m = src.match(/^data:([^;]+);base64,(.+)$/);
-                                            if (!m) return;
-                                            setExpandedImage({ data: m[2], mimeType: m[1] });
-                                          }}
-                                        />
-                                      );
-                                    },
-                                  }}
-                                >
-                                  {(() => {
-                                    const markers = [
-                                      '💡 **Sugerowane akcje:**',
-                                      '💡 **Sugerowane akcje**:',
-                                      'Sugerowane akcje:',
-                                      'Sugerowane akcje',
-                                    ];
-
-                                    for (const candidate of markers) {
-                                      const idx = msg.text.indexOf(candidate);
-                                      if (idx !== -1) {
-                                        return msg.text.slice(0, idx).trimEnd();
-                                      }
-                                    }
-
-                                    return msg.text;
-                                  })()}
-                                </ReactMarkdown>
-                              </div>
-                            </MessageResultCard>
+                            <img
+                              src={`data:${msg.mimeType || 'image/jpeg'};base64,${msg.text}`}
+                              alt={msg.title || "Podgląd kamery"}
+                              className="w-full h-auto object-contain max-h-64 cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => setExpandedImage({ data: msg.text, mimeType: msg.mimeType || 'image/jpeg' })}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
                           </div>
                         )}
-
-                        {/* Inline Action Hints */}
-                        {msg.role === "assistant" && !msg.loading && (() => {
-                          const markers = [
-                            '💡 **Sugerowane akcje:**',
-                            '💡 **Sugerowane akcje**:',
-                            'Sugerowane akcje:',
-                            'Sugerowane akcje',
-                          ];
-
-                          let markerIdx = -1;
-                          let markerText = '';
-                          for (const candidate of markers) {
-                            const idx = msg.text.indexOf(candidate);
-                            if (idx !== -1) {
-                              markerIdx = idx;
-                              markerText = candidate;
-                              break;
-                            }
-                          }
-
-                          if (markerIdx === -1) return null;
-
-                          const afterMarker = msg.text.slice(markerIdx + markerText.length);
-                          const section = afterMarker
-                            .split('\n')
-                            .map((l) => l.trimEnd())
-                            .join('\n');
-
-                          const hintPattern = /^-\s*"([^"]+)"(?:\s*[—–-]\s*(.+))?$/gm;
-                          const hints: Array<{ query: string; label: string; isPrefill: boolean }> = [];
-                          const seen = new Set<string>();
-                          let m: RegExpExecArray | null;
-
-                          while ((m = hintPattern.exec(section)) !== null) {
-                            const query = m[1].trim();
-                            const label = (m[2]?.trim() || query).trim();
-                            if (!query || !label) continue;
-                            // Basic hardening: prevent absurdly long / pasted content queries
-                            if (query.length > 200) continue;
-                            if (seen.has(query)) continue;
-                            seen.add(query);
-
-                            // Detect if this is a template to prefill (contains HASŁO, PASSWORD, etc.)
-                            const isPrefill = /HASŁO|PASSWORD|HASLO|USER|USERNAME|NAZWA/i.test(query);
-
-                            hints.push({ query, label, isPrefill });
-                            if (hints.length >= 10) break;
-                          }
-
-                          if (hints.length === 0) return null;
-                          return (
-                            <div className="mt-3 flex flex-wrap gap-2" data-testid="action-hints">
-                              {hints.map((hint) => (
-                                <button
-                                  key={hint.query}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (hint.isPrefill) {
-                                      // Prefill input for editing
-                                      setInput(hint.query);
-                                      const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
-                                      if (inputElement) {
-                                        inputElement.focus();
-                                        // Select the placeholder text for easy replacement
-                                        setTimeout(() => {
-                                          const placeholderMatch = hint.query.match(/HASŁO|PASSWORD|HASLO|USER|USERNAME|NAZWA/i);
-                                          if (placeholderMatch) {
-                                            const placeholderPos = hint.query.indexOf(placeholderMatch[0]);
-                                            inputElement.selectionStart = placeholderPos;
-                                            inputElement.selectionEnd = placeholderPos + placeholderMatch[0].length;
-                                          } else {
-                                            inputElement.selectionStart = inputElement.selectionEnd = hint.query.length;
-                                          }
-                                        }, 0);
-                                      }
-                                    } else {
-                                      // Execute immediately
-                                      handleSubmit(hint.query);
-                                    }
-                                  }}
-                                  className="flex items-center gap-1.5 rounded-lg bg-broxeen-600/20 border border-broxeen-600/30 px-3 py-1.5 text-xs font-medium text-broxeen-300 hover:bg-broxeen-600/30 transition"
-                                  title={hint.query}
-                                >
-                                  <Zap size={12} />
-                                  <span>{hint.label}</span>
-                                </button>
-                              ))}
+                        {msg.role === "assistant" && msg.type === "camera_live" && msg.live && (
+                          <div className="shrink-0 w-full max-w-sm rounded-lg border border-gray-700 bg-black/50 overflow-hidden p-3">
+                            <CameraLiveInline
+                              url={msg.live.url}
+                              cameraId={msg.live.cameraId}
+                              fps={msg.live.fps}
+                              snapshotUrl={msg.live.snapshotUrl}
+                              startInSnapshotMode={msg.live.startInSnapshotMode}
+                              initialFrame={
+                                msg.live.initialBase64
+                                  ? {
+                                    base64: msg.live.initialBase64,
+                                    mimeType: msg.live.initialMimeType || 'image/jpeg',
+                                  }
+                                  : null
+                              }
+                              className="w-full"
+                              imageClassName="w-full h-auto object-contain max-h-64 rounded cursor-pointer hover:opacity-90 transition-opacity"
+                              onClickImage={(img) => setExpandedImage({ data: img.base64, mimeType: img.mimeType })}
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 w-full min-w-0">
+                          {/* Thinking / processing indicator */}
+                          {msg.type === 'thinking' && msg.thinkingInfo ? (
+                            <ThinkingMessage
+                              label={msg.thinkingInfo.label}
+                              estimatedSeconds={msg.thinkingInfo.estimatedSeconds}
+                              startedAt={msg.thinkingInfo.startedAt}
+                            />
+                          ) : msg.loading ? (
+                            <div className="flex items-center gap-2 text-gray-400">
+                              <Loader2 size={16} className="animate-spin" />
+                              <span>{msg.text}</span>
                             </div>
-                          );
-                        })()}
-
-                        {/* Network Selection Options */}
-                        {msg.type === "network_selection" && msg.networkOptions && (
-                          <div className="mt-4 space-y-2" data-testid="network-selection">
-                            {msg.networkOptions.map((option: any, index: number) => (
-                              <button
-                                key={index}
-                                onClick={() => handleNetworkOptionClick(option.scope, option.name)}
-                                className="w-full text-left p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
-                                data-testid={`network-option-${option.scope}`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <div className="font-medium text-gray-200 group-hover:text-broxeen-400">
-                                      {getNetworkIcon(option.scope)} {option.name}
-                                    </div>
-                                    <div className="text-sm text-gray-400 mt-1">
-                                      {option.description}
-                                    </div>
-                                  </div>
-                                  <div className="text-gray-400 group-hover:text-broxeen-400">
-                                    →
-                                  </div>
+                          ) : msg.type === 'thinking' && !msg.thinkingInfo ? null : msg.type === 'image' || msg.type === 'camera_live' ? null : isSystem ? (
+                            <div className="text-xs leading-relaxed">
+                              {msg.text}
+                            </div>
+                          ) : (
+                            <div className="text-sm leading-relaxed">
+                              {msg.pageTitle && (
+                                <div className="font-bold mb-2">
+                                  {msg.pageTitle}
                                 </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Suggestions */}
-                        {msg.type === "suggestions" && msg.suggestions && (
-                          <div className="mt-4 space-y-2" data-testid="suggestions">
-                            {msg.suggestions.map((suggestion: any, index: number) => (
-                              <button
-                                key={index}
-                                onClick={() => handleSuggestionClick(suggestion)}
-                                className="w-full text-left p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
-                                data-testid={`suggestion-${suggestion.action}`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <div className="font-medium text-gray-200 group-hover:text-broxeen-400">
-                                      {suggestion.text}
-                                    </div>
-                                    <div className="text-sm text-gray-400 mt-1">
-                                      {suggestion.description}
-                                    </div>
-                                  </div>
-                                  <div className="text-gray-400 group-hover:text-broxeen-400">
-                                    →
-                                  </div>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Config Prompt (interactive buttons/fields) */}
-                        {msg.type === "config_prompt" && msg.configPrompt && (
-                          <ChatConfigPrompt
-                            data={msg.configPrompt}
-                            onPrefill={(text) => setInput(text)}
-                            onExecute={(query) => handleSubmit(query)}
-                          />
-                        )}
-
-                        {/* Camera List */}
-                        {msg.type === "camera_list" && msg.cameras && (
-                          <div className="mt-4 space-y-4" data-testid="camera-list">
-                            {msg.cameras.map((camera, index: number) => (
-                              <CameraPreview
-                                key={camera.id}
-                                camera={{
-                                  ...camera,
-                                  ip: camera.address,
-                                  type: 'rtsp',
-                                  status: camera.status as 'online' | 'offline'
-                                }}
-                                onSelect={handleCameraSelect}
-                                onAnalysisComplete={handleCameraAnalysisComplete}
-                                className="max-w-md"
-                              />
-                            ))}
-                          </div>
-                        )}
-
-                        {/* AI Analysis Message */}
-                        {msg.type === "camera_analysis" && (
-                          <div className="mt-4 p-4 bg-blue-900/20 border border-blue-700/50 rounded-lg" data-testid="camera-analysis">
-                            <div className="flex items-start space-x-3">
-                              <div className="flex-shrink-0">
-                                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                                  🧠
-                                </div>
-                              </div>
-                              <div className="flex-1">
-                                <div className="text-sm font-medium text-blue-400 mb-2">
-                                  AI Analiza Kamery
-                                </div>
-                                <div className="text-sm text-gray-300 prose prose-invert max-w-none prose-sm">
+                              )}
+                              <MessageResultCard text={msg.text} msgType={msg.type}>
+                                <div className="prose prose-invert max-w-none prose-sm">
                                   <ReactMarkdown
                                     urlTransform={(url) => url}
                                     remarkPlugins={[remarkGfm, remarkBreaks]}
                                     components={{
+                                      // Customize styling for common elements
                                       p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
                                       strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
                                       em: ({ children }) => <em className="italic">{children}</em>,
                                       code: ({ className, children }) => {
                                         const isInline = !className?.includes('language-');
+                                        const codeText = String(children).replace(/\n$/, '');
+
                                         return isInline ?
-                                          <code className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code> :
+                                          <code
+                                            className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono cursor-pointer hover:bg-gray-600 transition-colors"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setInput(codeText);
+                                              const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
+                                              if (inputElement) {
+                                                inputElement.focus();
+                                                setTimeout(() => {
+                                                  inputElement.selectionStart = inputElement.selectionEnd = codeText.length;
+                                                }, 0);
+                                              }
+                                            }}
+                                            title="Kliknij, aby skopiować do pola chat"
+                                          >
+                                            {children}
+                                          </code> :
                                           <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>;
                                       },
                                       ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
@@ -2525,137 +2270,402 @@ ${analysis}`,
                                           {children}
                                         </a>
                                       ),
+                                      blockquote: ({ children }) => (
+                                        <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-2">
+                                          {children}
+                                        </blockquote>
+                                      ),
+                                      img: ({ src, alt }) => {
+                                        if (!src) return null;
+                                        const isDataUrl = src.startsWith('data:');
+                                        const canPreview = isDataUrl;
+                                        return (
+                                          <img
+                                            src={src}
+                                            alt={alt || 'Obraz'}
+                                            className="max-w-full h-auto rounded border border-gray-700 bg-black/30 cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={() => {
+                                              if (!canPreview) return;
+                                              const m = src.match(/^data:([^;]+);base64,(.+)$/);
+                                              if (!m) return;
+                                              setExpandedImage({ data: m[2], mimeType: m[1] });
+                                            }}
+                                          />
+                                        );
+                                      },
                                     }}
                                   >
-                                    {msg.text}
+                                    {(() => {
+                                      const markers = [
+                                        '💡 **Sugerowane akcje:**',
+                                        '💡 **Sugerowane akcje**:',
+                                        'Sugerowane akcje:',
+                                        'Sugerowane akcje',
+                                      ];
+
+                                      for (const candidate of markers) {
+                                        const idx = msg.text.indexOf(candidate);
+                                        if (idx !== -1) {
+                                          return msg.text.slice(0, idx).trimEnd();
+                                        }
+                                      }
+
+                                      return msg.text;
+                                    })()}
                                   </ReactMarkdown>
                                 </div>
-                                <div className="text-xs text-gray-500 mt-2">
-                                  Analiza wykonana automatycznie • Wykrywanie zmian co sekundę
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                        {selectedCamera && (
-                          <div className="mt-4" data-testid="selected-camera-preview">
-                            <CameraPreview
-                              camera={selectedCamera}
-                              onSelect={handleCameraSelect}
-                              onAnalysisComplete={handleCameraAnalysisComplete}
-                              className="max-w-2xl mx-auto"
-                            />
-                          </div>
-                        )}
-                        {msg.role === "assistant" &&
-                          !msg.loading &&
-                          (msg.rssUrl || msg.contactUrl || msg.phoneUrl) && (
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              {msg.rssUrl && (
-                                <a
-                                  href={
-                                    msg.rssUrl.startsWith("http")
-                                      ? msg.rssUrl
-                                      : msg.url
-                                        ? new URL(msg.rssUrl, msg.url).href
-                                        : msg.rssUrl
-                                  }
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="flex items-center gap-1.5 rounded-lg bg-orange-600/20 px-3 py-1.5 text-xs font-medium text-orange-400 hover:bg-orange-600/30 transition"
-                                >
-                                  📰 Kanał RSS
-                                </a>
-                              )}
-                              {msg.contactUrl && (
-                                <a
-                                  href={
-                                    msg.contactUrl.startsWith("http") ||
-                                      msg.contactUrl.startsWith("mailto:")
-                                      ? msg.contactUrl
-                                      : msg.url
-                                        ? new URL(msg.contactUrl, msg.url).href
-                                        : msg.contactUrl
-                                  }
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="flex items-center gap-1.5 rounded-lg bg-blue-600/20 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-blue-600/30 transition"
-                                >
-                                  ✉️ Napisz wiadomość
-                                </a>
-                              )}
-                              {msg.phoneUrl && (
-                                <a
-                                  href={
-                                    msg.phoneUrl.startsWith("tel:")
-                                      ? msg.phoneUrl
-                                      : `tel:${msg.phoneUrl}`
-                                  }
-                                  className="flex items-center gap-1.5 rounded-lg bg-green-600/20 px-3 py-1.5 text-xs font-medium text-green-400 hover:bg-green-600/30 transition"
-                                >
-                                  📞 Zadzwoń
-                                </a>
-                              )}
+                              </MessageResultCard>
                             </div>
                           )}
 
-                        {msg.suggestions && msg.suggestions.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {msg.suggestions.map((s) => (
-                              <button
-                                key={s.query}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSuggestionClick(s);
-                                }}
-                                className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-broxeen-300 transition hover:bg-gray-600"
-                              >
-                                {s.text.replace("https://", "")}
-                              </button>
-                            ))}
+                          {/* Inline Action Hints */}
+                          {msg.role === "assistant" && !msg.loading && (() => {
+                            const markers = [
+                              '💡 **Sugerowane akcje:**',
+                              '💡 **Sugerowane akcje**:',
+                              'Sugerowane akcje:',
+                              'Sugerowane akcje',
+                            ];
+
+                            let markerIdx = -1;
+                            let markerText = '';
+                            for (const candidate of markers) {
+                              const idx = msg.text.indexOf(candidate);
+                              if (idx !== -1) {
+                                markerIdx = idx;
+                                markerText = candidate;
+                                break;
+                              }
+                            }
+
+                            if (markerIdx === -1) return null;
+
+                            const afterMarker = msg.text.slice(markerIdx + markerText.length);
+                            const section = afterMarker
+                              .split('\n')
+                              .map((l) => l.trimEnd())
+                              .join('\n');
+
+                            const hintPattern = /^-\s*"([^"]+)"(?:\s*[—–-]\s*(.+))?$/gm;
+                            const hints: Array<{ query: string; label: string; isPrefill: boolean }> = [];
+                            const seen = new Set<string>();
+                            let m: RegExpExecArray | null;
+
+                            while ((m = hintPattern.exec(section)) !== null) {
+                              const query = m[1].trim();
+                              const label = (m[2]?.trim() || query).trim();
+                              if (!query || !label) continue;
+                              // Basic hardening: prevent absurdly long / pasted content queries
+                              if (query.length > 200) continue;
+                              if (seen.has(query)) continue;
+                              seen.add(query);
+
+                              // Detect if this is a template to prefill (contains HASŁO, PASSWORD, etc.)
+                              const isPrefill = /HASŁO|PASSWORD|HASLO|USER|USERNAME|NAZWA/i.test(query);
+
+                              hints.push({ query, label, isPrefill });
+                              if (hints.length >= 10) break;
+                            }
+
+                            if (hints.length === 0) return null;
+                            return (
+                              <div className="mt-3 flex flex-wrap gap-2" data-testid="action-hints">
+                                {hints.map((hint) => (
+                                  <button
+                                    key={hint.query}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (hint.isPrefill) {
+                                        // Prefill input for editing
+                                        setInput(hint.query);
+                                        const inputElement = document.querySelector('textarea') as HTMLTextAreaElement;
+                                        if (inputElement) {
+                                          inputElement.focus();
+                                          // Select the placeholder text for easy replacement
+                                          setTimeout(() => {
+                                            const placeholderMatch = hint.query.match(/HASŁO|PASSWORD|HASLO|USER|USERNAME|NAZWA/i);
+                                            if (placeholderMatch) {
+                                              const placeholderPos = hint.query.indexOf(placeholderMatch[0]);
+                                              inputElement.selectionStart = placeholderPos;
+                                              inputElement.selectionEnd = placeholderPos + placeholderMatch[0].length;
+                                            } else {
+                                              inputElement.selectionStart = inputElement.selectionEnd = hint.query.length;
+                                            }
+                                          }, 0);
+                                        }
+                                      } else {
+                                        // Execute immediately
+                                        handleSubmit(hint.query);
+                                      }
+                                    }}
+                                    className="flex items-center gap-1.5 rounded-lg bg-broxeen-600/20 border border-broxeen-600/30 px-3 py-1.5 text-xs font-medium text-broxeen-300 hover:bg-broxeen-600/30 transition"
+                                    title={hint.query}
+                                  >
+                                    <Zap size={12} />
+                                    <span>{hint.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Network Selection Options */}
+                          {msg.type === "network_selection" && msg.networkOptions && (
+                            <div className="mt-4 space-y-2" data-testid="network-selection">
+                              {msg.networkOptions.map((option: any, index: number) => (
+                                <button
+                                  key={index}
+                                  onClick={() => handleNetworkOptionClick(option.scope, option.name)}
+                                  className="w-full text-left p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
+                                  data-testid={`network-option-${option.scope}`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium text-gray-200 group-hover:text-broxeen-400">
+                                        {getNetworkIcon(option.scope)} {option.name}
+                                      </div>
+                                      <div className="text-sm text-gray-400 mt-1">
+                                        {option.description}
+                                      </div>
+                                    </div>
+                                    <div className="text-gray-400 group-hover:text-broxeen-400">
+                                      →
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Suggestions */}
+                          {msg.type === "suggestions" && msg.suggestions && (
+                            <div className="mt-4 space-y-2" data-testid="suggestions">
+                              {msg.suggestions.map((suggestion: any, index: number) => (
+                                <button
+                                  key={index}
+                                  onClick={() => handleSuggestionClick(suggestion)}
+                                  className="w-full text-left p-3 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors group"
+                                  data-testid={`suggestion-${suggestion.action}`}
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <div className="font-medium text-gray-200 group-hover:text-broxeen-400">
+                                        {suggestion.text}
+                                      </div>
+                                      <div className="text-sm text-gray-400 mt-1">
+                                        {suggestion.description}
+                                      </div>
+                                    </div>
+                                    <div className="text-gray-400 group-hover:text-broxeen-400">
+                                      →
+                                    </div>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Config Prompt (interactive buttons/fields) */}
+                          {msg.type === "config_prompt" && msg.configPrompt && (
+                            <ChatConfigPrompt
+                              data={msg.configPrompt}
+                              onPrefill={(text) => setInput(text)}
+                              onExecute={(query) => handleSubmit(query)}
+                            />
+                          )}
+
+                          {/* Camera List */}
+                          {msg.type === "camera_list" && msg.cameras && (
+                            <div className="mt-4 space-y-4" data-testid="camera-list">
+                              {msg.cameras.map((camera, index: number) => (
+                                <CameraPreview
+                                  key={camera.id}
+                                  camera={{
+                                    ...camera,
+                                    ip: camera.address,
+                                    type: 'rtsp',
+                                    status: camera.status as 'online' | 'offline'
+                                  }}
+                                  onSelect={handleCameraSelect}
+                                  onAnalysisComplete={handleCameraAnalysisComplete}
+                                  className="max-w-md"
+                                />
+                              ))}
+                            </div>
+                          )}
+
+                          {/* AI Analysis Message */}
+                          {msg.type === "camera_analysis" && (
+                            <div className="mt-4 p-4 bg-blue-900/20 border border-blue-700/50 rounded-lg" data-testid="camera-analysis">
+                              <div className="flex items-start space-x-3">
+                                <div className="flex-shrink-0">
+                                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                                    🧠
+                                  </div>
+                                </div>
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-blue-400 mb-2">
+                                    AI Analiza Kamery
+                                  </div>
+                                  <div className="text-sm text-gray-300 prose prose-invert max-w-none prose-sm">
+                                    <ReactMarkdown
+                                      urlTransform={(url) => url}
+                                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                                      components={{
+                                        p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                        strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                                        em: ({ children }) => <em className="italic">{children}</em>,
+                                        code: ({ className, children }) => {
+                                          const isInline = !className?.includes('language-');
+                                          return isInline ?
+                                            <code className="bg-gray-700 px-1 py-0.5 rounded text-xs font-mono">{children}</code> :
+                                            <code className="block bg-gray-700 p-2 rounded text-xs font-mono overflow-x-auto">{children}</code>;
+                                        },
+                                        ul: ({ children }) => <ul className="list-disc list-inside mb-2 space-y-1">{children}</ul>,
+                                        ol: ({ children }) => <ol className="list-decimal list-inside mb-2 space-y-1">{children}</ol>,
+                                        li: ({ children }) => <li className="text-gray-200">{children}</li>,
+                                        a: ({ href, children }) => (
+                                          <a
+                                            href={href}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-400 hover:text-blue-300 underline"
+                                          >
+                                            {children}
+                                          </a>
+                                        ),
+                                      }}
+                                    >
+                                      {msg.text}
+                                    </ReactMarkdown>
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-2">
+                                    Analiza wykonana automatycznie • Wykrywanie zmian co sekundę
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {selectedCamera && (
+                            <div className="mt-4" data-testid="selected-camera-preview">
+                              <CameraPreview
+                                camera={selectedCamera}
+                                onSelect={handleCameraSelect}
+                                onAnalysisComplete={handleCameraAnalysisComplete}
+                                className="max-w-2xl mx-auto"
+                              />
+                            </div>
+                          )}
+                          {msg.role === "assistant" &&
+                            !msg.loading &&
+                            (msg.rssUrl || msg.contactUrl || msg.phoneUrl) && (
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                {msg.rssUrl && (
+                                  <a
+                                    href={
+                                      msg.rssUrl.startsWith("http")
+                                        ? msg.rssUrl
+                                        : msg.url
+                                          ? new URL(msg.rssUrl, msg.url).href
+                                          : msg.rssUrl
+                                    }
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-1.5 rounded-lg bg-orange-600/20 px-3 py-1.5 text-xs font-medium text-orange-400 hover:bg-orange-600/30 transition"
+                                  >
+                                    📰 Kanał RSS
+                                  </a>
+                                )}
+                                {msg.contactUrl && (
+                                  <a
+                                    href={
+                                      msg.contactUrl.startsWith("http") ||
+                                        msg.contactUrl.startsWith("mailto:")
+                                        ? msg.contactUrl
+                                        : msg.url
+                                          ? new URL(msg.contactUrl, msg.url).href
+                                          : msg.contactUrl
+                                    }
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex items-center gap-1.5 rounded-lg bg-blue-600/20 px-3 py-1.5 text-xs font-medium text-blue-400 hover:bg-blue-600/30 transition"
+                                  >
+                                    ✉️ Napisz wiadomość
+                                  </a>
+                                )}
+                                {msg.phoneUrl && (
+                                  <a
+                                    href={
+                                      msg.phoneUrl.startsWith("tel:")
+                                        ? msg.phoneUrl
+                                        : `tel:${msg.phoneUrl}`
+                                    }
+                                    className="flex items-center gap-1.5 rounded-lg bg-green-600/20 px-3 py-1.5 text-xs font-medium text-green-400 hover:bg-green-600/30 transition"
+                                  >
+                                    📞 Zadzwoń
+                                  </a>
+                                )}
+                              </div>
+                            )}
+
+                          {msg.suggestions && msg.suggestions.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {msg.suggestions.map((s) => (
+                                <button
+                                  key={s.query}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSuggestionClick(s);
+                                  }}
+                                  className="rounded-lg bg-gray-700 px-3 py-1.5 text-xs text-broxeen-300 transition hover:bg-gray-600"
+                                >
+                                  {s.text.replace("https://", "")}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Contextual quick actions */}
+                          {msg.role === "assistant" && !msg.loading && msg.type !== "config_prompt" && (
+                            <MessageQuickActions
+                              message={msg}
+                              onExecute={(query) => handleSubmit(query)}
+                              onPrefill={(text) => setInput(text)}
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {msg.role === "assistant" &&
+                        !msg.loading &&
+                        msg.text.length > 50 &&
+                        (tts.isSpeaking || messages[messages.length - 1]?.id === msg.id) && (
+                          <div className="mt-3 flex items-center gap-2 border-t border-gray-700/50 pt-2">
+                            <TtsControls
+                              isSpeaking={tts.isSpeaking}
+                              isPaused={tts.isPaused}
+                              progress={tts.progress}
+                              onSpeak={() => tts.speak(msg.text.slice(0, 3000))}
+                              onPause={tts.pause}
+                              onResume={tts.resume}
+                              onStop={tts.stop}
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyMessageContext(msg);
+                              }}
+                              className="ml-auto rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-700 hover:text-gray-300"
+                              title="Kopiuj tę interakcję"
+                            >
+                              <Copy size={14} />
+                            </button>
                           </div>
                         )}
-
-                        {/* Contextual quick actions */}
-                        {msg.role === "assistant" && !msg.loading && msg.type !== "config_prompt" && (
-                          <MessageQuickActions
-                            message={msg}
-                            onExecute={(query) => handleSubmit(query)}
-                            onPrefill={(text) => setInput(text)}
-                          />
-                        )}
-                      </div>
                     </div>
-
-                    {msg.role === "assistant" &&
-                      !msg.loading &&
-                      msg.text.length > 50 &&
-                      (tts.isSpeaking || messages[messages.length - 1]?.id === msg.id) && (
-                        <div className="mt-3 flex items-center gap-2 border-t border-gray-700/50 pt-2">
-                          <TtsControls
-                            isSpeaking={tts.isSpeaking}
-                            isPaused={tts.isPaused}
-                            progress={tts.progress}
-                            onSpeak={() => tts.speak(msg.text.slice(0, 3000))}
-                            onPause={tts.pause}
-                            onResume={tts.resume}
-                            onStop={tts.stop}
-                          />
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyMessageContext(msg);
-                            }}
-                            className="ml-auto rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-700 hover:text-gray-300"
-                            title="Kopiuj tę interakcję"
-                          >
-                            <Copy size={14} />
-                          </button>
-                        </div>
-                      )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
           </div>

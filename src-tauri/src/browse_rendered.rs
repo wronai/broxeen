@@ -305,7 +305,10 @@ async fn describe_image_with_vision(
     let img_base64 = base64::engine::general_purpose::STANDARD.encode(img_bytes);
 
     let payload = serde_json::json!({
-        "model": env::var("VITE_BROWSE_LLM_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-001".to_string()),
+        "model": env::var("BROWSE_LLM_MODEL").unwrap_or_else(|_| {
+            env::var("VITE_BROWSE_LLM_MODEL")
+                .unwrap_or_else(|_| "google/gemini-2.0-flash-001".to_string())
+        }),
         "messages": [
             {
                 "role": "user",

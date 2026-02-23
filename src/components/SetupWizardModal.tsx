@@ -17,6 +17,7 @@ import {
 import { configStore } from "../config/configStore";
 import { isTauriRuntime } from "../lib/runtime";
 import { chat } from "../lib/llmClient";
+import { CONFIG_FIELD_META } from "../config/appConfig";
 
 interface SetupWizardModalProps {
   isOpen: boolean;
@@ -27,14 +28,7 @@ interface SetupWizardModalProps {
   onOpenDeviceDashboard?: () => void;
 }
 
-const MODELS = [
-  { value: "google/gemini-2.0-flash", label: "Gemini 2.0 Flash", desc: "Szybki, tani, dobry do PL" },
-  { value: "google/gemini-3-flash-preview", label: "Gemini 3 Flash", desc: "Najnowszy Gemini" },
-  { value: "anthropic/claude-3.5-sonnet", label: "Claude 3.5 Sonnet", desc: "Bardzo dokładny" },
-  { value: "openai/gpt-4o-mini", label: "GPT-4o Mini", desc: "Szybki i tani" },
-  { value: "openai/gpt-4o", label: "GPT-4o", desc: "Najlepszy OpenAI" },
-  { value: "meta-llama/llama-3.1-70b-instruct", label: "Llama 3.1 70B", desc: "Open source" },
-];
+const MODELS = CONFIG_FIELD_META.find((field: any) => field.key === 'llm.model')?.options || [];
 
 const STEPS = [
   { id: "api", label: "Klucz API", icon: Key },
@@ -329,7 +323,7 @@ export default function SetupWizardModal({
                 </p>
               </div>
               <div className="space-y-2">
-                {MODELS.map((m) => (
+                {MODELS.map((m: any) => (
                   <button
                     key={m.value}
                     onClick={() => setModel(m.value)}
@@ -341,7 +335,7 @@ export default function SetupWizardModal({
                   >
                     <div>
                       <div className="text-sm font-medium">{m.label}</div>
-                      <div className="text-xs text-gray-400">{m.desc}</div>
+                      <div className="text-xs text-gray-400">{m.description}</div>
                     </div>
                     {model === m.value && (
                       <Check size={16} className="text-broxeen-400 flex-shrink-0" />

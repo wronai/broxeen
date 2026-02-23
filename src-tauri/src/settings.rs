@@ -46,7 +46,12 @@ fn default_tts_lang() -> String { "pl-PL".to_string() }
 fn default_tts_engine() -> String { "auto".to_string() }
 fn default_stt_enabled() -> bool { true }
 fn default_stt_engine() -> String { "openrouter".to_string() }
-fn default_stt_model() -> String { env::var("VITE_STT_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string()) }
+fn default_stt_model() -> String {
+    env::var("STT_MODEL").unwrap_or_else(|_| {
+        env::var("VITE_STT_MODEL")
+            .unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string())
+    })
+}
 fn default_mic_enabled() -> bool { true }
 fn default_device_id() -> String { "default".to_string() }
 fn default_auto_listen() -> bool { false }
