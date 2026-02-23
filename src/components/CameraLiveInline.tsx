@@ -165,12 +165,12 @@ export function CameraLiveInline(props: {
           alt={`Live ${props.cameraId}`}
           className={
             props.imageClassName ??
-            "w-full h-auto object-contain rounded cursor-pointer hover:opacity-90 transition-opacity"
+            "w-full h-auto object-contain max-h-80 rounded cursor-pointer hover:opacity-90 transition-opacity"
           }
           onClick={() => props.onClickImage?.(frame)}
         />
       ) : (
-        <div className="w-full h-48 rounded bg-black/40 border border-gray-700 flex items-center justify-center text-gray-400 text-sm">
+        <div className="w-full max-h-80 h-48 rounded bg-black/40 border border-gray-700 flex items-center justify-center text-gray-400 text-sm">
           Ładowanie klatki...
         </div>
       )}

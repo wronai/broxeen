@@ -16,6 +16,7 @@
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
 import { processRegistry } from '../../core/processRegistry';
 import { configStore } from '../../config/configStore';
+import type { ConfigPromptData, ConfigAction } from '../../components/ChatConfigPrompt';
 
 export interface MonitorTarget {
   id: string;
@@ -306,6 +307,38 @@ export class MonitorPlugin implements Plugin {
   private handleStop(input: string, start: number): PluginResult {
     const targetName = input.replace(/^.*(?:stop|zatrzymaj|przestań|przestan)\s*(?:monitoring?\s*)?/i, '').trim().toLowerCase();
 
+    // Handle "stop wszystkie monitoringi"
+    if (targetName === 'wszystkie' || targetName === 'all' || targetName === '') {
+      if (this.targets.size === 0) {
+        return this.errorResult('Brak aktywnych monitoringów do zatrzymania.', start);
+      }
+      
+      const stoppedTargets: string[] = [];
+      for (const t of this.targets.values()) {
+        const timer = this.timers.get(t.id);
+        if (timer) clearInterval(timer);
+        this.timers.delete(t.id);
+        t.active = false;
+        t.logs.push({
+          timestamp: Date.now(),
+          type: 'stop',
+          message: `Monitoring zatrzymany (komendą "stop wszystkie")`,
+        });
+        stoppedTargets.push(t.name);
+      }
+      
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{
+          type: 'text',
+          data: `⏹️ **Zatrzymano wszystkie monitoringi** (${stoppedTargets.length})\n\n` +
+            stoppedTargets.map(name => `- ${name}`).join('\n'),
+        }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
     // Find matching target
     let found: MonitorTarget | undefined;
     for (const t of this.targets.values()) {
@@ -391,11 +424,21 @@ export class MonitorPlugin implements Plugin {
       data += `- **Wykryte zmiany:** ${t.changeCount}\n\n`;
     }
 
+    const configPrompt = this.buildMonitoringConfigPrompt();
+    
     return {
       pluginId: this.id,
       status: 'success',
-      content: [{ type: 'text', data, title: 'Aktywne monitoringi' }],
-      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      content: [
+        { type: 'text', data, title: 'Aktywne monitoringi' },
+        { type: 'text', data: '', title: '⚙️ Szybkie ustawienia' }
+      ],
+      metadata: { 
+        duration_ms: Date.now() - start, 
+        cached: false, 
+        truncated: false,
+        configPrompt
+      },
     };
   }
 
@@ -1007,6 +1050,45 @@ export class MonitorPlugin implements Plugin {
       snapshot: '📸',
     };
     return icons[type] || '📝';
+  }
+
+  // ── Helper Functions ───────────────────────────────────────
+
+  private buildMonitoringConfigPrompt(): ConfigPromptData {
+    const actions: ConfigAction[] = [];
+    
+    // Interval actions
+    const intervalActions: ConfigAction[] = [
+      { id: 'interval-10s', label: '⚡ 10s', type: 'execute', executeQuery: 'zmien interwał co 10s', variant: 'primary' },
+      { id: 'interval-30s', label: '🔄 30s', type: 'execute', executeQuery: 'zmien interwał co 30s', variant: 'secondary' },
+      { id: 'interval-60s', label: '⏱️ 1m', type: 'execute', executeQuery: 'zmien interwał na 1m', variant: 'secondary' },
+      { id: 'interval-5m', label: '🕐 5m', type: 'execute', executeQuery: 'zmien interwał na 5m', variant: 'secondary' },
+    ];
+    
+    // Threshold actions
+    const thresholdActions: ConfigAction[] = [
+      { id: 'threshold-5', label: '🎯 5%', type: 'execute', executeQuery: 'ustaw próg zmian 5%', variant: 'warning' },
+      { id: 'threshold-10', label: '🎯 10%', type: 'execute', executeQuery: 'ustaw próg zmian 10%', variant: 'warning' },
+      { id: 'threshold-15', label: '🎯 15%', type: 'execute', executeQuery: 'ustaw próg zmian 15%', variant: 'warning' },
+      { id: 'threshold-20', label: '🎯 20%', type: 'execute', executeQuery: 'ustaw próg zmian 20%', variant: 'warning' },
+    ];
+    
+    // Control actions
+    const controlActions: ConfigAction[] = [
+      { id: 'logs', label: '📋 Pokaż logi', type: 'execute', executeQuery: 'pokaż logi monitoringu', variant: 'success' },
+      { id: 'stop-all', label: '⏹️ Zatrzymaj wszystkie', type: 'execute', executeQuery: 'stop wszystkie monitoringi', variant: 'danger' },
+    ];
+    
+    return {
+      title: '⚙️ Zarządzanie monitoringiem',
+      description: 'Szybkie ustawienia dla wszystkich aktywnych monitoringów:',
+      actions: [
+        ...intervalActions,
+        ...thresholdActions, 
+        ...controlActions
+      ],
+      layout: 'buttons'
+    };
   }
 
   private formatDuration(ms: number): string {
