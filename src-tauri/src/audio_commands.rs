@@ -96,6 +96,10 @@ pub async fn stt_stop(
     model: Option<String>,
 ) -> Result<String, String> {
     crate::backend_info("Command stt_stop invoked");
+    crate::backend_info(format!("STT params: language={:?}, api_key_set={}, model={:?}", 
+        language, 
+        api_key.as_ref().map_or(false, |k| !k.is_empty()),
+        model));
 
     // Drop the stream to stop recording
     {

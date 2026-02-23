@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { isTauriRuntime } from "../lib/runtime";
 import { logger, logAsyncDecorator, logSyncDecorator } from "../lib/logger";
 import { transcribeAudio, type SttAudioFormat } from "../lib/sttClient";
-import { configStore } from "../config/configStore";
+import { DEFAULT_AUDIO_SETTINGS, type AudioSettings } from "../domain/audioSettings";
 
 const sttLogger = logger.scope("speech:stt:ui");
 const STT_TAURI_BACKEND_REASON =
@@ -13,6 +13,21 @@ const STT_TAURI_BACKEND_UNAVAILABLE_REASON =
 
 interface UseSttOptions {
   lang?: string;
+  audioSettings?: AudioSettings; // Pass AudioSettings from component
+}
+
+// Helper to get AudioSettings from backend (fallback to defaults)
+async function getAudioSettings(): Promise<AudioSettings> {
+  if (!isTauriRuntime()) {
+    return DEFAULT_AUDIO_SETTINGS;
+  }
+  try {
+    const settings = await invoke<Partial<AudioSettings>>("get_settings");
+    return { ...DEFAULT_AUDIO_SETTINGS, ...settings };
+  } catch (e) {
+    sttLogger.warn("Failed to load AudioSettings from backend, using defaults", { error: e });
+    return DEFAULT_AUDIO_SETTINGS;
+  }
 }
 
 interface UseSttReturn {
@@ -134,7 +149,7 @@ function toErrorDetails(e: unknown) {
 }
 
 export function useStt(options: UseSttOptions = {}): UseSttReturn {
-  const { lang = "pl-PL" } = options;
+  const { lang = "pl-PL", audioSettings } = options;
   const [isSupported, setIsSupported] = useState(false);
   const [unsupportedReason, setUnsupportedReason] = useState<string | null>(
     null,
@@ -207,7 +222,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
     streamRef.current = null;
   }, []);
 
-  const startTauriRecording = useCallback(() => {
+  const startTauriRecording = useCallback(async () => {
     if (startInFlightRef.current) {
       sttLogger.debug("Tauri STT start ignored — start already in-flight");
       return;
@@ -232,27 +247,33 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
       },
     );
 
-    const promise = runBackendStart();
-    void promise.catch((e: unknown) => {
+    try {
+      await runBackendStart();
+    } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       sttLogger.error("Failed to start Tauri STT recording", { error: msg });
       isRecordingRef.current = false;
       startInFlightRef.current = false;
-      setIsSupported(false);
-      setUnsupportedReason(
-        `${STT_TAURI_BACKEND_UNAVAILABLE_REASON} ${msg}`.trim(),
-      );
+      setIsRecording(false);
+      
+      // Don't set unsupported for "Already recording" - it's expected
+      if (!msg.includes("Already recording")) {
+        setIsSupported(false);
+        setUnsupportedReason(
+          `${STT_TAURI_BACKEND_UNAVAILABLE_REASON} ${msg}`.trim(),
+        );
+      }
+      
       setError(msg);
       setLastErrorDetails({
         name: e instanceof Error ? e.name : undefined,
         message: msg,
       });
       setIsRecording(false);
-    });
-
-    void promise.finally(() => {
+      throw e; // Re-throw to allow caller to handle
+    } finally {
       startInFlightRef.current = false;
-    });
+    }
   }, [lang]);
 
   const startRecording = useCallback(() => {
@@ -267,7 +288,11 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
       }
 
       if (modeRef.current === "tauri") {
-        startTauriRecording();
+        // Handle async startTauriRecording properly
+        startTauriRecording().catch((e) => {
+          // Error already handled in startTauriRecording, just log
+          sttLogger.debug("startTauriRecording error caught in startRecording", { error: e });
+        });
         return;
       }
 
@@ -407,11 +432,12 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
             setError(null);
 
             try {
-              const cfg = configStore.getAll();
+              // Use audioSettings from options or fetch from backend
+              const settings = audioSettings || await getAudioSettings();
               const transcriptValue = await invoke<string>("stt_stop", {
                 language: lang.split("-")[0],
-                apiKey: cfg.llm.apiKey,
-                model: cfg.stt.model,
+                apiKey: settings.stt_engine === "openrouter" ? "" : undefined, // API key from backend env
+                model: settings.stt_model,
               });
               const normalized = (transcriptValue || "").trim();
               setTranscript(normalized);
@@ -475,17 +501,18 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   useEffect(() => {
     return () => {
       if (modeRef.current === "tauri" && isRecordingRef.current) {
-        const cfg = configStore.getAll();
+        // Cleanup with current audioSettings or defaults
+        const cleanupSettings = audioSettings || DEFAULT_AUDIO_SETTINGS;
         invoke("stt_stop", {
           language: lang.split("-")[0],
-          apiKey: cfg.llm.apiKey,
-          model: cfg.stt.model,
+          apiKey: cleanupSettings.stt_engine === "openrouter" ? "" : undefined,
+          model: cleanupSettings.stt_model,
         }).catch(
           () => undefined,
         );
       }
     };
-  }, [lang]);
+  }, [lang, audioSettings]);
 
   return {
     isSupported,

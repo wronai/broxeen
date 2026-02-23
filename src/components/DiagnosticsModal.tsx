@@ -27,7 +27,7 @@ export default function DiagnosticsModal({
 
   const runtimeIsTauri = isTauriRuntime();
   const speech = useSpeech(settings.tts_lang);
-  const stt = useStt({ lang: settings.tts_lang });
+  const stt = useStt({ lang: settings.tts_lang, audioSettings: settings });
   const tts = useTts({
     rate: settings.tts_rate,
     pitch: settings.tts_pitch,

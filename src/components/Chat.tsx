@@ -305,7 +305,7 @@ export default function Chat({ settings }: ChatProps) {
     clearFinalTranscript,
   } = useSpeech(settings.tts_lang);
 
-  const stt = useStt({ lang: settings.tts_lang });
+  const stt = useStt({ lang: settings.tts_lang, audioSettings: settings });
 
   const shouldUseWebSpeech =
     settings.stt_engine === "webspeech" && speechSupported;
@@ -580,7 +580,14 @@ export default function Chat({ settings }: ChatProps) {
       chatLogger.info("Auto-listen(STT): starting recording");
       sttAutoListenStartedAtRef.current = Date.now();
       sttAutoListenSilenceHitsRef.current = 0;
-      stt.startRecording();
+      try {
+        stt.startRecording();
+      } catch (e) {
+        chatLogger.warn("Auto-listen(STT): startRecording failed", { error: e });
+        // Reset state on error to allow retry
+        sttAutoListenStartedAtRef.current = null;
+        sttAutoListenSilenceHitsRef.current = 0;
+      }
     }
 
     // Silence polling is only available in Tauri native audio path.
