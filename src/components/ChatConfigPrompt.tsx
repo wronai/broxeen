@@ -651,6 +651,15 @@ export function buildConfigOverviewPrompt(): ConfigPromptData {
         variant: 'secondary',
       },
       {
+        id: 'config-frigate',
+        label: 'Frigate',
+        icon: '🦅',
+        type: 'execute',
+        executeQuery: 'frigate status',
+        variant: 'secondary',
+        description: 'Detekcja obiektów (MQTT)',
+      },
+      {
         id: 'config-reset',
         label: 'Resetuj',
         icon: '🔄',

@@ -123,6 +123,22 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
       });
     }
     
+    // File management suggestions based on time
+    if (timeOfDay === 'morning') {
+      contextual.push({
+        id: 'morning-documents',
+        title: 'Przegląd dokumentów',
+        description: 'Sprawdź najnowsze pliki',
+        icon: <FileText className="w-4 h-4" />,
+        query: 'znajdź ostatnie dokumenty',
+        category: 'contextual',
+        priority: 6,
+        isContextual: true,
+        confidence: 0.6,
+        reasoning: 'Poranne przeglądanie dokumentów'
+      });
+    }
+    
     return contextual;
   }, [currentContext, getTimeOfDay]);
 
@@ -161,6 +177,8 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
   const getSmartTitle = (query: string): string => {
     if (query.includes('kamer')) return 'Sprawdź kamery';
     if (query.includes('sieci')) return 'Skanuj sieć';
+    if (query.includes('pdf')) return 'Znajdź PDF';
+    if (query.includes('plik') || query.includes('dokument')) return 'Przeglądaj dokumenty';
     if (query.includes('.pl') || query.includes('.com')) return 'Przeglądaj stronę';
     if (query.includes('wyszukaj')) return 'Wyszukaj';
     return query.length > 20 ? `${query.slice(0, 20)}...` : query;
@@ -172,6 +190,7 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
       case 'camera': return <Camera className="w-4 h-4" />;
       case 'browse': return <Globe className="w-4 h-4" />;
       case 'search': return <Search className="w-4 h-4" />;
+      case 'file': return <FileText className="w-4 h-4" />;
       default: return <Brain className="w-4 h-4" />;
     }
   };
@@ -184,6 +203,15 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
       query: 'znajdź kamere w sieci',
       category: 'network',
       priority: 10,
+    },
+    {
+      id: 'find-pdfs',
+      title: 'Znajdź pliki PDF',
+      description: 'Przeszukaj dokumenty PDF',
+      icon: <FileText className="w-4 h-4" />,
+      query: 'znajdź pliki pdf',
+      category: 'search',
+      priority: 9,
     },
     {
       id: 'browse-popular',
@@ -202,6 +230,15 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
       query: 'pokaż kamery',
       category: 'camera',
       priority: 9,
+    },
+    {
+      id: 'search-documents',
+      title: 'Przeszukaj dokumenty',
+      description: 'Znajdź w Dokumentach i Pulpicie',
+      icon: <FileText className="w-4 h-4" />,
+      query: 'znajdź dokumenty',
+      category: 'search',
+      priority: 7,
     },
     {
       id: 'search-web',
@@ -279,6 +316,19 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
           priority: 8,
         });
       }
+      
+      // If user was searching for files, suggest more file actions
+      if (lastQuery.includes('pdf') || lastQuery.includes('plik') || lastQuery.includes('dokument')) {
+        combinedSuggestions.push({
+          id: 'more-files',
+          title: 'Przeglądaj dokumenty',
+          description: 'Otwórz znalezione pliki',
+          icon: <FileText className="w-4 h-4" />,
+          query: 'przeglądaj dokumenty pdf',
+          category: 'file',
+          priority: 8,
+        });
+      }
     }
     
     // Sort by priority, confidence, and usage
@@ -309,6 +359,7 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
       case 'browse': return 'bg-green-500/20 text-green-400 border-green-500/30';
       case 'camera': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
       case 'search': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case 'file': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
       case 'smart': return 'bg-pink-500/20 text-pink-400 border-pink-500/30';
       case 'contextual': return 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30';
       default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
@@ -321,6 +372,7 @@ export const ActionSuggestions: React.FC<ActionSuggestionsProps> = ({
       case 'browse': return <Globe className="w-3 h-3" />;
       case 'camera': return <Camera className="w-3 h-3" />;
       case 'search': return <Search className="w-3 h-3" />;
+      case 'file': return <FileText className="w-3 h-3" />;
       case 'smart': return <Brain className="w-3 h-3" />;
       case 'contextual': return <Clock className="w-3 h-3" />;
       default: return <Lightbulb className="w-3 h-3" />;

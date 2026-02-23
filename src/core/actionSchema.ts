@@ -25,7 +25,8 @@ export type ActionDomain =
   | 'marketplace'
   | 'chat'
   | 'file'
-  | 'email';
+  | 'email'
+  | 'frigate';
 
 export interface ActionSchema {
   /** Intent id, e.g. "camera:snapshot" */
@@ -291,6 +292,38 @@ export const ACTION_SCHEMAS: readonly ActionSchema[] = [
     executeQuery: 'monitoruj ',
   },
 
+  // ── Frigate domain ────────────────────────────────
+  {
+    intent: 'frigate:status',
+    domain: 'frigate',
+    label: 'Frigate status',
+    description: 'Sprawdź status połączenia z Frigate NVR (MQTT)',
+    icon: '🦅',
+    keywords: ['frigate', 'status', 'nvr', 'detekcja', 'mqtt'],
+    examples: ['frigate status', 'stan frigate'],
+    executeQuery: 'frigate status',
+  },
+  {
+    intent: 'frigate:start',
+    domain: 'frigate',
+    label: 'Uruchom Frigate',
+    description: 'Uruchom nasłuch zdarzeń Frigate (MQTT)',
+    icon: '▶️',
+    keywords: ['frigate', 'start', 'uruchom', 'włącz'],
+    examples: ['frigate start', 'uruchom frigate'],
+    executeQuery: 'frigate start',
+  },
+  {
+    intent: 'frigate:stop',
+    domain: 'frigate',
+    label: 'Zatrzymaj Frigate',
+    description: 'Zatrzymaj nasłuch zdarzeń Frigate (MQTT)',
+    icon: '⏹️',
+    keywords: ['frigate', 'stop', 'zatrzymaj', 'wyłącz'],
+    examples: ['frigate stop', 'zatrzymaj frigate'],
+    executeQuery: 'frigate stop',
+  },
+
   // ── Browse domain ────────────────────────────────
   {
     intent: 'browse:url',
@@ -504,6 +537,7 @@ export function schemasToLlmContext(schemas: ActionSchema[]): string {
     chat: 'Rozmowa',
     file: 'Pliki',
     email: 'Email',
+    frigate: 'Frigate NVR',
   };
 
   const lines: string[] = [];

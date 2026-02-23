@@ -798,6 +798,30 @@ Wybierz jedną z poniższych opcji, aby kontynuować:`;
     const lowerQuery = query.toLowerCase();
     const suggestions = [];
 
+    // File-related suggestions
+    if (lowerQuery.includes('pdf') || lowerQuery.includes('plik') || lowerQuery.includes('dokument')) {
+      suggestions.push(
+        { 
+          action: 'find_files', 
+          text: '📄 Znajdź pliki PDF', 
+          description: 'Przeszukaj wszystkie dokumenty PDF w systemie',
+          query: 'znajdź pliki pdf'
+        },
+        { 
+          action: 'find_documents', 
+          text: '📂 Przeszukaj dokumenty', 
+          description: 'Znajdź pliki w folderze Dokumenty i Pulpit',
+          query: 'znajdź dokumenty'
+        },
+        { 
+          action: 'recent_files', 
+          text: '🕐 Najnowsze pliki', 
+          description: 'Pokaż ostatnio modyfikowane dokumenty',
+          query: 'znajdź ostatnie dokumenty'
+        }
+      );
+    }
+
     // Network-related suggestions
     if (lowerQuery.includes('sieci') || lowerQuery.includes('kamer') || lowerQuery.includes('urządzen')) {
       suggestions.push(
