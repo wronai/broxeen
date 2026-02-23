@@ -444,66 +444,52 @@ export function findMatchingSchemas(query: string, limit = 5): Array<ActionSchem
     .slice(0, limit);
 }
 
+/**
+ * Supplemental domain hints for Polish declension forms not directly
+ * present in ACTION_SCHEMAS keywords (e.g. "sieci" is locative of "sieć").
+ * Kept minimal — the primary source is auto-derived from schema keywords.
+ */
+const SUPPLEMENTAL_HINTS: ReadonlyArray<[string, ActionDomain]> = [
+  ['siec', 'network'], ['sieci', 'network'],
+  ['kamer', 'camera'], ['zdjęci', 'camera'],
+  ['stron', 'browse'],
+  ['plik', 'file'], ['pliki', 'file'], ['folder', 'file'], ['katalog', 'file'], ['dokument', 'file'], ['usera', 'file'],
+  ['czujnik', 'iot'], ['temperatur', 'iot'],
+  ['poczta', 'email'], ['skrzynk', 'email'],
+  ['obserwuj', 'monitor'], ['śledź', 'monitor'],
+  ['zdaln', 'system'],
+];
+
+/**
+ * Build keyword→domain map dynamically from ACTION_SCHEMAS.
+ * Each schema's keywords are mapped to its domain, supplemented by
+ * a small set of Polish declension forms not in the keyword arrays.
+ */
+const _domainHintCache = new Map<string, ActionDomain>();
+function getDomainHints(): Map<string, ActionDomain> {
+  if (_domainHintCache.size > 0) return _domainHintCache;
+  for (const schema of ACTION_SCHEMAS) {
+    for (const kw of schema.keywords) {
+      if (!_domainHintCache.has(kw)) {
+        _domainHintCache.set(kw, schema.domain);
+      }
+    }
+  }
+  for (const [hint, domain] of SUPPLEMENTAL_HINTS) {
+    if (!_domainHintCache.has(hint)) {
+      _domainHintCache.set(hint, domain);
+    }
+  }
+  return _domainHintCache;
+}
+
 /** Find schemas by domain relevance to query keywords */
 export function findDomainSchemas(query: string): ActionSchema[] {
   const lower = query.toLowerCase();
-  const domainHints: Record<string, ActionDomain> = {
-    'kamer': 'camera',
-    'camera': 'camera',
-    'zdjęci': 'camera',
-    'snapshot': 'camera',
-    'rtsp': 'camera',
-    'live': 'camera',
-    'onvif': 'camera',
-    'sieć': 'network',
-    'siec': 'network',
-    'network': 'network',
-    'ping': 'network',
-    'port': 'network',
-    'arp': 'network',
-    'mac': 'network',
-    'wol': 'network',
-    'mdns': 'network',
-    'scan': 'network',
-    'dysk': 'system',
-    'ssh': 'system',
-    'proces': 'system',
-    'monitor': 'monitor',
-    'obserwuj': 'monitor',
-    'śledź': 'monitor',
-    'stron': 'browse',
-    'http': 'browse',
-    'www': 'browse',
-    'wyszukaj': 'browse',
-    'szukaj': 'browse',
-    'mqtt': 'bridge',
-    'bridge': 'bridge',
-    'rest': 'bridge',
-    'websocket': 'bridge',
-    'czujnik': 'iot',
-    'sensor': 'iot',
-    'temperatur': 'iot',
-    'marketplace': 'marketplace',
-    'plugin': 'marketplace',
-    'plik': 'file',
-    'pliki': 'file',
-    'folder': 'file',
-    'katalog': 'file',
-    'dokument': 'file',
-    'file': 'file',
-    'lista plik': 'file',
-    'usera': 'file',
-    'email': 'email',
-    'mail': 'email',
-    'poczta': 'email',
-    'skrzynk': 'email',
-    'inbox': 'email',
-    'smtp': 'email',
-    'imap': 'email',
-  };
+  const hints = getDomainHints();
 
   const matchedDomains = new Set<ActionDomain>();
-  for (const [hint, domain] of Object.entries(domainHints)) {
+  for (const [hint, domain] of hints) {
     if (lower.includes(hint)) {
       matchedDomains.add(domain);
     }

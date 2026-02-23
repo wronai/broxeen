@@ -136,22 +136,24 @@ export class ProtocolBridgePlugin implements Plugin {
     /strumie[ńn].*danych/i,
   ];
 
-  /** Ordered route table for execute: [route_key, patterns] */
-  private static readonly ROUTE_TABLE: ReadonlyArray<[string, readonly RegExp[]]> = [
-    ['remove',    [/usu[ńn].*bridge|remove.*bridge|delete.*bridge/i]],
-    ['list',      [/lista.*bridge|list.*bridge|bridge.*list[a]?|poka[żz].*bridge/i]],
-    ['status',    [/bridge.*status|status.*bridge|stan.*bridge/i]],
-    ['add',       [/dodaj.*bridge|add.*bridge|nowy?.*bridge|new.*bridge|konfiguruj.*bridge|configure.*bridge/i]],
-    ['send',      [/wy[śs]lij|send|publish|opublikuj|post\s/i]],
-    ['websocket', [/websocket|web.?socket|bridge.*ws\b|po[łl][aą]cz.*ws/i]],
-    ['sse',       [/\bsse\b|server.?sent|nas[łl]uchuj.*zdarze|bridge.*sse/i]],
-    ['graphql',   [/graphql|bridge.*graphql|zapytaj.*api/i]],
+  /** Data-driven command routing table - [pattern, handler-key] */
+  private static readonly ROUTE_TABLE: ReadonlyArray<[RegExp, string]> = [
+    // Bridge management (highest priority)
+    [/usu[ńn].*bridge|remove.*bridge|delete.*bridge/i, 'remove'],
+    [/lista.*bridge|list.*bridge|bridge.*list[a]?|poka[żz].*bridge/i, 'list'],
+    [/bridge.*status|status.*bridge|stan.*bridge/i, 'status'],
+    [/dodaj.*bridge|add.*bridge|nowy?.*bridge|new.*bridge|konfiguruj.*bridge|configure.*bridge/i, 'add'],
+    // Protocol operations
+    [/wy[śs]lij|send|publish|opublikuj|post\s/i, 'send'],
+    [/websocket|web.?socket|bridge.*ws\b|po[łl][aą]cz.*ws/i, 'websocket'],
+    [/\bsse\b|server.?sent|nas[łl]uchuj.*zdarze|bridge.*sse/i, 'sse'],
+    [/graphql|bridge.*graphql|zapytaj.*api/i, 'graphql'],
   ];
 
   private static resolveRoute(input: string): string | null {
     const lower = input.toLowerCase();
-    for (const [key, patterns] of ProtocolBridgePlugin.ROUTE_TABLE) {
-      if (patterns.some(p => p.test(lower))) return key;
+    for (const [pattern, key] of ProtocolBridgePlugin.ROUTE_TABLE) {
+      if (pattern.test(lower)) return key;
     }
     return null;
   }

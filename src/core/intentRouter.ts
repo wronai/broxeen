@@ -584,7 +584,25 @@ export class IntentRouter implements IIntentRouter {
     const normalizedInput = input.toLowerCase().trim();
     console.log(`🔍 Detecting intent for input: "${input}"`);
     
-    // Check specific intents first (in order of priority)
+    // LLM-first approach when enabled
+    if (this.useLlmClassifier) {
+      try {
+        const llmResult = await classifyIntent(input);
+        if (llmResult) {
+          console.log(`✅ LLM Intent detected: ${llmResult.intent} (confidence: ${llmResult.confidence})`);
+          return {
+            intent: llmResult.intent,
+            confidence: llmResult.confidence,
+            entities: llmResult.entities,
+          };
+        }
+      } catch (error) {
+        console.warn(`⚠️ LLM intent classification failed, falling back to regex:`, error);
+      }
+    }
+    
+    // Fallback to regex-based detection
+    console.log(`🔄 Using regex-based intent detection`);
     for (const [intent, patterns] of this.intentPatterns) {
       if (intent === 'chat:ask') continue; // skip fallback for now
       

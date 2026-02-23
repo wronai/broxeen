@@ -153,32 +153,32 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
 
   if (!isVisible) {
     return (
-      <div className="fixed bottom-24 right-4 flex flex-wrap items-center gap-1 z-50 max-w-[160px] sm:max-w-[200px] md:max-w-none">
+      <div className="fixed bottom-24 right-2 max-sm:right-1 flex flex-wrap items-center gap-1 z-50 max-w-[140px] max-sm:max-w-[120px] max-sm:right-1 sm:max-w-[200px] md:max-w-none">
         {onOpenErrorReport && (
           <button
             onClick={onOpenErrorReport}
-            className="bg-red-600 text-white px-1 sm:px-2 py-1.5 rounded-lg shadow-lg hover:bg-red-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
+            className="bg-red-600 text-white px-1 max-sm:px-1 py-1.5 rounded-lg shadow-lg hover:bg-red-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
             title="Pokaż raport błędów"
           >
-            <span className="hidden sm:inline">🚨 Błędy</span>
-            <span className="sm:hidden">🚨</span>
+            <span className="max-sm:inline hidden">🚨 Błędy</span>
+            <span className="max-sm:hidden">🚨</span>
           </button>
         )}
         <button
           onClick={() => copyErrorsToClipboard()}
-          className="bg-orange-600 text-white px-1 sm:px-2 py-1.5 rounded-lg shadow-lg hover:bg-orange-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
+          className="bg-orange-600 text-white px-1 max-sm:px-1 py-1.5 rounded-lg shadow-lg hover:bg-orange-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
           title="Kopiuj błędy do schowka (Ctrl+Shift+E)"
         >
-          <span className="hidden sm:inline">📋 Kopiuj błędy</span>
-          <span className="sm:hidden">📋</span>
+          <span className="max-sm:inline hidden">📋 Kopiuj</span>
+          <span className="max-sm:hidden">📋</span>
         </button>
         <button
           onClick={() => setIsVisible(true)}
-          className="bg-blue-600 text-white px-1 sm:px-2 py-1.5 rounded-lg shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
+          className="bg-blue-600 text-white px-1 max-sm:px-1 py-1.5 rounded-lg shadow-lg hover:bg-blue-700 transition-colors flex items-center gap-1 text-xs whitespace-nowrap"
           title="Pokaż diagnostykę systemu"
         >
-          <span className="hidden sm:inline">🏥 Diagnostyka</span>
-          <span className="sm:hidden">🏥</span>
+          <span className="max-sm:inline hidden">🏥 Diagnostyka</span>
+          <span className="max-sm:hidden">🏥</span>
         </button>
       </div>
     );

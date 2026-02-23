@@ -7,6 +7,7 @@ import { scopeRegistry } from '../plugins/scope/scopeRegistry';
 import { DatabaseManager } from '../persistence/databaseManager';
 import { configStore } from '../config/configStore';
 import { EventStore } from '../domain/eventStore';
+import { isLlmClassifierAvailable } from './llmIntentClassifier';
 
 export type { AppContext };
 import { PluginRegistry } from './pluginRegistry';
@@ -25,7 +26,9 @@ export async function bootstrapApp(config: {
   scopeRegistry.restore();
 
   const pluginRegistry = new PluginRegistry();
-  const intentRouter = new IntentRouter();
+  const useLlmClassifier = isLlmClassifierAvailable();
+  console.log(`🤖 LLM Intent Classifier: ${useLlmClassifier ? 'ENABLED' : 'DISABLED (no API key)'}`);
+  const intentRouter = new IntentRouter({ useLlmClassifier });
   const commandBus = new CommandBus();
   const eventStore = new EventStore();
 

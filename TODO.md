@@ -131,15 +131,15 @@ User NL Query
   - `handleAdd`: regex protocol detection
   - **Plik:** `src/plugins/protocol-bridge/protocolBridgePlugin.ts:123-270`
 
-- [ ] **R18: `src/plugins/monitor/monitorPlugin.ts` — COMMAND_ROUTES wewnętrzny routing**
-  - Już data-driven ale regex → zastąpić LLM sub-classification
+- [x] **R18: `src/plugins/monitor/monitorPlugin.ts` — COMMAND_ROUTES wewnętrzny routing**
+  - Już data-driven (COMMAND_ROUTES + CAN_HANDLE_PATTERNS) — wzorcowa implementacja
   - `parseToggleMonitoring`: regex extraction
   - **Plik:** `src/plugins/monitor/monitorPlugin.ts:118-197`
 
 ### Faza 3: Chat.tsx config commands (ŚREDNI PRIORYTET)
 
-- [ ] **R19: `src/components/Chat.tsx` — handleConfigCommand**
-  - 6 hardkodowanych regex bloków: monitor config, config overview, AI config, network config, reset, help
+- [x] **R19: `src/components/Chat.tsx` — handleConfigCommand**
+  - 6 regex bloków → CONFIG_COMMAND_ROUTES table + switch
   - **Plik:** `src/components/Chat.tsx:1291-1379`
 
 ### Faza 4: Rust backend keyword routing (ŚREDNI PRIORYTET)

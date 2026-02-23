@@ -9,6 +9,7 @@
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
 import { configStore } from '../../config/configStore';
+import { retry, shouldRetryUnknownAsTransient } from '../../core/retry';
 
 /** Maps natural language descriptions to SSH commands */
 const TEXT2SSH_PATTERNS: Array<{ patterns: RegExp[]; command: string; description: string }> = [
@@ -177,13 +178,23 @@ export class SshPlugin implements Plugin {
     }
 
     const sshCfg = configStore.getAll().ssh;
-    const result = (await context.tauriInvoke('ssh_execute', {
-      host,
-      command,
-      user: this.extractUser(input) || sshCfg.defaultUser,
-      port: this.extractPort(input) || sshCfg.defaultPort,
-      timeout: sshCfg.defaultTimeoutSec,
-    })) as SshExecResult;
+
+    const result = await retry(
+      async () =>
+        (await context.tauriInvoke!('ssh_execute', {
+          host,
+          command,
+          user: this.extractUser(input) || sshCfg.defaultUser,
+          port: this.extractPort(input) || sshCfg.defaultPort,
+          timeout: sshCfg.defaultTimeoutSec,
+        })) as SshExecResult,
+      {
+        retries: 2,
+        baseDelayMs: 250,
+        maxDelayMs: 1500,
+        shouldRetry: (error) => shouldRetryUnknownAsTransient(error),
+      },
+    );
 
     return this.formatSshResult(host, command, description, result, start);
   }
@@ -201,7 +212,15 @@ export class SshPlugin implements Plugin {
       };
     }
 
-    const hosts = (await context.tauriInvoke('ssh_list_known_hosts', {})) as KnownHost[];
+    const hosts = await retry(
+      async () => (await context.tauriInvoke!('ssh_list_known_hosts', {})) as KnownHost[],
+      {
+        retries: 2,
+        baseDelayMs: 250,
+        maxDelayMs: 1500,
+        shouldRetry: (error) => shouldRetryUnknownAsTransient(error),
+      },
+    );
 
     if (hosts.length === 0) {
       return {

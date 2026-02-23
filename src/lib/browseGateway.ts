@@ -1,6 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { logger, logAsyncDecorator } from "./logger";
 import { isTauriRuntime } from "./runtime";
+import {
+  isProbablyTransientHttpStatus,
+  retry,
+  shouldRetryUnknownAsTransient,
+} from "../core/retry";
 
 const browseLogger = logger.scope("browse:gateway");
 const MAX_CONTENT_LENGTH = 5000;
@@ -287,20 +292,58 @@ async function fetchViaAllOriginsJson(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(proxyUrl, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    return await retry(
+      async () => {
+        const response = await fetch(proxyUrl, { signal: controller.signal });
+        if (!response.ok) {
+          const err = new Error(`HTTP ${response.status}: ${response.statusText}`);
+          (err as any).status = response.status;
+          throw err;
+        }
 
-    const data = (await response.json()) as AllOriginsResponse;
-    return {
-      proxyName: "allorigins:get",
-      rawContent: typeof data?.contents === "string" ? data.contents : "",
-      sourceHttpCode: data?.status?.http_code,
-      sourceContentType: data?.status?.content_type,
-      sourceContentLength: data?.status?.content_length,
-      sourceUrl: data?.status?.url,
-    };
+        const data = (await response.json()) as AllOriginsResponse;
+        const statusCode = typeof data?.status?.http_code === "number" ? data.status.http_code : undefined;
+
+        if (typeof statusCode === "number" && isProbablyTransientHttpStatus(statusCode)) {
+          const err = new Error(`Source HTTP ${statusCode} via allorigins:get`);
+          (err as any).status = statusCode;
+          throw err;
+        }
+
+        return {
+          proxyName: "allorigins:get",
+          rawContent: typeof data?.contents === "string" ? data.contents : "",
+          sourceHttpCode: data?.status?.http_code,
+          sourceContentType: data?.status?.content_type,
+          sourceContentLength: data?.status?.content_length,
+          sourceUrl: data?.status?.url,
+        };
+      },
+      {
+        retries: 2,
+        baseDelayMs: 300,
+        maxDelayMs: 1200,
+        shouldRetry: (error) => {
+          const status = (error as any)?.status;
+          if (typeof status === "number") {
+            return {
+              retry: isProbablyTransientHttpStatus(status),
+              reason: `status ${status}`,
+            };
+          }
+          return shouldRetryUnknownAsTransient(error);
+        },
+        onRetry: ({ attempt, delayMs, reason, error }) => {
+          browseLogger.warn("Retrying allorigins:get", {
+            url,
+            attempt,
+            delayMs,
+            reason,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        },
+      },
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -313,20 +356,50 @@ async function fetchViaAllOriginsRaw(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(proxyUrl, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    return await retry(
+      async () => {
+        const response = await fetch(proxyUrl, { signal: controller.signal });
+        if (!response.ok) {
+          const err = new Error(`HTTP ${response.status}: ${response.statusText}`);
+          (err as any).status = response.status;
+          throw err;
+        }
 
-    const rawContent = await response.text();
-    return {
-      proxyName: "allorigins:raw",
-      rawContent,
-      sourceHttpCode: response.status,
-      sourceContentType: response.headers.get("content-type") || undefined,
-      sourceContentLength: rawContent.length,
-      sourceUrl: url,
-    };
+        const rawContent = await response.text();
+        return {
+          proxyName: "allorigins:raw",
+          rawContent,
+          sourceHttpCode: response.status,
+          sourceContentType: response.headers.get("content-type") || undefined,
+          sourceContentLength: rawContent.length,
+          sourceUrl: url,
+        };
+      },
+      {
+        retries: 2,
+        baseDelayMs: 300,
+        maxDelayMs: 1200,
+        shouldRetry: (error) => {
+          const status = (error as any)?.status;
+          if (typeof status === "number") {
+            return {
+              retry: isProbablyTransientHttpStatus(status),
+              reason: `status ${status}`,
+            };
+          }
+          return shouldRetryUnknownAsTransient(error);
+        },
+        onRetry: ({ attempt, delayMs, reason, error }) => {
+          browseLogger.warn("Retrying allorigins:raw", {
+            url,
+            attempt,
+            delayMs,
+            reason,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        },
+      },
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -338,20 +411,50 @@ async function fetchViaCorsProxy(url: string): Promise<BrowserProxyPayload> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(proxyUrl, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    return await retry(
+      async () => {
+        const response = await fetch(proxyUrl, { signal: controller.signal });
+        if (!response.ok) {
+          const err = new Error(`HTTP ${response.status}: ${response.statusText}`);
+          (err as any).status = response.status;
+          throw err;
+        }
 
-    const rawContent = await response.text();
-    return {
-      proxyName: "corsproxy.io",
-      rawContent,
-      sourceHttpCode: response.status,
-      sourceContentType: response.headers.get("content-type") || undefined,
-      sourceContentLength: rawContent.length,
-      sourceUrl: targetUrl,
-    };
+        const rawContent = await response.text();
+        return {
+          proxyName: "corsproxy.io",
+          rawContent,
+          sourceHttpCode: response.status,
+          sourceContentType: response.headers.get("content-type") || undefined,
+          sourceContentLength: rawContent.length,
+          sourceUrl: targetUrl,
+        };
+      },
+      {
+        retries: 2,
+        baseDelayMs: 300,
+        maxDelayMs: 1200,
+        shouldRetry: (error) => {
+          const status = (error as any)?.status;
+          if (typeof status === "number") {
+            return {
+              retry: isProbablyTransientHttpStatus(status),
+              reason: `status ${status}`,
+            };
+          }
+          return shouldRetryUnknownAsTransient(error);
+        },
+        onRetry: ({ attempt, delayMs, reason, error }) => {
+          browseLogger.warn("Retrying corsproxy.io", {
+            url: targetUrl,
+            attempt,
+            delayMs,
+            reason,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        },
+      },
+    );
   } finally {
     clearTimeout(timeout);
   }
@@ -363,20 +466,50 @@ async function fetchViaJina(url: string): Promise<BrowserProxyPayload> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10000);
   try {
-    const response = await fetch(proxyUrl, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+    return await retry(
+      async () => {
+        const response = await fetch(proxyUrl, { signal: controller.signal });
+        if (!response.ok) {
+          const err = new Error(`HTTP ${response.status}: ${response.statusText}`);
+          (err as any).status = response.status;
+          throw err;
+        }
 
-    const rawContent = await response.text();
-    return {
-      proxyName: "jina-ai",
-      rawContent,
-      sourceHttpCode: response.status,
-      sourceContentType: response.headers.get("content-type") || undefined,
-      sourceContentLength: rawContent.length,
-      sourceUrl: targetUrl,
-    };
+        const rawContent = await response.text();
+        return {
+          proxyName: "jina-ai",
+          rawContent,
+          sourceHttpCode: response.status,
+          sourceContentType: response.headers.get("content-type") || undefined,
+          sourceContentLength: rawContent.length,
+          sourceUrl: targetUrl,
+        };
+      },
+      {
+        retries: 2,
+        baseDelayMs: 300,
+        maxDelayMs: 1200,
+        shouldRetry: (error) => {
+          const status = (error as any)?.status;
+          if (typeof status === "number") {
+            return {
+              retry: isProbablyTransientHttpStatus(status),
+              reason: `status ${status}`,
+            };
+          }
+          return shouldRetryUnknownAsTransient(error);
+        },
+        onRetry: ({ attempt, delayMs, reason, error }) => {
+          browseLogger.warn("Retrying jina-ai", {
+            url: targetUrl,
+            attempt,
+            delayMs,
+            reason,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        },
+      },
+    );
   } finally {
     clearTimeout(timeout);
   }

@@ -1,3 +1,4 @@
+import { vi } from 'vitest';
 import { classifyIntent } from './src/core/llmIntentClassifier';
 
 async function main() {
