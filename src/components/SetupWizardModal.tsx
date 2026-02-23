@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   X,
   ChevronRight,
@@ -10,9 +11,11 @@ import {
   Camera,
   Eye,
   EyeOff,
+  Power,
 } from "lucide-react";
 import { configStore } from "../config/configStore";
 import { CONFIG_CATEGORIES } from "../config/appConfig";
+import { isTauriRuntime } from "../lib/runtime";
 
 interface SetupWizardModalProps {
   isOpen: boolean;
@@ -42,6 +45,8 @@ export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalPr
   const [model, setModel] = useState("google/gemini-2.0-flash");
   const [subnet, setSubnet] = useState("192.168.1");
   const [saved, setSaved] = useState(false);
+  const [autostartEnabled, setAutostartEnabled] = useState(false);
+  const [autostartLoading, setAutostartLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -50,7 +55,32 @@ export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalPr
     setApiKey(configStore.get<string>("llm.apiKey") || "");
     setModel(configStore.get<string>("llm.model") || "google/gemini-2.0-flash");
     setSubnet(configStore.get<string>("network.defaultSubnet") || "192.168.1");
+
+    // Check autostart status
+    if (isTauriRuntime()) {
+      invoke<boolean>("autostart_status")
+        .then(setAutostartEnabled)
+        .catch(() => setAutostartEnabled(false));
+    }
   }, [isOpen]);
+
+  const toggleAutostart = async () => {
+    if (!isTauriRuntime()) return;
+    setAutostartLoading(true);
+    try {
+      if (autostartEnabled) {
+        await invoke("autostart_disable");
+        setAutostartEnabled(false);
+      } else {
+        await invoke("autostart_enable");
+        setAutostartEnabled(true);
+      }
+    } catch (err) {
+      console.warn("Autostart toggle failed:", err);
+    } finally {
+      setAutostartLoading(false);
+    }
+  };
 
   const handleSave = () => {
     configStore.setMany({
@@ -249,6 +279,33 @@ export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalPr
                   ))}
                 </div>
               </div>
+              {/* Autostart toggle */}
+              {isTauriRuntime() && (
+                <div className="rounded-xl bg-gray-800/50 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-sm text-gray-300">Autostart przy starcie systemu</span>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Broxeen uruchomi się automatycznie po zalogowaniu
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => void toggleAutostart()}
+                      disabled={autostartLoading}
+                      className={`relative flex h-7 w-12 items-center rounded-full transition-colors ${
+                        autostartEnabled ? "bg-broxeen-600" : "bg-gray-700"
+                      } ${autostartLoading ? "opacity-50" : ""}`}
+                    >
+                      <div
+                        className={`h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                          autostartEnabled ? "translate-x-6" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="rounded-xl bg-gray-800/30 p-3 text-xs text-gray-400 space-y-1">
                 <div className="font-medium text-gray-300">💡 Wskazówka</div>
                 <div>
@@ -284,6 +341,12 @@ export default function SetupWizardModal({ isOpen, onClose }: SetupWizardModalPr
                 <div className="flex items-center justify-between">
                   <span className="text-gray-400">Podsieć</span>
                   <span className="text-gray-200 font-mono text-xs">{subnet}.0/24</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Autostart</span>
+                  <span className={autostartEnabled ? "text-green-400" : "text-gray-500"}>
+                    {autostartEnabled ? "✓ Włączony" : "Wyłączony"}
+                  </span>
                 </div>
               </div>
 

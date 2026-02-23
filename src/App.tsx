@@ -16,6 +16,7 @@ import TtsSettingsModal from "./components/TtsSettingsModal";
 import DiagnosticsModal from "./components/DiagnosticsModal";
 import SetupWizardModal from "./components/SetupWizardModal";
 import DeviceDashboardModal from "./components/DeviceDashboardModal";
+import DeviceStrip from "./components/DeviceStrip";
 import { HealthDiagnostic } from "./components/HealthDiagnostic";
 import { ErrorReportPanel } from "./components/ErrorReportPanel";
 import { useTts } from "./hooks/useTts";
@@ -417,6 +418,12 @@ export default function App() {
               {tts.isSpeaking ? " ▶" : ""}
             </span>
           </button>
+
+          {/* Configured devices strip */}
+          <DeviceStrip
+            devicesDb={appCtx?.databaseManager?.isReady() ? appCtx.databaseManager.getDevicesDb() : null}
+            onAddDevice={() => setDeviceDashboardOpen(true)}
+          />
 
           {/* Devices dashboard button */}
           <button
