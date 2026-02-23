@@ -18,6 +18,8 @@ import { processRegistry } from '../../core/processRegistry';
 import { configStore } from '../../config/configStore';
 import type { ConfigPromptData, ConfigAction } from '../../components/ChatConfigPrompt';
 import { DeviceRepository } from '../../persistence/deviceRepository';
+import { ConfiguredDeviceRepository } from '../../persistence/configuredDeviceRepository';
+import type { ConfiguredDevice } from '../../persistence/configuredDeviceRepository';
 
 export interface MonitorTarget {
   id: string;
@@ -85,6 +87,7 @@ export class MonitorPlugin implements Plugin {
 
   private targets = new Map<string, MonitorTarget>();
   private timers = new Map<string, ReturnType<typeof setInterval>>();
+  private configuredDeviceRepo?: ConfiguredDeviceRepository;
 
   async canHandle(input: string, context: PluginContext): Promise<boolean> {
     const lower = input.toLowerCase();
@@ -266,6 +269,29 @@ export class MonitorPlugin implements Plugin {
     };
 
     this.targets.set(parsed.id, target);
+
+    // Save to ConfiguredDeviceRepository if it's a device with IP
+    if (this.configuredDeviceRepo && target.type === 'camera' && target.address) {
+      try {
+        await this.configuredDeviceRepo.save({
+          label: target.name,
+          ip: target.address,
+          device_type: 'camera',
+          rtsp_url: target.rtspUrl || null,
+          http_url: target.httpUrl || null,
+          username: target.rtspUsername || null,
+          password: target.rtspPassword || null,
+          stream_path: null,
+          monitor_enabled: true,
+          monitor_interval_ms: target.intervalMs,
+          last_snapshot_at: null,
+          notes: null,
+        });
+        console.log(`Saved monitoring configuration for ${target.name} to database`);
+      } catch (err) {
+        console.warn('Failed to save monitoring configuration to database:', err);
+      }
+    }
 
     // Verify credentials for cameras with auth
     let credentialsValid = false;
@@ -1694,7 +1720,58 @@ export class MonitorPlugin implements Plugin {
     };
   }
 
-  async initialize(context: PluginContext): Promise<void> { console.log('MonitorPlugin initialized'); }
+  async initialize(context: PluginContext): Promise<void> {
+    console.log('MonitorPlugin initialized');
+    
+    // Initialize ConfiguredDeviceRepository if database is available
+    if (context.databaseManager) {
+      try {
+        this.configuredDeviceRepo = new ConfiguredDeviceRepository(context.databaseManager.getDevicesDb());
+        await this.loadMonitoredDevices();
+        console.log(`Loaded ${this.targets.size} monitored devices from database`);
+      } catch (err) {
+        console.warn('Failed to initialize ConfiguredDeviceRepository:', err);
+      }
+    }
+  }
+
+  /** Load monitored devices from database and start monitoring */
+  private async loadMonitoredDevices(): Promise<void> {
+    if (!this.configuredDeviceRepo) return;
+
+    try {
+      const configuredDevices = await this.configuredDeviceRepo.listMonitored();
+      
+      for (const device of configuredDevices) {
+        const target: MonitorTarget = {
+          id: `configured-${device.id}`,
+          type: device.device_type,
+          name: device.label,
+          address: device.ip,
+          intervalMs: device.monitor_interval_ms,
+          threshold: 0.1, // Default threshold - could be stored in DB in future
+          active: true,
+          startedAt: Date.now(), // Could be restored from DB in future
+          changeCount: 0,
+          logs: [],
+          rtspUrl: device.rtsp_url || undefined,
+          httpUrl: device.http_url || undefined,
+          rtspUsername: device.username || undefined,
+          rtspPassword: device.password || undefined,
+          snapshotUrl: device.http_url || undefined,
+        };
+
+        this.targets.set(target.id, target);
+        
+        // Start monitoring if it's a camera
+        if (target.type === 'camera' && target.address) {
+          this.startMonitoringPolling(target);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load monitored devices:', err);
+    }
+  }
 
   async dispose(): Promise<void> {
     for (const timer of this.timers.values()) clearInterval(timer);

@@ -220,11 +220,20 @@ export class DeviceConfigPlugin implements Plugin {
       const savedDeviceId = await this.configRepo!.save(device);
       const savedDevice = await this.configRepo!.getById(savedDeviceId);
       
+      if (!savedDevice) {
+        return {
+          pluginId: this.id,
+          status: 'error',
+          content: [{ type: 'text', data: '❌ Nie udało się dodać urządzenia.' }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+        };
+      }
+
       let content = `✅ **Urządzenie dodane pomyślnie**\n\n`;
-      content += `📹 **${device.label}**\n`;
-      content += `🌐 IP: \`${device.ip}\`\n`;
-      if (device.rtsp_url) content += `📡 RTSP: ${device.rtsp_url}\n`;
-      content += `🟢 Monitoring: włączony (${device.monitor_interval_ms}ms)\n\n`;
+      content += `📹 **${savedDevice.label}**\n`;
+      content += `🌐 IP: \`${savedDevice.ip}\`\n`;
+      if (savedDevice.rtsp_url) content += `📡 RTSP: ${savedDevice.rtsp_url}\n`;
+      content += `🟢 Monitoring: włączony (${savedDevice.monitor_interval_ms}ms)\n\n`;
       content += `**ID:** \`${savedDeviceId}\`\n\n`;
       content += `Urządzenie zostało zapisane i będzie monitorowane automatycznie.`;
 
@@ -236,7 +245,7 @@ export class DeviceConfigPlugin implements Plugin {
           duration_ms: Date.now() - start,
           cached: false,
           truncated: false,
-          device_id: savedDevice.id,
+          device_id: savedDeviceId,
         } as any,
       };
     } catch (err) {
@@ -281,7 +290,7 @@ export class DeviceConfigPlugin implements Plugin {
       const devices = await this.configRepo!.listAll();
       const device = devices.find((d: ConfiguredDevice) => 
         d.ip === params.identifier || 
-        d.label.toLowerCase() === params.identifier.toLowerCase()
+        (params.identifier && d.label.toLowerCase() === params.identifier.toLowerCase())
       );
 
       if (!device) {
