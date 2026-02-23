@@ -1,7 +1,13 @@
-/// Vision Pipeline Configuration
+/// Vision Pipeline Configuration — v0.3
 ///
 /// Loaded from broxeen.toml (project root) with env-var overrides.
 /// Env format: BROXEEN__SECTION__KEY (double underscore separators).
+///
+/// v0.3 changes:
+///   - LLM: OpenRouter primary + local Ollama fallback (was Anthropic-only)
+///   - New: TrackerConfig (IoU matching, UUID per object)
+///   - New: SceneConfig (MinuteBuffer flush interval, min crops for LLM)
+///   - DetectorConfig: model_path now default yolov8s, input_size 640, 20 classes
 
 use serde::Deserialize;
 
@@ -12,6 +18,10 @@ pub struct VisionConfig {
     pub detector: DetectorConfig,
     #[serde(default)]
     pub pipeline: PipelineConfig,
+    #[serde(default)]
+    pub tracker: TrackerConfig,
+    #[serde(default)]
+    pub scene: SceneConfig,
     #[serde(default)]
     pub database: DatabaseConfig,
     #[serde(default)]
@@ -38,21 +48,31 @@ pub struct DetectorConfig {
     pub confidence_threshold: f32,
     #[serde(default = "default_nms_threshold")]
     pub nms_threshold: f32,
-    #[serde(default = "default_max_input_size")]
-    pub max_input_size: u32,
+    #[serde(default = "default_input_size")]
+    pub input_size: u32,
+    #[serde(default = "default_use_openvino")]
+    pub use_openvino: bool,
+    #[serde(default = "default_intra_threads")]
+    pub intra_threads: u16,
 }
 
 fn default_model_path() -> String {
-    "models/yolov8n.onnx".to_string()
+    "models/yolov8s.onnx".to_string()
 }
 fn default_confidence_threshold() -> f32 {
-    0.60
+    0.50
 }
 fn default_nms_threshold() -> f32 {
     0.45
 }
-fn default_max_input_size() -> u32 {
-    500
+fn default_input_size() -> u32 {
+    640
+}
+fn default_use_openvino() -> bool {
+    true
+}
+fn default_intra_threads() -> u16 {
+    2
 }
 
 impl Default for DetectorConfig {
@@ -61,7 +81,9 @@ impl Default for DetectorConfig {
             model_path: default_model_path(),
             confidence_threshold: default_confidence_threshold(),
             nms_threshold: default_nms_threshold(),
-            max_input_size: default_max_input_size(),
+            input_size: default_input_size(),
+            use_openvino: default_use_openvino(),
+            intra_threads: default_intra_threads(),
         }
     }
 }
@@ -70,52 +92,116 @@ impl Default for DetectorConfig {
 pub struct PipelineConfig {
     #[serde(default = "default_process_every")]
     pub process_every_n_frames: u32,
-    #[serde(default = "default_min_contour_area")]
-    pub min_contour_area: f64,
-    #[serde(default = "default_max_contour_area")]
-    pub max_contour_area: f64,
-    #[serde(default = "default_cooldown_seconds")]
-    pub cooldown_seconds: u64,
     #[serde(default = "default_bg_history")]
     pub bg_history: i32,
     #[serde(default = "default_bg_var_threshold")]
     pub bg_var_threshold: f64,
-    #[serde(default = "default_worker_threads")]
-    pub worker_threads: usize,
+    #[serde(default = "default_min_activity_area")]
+    pub min_activity_area: f64,
 }
 
 fn default_process_every() -> u32 {
-    5
-}
-fn default_min_contour_area() -> f64 {
-    2000.0
-}
-fn default_max_contour_area() -> f64 {
-    200000.0
-}
-fn default_cooldown_seconds() -> u64 {
-    10
+    4
 }
 fn default_bg_history() -> i32 {
     500
 }
 fn default_bg_var_threshold() -> f64 {
-    50.0
+    40.0
 }
-fn default_worker_threads() -> usize {
-    2
+fn default_min_activity_area() -> f64 {
+    1500.0
 }
 
 impl Default for PipelineConfig {
     fn default() -> Self {
         Self {
             process_every_n_frames: default_process_every(),
-            min_contour_area: default_min_contour_area(),
-            max_contour_area: default_max_contour_area(),
-            cooldown_seconds: default_cooldown_seconds(),
             bg_history: default_bg_history(),
             bg_var_threshold: default_bg_var_threshold(),
-            worker_threads: default_worker_threads(),
+            min_activity_area: default_min_activity_area(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct TrackerConfig {
+    #[serde(default = "default_iou_match_threshold")]
+    pub iou_match_threshold: f32,
+    #[serde(default = "default_max_age_frames")]
+    pub max_age_frames: u32,
+    #[serde(default = "default_min_hits")]
+    pub min_hits: u32,
+    #[serde(default = "default_crop_max_px")]
+    pub crop_max_px: u32,
+    #[serde(default = "default_crops_per_track")]
+    pub crops_per_track: usize,
+}
+
+fn default_iou_match_threshold() -> f32 {
+    0.30
+}
+fn default_max_age_frames() -> u32 {
+    15
+}
+fn default_min_hits() -> u32 {
+    3
+}
+fn default_crop_max_px() -> u32 {
+    400
+}
+fn default_crops_per_track() -> usize {
+    3
+}
+
+impl Default for TrackerConfig {
+    fn default() -> Self {
+        Self {
+            iou_match_threshold: default_iou_match_threshold(),
+            max_age_frames: default_max_age_frames(),
+            min_hits: default_min_hits(),
+            crop_max_px: default_crop_max_px(),
+            crops_per_track: default_crops_per_track(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct SceneConfig {
+    /// Flush buffer to LLM every N seconds (default: 60 = once per minute)
+    #[serde(default = "default_flush_interval_secs")]
+    pub flush_interval_secs: u64,
+    /// Minimum crops needed to justify an LLM call
+    #[serde(default = "default_min_crops_for_llm")]
+    pub min_crops_for_llm: usize,
+    /// Ring buffer capacity (events)
+    #[serde(default = "default_ring_capacity")]
+    pub ring_capacity: usize,
+    /// Max crops to send per LLM call
+    #[serde(default = "default_max_crops_per_batch")]
+    pub max_crops_per_batch: usize,
+}
+
+fn default_flush_interval_secs() -> u64 {
+    60
+}
+fn default_min_crops_for_llm() -> usize {
+    3
+}
+fn default_ring_capacity() -> usize {
+    100
+}
+fn default_max_crops_per_batch() -> usize {
+    10
+}
+
+impl Default for SceneConfig {
+    fn default() -> Self {
+        Self {
+            flush_interval_secs: default_flush_interval_secs(),
+            min_crops_for_llm: default_min_crops_for_llm(),
+            ring_capacity: default_ring_capacity(),
+            max_crops_per_batch: default_max_crops_per_batch(),
         }
     }
 }
@@ -127,7 +213,7 @@ pub struct DatabaseConfig {
 }
 
 fn default_db_path() -> String {
-    "detections.db".to_string()
+    "monitoring.db".to_string()
 }
 
 impl Default for DatabaseConfig {
@@ -140,26 +226,50 @@ impl Default for DatabaseConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct LlmConfig {
-    pub api_key: Option<String>,
-    #[serde(default = "default_llm_model")]
-    pub model: String,
+    // ── OpenRouter (primary) ─────────────────────────────────────────────
+    /// OpenRouter API key — prefer env OPENROUTER_API_KEY
+    pub openrouter_api_key: Option<String>,
+    /// OpenRouter model (e.g. "google/gemini-2.0-flash-exp:free")
+    #[serde(default = "default_openrouter_model")]
+    pub openrouter_model: String,
+
+    // ── Local fallback (Ollama / llama.cpp / LM Studio) ──────────────────
+    /// Local server base URL (e.g. "http://localhost:11434/v1")
+    pub local_base_url: Option<String>,
+    /// Local model name (e.g. "llava:7b" for Ollama with vision)
+    #[serde(default = "default_local_model")]
+    pub local_model: String,
+
+    /// Max tokens for object description
     #[serde(default = "default_max_tokens")]
     pub max_tokens: u32,
+    /// Max tokens for scene narrative
+    #[serde(default = "default_max_narrative_tokens")]
+    pub max_narrative_tokens: u32,
 }
 
-fn default_llm_model() -> String {
-    "claude-haiku-4-5-20251001".to_string()
+fn default_openrouter_model() -> String {
+    "google/gemini-2.0-flash-exp:free".to_string()
+}
+fn default_local_model() -> String {
+    "llava:7b".to_string()
 }
 fn default_max_tokens() -> u32 {
     80
+}
+fn default_max_narrative_tokens() -> u32 {
+    400
 }
 
 impl Default for LlmConfig {
     fn default() -> Self {
         Self {
-            api_key: None,
-            model: default_llm_model(),
+            openrouter_api_key: None,
+            openrouter_model: default_openrouter_model(),
+            local_base_url: Some("http://localhost:11434/v1".to_string()),
+            local_model: default_local_model(),
             max_tokens: default_max_tokens(),
+            max_narrative_tokens: default_max_narrative_tokens(),
         }
     }
 }
@@ -168,8 +278,8 @@ impl Default for LlmConfig {
 ///
 /// Search order:
 ///   1. ./broxeen.toml (working directory)
-///   2. <exe_dir>/broxeen.toml
-///   3. Environment variables: BROXEEN__CAMERA__URL, etc.
+///   2. Environment variables: BROXEEN__CAMERA__URL, etc.
+///   3. OPENROUTER_API_KEY env var (convenience shortcut)
 pub fn load_config() -> Result<VisionConfig, config::ConfigError> {
     let builder = config::Config::builder()
         .add_source(config::File::with_name("broxeen").required(false))
@@ -180,5 +290,32 @@ pub fn load_config() -> Result<VisionConfig, config::ConfigError> {
         );
 
     let settings = builder.build()?;
-    settings.try_deserialize::<VisionConfig>()
+    let mut cfg = settings.try_deserialize::<VisionConfig>()?;
+
+    // Convenience: OPENROUTER_API_KEY env var (without BROXEEN__ prefix)
+    if cfg.llm.openrouter_api_key.is_none() {
+        if let Ok(key) = std::env::var("OPENROUTER_API_KEY") {
+            if !key.is_empty() {
+                cfg.llm.openrouter_api_key = Some(key);
+            }
+        }
+    }
+
+    Ok(cfg)
+}
+
+pub fn default_config() -> VisionConfig {
+    VisionConfig {
+        camera: CameraConfig {
+            url: String::new(),
+            camera_id: "cam0".into(),
+            fps: None,
+        },
+        detector: DetectorConfig::default(),
+        pipeline: PipelineConfig::default(),
+        tracker: TrackerConfig::default(),
+        scene: SceneConfig::default(),
+        database: DatabaseConfig::default(),
+        llm: LlmConfig::default(),
+    }
 }

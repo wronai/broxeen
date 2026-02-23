@@ -44,8 +44,9 @@ flume = { version = "0.11", optional = true }
 config = { version = "0.14", optional = true }
 anyhow = { version = "1", optional = true }
 thiserror = { version = "2", optional = true }
+uuid = { version = "1", features = ["v4"], optional = true }
 
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
-vision = ["dep:opencv", "dep:ort", "dep:ndarray", "dep:image", "dep:flume", "dep:config", "dep:anyhow", "dep:thiserror"]
+vision = ["dep:opencv", "dep:ort", "dep:ndarray", "dep:image", "dep:flume", "dep:config", "dep:anyhow", "dep:thiserror", "dep:uuid"]
