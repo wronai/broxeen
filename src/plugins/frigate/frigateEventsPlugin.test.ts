@@ -3,6 +3,13 @@ import { FrigateEventsPlugin } from './frigateEventsPlugin';
 import type { PluginContext } from '../../core/types';
 import * as llmClient from '../../lib/llmClient';
 
+const unlistenSpy = vi.fn();
+const listenMock = vi.fn(async () => unlistenSpy);
+
+vi.mock('@tauri-apps/api/event', () => ({
+  listen: listenMock,
+}));
+
 const tauriCtx = (overrides?: Partial<PluginContext>): PluginContext => ({
   isTauri: true,
   tauriInvoke: vi.fn(async () => 'ok') as any,
@@ -12,6 +19,8 @@ const tauriCtx = (overrides?: Partial<PluginContext>): PluginContext => ({
 describe('FrigateEventsPlugin', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    unlistenSpy.mockClear();
+    listenMock.mockImplementation(async () => unlistenSpy);
   });
 
   afterEach(() => {
@@ -114,13 +123,21 @@ describe('FrigateEventsPlugin', () => {
   it('initialize starts mqtt in tauri via invoke', async () => {
     const plugin = new FrigateEventsPlugin();
 
-    vi.mock('@tauri-apps/api/event', () => ({
-      listen: vi.fn(async () => () => {}),
-    }));
-
     const ctx = tauriCtx();
     await plugin.initialize(ctx);
 
     expect(ctx.tauriInvoke).toHaveBeenCalledWith('frigate_mqtt_start', expect.any(Object));
+  });
+
+  it('dispose stops mqtt when started', async () => {
+    const plugin = new FrigateEventsPlugin();
+
+    const ctx = tauriCtx();
+    await plugin.initialize(ctx);
+
+    await plugin.dispose();
+
+    expect(unlistenSpy).toHaveBeenCalledTimes(1);
+    expect(ctx.tauriInvoke).toHaveBeenCalledWith('frigate_mqtt_stop');
   });
 });

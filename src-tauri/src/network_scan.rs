@@ -94,6 +94,23 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
             *sa = Some(started_at);
         }
 
+        // Hard guard: this worker is RTSP-only. Prevent accidental HTTP snapshot URLs or bare paths.
+        if !url_for_thread.to_lowercase().starts_with("rtsp://") {
+            backend_warn(&format!(
+                "rtsp worker rejected non-RTSP url: camera_id={} url={}",
+                camera_id_for_thread, url_for_thread
+            ));
+            let mut err = cache_for_thread
+                .last_error
+                .lock()
+                .expect("last_error lock poisoned");
+            *err = Some(format!(
+                "RTSP worker expected rtsp:// URL, got: {}",
+                url_for_thread
+            ));
+            return;
+        }
+
         let run_worker = |include_timeouts: bool| -> Result<(), String> {
             let mut cmd = Command::new("ffmpeg");
             cmd.args([
@@ -101,8 +118,6 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
                 "-loglevel",
                 "error",
                 "-nostdin",
-                "-rtsp_transport",
-                "tcp",
             ]);
             if include_timeouts {
                 cmd.args(["-stimeout", "900000", "-rw_timeout", "900000"]);

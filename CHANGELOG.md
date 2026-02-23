@@ -1,3 +1,19 @@
+## [1.0.56] - 2026-02-23
+
+### Summary
+
+feat(tests): deep code analysis engine with 3 supporting modules
+
+### Other
+
+- update src-tauri/src/network_scan.rs
+- update src/core/intentRouter.ts
+- update src/plugins/camera/cameraLivePlugin.test.ts
+- update src/plugins/camera/cameraLivePlugin.ts
+- update src/plugins/frigate/frigateEventsPlugin.test.ts
+- update src/plugins/frigate/frigateEventsPlugin.ts
+
+
 ## [1.0.55] - 2026-02-23
 
 ### Summary

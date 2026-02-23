@@ -125,7 +125,16 @@ export class CameraLivePlugin implements Plugin {
 
         // Prefer last known working RTSP URL (saved when user pasted a full RTSP URL)
         if (storedRtspUrl) {
-          rtspUrl = this.sanitizeRtspInput(storedRtspUrl);
+          const sanitizedStored = this.sanitizeRtspInput(storedRtspUrl);
+          if (/^rtsp:\/\//i.test(sanitizedStored)) {
+            rtspUrl = sanitizedStored;
+          } else if (sanitizedStored.startsWith('/')) {
+            const auth = username && password ? `${username}:${password}@` : username ? `${username}@` : '';
+            rtspUrl = `rtsp://${auth}${ip}:554${sanitizedStored}`;
+          } else {
+            // Fallback: if someone stored something non-URL-ish, keep previous behavior
+            rtspUrl = sanitizedStored;
+          }
         } else {
           // Build RTSP URL (fallback)
           const auth = username && password ? `${username}:${password}@` : '';

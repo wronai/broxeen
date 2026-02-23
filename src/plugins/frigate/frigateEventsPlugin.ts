@@ -25,6 +25,7 @@ export class FrigateEventsPlugin implements Plugin {
   readonly supportedIntents = ["frigate:status", "frigate:start", "frigate:stop"];
 
   private unlisten: UnlistenFn | null = null;
+  private tauriInvoke: PluginContext["tauriInvoke"] | null = null;
   private lastSnapshotByCamera = new Map<string, { base64: string; mimeType: string }>();
   private lastAlertAtByKey = new Map<string, number>();
   private started = false;
@@ -34,6 +35,12 @@ export class FrigateEventsPlugin implements Plugin {
       frigateLogger.info("Skipping FrigateEventsPlugin init (not tauri runtime)");
       return;
     }
+
+    if (this.started) {
+      return;
+    }
+
+    this.tauriInvoke = context.tauriInvoke;
 
     const cfg = configStore.getAll().frigate;
 
@@ -75,6 +82,16 @@ export class FrigateEventsPlugin implements Plugin {
       }
       this.unlisten = null;
     }
+
+    if (this.tauriInvoke && this.started) {
+      try {
+        await this.tauriInvoke("frigate_mqtt_stop");
+      } catch (err) {
+        frigateLogger.warn("frigate_mqtt_stop failed during dispose", err);
+      }
+    }
+
+    this.tauriInvoke = null;
     this.started = false;
   }
 

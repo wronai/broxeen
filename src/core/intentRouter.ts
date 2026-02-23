@@ -309,6 +309,31 @@ export class IntentRouter implements IIntentRouter {
       /protokół.*most|protokol.*most/i,
     ]);
 
+    // Frigate NVR intents
+    this.intentPatterns.set('frigate:status', [
+      /frigate.*status/i,
+      /status.*frigate/i,
+      /frigate.*stan/i,
+      /stan.*frigate/i,
+      /frigate.*info/i,
+    ]);
+
+    this.intentPatterns.set('frigate:start', [
+      /frigate.*start/i,
+      /uruchom.*frigate/i,
+      /włącz.*frigate/i,
+      /wlacz.*frigate/i,
+      /start.*frigate/i,
+    ]);
+
+    this.intentPatterns.set('frigate:stop', [
+      /frigate.*stop/i,
+      /zatrzymaj.*frigate/i,
+      /wyłącz.*frigate/i,
+      /wylacz.*frigate/i,
+      /stop.*frigate/i,
+    ]);
+
     // Disk info intents
     this.intentPatterns.set('disk:info', [
       /dysk/i,
