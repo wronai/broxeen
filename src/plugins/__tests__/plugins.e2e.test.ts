@@ -17,6 +17,7 @@ import { HttpBrowsePlugin } from '../http/browsePlugin';
 import { ChatLlmPlugin } from '../chat/chatPlugin';
 import { scopeRegistry } from '../scope/scopeRegistry';
 import type { PluginContext } from '../../core/types';
+import { CacheFactory } from '../../core/cache';
 
 // ─── Shared Fixtures ────────────────────────────────────────
 
@@ -195,7 +196,6 @@ describe('NetworkScanPlugin', () => {
 
   beforeEach(() => {
     // Delete network-scan caches to prevent stale state from prior tests
-    const { CacheFactory } = require('../../core/cache');
     CacheFactory.delete('network-scan');
     CacheFactory.delete('device-filter');
     plugin = new NetworkScanPlugin();
