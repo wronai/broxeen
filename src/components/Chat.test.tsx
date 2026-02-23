@@ -131,6 +131,7 @@ const defaultSettings = {
   mic_device_id: "default",
   speaker_device_id: "default",
   auto_listen: false,
+  auto_listen_silence_ms: 1000,
   stt_enabled: true,
   stt_engine: "whisper",
   stt_model: "base",

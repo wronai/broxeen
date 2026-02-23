@@ -35,6 +35,8 @@ pub struct AudioSettings {
     pub speaker_device_id: String,
     #[serde(default = "default_auto_listen")]
     pub auto_listen: bool,
+    #[serde(default = "default_auto_listen_silence_ms")]
+    pub auto_listen_silence_ms: u32,
 }
 
 fn default_tts_enabled() -> bool { true }
@@ -49,6 +51,7 @@ fn default_stt_model() -> String { "whisper-1".to_string() }
 fn default_mic_enabled() -> bool { true }
 fn default_device_id() -> String { "default".to_string() }
 fn default_auto_listen() -> bool { false }
+fn default_auto_listen_silence_ms() -> u32 { 1000 }
 
 impl Default for AudioSettings {
     fn default() -> Self {
@@ -67,6 +70,7 @@ impl Default for AudioSettings {
             mic_device_id: default_device_id(),
             speaker_device_id: default_device_id(),
             auto_listen: default_auto_listen(),
+            auto_listen_silence_ms: default_auto_listen_silence_ms(),
         }
     }
 }
@@ -132,6 +136,7 @@ pub fn get_settings() -> AudioSettings {
                 pub mic_device_id: String,
                 pub speaker_device_id: String,
                 pub auto_listen: bool,
+                pub auto_listen_silence_ms: Option<u32>,
             }
 
             match serde_json::from_str::<LegacyAudioSettings>(&data) {
@@ -152,6 +157,7 @@ pub fn get_settings() -> AudioSettings {
                         mic_device_id: legacy.mic_device_id,
                         speaker_device_id: legacy.speaker_device_id,
                         auto_listen: legacy.auto_listen,
+                        auto_listen_silence_ms: legacy.auto_listen_silence_ms.unwrap_or(1000),
                     };
                     // Save migrated settings immediately
                     if let Err(e) = save_settings(migrated.clone()) {

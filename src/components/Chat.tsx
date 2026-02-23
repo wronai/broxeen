@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import {
   Send,
   Mic,
@@ -109,7 +110,13 @@ export default function Chat({ settings }: ChatProps) {
   const sttAutoListenSilenceHitsRef = useRef<number>(0);
   const statusNoticeRef = useRef<Record<string, string>>({});
   const statusNoticeIdRef = useRef(1000000);
+  const messageIdRef = useRef<number>(Date.now());
   const chatLogger = logger.scope("chat:ui");
+
+  const nextMessageId = () => {
+    messageIdRef.current += 1;
+    return messageIdRef.current;
+  };
 
   // Scope options configuration
   const scopeOptions: ScopeOption[] = [
@@ -206,20 +213,6 @@ export default function Chat({ settings }: ChatProps) {
           text: message.text,
           timestamp: new Date().toISOString()
         });
-
-  const micPhase = useMemo(() => {
-    if (stt.isTranscribing) return "transcribing" as const;
-    if (stt.isRecording) return "recording" as const;
-    if (isListening) return "listening" as const;
-    return "idle" as const;
-  }, [isListening, stt.isRecording, stt.isTranscribing]);
-
-  useEffect(() => {
-    // If user starts speaking/recording, stop any ongoing TTS to avoid overlap.
-    if (micPhase !== "idle" && tts.isSpeaking) {
-      tts.stop();
-    }
-  }, [micPhase, tts]);
         
         // TODO: Initialize and integrate AutoWatchIntegration
         // const autoWatchIntegration = new AutoWatchIntegration(watchManager, dbManager, autoWatchConfig);
@@ -241,6 +234,7 @@ export default function Chat({ settings }: ChatProps) {
 
   // Auto-config detection — show interactive setup prompt on first load
   useEffect(() => {
+    if (import.meta.env.MODE === "test") return;
     let cancelled = false;
     runAutoConfig().then((result) => {
       if (cancelled) return;
@@ -253,7 +247,7 @@ export default function Chat({ settings }: ChatProps) {
       eventStore.append({
         type: "message_added",
         payload: {
-          id: Date.now(),
+          id: nextMessageId(),
           role: "assistant",
           text: result.messageText,
           type: result.prompt ? "config_prompt" : "content",
@@ -294,6 +288,20 @@ export default function Chat({ settings }: ChatProps) {
     voice: settings.tts_voice,
     lang: settings.tts_lang,
   });
+
+  const micPhase = useMemo(() => {
+    if (stt.isTranscribing) return "transcribing" as const;
+    if (stt.isRecording) return "recording" as const;
+    if (isListening) return "listening" as const;
+    return "idle" as const;
+  }, [isListening, stt.isRecording, stt.isTranscribing]);
+
+  useEffect(() => {
+    // If user starts speaking/recording, stop any ongoing TTS to avoid overlap.
+    if (micPhase !== "idle" && tts.isSpeaking) {
+      tts.stop();
+    }
+  }, [micPhase, tts]);
 
   useEffect(() => {
     const appendStatusNotice = (key: string, text: string) => {
@@ -701,14 +709,14 @@ export default function Chat({ settings }: ChatProps) {
     eventStore.append({
       type: "message_added",
       payload: { 
-        id: Date.now(), 
+        id: nextMessageId(), 
         role: "user", 
         text: userQuery 
       },
     });
 
     // Add suggestions message from assistant
-    const suggestionsId = Date.now() + 1;
+    const suggestionsId = nextMessageId();
     eventStore.append({
       type: "message_added",
       payload: {
@@ -804,7 +812,7 @@ Wybierz jedną z poniższych opcji, aby kontynuować:`;
     eventStore.append({
       type: "message_added",
       payload: {
-        id: Date.now(),
+        id: nextMessageId(),
         role: "assistant",
         text: `✅ Wybrano: **${suggestion.text}**
 
@@ -828,14 +836,14 @@ Wykonuję akcję: ${suggestion.query}`,
     eventStore.append({
       type: "message_added",
       payload: { 
-        id: Date.now(), 
+        id: nextMessageId(), 
         role: "user", 
         text: userQuery 
       },
     });
 
     // Add network selection message from assistant
-    const networkSelectionId = Date.now() + 1;
+    const networkSelectionId = nextMessageId();
     eventStore.append({
       type: "message_added",
       payload: {
@@ -962,7 +970,7 @@ Skanowanie urządzeń w sieci, takich jak kamery IP, jest standardową procedur�
     eventStore.append({
       type: "message_added",
       payload: {
-        id: Date.now(),
+        id: nextMessageId(),
         role: "assistant",
         text: `📷 Wybrano kamerę: **${camera.name}**
 
@@ -985,7 +993,7 @@ Kliknij przycisk odtwarzania, aby rozpocząć monitoring z AI.`,
     eventStore.append({
       type: "message_added",
       payload: {
-        id: Date.now(),
+        id: nextMessageId(),
         role: "assistant",
         text: `🧠 **AI Analiza Kamery**
 
@@ -1180,7 +1188,7 @@ ${analysis}`,
     // Emit user message directly to store
     eventStore.append({
       type: "message_added",
-      payload: { id: Date.now(), role: "user", text: query },
+      payload: { id: nextMessageId(), role: "user", text: query },
     });
 
     // ── Config commands — handled locally with interactive prompts ──
@@ -1189,7 +1197,7 @@ ${analysis}`,
       eventStore.append({
         type: "message_added",
         payload: {
-          id: Date.now() + 1,
+          id: nextMessageId(),
           role: "assistant",
           text: configResult.text,
           type: "config_prompt",
@@ -1222,6 +1230,26 @@ ${analysis}`,
       });
 
       if (result.status === 'success') {
+        // Handle fallback results with configPrompt (action suggestions)
+        const fallbackPrompt = (result.metadata as any)?.configPrompt;
+        if (result.pluginId === 'fallback' && fallbackPrompt) {
+          const textData = result.content[0]?.data as string || '';
+          eventStore.append({
+            type: "message_added",
+            payload: {
+              id: nextMessageId(),
+              role: "assistant",
+              text: textData,
+              type: "config_prompt",
+              configPrompt: fallbackPrompt,
+            },
+          });
+          addToCommandHistory(query, textData, categorizeCommand(query), true);
+          processRegistry.complete(processId);
+          processRegistry.remove(processId);
+          return;
+        }
+
         const hasCameraLiveBlock = result.content.some((block) => {
           if (block.type !== 'structured') return false;
           try {
@@ -1282,7 +1310,7 @@ ${analysis}`,
           eventStore.append({
             type: "message_added",
             payload: {
-              id: Date.now() + Math.random(), // Ensure unique IDs for multiple blocks
+              id: nextMessageId(),
               role: "assistant",
               text: messageText,
               type: messageType,
@@ -1313,7 +1341,7 @@ ${analysis}`,
         eventStore.append({
           type: "message_added",
           payload: {
-            id: Date.now(),
+            id: nextMessageId(),
             role: "assistant",
             text: errorMessage,
             type: "error",
@@ -1333,7 +1361,7 @@ ${analysis}`,
       eventStore.append({
         type: "message_added",
         payload: {
-          id: Date.now(),
+          id: nextMessageId(),
           role: "assistant",
           text: `Wystąpił błąd podczas przetwarzania zapytania przez system pluginów: ${error instanceof Error ? error.message : 'Nieznany błąd'}`,
           type: "error",
@@ -2219,6 +2247,41 @@ ${analysis}`,
                     <Mic size={20} />
                   )}
                 </button>
+              )}
+
+              {(settings.mic_enabled && (speechSupported || stt.isSupported)) && (
+                <div className="flex items-center">
+                  <span
+                    className={`ml-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                      micPhase === 'transcribing'
+                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                        : micPhase === 'recording' || micPhase === 'listening'
+                          ? 'border-red-500/40 bg-red-500/10 text-red-300'
+                          : 'border-gray-700 bg-gray-800/40 text-gray-400'
+                    }`}
+                    title={
+                      micPhase === 'transcribing'
+                        ? 'Transkrybuję'
+                        : micPhase === 'recording'
+                          ? 'Nagrywam'
+                          : micPhase === 'listening'
+                            ? 'Słucham'
+                            : settings.auto_listen
+                              ? `Auto-listen ON (${settings.auto_listen_silence_ms}ms)`
+                              : 'Mikrofon idle'
+                    }
+                  >
+                    {micPhase === 'transcribing'
+                      ? 'Transkrypcja'
+                      : micPhase === 'recording'
+                        ? 'Nagrywam'
+                        : micPhase === 'listening'
+                          ? 'Słucham'
+                          : settings.auto_listen
+                            ? `Auto (${Math.round(settings.auto_listen_silence_ms / 100) / 10}s)`
+                            : 'Idle'}
+                  </span>
+                </div>
               )}
 
               <div className="relative flex-1">

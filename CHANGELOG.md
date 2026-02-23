@@ -1,3 +1,24 @@
+## [1.0.47] - 2026-02-23
+
+### Summary
+
+feat(tests): CLI interface improvements
+
+### Other
+
+- update src-tauri/src/settings.rs
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/components/Settings.test.tsx
+- update src/core/actionSchema.test.ts
+- update src/core/actionSchema.ts
+- update src/core/fallbackCli.test.ts
+- update src/core/fallbackHandler.test.ts
+- update src/domain/audioSettings.test.ts
+- update src/plugins/discovery/networkScanPlugin.ts
+- ... and 1 more
+
+
 ## [1.0.46] - 2026-02-23
 
 ### Summary
