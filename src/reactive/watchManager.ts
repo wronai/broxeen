@@ -385,25 +385,6 @@ export class WatchManager {
     
     // This would involve querying the messages table for relevant queries
     return true; // Simplified - always auto-watch for demo
-    
-    if (!row) {
-      return null;
-    }
-
-    return {
-      id: row.id,
-      conversationId: row.conversation_id,
-      targetId: row.target_id,
-      targetType: row.target_type,
-      intent: row.intent,
-      startedAt: new Date(row.started_at),
-      expiresAt: new Date(row.expires_at),
-      pollIntervalMs: row.poll_interval_ms,
-      changeThreshold: row.change_threshold,
-      isActive: Boolean(row.is_active),
-      lastPolled: row.last_polled ? new Date(row.last_polled) : undefined,
-      lastChangeDetected: row.last_change_detected ? new Date(row.last_change_detected) : undefined
-    };
   }
 
   /**
@@ -448,5 +429,109 @@ export class WatchManager {
    */
   getActiveWatchCount(): number {
     return this.pollingIntervals.size;
+  }
+
+  /**
+   * Save watch rule to database
+   */
+  private async saveWatchRule(watchRule: DbWatchRule): Promise<void> {
+    if (!this.dbManager.isReady()) {
+      return;
+    }
+
+    const db = this.dbManager.getChatDb();
+    await db.execute(
+      `
+      INSERT INTO watch_rules (
+        id, conversation_id, target_id, target_type, intent, 
+        started_at, expires_at, poll_interval_ms, change_threshold, 
+        is_active, last_polled, last_change_detected
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+      [
+        watchRule.id,
+        watchRule.conversationId,
+        watchRule.targetId,
+        watchRule.targetType,
+        watchRule.intent,
+        watchRule.startedAt.getTime(),
+        watchRule.expiresAt.getTime(),
+        watchRule.pollIntervalMs,
+        watchRule.changeThreshold,
+        watchRule.isActive ? 1 : 0,
+        watchRule.lastPolled?.getTime(),
+        watchRule.lastChangeDetected?.getTime()
+      ]
+    );
+  }
+
+  /**
+   * Get watch rule by ID
+   */
+  private async getWatchRule(watchRuleId: string): Promise<DbWatchRule | null> {
+    if (!this.dbManager.isReady()) {
+      return null;
+    }
+
+    const db = this.dbManager.getChatDb();
+    const row = await db.queryOne<any>(
+      'SELECT * FROM watch_rules WHERE id = ?',
+      [watchRuleId]
+    );
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      id: row.id,
+      conversationId: row.conversation_id,
+      targetId: row.target_id,
+      targetType: row.target_type,
+      intent: row.intent,
+      startedAt: new Date(row.started_at),
+      expiresAt: new Date(row.expires_at),
+      pollIntervalMs: row.poll_interval_ms,
+      changeThreshold: row.change_threshold,
+      isActive: Boolean(row.is_active),
+      lastPolled: row.last_polled ? new Date(row.last_polled) : undefined,
+      lastChangeDetected: row.last_change_detected ? new Date(row.last_change_detected) : undefined
+    };
+  }
+
+  /**
+   * Update watch rule in database
+   */
+  private async updateWatchRule(watchRuleId: string, updates: Partial<DbWatchRule>): Promise<void> {
+    if (!this.dbManager.isReady()) {
+      return;
+    }
+
+    const db = this.dbManager.getChatDb();
+    const setParts: string[] = [];
+    const params: unknown[] = [];
+
+    if (updates.isActive !== undefined) {
+      setParts.push('is_active = ?');
+      params.push(updates.isActive ? 1 : 0);
+    }
+    if (updates.lastPolled !== undefined) {
+      setParts.push('last_polled = ?');
+      params.push(updates.lastPolled.getTime());
+    }
+    if (updates.lastChangeDetected !== undefined) {
+      setParts.push('last_change_detected = ?');
+      params.push(updates.lastChangeDetected.getTime());
+    }
+
+    if (setParts.length === 0) {
+      return;
+    }
+
+    params.push(watchRuleId);
+    await db.execute(
+      `UPDATE watch_rules SET ${setParts.join(', ')} WHERE id = ?`,
+      params
+    );
   }
 }

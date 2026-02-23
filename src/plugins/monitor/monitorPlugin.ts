@@ -687,7 +687,7 @@ export class MonitorPlugin implements Plugin {
   }
 
   private logIcon(type: MonitorLogEntry['type']): string {
-    return { start: '▶️', stop: '⏹️', change: '🔔', error: '❌', check: '✅' }[type] || '📝';
+    return { start: '▶️', stop: '⏹️', change: '🔔', error: '❌', check: '✅', snapshot: '📸' }[type] || '📝';
   }
 
   private formatDuration(ms: number): string {

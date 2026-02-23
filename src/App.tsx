@@ -1,6 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Settings as SettingsIcon } from "lucide-react";
+import {
+  Settings as SettingsIcon,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { CqrsProvider } from "./contexts/CqrsContext";
 import Chat from "./components/Chat";
 import Settings from "./components/Settings";
@@ -172,6 +178,21 @@ export default function App() {
     };
   }, [appCtx, startupLogger]);
 
+  const persistSettings = async (next: AudioSettings) => {
+    if (!isTauriRuntime()) return;
+    await invoke("save_settings", { settings: next });
+  };
+
+  const updateSettings = (partial: Partial<AudioSettings>) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...partial };
+      void persistSettings(next).catch((error) => {
+        startupLogger.warn("Failed to persist topbar settings", error);
+      });
+      return next;
+    });
+  };
+
   return (
     <div className="flex h-screen flex-col bg-gray-950 text-white">
       {/* Top bar */}
@@ -185,13 +206,50 @@ export default function App() {
             v1.0.1
           </span>
         </div>
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-2 text-sm text-gray-300 transition hover:bg-gray-700 hover:text-white"
-        >
-          <SettingsIcon size={16} />
-          Ustawienia
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => updateSettings({ mic_enabled: !settings.mic_enabled })}
+            className="flex items-center justify-center rounded-lg bg-gray-800 px-2.5 py-2 text-gray-300 transition hover:bg-gray-700 hover:text-white"
+            title={settings.mic_enabled ? "Mikrofon: włączony" : "Mikrofon: wyłączony"}
+            aria-label={settings.mic_enabled ? "Wyłącz mikrofon" : "Włącz mikrofon"}
+          >
+            {settings.mic_enabled ? <Mic size={16} /> : <MicOff size={16} />}
+          </button>
+
+          <button
+            onClick={() => updateSettings({ stt_enabled: !settings.stt_enabled })}
+            className={`flex items-center justify-center rounded-lg px-2.5 py-2 transition hover:bg-gray-700 hover:text-white ${
+              settings.stt_enabled
+                ? "bg-gray-800 text-gray-300"
+                : "bg-gray-800/60 text-gray-500"
+            }`}
+            title={settings.stt_enabled ? "STT: włączone" : "STT: wyłączone"}
+            aria-label={settings.stt_enabled ? "Wyłącz STT" : "Włącz STT"}
+          >
+            <Mic size={16} />
+          </button>
+
+          <button
+            onClick={() => updateSettings({ tts_enabled: !settings.tts_enabled })}
+            className={`flex items-center justify-center rounded-lg px-2.5 py-2 transition hover:bg-gray-700 hover:text-white ${
+              settings.tts_enabled
+                ? "bg-gray-800 text-gray-300"
+                : "bg-gray-800/60 text-gray-500"
+            }`}
+            title={settings.tts_enabled ? "TTS: włączone" : "TTS: wyłączone"}
+            aria-label={settings.tts_enabled ? "Wyłącz TTS" : "Włącz TTS"}
+          >
+            {settings.tts_enabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+          </button>
+
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="flex items-center gap-2 rounded-lg bg-gray-800 px-3 py-2 text-sm text-gray-300 transition hover:bg-gray-700 hover:text-white"
+          >
+            <SettingsIcon size={16} />
+            Ustawienia
+          </button>
+        </div>
       </header>
 
       {/* Chat area */}

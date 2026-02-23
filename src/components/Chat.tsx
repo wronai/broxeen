@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import {
   Send,
   Mic,
@@ -72,7 +72,7 @@ interface ScopeOption {
 export default function Chat({ settings }: ChatProps) {
   // State managed by CQRS Event Store
   const { commands, eventStore } = useCqrs();
-  const messages = useChatMessages();
+  const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_MESSAGES);
   const { ask } = usePlugins();
   const dbManager = useDatabaseManager();
   const { addToCommandHistory, addToNetworkHistory } = useHistoryPersistence(dbManager);
@@ -85,6 +85,11 @@ export default function Chat({ settings }: ChatProps) {
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkConfig | null>(null);
   const [pendingNetworkQuery, setPendingNetworkQuery] = useState<string>("");
   const [showCommandHistory, setShowCommandHistory] = useState(false);
+
+  const hasNonSystemMessages = useMemo(
+    () => messages.some((m) => m.role !== "system"),
+    [messages],
+  );
   const [inputFocused, setInputFocused] = useState(false);
   const [showQuickHistory, setShowQuickHistory] = useState(false);
   const [discoveredCameras, setDiscoveredCameras] = useState<CameraPreviewProps['camera'][]>([]);
@@ -1459,7 +1464,7 @@ ${analysis}`,
                 />
               )}
 
-              {messages.length === 0 && !showCommandHistory && (
+              {!hasNonSystemMessages && !showCommandHistory && (
                 <>
                   <div className="flex mt-16 flex-col items-center justify-center text-center fade-in">
                     <h1 className="mb-3 text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-broxeen-400 to-emerald-400 sm:text-5xl">
