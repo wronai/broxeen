@@ -28,10 +28,10 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 ## 🚀 NOWE ULEPSZENIA SYSTEMU (v2.0+)
 
 ### 🔍 Inteligentne Skanowanie
-- [ ] **Filtrowanie wyników** - tylko kamery, tylko konkretne typy
+- [x] **Filtrowanie wyników** - tylko kamery, tylko konkretne typy
 
 ### 💬 Ulepszenia Chat UI
-- [ ] **Responsywność pływających przycisków** - dopasowanie na bardzo wąskich oknach (opcjonalne skrócone etykiety)
+- [x] **Responsywność pływających przycisków** - dopasowanie na bardzo wąskich oknach (opcjonalne skrócone etykiety)
 
 ### 🎯 Interakcja i Wsparcie Użytkownika
 - [ ] **Drag & drop reorder** — użytkownik sortuje ulubione akcje na ekranie powitalnym
@@ -43,17 +43,17 @@ w ten sposob można też szybciej analizować sieć, anomalie, dostęp do aaktyw
 - [ ] **Synchronizacja** - między urządzeniami
 
 ### 📊 Analiza i Monitorowanie
-- [ ] **Statystyki użycia** - najczęściej używane funkcje
+- [x] **Statystyki użycia** - najczęściej używane funkcje
 - [ ] **Export danych** - CSV, JSON raporty
 
 ### 🔧 Techniczne Ulepszenia
-- [ ] **Real-time updates** - WebSocket dla natychmiastowych zmian
-- [ ] **Cache system** - przyspieszenie powtarzających się zapytań
-- [ ] **Error recovery** - automatyczne ponawianie błędnych operacji
+- [x] **Real-time updates** - WebSocket dla natychmiastowych zmian
+- [x] **Cache system** - przyspieszenie powtarzających się zapytań
+- [x] **Error recovery** - automatyczne ponawianie błędnych operacji
 
 ### 🧪 Stabilność testów
-- [ ] **Vitest: "Worker exited unexpectedly"** — zdiagnozować crash tinypool/worker i dodać stabilny tryb uruchamiania testów (np. pool/config)
-- [ ] **React tests: warning act(...)** — uspokoić warningi w `Chat.test.tsx` (wrap state updates w `act` lub `await` na asynchroniczne efekty)
+- [x] **Vitest: "Worker exited unexpectedly"** — zdiagnozować crash tinypool/worker i dodać stabilny tryb uruchamiania testów (np. pool/config)
+- [x] **React tests: warning act(...)** — uspokoić warningi w `Chat.test.tsx` (wrap state updates w `act` lub `await` na asynchroniczne efekty)
 
 ### 📌 Kamera live — follow-up
 - [x] **Typowanie payload `camera_live`** — usunięto `any` dla `initialBase64/initialMimeType`, ujednolicono typy w `chatEvents.ts` i `Chat.tsx`
@@ -83,7 +83,7 @@ User NL Query
 
 ### Faza 1: Centralny LLM Intent Classifier (WYSOKI PRIORYTET)
 
-- [ ] **R3: `src/core/intentRouter.ts` — LLM-first intent detection**
+- [x] **R3: `src/core/intentRouter.ts` — LLM-first intent detection**
   - ~550 linii hardkodowanych regex (19+ intent grup, ~200 wzorców)
   - Zastąpić `initializeDefaultPatterns()` + `detect()` wywołaniem LLM z ACTION_SCHEMAS jako kontekstem
   - LLM zwraca `{ intent: string, entities: Record<string,unknown>, confidence: number }`
@@ -92,7 +92,7 @@ User NL Query
   - **Plik:** `src/core/intentRouter.ts:17-570` (initializeDefaultPatterns)
   - **Plik:** `src/core/intentRouter.ts:625-739` (calculateConfidence + extractEntities)
 
-- [ ] **R4: `src/core/actionSchema.ts` — zunifikowany schema jako LLM context**
+- [x] **R4: `src/core/actionSchema.ts` — zunifikowany schema jako LLM context**
   - `findDomainSchemas()` — hardkodowana mapa `domainHints` (60+ słów kluczowych) → LLM
   - `scoreMatch()` — keyword counting → LLM confidence
   - ACTION_SCHEMAS.keywords już istnieją — użyć ich jako kontekstu LLM zamiast ręcznego dopasowania
@@ -174,7 +174,7 @@ User NL Query
   - Każdy plugin deklaruje swoje intenty w jednym obiekcie schema
   - Plugin.intentSchema zamiast Plugin.canHandle
 
-- [ ] **R25: Testy regresji dla refaktoryzacji**
+- [x] **R25: Testy regresji dla refaktoryzacji**
   - Dla każdego R3-R22: test że te same inputy dają te same intenty/wyniki
   - Property: LLM path i fallback path dają identyczny routing
 

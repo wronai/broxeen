@@ -16,7 +16,8 @@
 ### 🔍 Inteligentne Skanowanie
 - **Skanowanie przyrostowe** - tylko nowe urządzenia (`calculateIncrementalRanges()`, `determineScanStrategy()`)
 - **Historia skanowań** - zapamiętaj co znaleziono (`ScanHistoryRepository`, `scan_history` table)
-- **Automatyczne ponawianie** - periodiczne sprawdzanie statusu
+- **Automatyczne ponawianie** - periodiczne sprawdzanie statusu urządzeń offline (AutoScanScheduler)
+- **Filtrowanie wyników** - tylko kamery, tylko konkretne typy urządzeń
 
 ### 💬 Ulepszenia Chat UI
 - **Sugerowane komendy** — ekran powitalny z 6 kartami akcji + `ActionSuggestions` z uczeniem się
@@ -24,6 +25,7 @@
 - **Szybkie odpowiedzi** — `MessageQuickActions` generuje predefiniowane follow-up komendy per wiadomość
 - **Wizualizacja wyników** — `MessageResultCard` auto-detects domain → colored border + icon badge + status pill
 - **Pływające przyciski diagnostyki/błędów** - przeniesione na prawą stronę nad scope i skompresowane do jednej linii
+- **Responsywność pływających przycisków** - dopasowanie na bardzo wąskich oknach (opcjonalne skrócone etykiety)
 
 ### 🎯 Interakcja i Wsparcie Użytkownika
 - **Quick-start welcome screen** — 6 klikalnych kart akcji na ekranie powitalnym (skanuj, kamery, przeglądaj, konfiguracja, monitoruj, pomoc)
@@ -37,6 +39,7 @@
 ### 📊 Analiza i Monitorowanie
 - **Dashboard urządzeń** - podsumowanie stanu sieci (`DeviceDashboardModal.tsx`, filtr: kamery/online/offline)
 - **Alerty o zmianach** - automatyczne powiadomienia (`AlertBridge` + `useAlertBridge` + `AlertBridgeComponent`)
+- **Statystyki użycia** - najczęściej używane funkcje (PreferenceLearningStore)
 
 ### 🔧 Techniczne Ulepszenia
 - **Action Schema + Fallback Handler** — `actionSchema.ts` (25+ schemas) + `fallbackHandler.ts` (LLM/keyword/generic) + scope fix (`chat-llm` w `local`)
@@ -45,10 +48,25 @@
 - **Marketplace** - zdalne ładowanie pluginów community v2.0.0
 - **Dev workflow (Tauri+Vite)** - `tauri dev` uruchamia Vite przez `beforeDevCommand`, `make dev` czyści port 5173
 - **SQLite migracje deterministyczne** - migracje wykonywane sekwencyjnie + `db_execute` obsługuje multi-statement SQL
+- **Real-time updates** - WebSocket dla natychmiastowych zmian
+- **Cache system** - przyspieszenie powtarzających się zapytań (LiveFrameCache)
+- **Error recovery** - automatyczne ponawianie błędnych operacji
+
+### 🧪 Stabilność testów
+- **Vitest: stabilizacja worker pool** — dodano konfigurację pool dla uniknięcia "Worker exited unexpectedly"
+- **React tests: act() warnings** — usunięto warningi w `Chat.test.tsx` przez proper async handling
 
 ### 📌 Kamera live — follow-up
 - **Typowanie payload `camera_live`** — usunięto `any` dla `initialBase64/initialMimeType`, ujednolicono typy w `chatEvents.ts` i `Chat.tsx`
 - **`camera_id` jako cache/metrics tag** — dodano `frame_count`, `frame_age_ms`, `started_at` do `LiveFrameCache` + komenda `rtsp_worker_stats` + wyświetlanie w `CameraLiveInline`
+
+### 🧠 REFAKTORYZACJA: Hardcoded NL → LLM + Schema (Zakończona)
+- **R3: IntentRouter LLM-first** — zastąpiono 550+ linii hardkodowanych regex LLM intent classifier
+- **R4: ActionSchema unified** — zunifikowano schema format jako LLM context
+- **R5-R17: Plugin refactoring** — wszystkie plugini przeniesione na data-driven canHandle → schema
+- **R19: Chat.tsx config commands** — 6 regex bloków → CONFIG_COMMAND_ROUTES table
+- **R23-R24: Infrastruktura** — `llmIntentClassifier.ts` + `intentSchema.ts` z cache i fallback
+- **R25: Testy regresji** — pełne pokrycie dla wszystkich zmian refaktoryzacji
 
 ## [1.0.65] - 2026-02-23
 

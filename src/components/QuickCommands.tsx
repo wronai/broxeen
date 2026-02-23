@@ -10,6 +10,7 @@ interface QuickCommand {
   category: 'browse' | 'network' | 'camera' | 'search';
   usageCount?: number;
   isFavorite?: boolean;
+  order?: number; // For drag & drop ordering
 }
 
 interface SavedCommandHistoryItem {
@@ -37,6 +38,10 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
   const [showFavorites, setShowFavorites] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [historyRecords, setHistoryRecords] = useState<SavedCommandHistoryItem[]>([]);
+  
+  // Drag & drop states
+  const [draggedItem, setDraggedItem] = useState<QuickCommand | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   // Load command history for intelligent suggestions
   useEffect(() => {
@@ -313,6 +318,54 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
     ));
   };
 
+  // Drag & drop handlers
+  const handleDragStart = (e: React.DragEvent, command: QuickCommand, index: number) => {
+    setDraggedItem(command);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.currentTarget.outerHTML);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    setDragOverIndex(null);
+    
+    if (!draggedItem) return;
+    
+    setCommands(prev => {
+      const newCommands = [...prev];
+      const draggedIndex = newCommands.findIndex(cmd => cmd.id === draggedItem.id);
+      
+      if (draggedIndex === dropIndex) return prev;
+      
+      // Remove dragged item and insert at new position
+      newCommands.splice(draggedIndex, 1);
+      newCommands.splice(dropIndex, 0, draggedItem);
+      
+      // Update order property for favorites
+      return newCommands.map((cmd, idx) => ({
+        ...cmd,
+        order: cmd.isFavorite ? idx : cmd.order
+      }));
+    });
+    
+    setDraggedItem(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverIndex(null);
+  };
+
   return (
     <div className={`bg-gray-800/50 rounded-xl border border-gray-700 ${className}`}>
       {/* Header */}
@@ -333,6 +386,13 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
             {showFavorites ? 'Ulubione' : 'Wszystkie'}
           </button>
         </div>
+        
+        {/* Drag & drop hint */}
+        {showFavorites && (
+          <div className="text-xs text-gray-500 italic">
+            🎯 Przeciągnij ulubione komendy, aby zmienić ich kolejność
+          </div>
+        )}
         
         {/* Search + Filters */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -418,15 +478,22 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
         )}
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {filteredCommands.slice(0, 12).map((command) => (
-            <button
+          {filteredCommands.slice(0, 12).map((command, index) => (
+            <div
               key={command.id}
-              onClick={() => handleCommandClick(command)}
+              draggable={showFavorites && command.isFavorite}
+              onDragStart={(e) => handleDragStart(e, command, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
               className={`
-                relative p-3 rounded-lg border transition-all
+                relative p-3 rounded-lg border transition-all cursor-move
                 hover:bg-gray-700/50 hover:border-gray-600
                 active:scale-95 text-left group
                 ${getCategoryColor(command.category)}
+                ${dragOverIndex === index ? 'border-blue-400 scale-105' : ''}
+                ${draggedItem?.id === command.id ? 'opacity-50' : ''}
               `}
             >
               {/* Favorite indicator */}
@@ -451,7 +518,7 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2" onClick={() => handleCommandClick(command)}>
                 <div className="flex-shrink-0 mt-0.5">
                   {command.icon}
                 </div>
@@ -472,7 +539,7 @@ export const QuickCommands: React.FC<QuickCommandsProps> = ({
                   )}
                 </div>
               </div>
-            </button>
+            </div>
           ))}
         </div>
 

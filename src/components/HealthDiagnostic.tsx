@@ -153,7 +153,7 @@ export const HealthDiagnostic: React.FC<HealthDiagnosticProps> = ({
 
   if (!isVisible) {
     return (
-      <div className="fixed bottom-24 right-2 max-sm:right-1 flex flex-wrap items-center gap-1 z-50 max-w-[140px] max-sm:max-w-[120px] max-sm:right-1 sm:max-w-[200px] md:max-w-none">
+      <div className="fixed bottom-24 right-2 max-sm:right-1 flex flex-wrap items-center gap-1 z-50 max-w-[140px] max-sm:max-w-[120px] sm:max-w-[200px] md:max-w-none">
         {onOpenErrorReport && (
           <button
             onClick={onOpenErrorReport}
