@@ -12,6 +12,8 @@ export class CameraLivePlugin implements Plugin {
     /^rtsp:\/\//i,
     /^[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]*$/,
     /test.*streams/i,
+    /pokaż\s+kamer[ęe]\s+\d{1,3}\.\d{1,3}\./i,
+    /pokaz\s+kamer[ęe]\s+\d{1,3}\.\d{1,3}\./i,
   ];
 
   async canHandle(input: string, _context: PluginContext): Promise<boolean> {
@@ -45,13 +47,13 @@ export class CameraLivePlugin implements Plugin {
 
       return this.handleTestStreams(ip, username, password, context, start);
     }
-    
+
     // Extract IP address or RTSP URL
     let ip: string | null = null;
     let rtspUrl: string | null = null;
     let username = 'admin';
     let password = '';
-    
+
     // Check if input is direct RTSP URL
     const sanitizedInput = this.sanitizeRtspInput(input);
     const rtspMatch = sanitizedInput.match(/rtsp:\/\/(?:([^:@\/\s]+)(?::([^@]*))?@)?([^:\/\s]+)(?::(\d+))?(\/[\S]*)?/i);
@@ -75,7 +77,7 @@ export class CameraLivePlugin implements Plugin {
       if (credMatch) {
         username = credMatch[1];
         password = credMatch[2];
-        
+
         // Return credential testing response
         return this.handleCredentialTest(username, password, start);
       }
@@ -84,12 +86,12 @@ export class CameraLivePlugin implements Plugin {
       const ipMatch = input.match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/);
       const userMatch = input.match(/user:([^\s]+)/);
       const passMatch = input.match(/admin:([^\s]+)/);
-      
+
       if (ipMatch) {
         ip = ipMatch[1];
         username = userMatch ? userMatch[1] : 'admin';
         password = passMatch ? passMatch[1] : '';
-        
+
         return this.handleTestStreams(ip, username, password, context, start);
       }
     } else {
@@ -97,13 +99,13 @@ export class CameraLivePlugin implements Plugin {
       const ipMatch = input.match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/);
       if (ipMatch) {
         ip = ipMatch[1];
-        
+
         // Try to get credentials from config store
         const { configStore } = await import('../../config/configStore');
         const storedUsername = configStore.get(`camera.credentials.${ip}.username`) as string | undefined;
         const storedPassword = configStore.get(`camera.credentials.${ip}.password`) as string | undefined;
         const storedRtspUrl = configStore.get(`camera.rtspPath.${ip}`) as string | undefined;
-        
+
         if (storedUsername) {
           username = storedUsername;
           password = storedPassword || '';
@@ -128,7 +130,7 @@ export class CameraLivePlugin implements Plugin {
         }
       }
     }
-    
+
     if (!ip || !rtspUrl) {
       return {
         pluginId: this.id,
@@ -143,7 +145,7 @@ export class CameraLivePlugin implements Plugin {
         metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
       };
     }
-    
+
     // Try to detect camera vendor — prefer DB vendor (from scan) and RTSP path.
     const rtspPathForDetection = rtspUrl ? rtspUrl.replace(/^rtsp:\/\/[^/]+/, '') : undefined;
     const dbVendorId = await this.resolveVendorFromDb(ip, context);
@@ -221,7 +223,7 @@ export class CameraLivePlugin implements Plugin {
       snapshotStatusLine = 'ℹ️ **Snapshot w czacie wymaga aplikacji Tauri** (w przeglądarce blokuje CORS). Otwórz snapshot URL w nowej karcie.';
     }
 
-    
+
     let data = `📹 **Podgląd live z kamery**\n\n`;
     data += `🌐 **IP:** ${ip}\n`;
     data += `🏭 **Producent:** ${vendor.name}\n`;
@@ -232,7 +234,7 @@ export class CameraLivePlugin implements Plugin {
     data += `\n📶 **Status:**\n`;
     if (rtspStatusLine) data += `${rtspStatusLine}\n`;
     if (snapshotStatusLine) data += `${snapshotStatusLine}\n`;
-    
+
     // Show default credentials if no password provided
     if (!password && vendor.defaultCredentials.length > 0) {
       data += `\n🔐 **Domyślne hasła dla ${vendor.name}:**\n`;
@@ -240,7 +242,7 @@ export class CameraLivePlugin implements Plugin {
         data += `${idx + 1}. \`${cred.username}:${cred.password || '(puste)'}\` — ${cred.description}\n`;
       });
     }
-    
+
     // Show RTSP URLs for all quality levels
     data += `\n🎥 **RTSP Streams:**\n`;
     vendor.rtspPaths.slice(0, 6).forEach((path, idx) => {
@@ -249,7 +251,7 @@ export class CameraLivePlugin implements Plugin {
       data += `${idx + 1}. **${path.description}** (${path.quality})${okMark}\n   \`${url}\`\n`;
     });
     data += `*(Otwórz w VLC → Media → Otwórz strumień sieciowy)*\n`;
-    
+
     // Show HTTP snapshot URLs
     data += `\n📸 **HTTP Snapshot URLs:**\n`;
     vendor.httpSnapshotPaths.slice(0, 6).forEach((path, idx) => {
@@ -257,16 +259,16 @@ export class CameraLivePlugin implements Plugin {
       const okMark = workingSnapshotUrl === url ? ' ✅' : '';
       data += `${idx + 1}. \`${path.description}\`${okMark}\n   \`${url}\`\n`;
     });
-    
+
     data += `\n💡 **Jak używać:**\n`;
     data += `- Skopiuj RTSP URL do VLC lub innego odtwarzacza\n`;
     data += `- Otwórz HTTP snapshot URL w przeglądarce (odświeżaj F5)\n`;
     if (!password) {
       data += `- Wypróbuj domyślne hasła podane powyżej\n`;
     }
-    
+
     data += `\n---\n💡 **Sugerowane akcje:**\n`;
-    
+
     // Suggest trying default credentials
     if (!password && vendor.defaultCredentials.length > 0) {
       vendor.defaultCredentials.slice(0, 2).forEach(cred => {
@@ -276,36 +278,36 @@ export class CameraLivePlugin implements Plugin {
       data += `- "monitoruj ${ip} user:${username} admin:${password || 'HASŁO'}" — Rozpocznij monitoring\n`;
     }
     data += `- "przeglądaj http://${ip}" — Otwórz interfejs web kamery\n`;
-    
+
     const result: PluginResult = {
       pluginId: this.id,
       status: 'success',
       content: [
         ...(previewBase64
           ? [{
-              type: 'image' as const,
-              data: previewBase64,
-              mimeType: previewMimeType,
-              title: `Podgląd: ${ip}`,
-            }]
+            type: 'image' as const,
+            data: previewBase64,
+            mimeType: previewMimeType,
+            title: `Podgląd: ${ip}`,
+          }]
           : []),
         ...((workingRtspUrl || workingSnapshotUrl)
           ? [{
-              type: 'structured' as const,
-              data: JSON.stringify({
-                kind: 'camera_live',
-                url: workingRtspUrl ?? workingSnapshotUrl,
-                cameraId: ip,
-                fps: 1,
-                initialBase64: previewBase64 ?? undefined,
-                initialMimeType: previewMimeType ?? undefined,
-                snapshotUrl: workingSnapshotUrl ?? undefined,
-                // If RTSP failed but snapshot works, start in snapshot mode immediately
-                startInSnapshotMode: !workingRtspUrl && !!workingSnapshotUrl,
-              }),
-              title: `Live (1fps): ${ip}`,
-              mimeType: 'application/json',
-            }]
+            type: 'structured' as const,
+            data: JSON.stringify({
+              kind: 'camera_live',
+              url: workingRtspUrl ?? workingSnapshotUrl,
+              cameraId: ip,
+              fps: 1,
+              initialBase64: previewBase64 ?? undefined,
+              initialMimeType: previewMimeType ?? undefined,
+              snapshotUrl: workingSnapshotUrl ?? undefined,
+              // If RTSP failed but snapshot works, start in snapshot mode immediately
+              startInSnapshotMode: !workingRtspUrl && !!workingSnapshotUrl,
+            }),
+            title: `Live (1fps): ${ip}`,
+            mimeType: 'application/json',
+          }]
           : []),
         {
           type: 'text',
@@ -313,9 +315,9 @@ export class CameraLivePlugin implements Plugin {
           title: `Live Preview: ${ip}`,
         },
       ],
-      metadata: { 
-        duration_ms: Date.now() - start, 
-        cached: false, 
+      metadata: {
+        duration_ms: Date.now() - start,
+        cached: false,
         truncated: false,
       },
     };
@@ -443,23 +445,23 @@ export class CameraLivePlugin implements Plugin {
     const vendorId = dbVendorId ?? detectCameraVendor({});
     const vendor = getVendorInfo(vendorId);
     const auth = username && password ? `${username}:${password}@` : username ? `${username}@` : '';
-    
+
     let data = `🔄 **Testowanie streamów RTSP**\n\n`;
     data += `🌐 **IP:** ${ip}\n`;
     data += `👤 **User:** ${username}\n`;
     data += `🏭 **Producent:** ${vendor.name}\n\n`;
-    
+
     // Test all RTSP paths
     data += `🎥 **Testowanie ścieżek RTSP:**\n\n`;
-    
-    const testResults: Array<{path: string; status: string; working: boolean}> = [];
+
+    const testResults: Array<{ path: string; status: string; working: boolean }> = [];
     let firstWorkingBase64: string | null = null;
-    
+
     for (const [index, path] of vendor.rtspPaths.entries()) {
       const rtspUrl = `rtsp://${auth}${ip}:554${path.path}`;
       let status = '⏳ Testowanie...';
       let working = false;
-      
+
       try {
         if (context.isTauri && context.tauriInvoke) {
           const result = await context.tauriInvoke('rtsp_capture_frame', {
@@ -467,7 +469,7 @@ export class CameraLivePlugin implements Plugin {
             cameraId: `${ip}-${index}`,
             camera_id: `${ip}-${index}`,
           }) as { base64?: string };
-          
+
           if (result?.base64) {
             status = '✅ Działa';
             working = true;
@@ -481,13 +483,13 @@ export class CameraLivePlugin implements Plugin {
       } catch (e) {
         status = '❌ Błąd połączenia';
       }
-      
+
       testResults.push({ path: path.path, status, working });
       data += `${index + 1}. **${path.description}** (${path.quality})\n`;
       data += `   URL: \`${rtspUrl}\`\n`;
       data += `   Status: ${status}\n\n`;
     }
-    
+
     // Show working streams first
     const workingStreams = testResults.filter(r => r.working);
     if (workingStreams.length > 0) {
@@ -499,10 +501,10 @@ export class CameraLivePlugin implements Plugin {
       });
       data += `\n`;
     }
-    
+
     // Add suggestions
     data += `💡 **Sugerowane akcje:**\n`;
-    
+
     if (workingStreams.length > 0) {
       data += `- Użyj działającego streamu do VLC lub monitoringu\n`;
       data += `- "monitoruj ${ip} user:${username} admin:${password}" — Uruchom monitoring\n`;
@@ -511,7 +513,7 @@ export class CameraLivePlugin implements Plugin {
       data += `- Sprawdź, czy kamera jest włączona i dostępna\n`;
       data += `- Spróbuj innych portów (np. 8554 zamiast 554)\n`;
     }
-    
+
     // Add clickable actions
     const result: PluginResult = {
       pluginId: this.id,
@@ -519,11 +521,11 @@ export class CameraLivePlugin implements Plugin {
       content: [
         ...(firstWorkingBase64
           ? [{
-              type: 'image' as const,
-              data: firstWorkingBase64,
-              mimeType: 'image/jpeg',
-              title: `Podgląd (działający stream): ${ip}`,
-            }]
+            type: 'image' as const,
+            data: firstWorkingBase64,
+            mimeType: 'image/jpeg',
+            title: `Podgląd (działający stream): ${ip}`,
+          }]
           : []),
         {
           type: 'text',
@@ -531,13 +533,13 @@ export class CameraLivePlugin implements Plugin {
           title: `Test Streams: ${ip}`,
         },
       ],
-      metadata: { 
-        duration_ms: Date.now() - start, 
-        cached: false, 
+      metadata: {
+        duration_ms: Date.now() - start,
+        cached: false,
         truncated: false,
       },
     };
-    
+
     (result.metadata as any).configPrompt = {
       title: 'Akcje testowania',
       actions: [
@@ -571,7 +573,7 @@ export class CameraLivePlugin implements Plugin {
       ],
       layout: 'cards' as const,
     };
-    
+
     return result;
   }
 
@@ -579,10 +581,10 @@ export class CameraLivePlugin implements Plugin {
     let data = `🔐 **Test credentials**\n\n`;
     data += `👤 **Username:** \`${username}\`\n`;
     data += `🔒 **Password:** \`${password || '(puste)'}\`\n\n`;
-    
+
     // Find which vendors use these credentials
     const matchingVendors: string[] = [];
-    
+
     for (const [vendorId, vendor] of Object.entries(CAMERA_VENDORS)) {
       const hasMatch = vendor.defaultCredentials.some(
         cred => cred.username === username && cred.password === password
@@ -591,7 +593,7 @@ export class CameraLivePlugin implements Plugin {
         matchingVendors.push(vendor.name);
       }
     }
-    
+
     if (matchingVendors.length > 0) {
       data += `🏭 **Pasuje do producentów:**\n`;
       matchingVendors.forEach(vendor => {
@@ -601,12 +603,12 @@ export class CameraLivePlugin implements Plugin {
     } else {
       data += `⚠️ **Nie pasuje do żadnych domyślnych credentials**\n\n`;
     }
-    
+
     data += `💡 **Jak użyć:**\n`;
     data += `- \`pokaż live 192.168.1.100\` — testuj z tą kamerą\n`;
     data += `- \`monitoruj 192.168.1.100 user:${username} admin:${password}\` — monitoring\n`;
     data += `- \`rtsp://${username}:${password}@192.168.1.100:554/stream\` — RTSP URL\n\n`;
-    
+
     if (matchingVendors.length > 0) {
       data += `🎯 **Sugerowane ścieżki RTSP dla ${matchingVendors[0]}:**\n`;
       const vendor = Object.values(CAMERA_VENDORS).find(v => v.name === matchingVendors[0]);
@@ -617,7 +619,7 @@ export class CameraLivePlugin implements Plugin {
         });
       }
     }
-    
+
     return {
       pluginId: this.id,
       status: 'success',
@@ -626,9 +628,9 @@ export class CameraLivePlugin implements Plugin {
         data,
         title: `Credentials: ${username}:${password}`,
       }],
-      metadata: { 
-        duration_ms: Date.now() - start, 
-        cached: false, 
+      metadata: {
+        duration_ms: Date.now() - start,
+        cached: false,
         truncated: false,
       },
     };

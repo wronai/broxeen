@@ -1,3 +1,19 @@
+## [1.0.75] - 2026-02-24
+
+### Summary
+
+feat(docs): deep code analysis engine with 2 supporting modules
+
+### Docs
+
+- docs: update README
+
+### Other
+
+- update img_4.png
+- update src/plugins/camera/cameraLivePlugin.ts
+
+
 ## [1.0.74] - 2026-02-24
 
 ### Summary
