@@ -2,8 +2,6 @@ import { Plugin, PluginContext, type PluginResult } from "../../core/types";
 import { createScopedLogger } from "../../lib/logger";
 import { configStore } from "../../config/configStore";
 
-const logger = createScopedLogger("LogsPlugin");
-
 // Log management patterns
 const LOG_COMMANDS = {
   DOWNLOAD_LOGS: [
@@ -63,10 +61,11 @@ export class LogsPlugin implements Plugin {
   description = "Log management and export functionality";
 
   private context?: PluginContext;
+  private logger = createScopedLogger("LogsPlugin");
 
   async initialize(context: PluginContext): Promise<void> {
     this.context = context;
-    logger.info("Logs plugin initialized");
+    this.logger.info("Logs plugin initialized");
   }
 
   canHandle(query: string): boolean {
