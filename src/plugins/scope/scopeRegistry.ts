@@ -117,6 +117,28 @@ export const BUILTIN_SCOPES: Record<ScopeId, Omit<ScopeDefinition, 'remotePlugin
     allowInternet: true,
     allowLan: true,
   },
+  docker: {
+    id: 'docker',
+    name: 'Docker',
+    description: 'Zarządzanie kontenerami Docker na lokalnej maszynie',
+    allowedPlugins: [
+      'docker', 'docker-containers', 'docker-images', 'docker-volumes', 'docker-networks',
+      'http-browse', 'chat-llm', 'monitor', 'processes', 'disk-info',
+    ],
+    allowInternet: true,
+    allowLan: false,
+  },
+  'zewnetrzna-maszyna': {
+    id: 'zewnetrzna-maszyna',
+    name: 'Zewnętrzna maszyna',
+    description: 'Zarządzanie zdalną maszyną przez SSH',
+    allowedPlugins: [
+      'remote-machine', 'ssh', 'remote-docker', 'remote-processes',
+      'http-browse', 'chat-llm', 'monitor', 'disk-info',
+    ],
+    allowInternet: true,
+    allowLan: false,
+  },
 };
 
 // ─── Scope Registry ─────────────────────────────────────────

@@ -9,6 +9,89 @@ use regex_lite::Regex;
 pub const MIN_READABLE_CONTENT_LENGTH: usize = 120;
 pub const MAX_BACKEND_CONTENT_CHARS: usize = 20_000;
 
+pub fn filter_anti_scraping_notices(text: &str) -> String {
+    let mut cleaned = text.to_string();
+    
+    // Remove CSS class definitions (basic pattern)
+    // Note: regex-lite has limited regex support, so we'll use simple string operations
+    let lines: Vec<&str> = cleaned.lines().collect();
+    let mut filtered_lines = Vec::new();
+    
+    for line in lines {
+        let trimmed = line.trim();
+        // Skip lines that look like CSS class definitions
+        if trimmed.starts_with('.') && trimmed.contains('{') {
+            continue;
+        }
+        // Skip lines that contain CSS properties
+        if trimmed.contains("background-color:") || 
+           trimmed.contains("border:") || 
+           trimmed.contains("color:") ||
+           trimmed.contains("display:") ||
+           trimmed.contains("font-size:") ||
+           trimmed.contains("padding:") ||
+           trimmed.contains("margin:") ||
+           trimmed.contains("position:") ||
+           trimmed.contains("width:") ||
+           trimmed.contains("height:") ||
+           trimmed.contains("transform:") ||
+           trimmed.contains("opacity:") ||
+           trimmed.contains("visibility:") ||
+           trimmed.contains("z-index:") ||
+           trimmed.contains("flex:") ||
+           trimmed.contains("grid:") ||
+           trimmed.contains("align-items:") ||
+           trimmed.contains("justify-content:") ||
+           trimmed.contains("text-decoration:") ||
+           trimmed.contains("border-radius:") ||
+           trimmed.contains("box-shadow:") ||
+           trimmed.contains("cursor:") ||
+           trimmed.contains("outline:") ||
+           trimmed.contains("overflow:") ||
+           trimmed.contains("white-space:") ||
+           trimmed.contains("text-overflow:") ||
+           trimmed.contains("line-height:") ||
+           trimmed.contains("letter-spacing:") ||
+           trimmed.contains("font-weight:") ||
+           trimmed.contains("text-transform:") ||
+           trimmed.contains("transition:") ||
+           trimmed.contains("animation:") {
+            continue;
+        }
+        
+        filtered_lines.push(line);
+    }
+    
+    cleaned = filtered_lines.join("\n");
+    
+    // Remove CSS class names that are UI components
+    let lower = cleaned.to_lowercase();
+    let css_classes = ["olwg__", "wp__", "ui__", "btn__", "nav__"];
+    for class_prefix in css_classes {
+        // Simple replacement for CSS class names
+        cleaned = cleaned.replace(&format!("{} ", class_prefix), " ");
+        cleaned = cleaned.replace(&format!(" {}", class_prefix), " ");
+    }
+    
+    // Simple string replacement for WP.pl - find and replace entire sentence
+    if let Some(start) = lower.find("pobieranie, zwielokrotnianie, przechowywanie") {
+        if let Some(end) = lower[start..].find('.') {
+            let end_pos = start + end + 1;
+            cleaned.replace_range(start..end_pos, " ");
+        }
+    }
+    
+    // Simple string replacement for Onet.pl - find and replace entire sentence
+    if let Some(start) = lower.find("systematyczne pobieranie treści, danych lub informacji z tej strony internetowej") {
+        if let Some(end) = lower[start..].find('.') {
+            let end_pos = start + end + 1;
+            cleaned.replace_range(start..end_pos, " ");
+        }
+    }
+    
+    cleaned
+}
+
 pub fn strip_cookie_banner_text(text: &str) -> String {
     let text = filter_anti_scraping_notices(text);
     let raw = text.trim();
@@ -210,22 +293,6 @@ pub fn truncate_to_chars(text: &str, max_chars: usize) -> String {
         ));
     }
     truncated
-}
-
-pub fn filter_anti_scraping_notices(text: &str) -> String {
-    let mut cleaned = text.to_string();
-
-    // Regex for WP.pl and similar portals
-    if let Ok(re) = Regex::new(r"(?i)Pobieranie,\s*zwielokrotnianie,\s*przechowywanie\s*lub\s*jakiekolwiek\s*inne\s*wykorzystywanie\s*treści\s*dostępnych\s*w\s*niniejszym\s*serwisie.{0,2000}?(?:właściwe\s*przepisy\s*prawa\.|znajduje\s*się\s*tutaj\.?)") {
-        cleaned = re.replace_all(&cleaned, " ").to_string();
-    }
-
-    // Regex for Onet.pl and similar portals (RASP)
-    if let Ok(re) = Regex::new(r"(?i)Systematyczne\s*pobieranie\s*treści,\s*danych\s*lub\s*informacji\s*z\s*tej\s*strony\s*internetowej\s*\(web\s*scraping\).{0,2000}?wyszukiwania\s*przez\s*wyszukiwarki\s*internetowe\.?") {
-        cleaned = re.replace_all(&cleaned, " ").to_string();
-    }
-
-    cleaned
 }
 
 pub fn normalize_whitespace(text: &str) -> String {

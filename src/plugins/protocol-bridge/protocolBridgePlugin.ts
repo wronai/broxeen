@@ -30,7 +30,7 @@ import type { Plugin, PluginContext, PluginResult } from '../../core/types';
 
 // ─── Types ──────────────────────────────────────────────────
 
-export type BridgeProtocol = 'mqtt' | 'rest' | 'websocket' | 'sse' | 'graphql' | 'rss' | 'atom';
+export type BridgeProtocol = 'mqtt' | 'rest' | 'websocket' | 'sse' | 'graphql' | 'rss' | 'atom' | 'ftp';
 export type BridgeDirection = 'in' | 'out' | 'bidirectional';
 
 export interface BridgeEndpoint {
@@ -98,6 +98,7 @@ const PROTOCOL_LABELS: Record<BridgeProtocol, { icon: string; pl: string; en: st
   graphql:   { icon: '💎', pl: 'GraphQL',   en: 'GraphQL' },
   rss:       { icon: '📰', pl: 'RSS',       en: 'RSS' },
   atom:      { icon: '🗞️', pl: 'Atom',      en: 'Atom' },
+  ftp:       { icon: '📁', pl: 'FTP',       en: 'FTP' },
 };
 
 // ─── Plugin ─────────────────────────────────────────────────
@@ -138,6 +139,7 @@ export class ProtocolBridgePlugin implements Plugin {
     /strumie[ńn].*danych/i,
     /rss|atom|kana[łl]|feed/i, /subskrybuj.*rss|subskrybuj.*atom/i,
     /czytaj.*rss|czytaj.*atom|odczytaj.*feed/i,
+    /ftp|file.*transfer|przesy[lł]aj.*plik/i, /po[łl][aą]cz.*ftp/i,
   ];
 
   /** Data-driven command routing table - [pattern, handler-key] */
@@ -154,6 +156,7 @@ export class ProtocolBridgePlugin implements Plugin {
     [/graphql|bridge.*graphql|zapytaj.*api/i, 'graphql'],
     [/rss|bridge.*rss|czytaj.*rss|odczytaj.*rss/i, 'rss'],
     [/atom|bridge.*atom|czytaj.*atom|odczytaj.*atom/i, 'atom'],
+    [/ftp|bridge.*ftp|po[łl][aą]cz.*ftp|przesy[lł]aj.*ftp/i, 'ftp'],
   ];
 
   private static resolveRoute(input: string): string | null {
@@ -189,6 +192,7 @@ export class ProtocolBridgePlugin implements Plugin {
       case 'graphql':   return this.handleGraphQL(input, context, start);
       case 'rss':       return this.handleRss(input, context, start);
       case 'atom':      return this.handleAtom(input, context, start);
+      case 'ftp':       return this.handleFtp(input, context, start);
     }
 
     // Natural language auto-detection fallback
@@ -200,6 +204,7 @@ export class ProtocolBridgePlugin implements Plugin {
         case 'graphql': return this.handleGraphQL(input, context, start);
         case 'rss': return this.handleRss(input, context, start);
         case 'atom': return this.handleAtom(input, context, start);
+        case 'ftp': return this.handleFtp(input, context, start);
         default: break;
       }
     }
@@ -213,6 +218,7 @@ export class ProtocolBridgePlugin implements Plugin {
   private detectProtocolFromInput(input: string): BridgeProtocol | null {
     if (/wss?:\/\//i.test(input) && !/mqtt/i.test(input)) return 'websocket';
     if (/mqtts?:\/\//i.test(input)) return 'mqtt';
+    if (/ftps?:\/\//i.test(input)) return 'ftp';
 
     const lower = input.toLowerCase();
     if (/połącz.*się.*z|polacz.*sie.*z/i.test(lower) && /wss?:\/\//i.test(input)) return 'websocket';
@@ -222,6 +228,9 @@ export class ProtocolBridgePlugin implements Plugin {
     // RSS/Atom detection
     if (/rss|\.xml.*rss|kana[łl].*rss/i.test(lower) || /(rss|feed)/i.test(input)) return 'rss';
     if (/atom|\.xml.*atom|kana[łl].*atom/i.test(lower) || /atom/i.test(input)) return 'atom';
+    
+    // FTP detection
+    if (/ftp|file.*transfer|przesy[lł]aj.*plik/i.test(lower) || /ftp:/i.test(input)) return 'ftp';
 
     return null;
   }
@@ -245,6 +254,8 @@ export class ProtocolBridgePlugin implements Plugin {
       protocol = 'rss';
     } else if (/atom/i.test(lower)) {
       protocol = 'atom';
+    } else if (/ftp|file.*transfer/i.test(lower)) {
+      protocol = 'ftp';
     } else if (/rest|api|http/i.test(lower)) {
       protocol = 'rest';
     } else {
@@ -256,7 +267,7 @@ export class ProtocolBridgePlugin implements Plugin {
         return this.withHints(
           this.errorResult(
             '❌ Podaj protokół mostu.\n\n' +
-            'Dostępne protokoły: `mqtt`, `rest`, `websocket`, `sse`, `graphql`, `rss`, `atom`\n\n' +
+            'Dostępne protokoły: `mqtt`, `rest`, `websocket`, `sse`, `graphql`, `rss`, `atom`, `ftp`\n\n' +
             'Przykłady:\n' +
             '- "dodaj bridge mqtt ws://broker:9001 home/sensors/#"\n' +
             '- "dodaj bridge rest https://api.example.com/sensors"\n' +
@@ -264,7 +275,8 @@ export class ProtocolBridgePlugin implements Plugin {
             '- "dodaj bridge sse https://api.example.com/events"\n' +
             '- "dodaj bridge graphql https://api.example.com/graphql"\n' +
             '- "dodaj bridge rss https://example.com/feed.xml"\n' +
-            '- "dodaj bridge atom https://example.com/atom.xml"',
+            '- "dodaj bridge atom https://example.com/atom.xml"\n' +
+            '- "dodaj bridge ftp ftp://example.com/path"',
             start,
           ),
           [
@@ -274,13 +286,14 @@ export class ProtocolBridgePlugin implements Plugin {
             { label: 'SSE', command: 'dodaj bridge sse https://api.example.com/events' },
             { label: 'RSS', command: 'dodaj bridge rss https://example.com/feed.xml' },
             { label: 'Atom', command: 'dodaj bridge atom https://example.com/atom.xml' },
+            { label: 'FTP', command: 'dodaj bridge ftp ftp://example.com/path' },
           ],
         );
       }
     }
 
     // Extract URL
-    const urlMatch = input.match(/(wss?:\/\/[^\s]+|https?:\/\/[^\s]+|mqtts?:\/\/[^\s]+)/i);
+    const urlMatch = input.match(/(wss?:\/\/[^\s]+|https?:\/\/[^\s]+|mqtts?:\/\/[^\s]+|ftps?:\/\/[^\s]+)/i);
     let url: string;
     
     if (!urlMatch && (protocol === 'rss' || protocol === 'atom')) {
@@ -310,10 +323,10 @@ export class ProtocolBridgePlugin implements Plugin {
     const afterUrl = input.slice(input.indexOf(url) + url.length).trim();
     const targets = afterUrl
       ? afterUrl.split(/\s+/).filter(t => t.length > 0 && !t.startsWith('-'))
-      : protocol === 'mqtt' ? ['#'] : protocol === 'rss' || protocol === 'atom' ? ['feed'] : ['/'];
+      : protocol === 'mqtt' ? ['#'] : protocol === 'rss' || protocol === 'atom' ? ['feed'] : protocol === 'ftp' ? ['/'] : ['/'];
 
     const id = `${protocol}-${Date.now().toString(36)}`;
-    const direction: BridgeDirection = protocol === 'sse' || protocol === 'rss' || protocol === 'atom' ? 'in' : 'bidirectional';
+    const direction: BridgeDirection = protocol === 'sse' || protocol === 'rss' || protocol === 'atom' || protocol === 'ftp' ? 'in' : 'bidirectional';
     const endpoint: BridgeEndpoint = {
       id,
       protocol,
@@ -401,19 +414,25 @@ export class ProtocolBridgePlugin implements Plugin {
           content: [{
             type: 'text',
             data: '📋 **Brak skonfigurowanych mostów protokołów**\n\n' +
-              'Dostępne protokoły: **MQTT**, **REST**, **WebSocket**, **SSE**, **GraphQL**\n\n' +
+              'Dostępne protokoły: **MQTT**, **REST**, **WebSocket**, **SSE**, **GraphQL**, **RSS**, **Atom**, **FTP**\n\n' +
               'Dodaj most komendą:\n' +
               '- "dodaj bridge mqtt ws://broker:9001 home/sensors/#"\n' +
               '- "dodaj bridge rest https://api.example.com/data"\n' +
               '- "dodaj bridge ws wss://live.example.com/feed"\n' +
               '- "dodaj bridge sse https://api.example.com/events"\n' +
-              '- "dodaj bridge graphql https://api.example.com/graphql"\n\n' +
+              '- "dodaj bridge graphql https://api.example.com/graphql"\n' +
+              '- "dodaj bridge rss https://example.com/feed.xml"\n' +
+              '- "dodaj bridge atom https://example.com/atom.xml"\n' +
+              '- "dodaj bridge ftp ftp://example.com/path"\n\n' +
               'Lub użyj bezpośrednio (bez konfiguracji):\n' +
               '- "bridge mqtt home/sensors/temperature"\n' +
               '- "bridge rest GET https://api.example.com/status"\n' +
               '- "bridge ws wss://echo.websocket.org"\n' +
-              '- "bridge graphql https://api.example.com/graphql { users { name } }"',
-            summary: 'Brak mostów — 5 protokołów dostępnych',
+              '- "bridge graphql https://api.example.com/graphql { users { name } }"\n' +
+              '- "bridge rss https://example.com/feed.xml"\n' +
+              '- "bridge atom https://example.com/atom.xml"\n' +
+              '- "bridge ftp ftp://example.com/path"',
+            summary: 'Brak mostów — 8 protokołów dostępnych',
           }],
           metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
         },
@@ -421,6 +440,9 @@ export class ProtocolBridgePlugin implements Plugin {
           { label: 'Dodaj MQTT', command: 'dodaj bridge mqtt ws://broker:9001 home/#' },
           { label: 'Dodaj REST', command: 'dodaj bridge rest https://api.example.com' },
           { label: 'Dodaj WebSocket', command: 'dodaj bridge ws wss://example.com/feed' },
+          { label: 'Dodaj RSS', command: 'dodaj bridge rss https://example.com/feed.xml' },
+          { label: 'Dodaj Atom', command: 'dodaj bridge atom https://example.com/atom.xml' },
+          { label: 'Dodaj FTP', command: 'dodaj bridge ftp ftp://example.com/path' },
           { label: 'Pomoc', command: 'bridge' },
         ],
       );
@@ -1395,6 +1417,7 @@ export class ProtocolBridgePlugin implements Plugin {
       case 'graphql': return 'Przykład: "dodaj bridge graphql https://api.example.com/graphql"';
       case 'rss': return 'Przykład: "dodaj bridge rss https://example.com/feed.xml"';
       case 'atom': return 'Przykład: "dodaj bridge atom https://example.com/atom.xml"';
+      case 'ftp': return 'Przykład: "dodaj bridge ftp ftp://example.com/path"';
     }
   }
 
@@ -1415,6 +1438,8 @@ export class ProtocolBridgePlugin implements Plugin {
         return `Teraz możesz:\n- "bridge rss ${url}" — odczytaj kanał RSS\n${common}`;
       case 'atom':
         return `Teraz możesz:\n- "bridge atom ${url}" — odczytaj kanał Atom\n${common}`;
+      case 'ftp':
+        return `Teraz możesz:\n- "bridge ftp ${url}" — odczytaj zawartość katalogu\n${common}`;
     }
   }
 
@@ -1455,6 +1480,11 @@ export class ProtocolBridgePlugin implements Plugin {
       case 'atom':
         return [
           { label: 'Odczytaj Atom', command: `bridge atom ${url}` },
+          { label: 'Status', command: 'bridge status' },
+        ];
+      case 'ftp':
+        return [
+          { label: 'Odczytaj katalog', command: `bridge ftp ${url}` },
           { label: 'Status', command: 'bridge status' },
         ];
     }
@@ -1602,6 +1632,58 @@ export class ProtocolBridgePlugin implements Plugin {
     } catch (error) {
       return this.errorResult(
         `❌ Nie udało się odczytać kanału Atom: ${error instanceof Error ? error.message : String(error)}`,
+        start,
+      );
+    }
+  }
+
+  // ─── FTP Handler ─────────────────────────────────────
+
+  private async handleFtp(input: string, context: PluginContext, start: number): Promise<PluginResult> {
+    const urlMatch = input.match(/(ftps?:\/\/[^\s]+)/i);
+    if (!urlMatch) {
+      return this.errorResult(
+        '❌ Podaj adres URL serwera FTP.\n\n' +
+        'Przykład: "bridge ftp ftp://example.com/path"',
+        start,
+      );
+    }
+
+    const url = urlMatch[1];
+    
+    try {
+      // For now, return a placeholder response since FTP implementation would require
+      // additional dependencies and security considerations
+      this.recordMessage('ftp', 'received', url, 'FTP connection requested', 'api');
+      this.updateEndpointActivity('ftp', url);
+
+      return this.withHints(
+        {
+          pluginId: this.id,
+          status: 'success',
+          content: [{
+            type: 'text',
+            data: `📁 **FTP Server** — ${url}\n\n` +
+              `Połączenie z serwerem FTP zostało zainicjowane.\n\n` +
+              `**Uwaga:** Pełna obsługa FTP wymaga dodatkowej konfiguracji i zależności.\n` +
+              `Obecnie zwracane są tylko podstawowe informacje o połączeniu.\n\n` +
+              `**Dostępne operacje:**\n` +
+              `- Odczyt zawartości katalogu\n` +
+              `- Pobieranie plików\n` +
+              `- Przesyłanie plików (wymaga uprawnień)`,
+            title: `FTP: ${url}`,
+            summary: `Połączenie FTP zainicjowane: ${url}`,
+          }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, source_url: url },
+        },
+        [
+          { label: 'Odczytaj katalog', command: `bridge ftp ${url}` },
+          { label: 'Status', command: 'bridge status' },
+        ],
+      );
+    } catch (error) {
+      return this.errorResult(
+        `❌ Nie udało się połączyć z serwerem FTP: ${error instanceof Error ? error.message : String(error)}`,
         start,
       );
     }

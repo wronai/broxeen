@@ -1,3 +1,27 @@
+## [1.0.79] - 2026-02-24
+
+### Summary
+
+refactor(docs): multi-language support with 5 supporting modules
+
+### Test
+
+- update test-parse-pdf.mjs
+
+### Other
+
+- update src-tauri/src/content_cleaning.rs
+- update src-tauri/src/docker.rs
+- update src-tauri/src/main.rs
+- update src-tauri/src/remote_machine.rs
+- update src/core/bootstrap.ts
+- update src/lib/browseGateway.ts
+- update src/plugins/docker/dockerPlugin.ts
+- update src/plugins/protocol-bridge/protocolBridgePlugin.ts
+- update src/plugins/remote-machine/remoteMachinePlugin.ts
+- update src/plugins/scope/scopeRegistry.ts
+
+
 ## [1.0.78] - 2026-02-24
 
 ### Summary

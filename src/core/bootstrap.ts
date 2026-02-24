@@ -326,6 +326,20 @@ async function registerCorePlugins(
     safeRegister(registry, router, new VoiceCommandsPlugin(), 'VoiceCommandsPlugin');
   } catch (e) { console.warn('VoiceCommandsPlugin unavailable:', e); }
 
+  // ── Docker plugin ──────────────────────────────────────────────
+
+  try {
+    const { DockerPlugin } = await import('../plugins/docker/dockerPlugin');
+    safeRegister(registry, router, new DockerPlugin(), 'DockerPlugin');
+  } catch (e) { console.warn('DockerPlugin unavailable:', e); }
+
+  // ── Remote Machine plugin ───────────────────────────────────────
+
+  try {
+    const { RemoteMachinePlugin } = await import('../plugins/remote-machine/remoteMachinePlugin');
+    safeRegister(registry, router, new RemoteMachinePlugin(), 'RemoteMachinePlugin');
+  } catch (e) { console.warn('RemoteMachinePlugin unavailable:', e); }
+
   // ── Fallback ─────────────────────────────────────────────────
 
   try {

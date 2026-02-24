@@ -13,15 +13,33 @@ const MAX_CONTENT_LENGTH = 5000;
 function filterAntiScrapingNotices(text: string): string {
   let cleaned = text;
 
-  // Regex for WP.pl
+  // Remove CSS class definitions and UI component styles
   cleaned = cleaned.replace(
-    /Pobieranie,\s*zwielokrotnianie,\s*przechowywanie\s*lub\s*jakiekolwiek\s*inne\s*wykorzystywanie\s*treści\s*dostępnych\s*w\s*niniejszym\s*serwisie[\s\S]{0,2000}?(?:właściwe\s*przepisy\s*prawa\.|znajduje\s*się\s*tutaj\.?)/gi,
+    /\.[a-zA-Z0-9_-]+\{[^}]*\}/g,
     " "
   );
 
-  // Regex for Onet.pl
+  // Remove CSS class names that are UI components
   cleaned = cleaned.replace(
-    /Systematyczne\s*pobieranie\s*treści,\s*danych\s*lub\s*informacji\s*z\s*tej\s*strony\s*internetowej\s*\(web\s*scraping\)[\s\S]{0,2000}?wyszukiwania\s*przez\s*wyszukiwarki\s*internetowe\.?/gi,
+    /\b(olwg__\w+|wp__\w+|ui__\w+|btn__\w+|nav__\w+)\b/g,
+    " "
+  );
+
+  // Remove CSS properties and values
+  cleaned = cleaned.replace(
+    /\b(background-color|border|color|display|font-size|padding|margin|position|width|height|transform|opacity|visibility|z-index|flex|grid|align-items|justify-content|text-decoration|border-radius|box-shadow|cursor|outline|overflow|white-space|text-overflow|line-height|letter-spacing|font-weight|text-transform|transition|animation)\s*:[^;]*;?/gi,
+    " "
+  );
+
+  // Regex for WP.pl - remove entire sentence
+  cleaned = cleaned.replace(
+    /Pobieranie,\s*zwielokrotnianie,\s*przechowywanie\s*lub\s*jakiekolwiek\s*inne\s*wykorzystywanie\s*treści\s*dostępnych\s*w\s*niniejszym\s*serwisie[^.]*\./gi,
+    " "
+  );
+
+  // Regex for Onet.pl - remove entire sentence
+  cleaned = cleaned.replace(
+    /Systematyczne\s*pobieranie\s*treści,\s*danych\s*lub\s*informacji\s*z\s*tej\s*strony\s*internetowej\s*\(web\s*scraping\)[^.]*\./gi,
     " "
   );
 
@@ -403,11 +421,11 @@ function normalizeBrowseResult(
   const contentWasRssAtom = looksLikeRssOrAtom(rawContent);
 
   let extractedContent;
-  if (contentWasHtml) {
-    extractedContent = extractBrowserReadableContent(rawContent).content;
-  } else if (contentWasRssAtom) {
+  if (contentWasRssAtom) {
     const feedResult = extractRssAtomContent(rawContent);
     extractedContent = feedResult.content;
+  } else if (contentWasHtml) {
+    extractedContent = extractBrowserReadableContent(rawContent).content;
   } else {
     extractedContent = rawContent;
   }

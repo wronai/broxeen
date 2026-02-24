@@ -8,6 +8,7 @@ mod motion_detection;
 mod content_cleaning;
 mod content_extraction;
 mod disk_info;
+mod docker;
 mod email;
 mod frigate_mqtt;
 mod file_search;
@@ -18,6 +19,7 @@ mod network;
 mod network_info;
 mod network_scan;
 mod query_schema;
+mod remote_machine;
 mod settings;
 mod ssh;
 mod stt;
@@ -534,6 +536,23 @@ fn main() {
             audio_commands::wake_word_check_triggered,
             wake_word::wake_word_get_level,
             logging::get_backend_logs,
+            docker::docker_is_available,
+            docker::docker_info,
+            docker::docker_list_containers,
+            docker::docker_list_images,
+            docker::docker_list_volumes,
+            docker::docker_list_networks,
+            docker::docker_start_container,
+            docker::docker_stop_container,
+            docker::docker_restart_container,
+            docker::docker_remove_container,
+            docker::docker_get_logs,
+            remote_machine::remote_test_connection,
+            remote_machine::remote_execute_command,
+            remote_machine::remote_get_system_info,
+            remote_machine::remote_list_processes,
+            remote_machine::remote_copy_file,
+            remote_machine::remote_check_docker,
         ])
         .run(tauri::generate_context!())
     {
