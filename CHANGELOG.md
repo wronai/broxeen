@@ -1,3 +1,14 @@
+## [1.0.73] - 2026-02-24
+
+### Summary
+
+feat(tests): test module improvements
+
+### Other
+
+- update src/components/Chat.test.tsx
+
+
 ## [1.0.72] - 2026-02-24
 
 ### Summary

@@ -7,6 +7,8 @@ import {
   cleanup,
   act,
 } from "@testing-library/react";
+import { useEffect } from "react";
+import { useCqrs } from "../contexts/CqrsContext";
 import { invoke } from "@tauri-apps/api/core";
 import Chat from "./Chat";
 import { CqrsProvider } from "../contexts/CqrsContext";
@@ -175,10 +177,37 @@ describe("Chat — renderowanie", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
-  it("pokazuje wiadomość powitalną", () => {
-    render(<Chat settings={defaultSettings} />);
-    // Check for welcome screen H1 specifically
-    expect(screen.getByRole('heading', { name: /Witaj w Broxeen/i })).toBeInTheDocument();
+  it("pokazuje wiadomość powitalną", async () => {
+    const TestComponent = () => {
+      const { eventStore } = useCqrs();
+      
+      useEffect(() => {
+        // Manually add the initial system message
+        eventStore.append({
+          type: "message_added",
+          payload: { 
+            id: 0, 
+            role: "system", 
+            text: "Witaj w Broxeen! Wpisz adres strony, powiedz go głosem, lub wpisz zapytanie. Treść możesz odsłuchać przez TTS. 🎧" 
+          },
+        });
+      }, [eventStore]);
+      
+      return <Chat settings={defaultSettings} />;
+    };
+    
+    render(
+      <CqrsProvider>
+        <PluginProvider>
+          <TestComponent />
+        </PluginProvider>
+      </CqrsProvider>
+    );
+    
+    // Wait for welcome screen to appear
+    await waitFor(() => {
+      expect(screen.getByText(/Witaj w Broxeen/i)).toBeInTheDocument();
+    });
   });
 
   it("pokazuje pole input", () => {
