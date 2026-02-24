@@ -6,28 +6,27 @@ const baseProps = {
   isSpeaking: false,
   isPaused: false,
   progress: 0,
-  onSpeak: vi.fn(),
   onPause: vi.fn(),
   onResume: vi.fn(),
   onStop: vi.fn(),
 };
 
 describe("TtsControls", () => {
-  it("pokazuje przycisk 'Odsłuchaj' gdy nie mówi", () => {
+  it("pokazuje przycisk Pauza gdy nie mówi", () => {
     render(<TtsControls {...baseProps} />);
-    expect(screen.getByText("Odsłuchaj")).toBeInTheDocument();
+    expect(screen.getByTitle("Pauza")).toBeInTheDocument();
+    expect(screen.queryByTitle("Stop")).not.toBeInTheDocument();
   });
 
-  it("kliknięcie 'Odsłuchaj' wywołuje onSpeak", () => {
-    const onSpeak = vi.fn();
-    render(<TtsControls {...baseProps} onSpeak={onSpeak} />);
-    fireEvent.click(screen.getByText("Odsłuchaj"));
-    expect(onSpeak).toHaveBeenCalledOnce();
+  it("kliknięcie Pauza wywołuje onPause gdy nie mówi", () => {
+    const onPause = vi.fn();
+    render(<TtsControls {...baseProps} onPause={onPause} />);
+    fireEvent.click(screen.getByTitle("Pauza"));
+    expect(onPause).toHaveBeenCalledOnce();
   });
 
   it("pokazuje przycisk Pause gdy mówi i nie jest zatrzymany", () => {
     render(<TtsControls {...baseProps} isSpeaking={true} isPaused={false} />);
-    expect(screen.queryByText("Odsłuchaj")).not.toBeInTheDocument();
     expect(screen.getByTitle("Pauza")).toBeInTheDocument();
     expect(screen.getByTitle("Stop")).toBeInTheDocument();
   });

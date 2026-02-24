@@ -661,8 +661,8 @@ describe("Chat — TTS auto-play", () => {
     expect(screen.queryByText(/Druga długa treść wiadomości/i)).toBeTruthy();
 
     // When TTS is not speaking, only the latest message should have TTS controls
-    // Look for "Odsłuchaj" buttons - should only be one (on the latest message)
-    const listenButtons = screen.queryAllByText(/Odsłuchaj/i);
+    // Look for "Pauza" buttons - should only be one (on the latest message)
+    const listenButtons = screen.queryAllByTitle(/Pauza/i);
     expect(listenButtons.length).toBe(1);
   });
 });

@@ -31,7 +31,6 @@ const CONFIG_KEYWORDS = /konfigur|config|ustawieni[ae]|setup|api\s*key|model|pod
 const HELP_KEYWORDS = /pomoc|help|co\s+umiesz|co\s+potrafisz/i;
 const PING_KEYWORDS = /ping|reachable|osiągaln|rtt|latenc/i;
 const PORT_KEYWORDS = /port|tcp|udp|open|otwart/i;
-const RSS_KEYWORDS = /rss|kana[łl]|feed|xml.*rss|rss.*xml|wp\.pl.*rss/i;
 
 /**
  * Resolve contextual quick-actions for an assistant message.
@@ -139,21 +138,6 @@ export function resolveQuickActions(msg: ChatMessage): QuickActionSet | null {
     actions.push(
       { id: 'qa-search-more', label: 'Szukaj więcej', icon: '🔍', type: 'prefill', prefillText: 'wyszukaj ', variant: 'secondary' },
     );
-  }
-
-  // ── RSS feeds → offer monitoring ────────────────────────
-  if (RSS_KEYWORDS.test(text) && urls.length > 0) {
-    const rssUrl = urls.find(url => url.includes('rss') || url.includes('xml')) || urls[0];
-    if (!actions.some(a => a.id.includes('rss-monitor'))) {
-      actions.push(
-        { id: 'qa-rss-monitor', label: 'Dodaj do monitoringu', icon: '📰', type: 'execute', executeQuery: `dodaj do monitorowania ${rssUrl}`, variant: 'primary' },
-      );
-    }
-    if (!actions.some(a => a.id.includes('rss-refresh'))) {
-      actions.push(
-        { id: 'qa-rss-refresh', label: 'Odśwież', icon: '🔄', type: 'execute', executeQuery: `bridge rss ${rssUrl}`, variant: 'secondary' },
-      );
-    }
   }
 
   // ── SSH results → offer more commands ───────────────────

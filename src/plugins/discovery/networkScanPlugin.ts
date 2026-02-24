@@ -816,7 +816,9 @@ export class NetworkScanPlugin implements Plugin {
           lines.push(`📷 **${ip}** *(kamera RTSP)*`);
           lines.push(`   🎥 RTSP: \`rtsp://${ip}:${rtspPort}/stream\``);
           if (port !== 554 && port !== 8554) lines.push(`   🌐 HTTP: \`http://${ip}:${port}\``);
-          lines.push(`   💬 Akcja: *"pokaż kamerę ${ip}"*`);
+          lines.push(`   💬 Monitoruj: *"monitoruj ${ip}"*`);
+          lines.push(`   💬 Logi: *"pokaż logi monitoringu ${ip}"*`);
+          lines.push(`   💬 Stop: *"stop monitoring ${ip}"*`);
         } else {
           others.push(ip);
           lines.push(`🖥️ **${ip}** — port: ${port}`);
@@ -824,17 +826,10 @@ export class NetworkScanPlugin implements Plugin {
         }
       }
 
-      if (isCameraQuery && cameras.length === 0) {
+      if (isCameraQuery && cameras.length === 0 && others.length > 0) {
         lines.push('');
-        lines.push('ℹ️ *Nie wykryto kamer RTSP w tej podsieci.*');
-        if (others.length > 0) {
-          lines.push(`*Znaleziono ${others.length} innych urządzeń (routery/serwery).*`);
-        }
-        lines.push('');
-        lines.push('💡 **Sprawdź inne adresy IP:**');
-        lines.push(`- "pokaż kamerę ${subnet}.100"`);
-        lines.push(`- "pokaż kamerę ${subnet}.200"`);
-        lines.push(`- "monitoruj ${subnet}.150"`);
+        lines.push('ℹ️ *Nie wykryto kamer RTSP. Znalezione hosty to prawdopodobnie routery/urządzenia sieciowe.*');
+        lines.push('💡 Jeśli kamera ma inny IP, podaj go bezpośrednio: *"monitoruj 192.168.1.200"*');
       }
 
       lines.push('');

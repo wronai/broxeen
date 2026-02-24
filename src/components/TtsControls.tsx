@@ -1,11 +1,10 @@
-import { Play, Pause, Square, Volume2 } from "lucide-react";
+import { Play, Pause, Square } from "lucide-react";
 import { logger } from "../lib/logger";
 
 interface TtsControlsProps {
   isSpeaking: boolean;
   isPaused: boolean;
   progress: number;
-  onSpeak: () => void;
   onPause: () => void;
   onResume: () => void;
   onStop: () => void;
@@ -15,16 +14,10 @@ export default function TtsControls({
   isSpeaking,
   isPaused,
   progress,
-  onSpeak,
   onPause,
   onResume,
   onStop,
 }: TtsControlsProps) {
-  const handleSpeak = () => {
-    logger.debug("TTS Controls: Odsłuchaj clicked");
-    onSpeak();
-  };
-
   const handlePause = () => {
     logger.debug("TTS Controls: Pauza clicked");
     onPause();
@@ -42,34 +35,25 @@ export default function TtsControls({
 
   return (
     <div className="flex items-center gap-2">
-      {!isSpeaking ? (
+      {isPaused ? (
         <button
-          onClick={handleSpeak}
-          className="flex items-center gap-1.5 rounded-lg bg-broxeen-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-broxeen-500"
-          title="Odczytaj (TTS)"
+          onClick={handleResume}
+          className="rounded-lg bg-broxeen-600 p-1.5 text-white transition hover:bg-broxeen-500"
+          title="Wznów"
         >
-          <Volume2 size={16} />
-          Odsłuchaj
+          <Play size={16} />
         </button>
       ) : (
+        <button
+          onClick={handlePause}
+          className="rounded-lg bg-yellow-600 p-1.5 text-white transition hover:bg-yellow-500"
+          title="Pauza"
+        >
+          <Pause size={16} />
+        </button>
+      )}
+      {isSpeaking && (
         <>
-          {isPaused ? (
-            <button
-              onClick={handleResume}
-              className="rounded-lg bg-broxeen-600 p-1.5 text-white transition hover:bg-broxeen-500"
-              title="Wznów"
-            >
-              <Play size={16} />
-            </button>
-          ) : (
-            <button
-              onClick={handlePause}
-              className="rounded-lg bg-yellow-600 p-1.5 text-white transition hover:bg-yellow-500"
-              title="Pauza"
-            >
-              <Pause size={16} />
-            </button>
-          )}
           <button
             onClick={handleStop}
             className="rounded-lg bg-red-600 p-1.5 text-white transition hover:bg-red-500"

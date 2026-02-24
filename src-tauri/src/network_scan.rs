@@ -19,27 +19,43 @@ use crate::logging::{backend_info, backend_warn};
 use std::sync::OnceLock;
 
 /// Anonymizes passwords in RTSP URLs by replacing them with ***
-pub fn anonymize_rtsp_url(url: &str) -> String {
-    if let Some(at_pos) = url.find('@') {
-        if let Some(scheme_end) = url.find("://") {
-            if at_pos > scheme_end + 3 {
-                let before_auth = &url[..scheme_end + 3];
-                let after_auth = &url[at_pos..];
-                if let Some(colon_pos) = url[scheme_end + 3..at_pos].find(':') {
-                    let username = &url[scheme_end + 3..scheme_end + 3 + colon_pos];
-                    format!("{}{}:***{}", before_auth, username, after_auth)
-                } else {
-                    url.to_string()
+pub fn anonymize_rtsp_url(text: &str) -> String {
+    let mut result = text.to_string();
+    
+    // Find all RTSP URLs and anonymize them
+    let mut start = 0;
+    while let Some(scheme_start) = result[start..].find("rtsp://") {
+        let absolute_scheme_start = start + scheme_start;
+        
+        // Find the end of this URL (next space, newline, or end of string)
+        let url_end = result[absolute_scheme_start..]
+            .find(|c| c == ' ' || c == '\n' || c == '\r')
+            .map(|pos| absolute_scheme_start + pos)
+            .unwrap_or(result.len());
+        
+        let url_fragment = &result[absolute_scheme_start..url_end];
+        
+        // Anonymize this specific URL
+        if let Some(at_pos) = url_fragment.find('@') {
+            if at_pos > 7 + 3 { // rtsp:// = 7 chars
+                let before_auth = &url_fragment[..7 + 3]; // rtsp:// = 7 chars
+                let after_auth = &url_fragment[at_pos..];
+                if let Some(colon_pos) = url_fragment[7 + 3..at_pos].find(':') {
+                    let username = &url_fragment[7 + 3..7 + 3 + colon_pos];
+                    let anonymized_url = format!("{}{}:***{}", before_auth, username, after_auth);
+                    result.replace_range(absolute_scheme_start..url_end, &anonymized_url);
+                    
+                    // Adjust start position to avoid infinite loops
+                    start = absolute_scheme_start + anonymized_url.len();
+                    continue;
                 }
-            } else {
-                url.to_string()
             }
-        } else {
-            url.to_string()
         }
-    } else {
-        url.to_string()
+        
+        start = absolute_scheme_start + 7; // Skip past "rtsp://"
     }
+    
+    result
 }
 
 #[cfg(test)]
@@ -76,6 +92,19 @@ mod tests {
     fn test_anonymize_non_rtsp_url() {
         let url = "http://admin:password@example.com";
         assert_eq!(anonymize_rtsp_url(url), url);
+    }
+
+    #[test]
+    fn test_anonymize_rtsp_url_multiline() {
+        let stderr = "[tcp @ 0x59d7f4269000] Connection to tcp://192.168.188.176:554?timeout=0 failed: No route to host
+[in#0 @ 0x59d7f4266180] Error opening input: No route to host
+Error opening input file rtsp://admin:Tom4Camera@192.168.188.176:554/Streaming/Channels/102.
+Error opening input files: No route to host";
+        let expected = "[tcp @ 0x59d7f4269000] Connection to tcp://192.168.188.176:554?timeout=0 failed: No route to host
+[in#0 @ 0x59d7f4266180] Error opening input: No route to host
+Error opening input file rtsp://admin:***@192.168.188.176:554/Streaming/Channels/102.
+Error opening input files: No route to host";
+        assert_eq!(anonymize_rtsp_url(stderr), expected);
     }
 }
 
