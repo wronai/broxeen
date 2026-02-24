@@ -1,3 +1,23 @@
+## [1.0.67] - 2026-02-24
+
+### Summary
+
+refactor(tests): configuration management system
+
+### Test
+
+- update test-results/.last-run.json
+
+### Other
+
+- update e2e/logging.spec.ts
+- update src-tauri/src/logging.rs
+- update src-tauri/src/main.rs
+- update src/components/Chat.test.tsx
+- update src/components/ErrorReportPanel.tsx
+- update src/domain/audioSettings.test.ts
+
+
 ## [1.0.66] - 2026-02-24
 
 ### Summary

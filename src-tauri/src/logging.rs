@@ -22,6 +22,30 @@ fn resolve_log_dir() -> PathBuf {
         .join("logs")
 }
 
+#[tauri::command]
+pub async fn get_backend_logs() -> Result<String, String> {
+    let log_dir = resolve_log_dir();
+    if !log_dir.exists() {
+        return Ok("No backend logs found (directory does not exist).".to_string());
+    }
+
+    let mut entries: Vec<_> = std::fs::read_dir(&log_dir)
+        .map_err(|e| format!("Failed to read log directory: {}", e))?
+        .filter_map(|res| res.ok())
+        .map(|e| e.path())
+        .filter(|p| p.is_file() && p.file_name().and_then(|n| n.to_str()).map(|n| n.starts_with("backend")).unwrap_or(false))
+        .collect();
+
+    entries.sort();
+    
+    if let Some(latest) = entries.last() {
+        std::fs::read_to_string(latest)
+            .map_err(|e| format!("Failed to read latest log file: {}", e))
+    } else {
+        Ok("No backend log files found.".to_string())
+    }
+}
+
 fn build_file_appender() -> Option<(RollingFileAppender, PathBuf)> {
     let log_dir = resolve_log_dir();
     if let Err(err) = std::fs::create_dir_all(&log_dir) {

@@ -5,6 +5,12 @@
 import React, { useState, useEffect } from 'react';
 import { errorReporting } from '../utils/errorReporting';
 
+declare global {
+  interface Window {
+    __TAURI_INTERNALS__?: Record<string, unknown>;
+  }
+}
+
 interface ErrorReportPanelProps {
   isVisible: boolean;
   onClose: () => void;
@@ -40,8 +46,24 @@ export const ErrorReportPanel: React.FC<ErrorReportPanelProps> = ({ isVisible, o
 
   const copyErrorReport = async () => {
     try {
-      const report = errorReporting.exportErrors();
-      
+      let report = errorReporting.exportErrors();
+
+      // Attempt to retrieve backend logs
+      if (window.__TAURI_INTERNALS__) {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const backendLogs = await invoke<string>('get_backend_logs');
+          if (backendLogs) {
+            report += '\n\n=== BACKEND LOGS ===\n';
+            report += backendLogs.length > 50000
+              ? backendLogs.slice(-50000)
+              : backendLogs;
+          }
+        } catch (backendErr) {
+          console.warn('Could not fetch backend logs', backendErr);
+        }
+      }
+
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(report);
       } else {
@@ -56,8 +78,8 @@ export const ErrorReportPanel: React.FC<ErrorReportPanelProps> = ({ isVisible, o
         document.execCommand('copy');
         document.body.removeChild(textArea);
       }
-      
-      showNotification('✅ Raport błędów skopiowany!', 'success');
+
+      showNotification('✅ Raport błędów i logi skopiowane!', 'success');
     } catch (error) {
       showNotification('❌ Nie udało się skopiować raportu', 'error');
     }
@@ -83,7 +105,7 @@ export const ErrorReportPanel: React.FC<ErrorReportPanelProps> = ({ isVisible, o
     notification.className = `fixed top-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50 flex items-center gap-2`;
     notification.innerHTML = message;
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
       notification.remove();
     }, 3000);
@@ -221,9 +243,8 @@ export const ErrorReportPanel: React.FC<ErrorReportPanelProps> = ({ isVisible, o
               {errors.map((error) => (
                 <div
                   key={error.id}
-                  className={`bg-gray-700 rounded-lg p-3 border-l-4 ${
-                    error.resolved ? 'border-gray-500 opacity-50' : 'border-red-500'
-                  }`}
+                  className={`bg-gray-700 rounded-lg p-3 border-l-4 ${error.resolved ? 'border-gray-500 opacity-50' : 'border-red-500'
+                    }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

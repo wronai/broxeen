@@ -533,6 +533,7 @@ fn main() {
             audio_commands::wake_word_stop,
             audio_commands::wake_word_check_triggered,
             wake_word::wake_word_get_level,
+            logging::get_backend_logs,
         ])
         .run(tauri::generate_context!())
     {

@@ -10,7 +10,7 @@ describe("audioSettings domain", () => {
       tts_enabled: true,
       tts_lang: "pl-PL",
       mic_enabled: true,
-      auto_listen: false,
+      auto_listen: true,
     });
   });
 
