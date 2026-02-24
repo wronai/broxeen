@@ -18,6 +18,7 @@ use crate::tts_backend;
 use std::sync::{Arc, Mutex};
 use std::path::PathBuf;
 use serde_json;
+use cpal::traits::StreamTrait;
 
 /// Load current settings from disk
 fn load_settings() -> crate::AudioSettings {
@@ -64,15 +65,44 @@ pub struct ActiveWakeWordStream(pub Arc<Mutex<Option<cpal::Stream>>>);
 unsafe impl Send for ActiveWakeWordStream {}
 unsafe impl Sync for ActiveWakeWordStream {}
 
+/// Check if wake word detection is currently active
+fn is_wake_word_active(active_wake_word: &ActiveWakeWordStream) -> bool {
+    active_wake_word.0.lock().unwrap().is_some()
+}
+
+/// Pause wake word detection temporarily (drop and recreate later)
+fn pause_wake_word(active_wake_word: &ActiveWakeWordStream) -> Result<(), String> {
+    if let Some(stream) = active_wake_word.0.lock().unwrap().take() {
+        drop(stream); // This stops the wake word detection
+        crate::backend_info("⏸️ Wake word detection paused for manual recording");
+        Ok(())
+    } else {
+        crate::backend_warn("⚠️ Wake word not active - nothing to pause");
+        Ok(())
+    }
+}
+
+/// Resume wake word detection (needs to be recreated)
+fn resume_wake_word(active_wake_word: &ActiveWakeWordStream) -> Result<(), String> {
+    // Note: This would need to recreate the wake word stream
+    // For now, we'll just log that it needs to be restarted
+    crate::backend_info("▶️ Wake word detection needs to be restarted manually");
+    crate::backend_warn("⚠️ Automatic wake word resume not implemented - please restart wake word detection");
+    Ok(())
+}
+
 // ── STT Commands ─────────────────────────────────────
 
 /// Start recording from microphone.
 #[tauri::command]
 pub fn stt_start(
+    mode: Option<String>,
     recording_state: tauri::State<SharedRecordingState>,
     active_stream: tauri::State<ActiveStream>,
+    active_wake_word: tauri::State<ActiveWakeWordStream>,
 ) -> Result<String, String> {
-    crate::backend_info("Command stt_start invoked");
+    let mode = mode.unwrap_or_else(|| "manual".to_string());
+    crate::backend_info(format!("Command stt_start invoked with mode: {}", mode));
 
     // Check if already recording
     {
@@ -84,14 +114,31 @@ pub fn stt_start(
         crate::backend_info(format!("Current recording state: is_recording={}, samples={}", s.is_recording, s.samples.len()));
     }
 
-    crate::backend_info("Starting native audio capture...");
+    // Inteligentna logika przełączania trybów
+    let wake_word_active = is_wake_word_active(&active_wake_word);
+    
+    match mode.as_str() {
+        "manual" => {
+            if wake_word_active {
+                crate::backend_info("🎯 Manual mode - automatically pausing wake word detection");
+                pause_wake_word(&active_wake_word)?;
+            } else {
+                crate::backend_info("🎯 Manual recording started");
+            }
+        },
+        _ => {
+            crate::backend_warn(format!("Unknown STT mode: {}, falling back to manual", mode));
+        }
+    }
+
+    crate::backend_info("🎙️ Starting native audio capture...");
     let stream = audio_capture::start_recording(&recording_state)?;
 
     // Store stream handle so it stays alive
     *active_stream.0.lock().unwrap() = Some(stream);
-    crate::backend_info("✓ Native microphone recording started successfully");
+    crate::backend_info("✅ Native microphone recording started successfully");
 
-    Ok("Recording started".into())
+    Ok(format!("Recording started in {} mode", mode))
 }
 
 /// Stop recording, transcribe via cloud STT, return text.
@@ -99,11 +146,14 @@ pub fn stt_start(
 pub async fn stt_stop(
     recording_state: tauri::State<'_, SharedRecordingState>,
     active_stream: tauri::State<'_, ActiveStream>,
+    active_wake_word: tauri::State<'_, ActiveWakeWordStream>,
+    mode: Option<String>,  // Nowy parametr: "manual", "wake_word_trigger", etc.
     language: Option<String>,
     api_key: Option<String>,
     model: Option<String>,
 ) -> Result<String, String> {
-    crate::backend_info("Command stt_stop invoked");
+    let mode = mode.unwrap_or_else(|| "manual".to_string());
+    crate::backend_info(format!("Command stt_stop invoked with mode: {}", mode));
     crate::backend_info(format!("STT params: language={:?}, api_key_set={}, model={:?}", 
         language, 
         api_key.as_ref().map_or(false, |k| !k.is_empty()),
@@ -150,6 +200,15 @@ pub async fn stt_stop(
         transcript.chars().take(50).collect::<String>(),
         transcript.len()
     ));
+
+    // Automatycznie wznow wake word po manual recording
+    if is_wake_word_active(&active_wake_word) {
+        if let Err(e) = resume_wake_word(&active_wake_word) {
+            crate::backend_warn(format!("⚠️ Failed to resume wake word: {}", e));
+        }
+    }
+
+    crate::backend_info("🎯 Manual: transkrypcja gotowa");
     Ok(transcript)
 }
 

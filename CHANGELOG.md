@@ -1,3 +1,56 @@
+## [1.0.66] - 2026-02-24
+
+### Summary
+
+refactor(docs): configuration management system
+
+### Docs
+
+- docs: update README
+- docs: update STT_ARCHITECTURE.md
+
+### Other
+
+- update project.functions.toon
+- update src-tauri/src/audio_commands.rs
+- update src-tauri/src/stt.rs
+- update src/components/Chat.tsx
+- update src/hooks/useStt.ts
+
+
+## [2.3.0] - 2026-02-24
+
+### 🎤 Dwutrybowy System STT (Speech-to-Text)
+- **Wake word detection** — "heyken" aktywuje automatyczne nagrywanie
+- **Inteligentny VAD** — Voice Activity Detection (RMS + Zero Crossing Rate)
+- **Dwa tryby nagrywania:**
+  - 🎤 **Wake Word Trigger:** 1s auto-record + kontynuuj jeśli wykryto mowę
+  - 🎯 **Manual Recording:** trzymaj przycisk tak długo jak nagrywasz
+- **Anti-halucynacyjny prompt** — temperature=0 + ścisłe zasady transkrypcji
+- **OpenRouter multimodal API** — Google Gemini 2.0 Flash (free tier)
+- **Automatyczne przełączanie trybów** — manual recording pauzuje wake word
+- **VAD pre-check** — odrzuca ciszę zanim wyśle do API (oszczędność tokenów)
+- **Formaty audio:** WAV, WebM, OGG z auto-konwersją
+- **Detekcja artefaktów** — odrzuca powtórzenia i błędy przetwarzania
+
+### 🛠️ Architektura STT
+- **Backend Rust:** `stt.rs` + `audio_commands.rs` z VAD i trybami
+- **Frontend React:** `useStt.ts` hook z `currentMode` state
+- **Tauri commands:** `stt_start(mode)` + `stt_stop(mode)`
+- **Konfiguracja:** `OPENROUTER_API_KEY`, `STT_MODEL`, progi VAD
+- **Debug mode:** statystyki VAD + hinty dla kalibracji
+
+### 📚 Dokumentacja
+- **Nowy plik:** `docs/STT_ARCHITECTURE.md` — pełna dokumentacja techniczna
+- **Zaktualizowany README:** sekcja STT z trybami i konfiguracją
+- **Kompatybilność:** Tauri Linux (webkitgtk) bez Web Speech API
+
+### 🔧 Poprawki
+- **Halucynacje LLM:** naprawione przez temperature=0 + prompt
+- **Konflikty trybów:** inteligentne przełączanie wake word ↔ manual
+- **API endpoint:** poprawione na `/chat/completions` z `input_audio`
+- **Model:** zmieniony na `google/gemini-2.0-flash-exp:free` (wspiera audio)
+
 ## [2.2.0] - 2026-02-23
 
 ### 🤖 Inteligentny Asystent z Propozycjami

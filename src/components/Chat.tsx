@@ -788,26 +788,8 @@ export default function Chat({ settings }: ChatProps) {
             sttTranscribing: stt.isTranscribing,
           });
 
-          // Auto-start STT if not already recording
-          if (!stt.isRecording && !stt.isTranscribing) {
-            chatLogger.info("→ Auto-starting STT after wake word detection");
-            try {
-              wakeWordTriggeredSttRef.current = true;
-              chatLogger.info("→ Setting wakeWordTriggeredSttRef = true");
-              stt.startRecording();
-              chatLogger.info("✓ STT recording started successfully");
-              // Add visual feedback
-              appendStatusNotice("wake_word", "🎤 'Heyken' wykryte - słucham...");
-            } catch (e) {
-              chatLogger.error("✗ Failed to auto-start STT after wake word", { error: e });
-              wakeWordTriggeredSttRef.current = false;
-            }
-          } else {
-            chatLogger.warn("Wake word detected but STT already active, ignoring", {
-              isRecording: stt.isRecording,
-              isTranscribing: stt.isTranscribing,
-            });
-          }
+          // Wake word detection usunięte - tylko manualne nagrywanie przez przycisk
+          chatLogger.info("🎤 Wake word detected - manual recording only");
         });
         chatLogger.info("Wake word listener registered");
       } catch (err) {
@@ -3036,7 +3018,13 @@ ${analysis}`,
                   onKeyDown={handleKeyDown}
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
-                  placeholder="Wpisz adres, zapytanie lub powiedz głosem..."
+                  placeholder={
+                    stt.isRecording 
+                      ? "🎙️ Nagrywam..." 
+                      : stt.isTranscribing 
+                        ? "🔧 Przetwarzam audio..." 
+                        : "Wpisz adres, zapytanie lub naciśnij przycisk mikrofonu..."
+                  }
                   className="w-full rounded-xl bg-gray-800/80 px-4 py-3 pr-12 text-sm text-white placeholder-gray-500 outline-none ring-1 ring-gray-700/60 transition-all duration-200 focus:ring-2 focus:ring-broxeen-500/70 focus:shadow-[0_0_20px_rgba(14,165,233,0.12)]"
                 />
 

@@ -159,6 +159,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [currentMode, setCurrentMode] = useState<"manual">("manual");
   const [error, setError] = useState<string | null>(null);
   const [lastErrorDetails, setLastErrorDetails] = useState<
     {
@@ -223,7 +224,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
     streamRef.current = null;
   }, []);
 
-  const startTauriRecording = useCallback(async () => {
+  const startTauriRecording = useCallback(async (mode: "manual" = "manual") => {
     if (startInFlightRef.current) {
       sttLogger.debug("Tauri STT start ignored — start already in-flight");
       return;
@@ -242,7 +243,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
       "speech:stt:ui",
       "startRecordingTauriBackend",
       async () => {
-        await invoke("stt_start");
+        await invoke("stt_start", { mode });
         stopInFlightRef.current = false;
         sttLogger.info("Native Tauri STT recording started");
       },
@@ -277,11 +278,12 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
     }
   }, [lang]);
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback((mode: "manual" = "manual") => {
     const run = logSyncDecorator("speech:stt:ui", "startRecording", () => {
       setError(null);
       setLastErrorDetails(null);
       setTranscript("");
+      setCurrentMode(mode);
 
       if (isRecordingRef.current) {
         sttLogger.debug("STT start ignored — already recording");
@@ -290,7 +292,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
 
       if (modeRef.current === "tauri") {
         // Handle async startTauriRecording properly
-        startTauriRecording().catch((e) => {
+        startTauriRecording(mode).catch((e) => {
           // Error already handled in startTauriRecording, just log
           sttLogger.debug("startTauriRecording error caught in startRecording", { error: e });
         });
@@ -436,6 +438,7 @@ export function useStt(options: UseSttOptions = {}): UseSttReturn {
               // Use audioSettings from options or fetch from backend
               const settings = audioSettings || await getAudioSettings();
               const transcriptValue = await invoke<string>("stt_stop", {
+                mode: currentMode,
                 language: lang.split("-")[0],
                 apiKey: undefined, // Backend will use OPENROUTER_API_KEY env var
                 model: settings.stt_model,

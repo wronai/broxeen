@@ -1,14 +1,19 @@
 project: broxeen
-generated: "2026-02-23T18:42:41.114258"
-modules[273]{path,lang,items}:
+generated: "2026-02-23T23:59:35.937913"
+modules[288]{path,lang,items}:
   test-parse-pdf.mjs,javascript,0
+  test-intent.ts,typescript,0
+  test-can-handle.js,javascript,0
   phonetic.py,python,2
   vite.config.ts,typescript,1
   tailwind.config.js,javascript,0
+  test-llm-classifier.ts,typescript,1
   resolver.py,python,2
   postcss.config.js,javascript,0
   test_phonetic.py,python,12
   playwright.config.ts,typescript,0
+  test-monitor-plugin.ts,typescript,1
+  test-routing.ts,typescript,0
   src-tauri/build.rs,rust,1
   src-tauri/test_read.rs,rust,1
   src/main.tsx,typescript,0
@@ -48,11 +53,12 @@ modules[273]{path,lang,items}:
   src/lib/phonetic.test.ts,typescript,0
   src/lib/browseGateway.ts,typescript,13
   src/lib/browseGateway.test.ts,typescript,0
-  src/lib/sttClient.ts,typescript,2
+  src/lib/sttClient.ts,typescript,3
   src/lib/llmPrompts.ts,typescript,1
   src/lib/logger.ts,typescript,6
   src/lib/resolver.ts,typescript,4
   src/lib/llmClient.ts,typescript,10
+  src/lib/sttClient.test.ts,typescript,0
   src/lib/phonetic.ts,typescript,2
   src/lib/runtime.ts,typescript,1
   src/lib/resolver.test.ts,typescript,0
@@ -63,7 +69,8 @@ modules[273]{path,lang,items}:
   src/hooks/useHistoryPersistence.ts,typescript,5
   src/hooks/useSpeech.test.ts,typescript,1
   src/hooks/useTts.test.ts,typescript,0
-  src/hooks/useStt.ts,typescript,6
+  src/hooks/useStt.ts,typescript,7
+  src/hooks/useStt.test.ts,typescript,0
   src/hooks/useAlertBridge.ts,typescript,1
   src/hooks/useLlm.ts,typescript,1
   src/hooks/useWatchNotifications.ts,typescript,2
@@ -81,7 +88,7 @@ modules[273]{path,lang,items}:
   src/components/Settings.tsx,typescript,2
   src/components/NetworkHistorySelector.tsx,typescript,0
   src/components/CameraLiveInline.tsx,typescript,0
-  src/components/SetupWizardModal.tsx,typescript,3
+  src/components/SetupWizardModal.tsx,typescript,4
   src/components/MessageResultCard.tsx,typescript,0
   src/components/MicSettingsModal.tsx,typescript,2
   src/components/QuickCommands.tsx,typescript,0
@@ -109,6 +116,7 @@ modules[273]{path,lang,items}:
   src/services/defaultLlmAdapter.ts,typescript,6
   src/services/browseService.ts,typescript,0
   src/core/preferenceLearning.ts,typescript,8
+  src/core/retry.test.ts,typescript,0
   src/core/pluginRegistry.test.ts,typescript,5
   src/core/types.ts,typescript,0
   src/core/plugin.types.ts,typescript,3
@@ -124,13 +132,17 @@ modules[273]{path,lang,items}:
   src/core/processRegistry.ts,typescript,10
   src/core/intentRouter.test.ts,typescript,3
   src/core/systemContext.test.ts,typescript,0
+  src/core/retry.ts,typescript,7
   src/core/commandBus.test.ts,typescript,0
   src/core/fallbackHandler.ts,typescript,5
-  src/core/actionSchema.ts,typescript,7
+  src/core/intentRouter.llm.test.ts,typescript,0
+  src/core/actionSchema.ts,typescript,8
+  src/core/intentSchema.ts,typescript,10
   src/core/commandBus.ts,typescript,6
   src/core/realtimeSync.test.ts,typescript,0
   src/core/actionSchema.test.ts,typescript,0
   src/core/fallbackCli.test.ts,typescript,0
+  src/core/llmIntentClassifier.ts,typescript,8
   src/core/preferenceLearning.test.ts,typescript,0
   src/core/fallbackHandler.test.ts,typescript,0
   src/discovery/types.ts,typescript,0
@@ -173,13 +185,13 @@ modules[273]{path,lang,items}:
   src/plugins/network/pingPlugin.ts,typescript,7
   src/plugins/network/portScanPlugin.ts,typescript,8
   src/plugins/files/fileSearchPlugin.test.ts,typescript,0
-  src/plugins/files/fileSearchPlugin.ts,typescript,15
+  src/plugins/files/fileSearchPlugin.ts,typescript,14
   src/plugins/system/diskInfoPlugin.test.ts,typescript,0
   src/plugins/system/processesPlugin.ts,typescript,2
   src/plugins/system/sshPlugin.test.ts,typescript,0
   src/plugins/system/diskInfoPlugin.ts,typescript,16
   src/plugins/system/processesPlugin.test.ts,typescript,0
-  src/plugins/system/sshPlugin.ts,typescript,14
+  src/plugins/system/sshPlugin.ts,typescript,15
   src/plugins/monitor/motionDetectionPlugin.ts,typescript,17
   src/plugins/monitor/monitor.test.ts,typescript,0
   src/plugins/monitor/index.ts,typescript,0
@@ -191,9 +203,9 @@ modules[273]{path,lang,items}:
   src/plugins/discovery/deviceStatusPlugin.test.ts,typescript,0
   src/plugins/discovery/autoScanScheduler.test.ts,typescript,1
   src/plugins/discovery/cameraDetection.ts,typescript,4
-  src/plugins/discovery/networkScanPlugin.ts,typescript,30
+  src/plugins/discovery/networkScanPlugin.ts,typescript,31
   src/plugins/discovery/autoScanScheduler.ts,typescript,13
-  src/plugins/discovery/deviceConfigPlugin.ts,typescript,11
+  src/plugins/discovery/deviceConfigPlugin.ts,typescript,12
   src/plugins/discovery/networkScanPlugin.test.ts,typescript,0
   src/plugins/http-browse/index.ts,typescript,1
   src/plugins/http-browse/httpBrowse.test.ts,typescript,1
@@ -203,7 +215,7 @@ modules[273]{path,lang,items}:
   src/plugins/rtsp-camera/rtspCameraPlugin.test.ts,typescript,0
   src/plugins/marketplace/index.ts,typescript,0
   src/plugins/marketplace/marketplace.test.ts,typescript,0
-  src/plugins/marketplace/marketplaceLoader.ts,typescript,9
+  src/plugins/marketplace/marketplaceLoader.ts,typescript,10
   src/plugins/local-network/index.ts,typescript,0
   src/plugins/local-network/onvifPlugin.ts,typescript,6
   src/plugins/local-network/wakeOnLanPlugin.ts,typescript,6
@@ -225,15 +237,15 @@ modules[273]{path,lang,items}:
   src/plugins/scope/scopeRegistry.ts,typescript,12
   src/plugins/authBrowse/authBrowsePlugin.ts,typescript,2
   src/plugins/frigate/frigateEventsPlugin.test.ts,typescript,1
-  src/plugins/frigate/frigateEventsPlugin.ts,typescript,8
+  src/plugins/frigate/frigateEventsPlugin.ts,typescript,9
   src/plugins/chat/chatPlugin.ts,typescript,4
   src/plugins/camera/cameraVendorDatabase.ts,typescript,4
   src/plugins/camera/cameraLivePlugin.ts,typescript,12
   src/plugins/camera/cameraLivePlugin.test.ts,typescript,0
-  src/plugins/email/emailPlugin.ts,typescript,18
+  src/plugins/email/emailPlugin.ts,typescript,16
   src/plugins/protocol-bridge/protocolBridgePlugin.test.ts,typescript,0
   src/plugins/protocol-bridge/index.ts,typescript,0
-  src/plugins/protocol-bridge/protocolBridgePlugin.ts,typescript,36
+  src/plugins/protocol-bridge/protocolBridgePlugin.ts,typescript,37
   src-tauri/src/network_info.rs,rust,3
   src-tauri/src/vision_config.rs,rust,27
   src-tauri/src/main_changes.rs,rust,1
@@ -243,6 +255,7 @@ modules[273]{path,lang,items}:
   src-tauri/src/useBackendStt.ts,typescript,1
   src-tauri/src/llm.rs,rust,0
   src-tauri/src/vision_motion.rs,rust,0
+  src-tauri/src/llm_query.rs,rust,1
   src-tauri/src/stt.rs,rust,1
   src-tauri/src/frigate_mqtt.rs,rust,0
   src-tauri/src/file_search.rs,rust,6
@@ -250,7 +263,8 @@ modules[273]{path,lang,items}:
   src-tauri/src/vision_llm.rs,rust,1
   src-tauri/src/main.rs,rust,13
   src-tauri/src/vision_movement.rs,rust,4
-  src-tauri/src/motion_detection.rs,rust,7
+  src-tauri/src/motion_detection.rs,rust,8
+  src-tauri/src/query_schema.rs,rust,2
   src-tauri/src/logging.rs,rust,6
   src-tauri/src/autostart.rs,rust,7
   src-tauri/src/test_read.rs,rust,1
@@ -261,12 +275,13 @@ modules[273]{path,lang,items}:
   src-tauri/src/useBackendTts.ts,typescript,2
   src-tauri/src/vision_db.rs,rust,4
   src-tauri/src/email.rs,rust,1
-  src-tauri/src/audio_commands.rs,rust,11
+  src-tauri/src/audio_commands.rs,rust,15
   src-tauri/src/disk_info.rs,rust,4
   src-tauri/src/vision_query_engine.rs,rust,0
+  src-tauri/src/wake_word.rs,rust,5
   src-tauri/src/vision_capture.rs,rust,0
   src-tauri/src/settings.rs,rust,15
-  src-tauri/src/audio_capture.rs,rust,7
+  src-tauri/src/audio_capture.rs,rust,8
   src-tauri/src/network.rs,rust,7
   src-tauri/src/useAudio.ts,typescript,1
   src-tauri/src/tts_backend.rs,rust,22
@@ -283,6 +298,9 @@ function_details:
   vite.config.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       chatApiPlugin,function,() -> Plugin,11-220,false,210,1,chat api plugin
+  test-llm-classifier.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      main,function,(),4-7,true,4,1,main
   resolver.py:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       fuzzy_match_domain,function,"(input_str:str, threshold:float=0.55, max_results:int=6) -> list[tuple[str, float]]",31-58,false,28,3,Find closest matching domains using SequenceMatcher.
@@ -301,6 +319,9 @@ function_details:
       TestNormalize.test_case_insensitive,method,(),77-79,false,3,1,checks case insensitive
       TestLooksLikeUrl.test_valid_urls,method,(text),90-91,false,2,1,checks valid urls
       TestLooksLikeUrl.test_not_urls,method,(text),97-98,false,2,1,checks not urls
+  test-monitor-plugin.ts:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      main,function,(),4-7,true,4,1,main
   src-tauri/build.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       main,function,(),"-",false,1,1,main
@@ -309,8 +330,8 @@ function_details:
       main,function,(),"-",false,1,1,main
   src/App.tsx:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      persistSettings,function,"(next: AudioSettings)",342-345,true,4,1,caches settings
-      updateSettings,function,"(partial: Partial<AudioSettings>)",347-355,false,9,1,updates settings
+      persistSettings,function,"(next: AudioSettings)",367-370,true,4,1,caches settings
+      updateSettings,function,"(partial: Partial<AudioSettings>)",372-380,false,9,1,updates settings
   scripts/net-diag.mjs:
     functions[17]{name,kind,sig,loc,async,lines,cc,does}:
       col,function,(t),23-23,false,1,1,col
@@ -517,23 +538,24 @@ function_details:
       BrowseCommand.execute,method,"(params: BrowseCommandParams) -> Promise<void>",33-170,true,138,1,starts
   src/lib/browseGateway.ts:
     functions[13]{name,kind,sig,loc,async,lines,cc,does}:
-      stripCookieBannerText,function,"(text: string) -> string",8-76,false,69,1,strip cookie banner text
-      normalizeText,function,"(text: string) -> string",108-110,false,3,1,normalize text
-      withHttpScheme,function,"(url: string) -> string",112-114,false,3,1,with http scheme
-      summarizeUnknownError,function,"(error: unknown) -> string",116-121,false,6,1,summarize unknown error
-      extractBrowserReadableContent,function,"(rawHtml: string) -> {\n  title: string;\n  content: string;\n}",123-205,false,83,1,parses browser readable content
-      looksLikeHtml,function,"(text: string) -> boolean",207-216,false,10,1,looks like html
-      normalizeBrowseResult,function,"(result: BrowseResult, source: \"tauri\" | \"browser\", requestedUrl?) -> BrowseResult",218-281,false,64,1,normalize browse result
-      fetchViaAllOriginsJson,function,"(url: string) -> Promise<BrowserProxyPayload>",283-307,true,25,1,retrieves via all origins json
-      fetchViaAllOriginsRaw,function,"(url: string) -> Promise<BrowserProxyPayload>",309-333,true,25,1,retrieves via all origins raw
-      fetchViaCorsProxy,function,"(url: string) -> Promise<BrowserProxyPayload>",335-358,true,24,1,retrieves via cors proxy
-      fetchViaJina,function,"(url: string) -> Promise<BrowserProxyPayload>",360-383,true,24,1,retrieves via jina
-      browseInBrowser,function,"(url: string) -> Promise<BrowseResult>",385-470,true,86,1,browse in browser
-      executeBrowseCommand,function,"(url: string, runtimeIsTauri: boolean) -> Promise<BrowseResult>",472-514,true,43,1,starts browse command
+      stripCookieBannerText,function,"(text: string) -> string",13-81,false,69,1,strip cookie banner text
+      normalizeText,function,"(text: string) -> string",113-115,false,3,1,normalize text
+      withHttpScheme,function,"(url: string) -> string",117-119,false,3,1,with http scheme
+      summarizeUnknownError,function,"(error: unknown) -> string",121-126,false,6,1,summarize unknown error
+      extractBrowserReadableContent,function,"(rawHtml: string) -> {\n  title: string;\n  content: string;\n}",128-210,false,83,1,parses browser readable content
+      looksLikeHtml,function,"(text: string) -> boolean",212-221,false,10,1,looks like html
+      normalizeBrowseResult,function,"(result: BrowseResult, source: \"tauri\" | \"browser\", requestedUrl?) -> BrowseResult",223-286,false,64,1,normalize browse result
+      fetchViaAllOriginsJson,function,"(url: string) -> Promise<BrowserProxyPayload>",288-350,true,63,1,retrieves via all origins json
+      fetchViaAllOriginsRaw,function,"(url: string) -> Promise<BrowserProxyPayload>",352-406,true,55,1,retrieves via all origins raw
+      fetchViaCorsProxy,function,"(url: string) -> Promise<BrowserProxyPayload>",408-461,true,54,1,retrieves via cors proxy
+      fetchViaJina,function,"(url: string) -> Promise<BrowserProxyPayload>",463-516,true,54,1,retrieves via jina
+      browseInBrowser,function,"(url: string) -> Promise<BrowseResult>",518-603,true,86,1,browse in browser
+      executeBrowseCommand,function,"(url: string, runtimeIsTauri: boolean) -> Promise<BrowseResult>",605-647,true,43,1,starts browse command
   src/lib/sttClient.ts:
-    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      getSttConfig,function,() -> SttConfig,25-32,false,8,1,retrieves stt config
-      transcribeAudio,function,"(audioBase64: string, format: SttAudioFormat, languageOverride?, configOverride?) -> Promise<string>",34-125,true,92,1,transcribe audio
+    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
+      buildSttRequestBody,function,"(params: {\n  model: string;\n  prompt: string;\n  audioBase64: string;\n  format: SttAudioFormat;\n  maxTokens: number;\n  temperature: number;\n})",25-53,false,29,1,creates stt request body
+      getSttConfig,function,() -> SttConfig,55-62,false,8,1,retrieves stt config
+      transcribeAudio,function,"(audioBase64: string, format: SttAudioFormat, languageOverride?, configOverride?) -> Promise<string>",64-145,true,82,1,transcribe audio
   src/lib/llmPrompts.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       getPrompt,function,"(mode: PromptMode, override?) -> string",62-64,false,3,1,retrieves prompt
@@ -583,7 +605,7 @@ function_details:
       getSpeechSynthesisApi,function,() -> SpeechSynthesis | undefined,42-48,false,7,1,retrieves speech synthesis api
       preprocessForTts,function,"(text: string) -> string",50-62,false,13,1,preprocess for tts
       estimateBackendSpeechDurationMs,function,"(text: string, rate: number) -> number",64-69,false,6,1,estimate backend speech duration ms
-      useTts,function,"(options: Partial<TtsOptions>)",71-530,false,460,1,use tts
+      useTts,function,"(options: Partial<TtsOptions>)",71-533,false,463,1,use tts
   src/hooks/useDatabaseManager.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       useDatabaseManager,function,() -> DatabaseManager | null,11-13,false,3,1,use database manager
@@ -598,13 +620,14 @@ function_details:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       makeMockRecognition,function,(),20-31,false,12,1,creates mock recognition
   src/hooks/useStt.ts:
-    functions[6]{name,kind,sig,loc,async,lines,cc,does}:
-      arrayBufferToBase64,function,"(buf: ArrayBuffer) -> string",35-43,false,9,1,array buffer to base64
-      writeWavPcm16,function,"(audioBuffer: AudioBuffer) -> ArrayBuffer",45-88,false,44,1,logs wav pcm16
-      blobToWavBase64,function,"(blob: Blob) -> Promise<{ base64: string; format: SttAudioFormat }>",90-107,true,18,1,blob to wav base64
-      getUnsupportedReason,function,() -> string | null,109-123,false,15,1,retrieves unsupported reason
-      toErrorDetails,function,"(e: unknown)",125-134,false,10,1,converts error details
-      useStt,function,"(options: UseSttOptions) -> UseSttReturn",136-450,false,315,1,use stt
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      getAudioSettings,function,() -> Promise<AudioSettings>,20-31,true,12,1,retrieves audio settings
+      arrayBufferToBase64,function,"(buf: ArrayBuffer) -> string",51-59,false,9,1,array buffer to base64
+      writeWavPcm16,function,"(audioBuffer: AudioBuffer) -> ArrayBuffer",61-104,false,44,1,logs wav pcm16
+      blobToWavBase64,function,"(blob: Blob) -> Promise<{ base64: string; format: SttAudioFormat }>",106-123,true,18,1,blob to wav base64
+      getUnsupportedReason,function,() -> string | null,125-139,false,15,1,retrieves unsupported reason
+      toErrorDetails,function,"(e: unknown)",141-150,false,10,1,converts error details
+      useStt,function,"(options: UseSttOptions) -> UseSttReturn",152-531,false,380,1,use stt
   src/hooks/useAlertBridge.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       useAlertBridge,function,"(autoScanScheduler: AutoScanScheduler | null) -> AlertBridge | null",23-84,false,62,1,use alert bridge
@@ -659,20 +682,21 @@ function_details:
       renderSettings,function,"(props: Partial<typeof baseProps>)",105-109,true,5,1,formats settings
   src/components/Settings.tsx:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      update,function,"(partial: Partial<AudioSettings>)",158-162,false,5,1,updates
-      handleSave,function,(),164-179,true,16,1,handles save
+      update,function,"(partial: Partial<AudioSettings>)",164-168,false,5,1,updates
+      handleSave,function,(),170-185,true,16,1,handles save
   src/components/SetupWizardModal.tsx:
-    functions[3]{name,kind,sig,loc,async,lines,cc,does}:
-      toggleAutostart,function,(),67-83,true,17,1,toggle autostart
-      handleSave,function,(),85-93,false,9,1,handles save
-      canProceed,function,(),95-98,false,4,1,checks proceed
+    functions[4]{name,kind,sig,loc,async,lines,cc,does}:
+      toggleAutostart,function,(),79-95,true,17,1,toggle autostart
+      handleSave,function,(),97-105,false,9,1,handles save
+      testApiKey,function,(),120-145,true,26,1,checks api key
+      canProceed,function,(),147-150,false,4,1,checks proceed
   src/components/MicSettingsModal.tsx:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      update,function,"(partial: Partial<AudioSettings>)",99-102,false,4,1,updates
-      handleSave,function,(),104-115,true,12,1,handles save
+      update,function,"(partial: Partial<AudioSettings>)",102-105,false,4,1,updates
+      handleSave,function,(),107-118,true,12,1,handles save
   src/components/Chat.tsx:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      nextMessageId,function,(),123-126,false,4,1,next message id
+      nextMessageId,function,(),126-129,false,4,1,next message id
   src/components/WatchBadge.simple.tsx:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       WatchBadge,function,(),13-39,false,27,1,watch badge
@@ -832,20 +856,20 @@ function_details:
       CacheFactory.disposeAll,method,() -> void,404-410,false,7,1,dispose all
   src/core/intentRouter.ts:
     functions[9]{name,kind,sig,loc,async,lines,cc,does}:
-      buildQuery,function,"(intent: string, rawInput: string, overrides: Partial<Omit<PluginQuery, 'intent' | 'rawInput'>>) -> PluginQuery",755-771,false,17,1,creates query
-      IntentRouter.constructor,method,(),13-15,false,3,1,constructor
-      IntentRouter.initializeDefaultPatterns,method,() -> void,17-570,false,554,1,initializes default patterns
-      IntentRouter.registerPlugin,method,"(plugin: Plugin) -> void",572-574,false,3,1,registers plugin
-      IntentRouter.registerDataSourcePlugin,method,"(plugin: DataSourcePlugin) -> void",576-578,false,3,1,registers data source plugin
-      IntentRouter.detect,method,"(input: string) -> Promise<IntentDetection>",580-607,true,28,1,detect
-      IntentRouter.route,method,"(intent: string, scope?) -> Plugin | DataSourcePlugin | null",609-623,false,15,1,route
-      IntentRouter.calculateConfidence,method,"(input: string, intent: string) -> number",625-663,false,39,1,processes confidence
-      IntentRouter.extractEntities,method,"(input: string, intent: string) -> Record<string, unknown>",665-739,false,75,1,parses entities
+      buildQuery,function,"(intent: string, rawInput: string, overrides: Partial<Omit<PluginQuery, 'intent' | 'rawInput'>>) -> PluginQuery",776-792,false,17,1,creates query
+      IntentRouter.constructor,method,(options?),15-18,false,4,1,constructor
+      IntentRouter.initializeDefaultPatterns,method,() -> void,20-573,false,554,1,initializes default patterns
+      IntentRouter.registerPlugin,method,"(plugin: Plugin) -> void",575-577,false,3,1,registers plugin
+      IntentRouter.registerDataSourcePlugin,method,"(plugin: DataSourcePlugin) -> void",579-581,false,3,1,registers data source plugin
+      IntentRouter.detect,method,"(input: string) -> Promise<IntentDetection>",583-628,true,46,1,detect
+      IntentRouter.route,method,"(intent: string, scope?) -> Plugin | DataSourcePlugin | null",630-644,false,15,1,route
+      IntentRouter.calculateConfidence,method,"(input: string, intent: string) -> number",646-684,false,39,1,processes confidence
+      IntentRouter.extractEntities,method,"(input: string, intent: string) -> Record<string, unknown>",686-760,false,75,1,parses entities
   src/core/bootstrap.ts:
     functions[3]{name,kind,sig,loc,async,lines,cc,does}:
-      bootstrapApp,function,"(config: {\n  isTauri: boolean;\n  tauriInvoke?: (command: string, args?: any) => Promise<any>;\n  cameras?: import('./types').CameraConfig[];\n  mqtt?: import('./types').MqttConfig;\n  describeImage?: (imageUrl: string) => Promise<string>;\n}) -> Promise<AppContext>",16-99,true,84,1,initializes app
-      safeRegister,function,"(registry: PluginRegistry, router: IntentRouter, plugin: any, label: string) -> void",101-113,false,13,1,safe register
-      registerCorePlugins,function,"(registry: PluginRegistry, router: IntentRouter, bus: CommandBus, isTauri: boolean, tauriInvoke?) -> Promise<void>",115-356,true,242,1,registers core plugins
+      bootstrapApp,function,"(config: {\n  isTauri: boolean;\n  tauriInvoke?: (command: string, args?: any) => Promise<any>;\n  cameras?: import('./types').CameraConfig[];\n  mqtt?: import('./types').MqttConfig;\n  describeImage?: (imageUrl: string) => Promise<string>;\n}) -> Promise<AppContext>",17-102,true,86,1,initializes app
+      safeRegister,function,"(registry: PluginRegistry, router: IntentRouter, plugin: any, label: string) -> void",104-116,false,13,1,safe register
+      registerCorePlugins,function,"(registry: PluginRegistry, router: IntentRouter, bus: CommandBus, isTauri: boolean, tauriInvoke?) -> Promise<void>",118-359,true,242,1,registers core plugins
   src/core/systemContext.ts:
     functions[9]{name,kind,sig,loc,async,lines,cc,does}:
       detectOs,function,() -> OsPlatform,39-48,false,10,1,detect os
@@ -874,6 +898,15 @@ function_details:
       MockPlugin.constructor,method,"(id: string, name: string, intents: string[])",16-20,false,5,1,constructor
       MockPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",22-24,true,3,1,checks handle
       MockPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",26-31,true,6,1,starts
+  src/core/retry.ts:
+    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+      resolveDecision,function,"(decision: boolean | RetryDecision | undefined) -> RetryDecision",20-28,false,9,1,resolve decision
+      sleep,function,"(ms: number) -> Promise<void>",30-32,false,3,1,sleep
+      computeDelayMs,function,"(attempt: number, baseDelayMs: number, maxDelayMs: number, jitterRatio: number) -> number",34-46,false,13,1,processes delay ms
+      retry,function,"(fn: (attempt: number) => Promise<T>, options: RetryOptions) -> Promise<T>",48-86,true,39,1,retry
+      isProbablyTransientHttpStatus,function,"(status: number) -> boolean",88-90,false,3,1,checks probably transient http status
+      isProbablyTransientErrorMessage,function,"(message: string) -> boolean",92-104,false,13,1,checks probably transient error message
+      shouldRetryUnknownAsTransient,function,"(error: unknown) -> RetryDecision",106-112,false,7,1,checks retry unknown as transient
   src/core/fallbackHandler.ts:
     functions[5]{name,kind,sig,loc,async,lines,cc,does}:
       tryLlmFallback,function,"(options: FallbackOptions) -> Promise<FallbackResult | null>",52-156,true,105,1,try llm fallback
@@ -882,14 +915,27 @@ function_details:
       keywordFallback,function,"(options: FallbackOptions) -> FallbackResult",206-284,false,79,1,keyword fallback
       generateFallback,function,"(options: FallbackOptions) -> Promise<FallbackResult>",292-305,true,14,1,creates fallback
   src/core/actionSchema.ts:
-    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
-      getSchemasByDomain,function,"(domain: ActionDomain) -> ActionSchema[]",399-401,false,3,1,retrieves schemas by domain
-      getAllDomains,function,"() -> ActionDomain[]",404-406,false,3,1,retrieves all domains
-      scoreMatch,function,"(query: string, schema: ActionSchema) -> number",409-426,false,18,1,score match
-      findMatchingSchemas,function,"(query: string, limit) -> Array<ActionSchema & { score: number }>",429-435,false,7,1,retrieves matching schemas
-      findDomainSchemas,function,"(query: string) -> ActionSchema[]",438-504,false,67,1,retrieves domain schemas
-      schemasToConfigActions,function,"(schemas: ActionSchema[]) -> ConfigAction[]",507-517,false,11,1,schemas to config actions
-      schemasToLlmContext,function,"(schemas: ActionSchema[]) -> string",520-552,false,33,1,schemas to llm context
+    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
+      getSchemasByDomain,function,"(domain: ActionDomain) -> ActionSchema[]",409-411,false,3,1,retrieves schemas by domain
+      getAllDomains,function,"() -> ActionDomain[]",414-416,false,3,1,retrieves all domains
+      scoreMatch,function,"(query: string, schema: ActionSchema) -> number",419-436,false,18,1,score match
+      findMatchingSchemas,function,"(query: string, limit) -> Array<ActionSchema & { score: number }>",439-445,false,7,1,retrieves matching schemas
+      getDomainHints,function,"() -> Map<string, ActionDomain>",469-484,false,16,1,retrieves domain hints
+      findDomainSchemas,function,"(query: string) -> ActionSchema[]",487-500,false,14,1,retrieves domain schemas
+      schemasToConfigActions,function,"(schemas: ActionSchema[]) -> ConfigAction[]",503-513,false,11,1,schemas to config actions
+      schemasToLlmContext,function,"(schemas: ActionSchema[]) -> string",516-548,false,33,1,schemas to llm context
+  src/core/intentSchema.ts:
+    functions[10]{name,kind,sig,loc,async,lines,cc,does}:
+      registerIntentSchema,function,"(schema: IntentSchema) -> void",43-45,false,3,1,registers intent schema
+      registerIntentSchemas,function,"(schemas: readonly IntentSchema[]) -> void",48-52,false,5,1,registers intent schemas
+      getIntentSchema,function,"(intent: string) -> IntentSchema | undefined",55-57,false,3,1,retrieves intent schema
+      getAllIntentSchemas,function,"() -> IntentSchema[]",60-62,false,3,1,retrieves all intent schemas
+      getSchemasByPlugin,function,"(pluginId: string) -> IntentSchema[]",65-67,false,3,1,retrieves schemas by plugin
+      getSchemasByDomain,function,"(domain: ActionDomain) -> IntentSchema[]",70-72,false,3,1,retrieves schemas by domain
+      clearIntentSchemas,function,() -> void,75-77,false,3,1,deletes intent schemas
+      matchIntentByPatterns,function,"(input: string) -> {\n  schema: IntentSchema;\n  subAction?: string;\n} | null",86-111,false,26,1,filters intent by patterns
+      canPluginHandle,function,"(pluginId: string, input: string) -> boolean",117-121,false,5,1,checks plugin handle
+      defineIntent,function,"(def: Omit<IntentSchema, 'icon' | 'executeQuery'> & {\n    icon?: string;\n    executeQuery?: string;\n  }) -> IntentSchema",126-137,false,12,1,define intent
   src/core/commandBus.ts:
     functions[6]{name,kind,sig,loc,async,lines,cc,does}:
       CommandBus.register,method,"(command: string, handler: CommandHandler<T>) -> void",12-19,false,8,1,registers
@@ -898,6 +944,16 @@ function_details:
       CommandBus.getRegisteredCommands,method,"() -> string[]",47-49,false,3,1,retrieves registered commands
       CommandBus.has,method,"(command: string) -> boolean",54-56,false,3,1,checks
       CommandBus.clear,method,() -> void,61-63,false,3,1,deletes
+  src/core/llmIntentClassifier.ts:
+    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
+      getCacheKey,function,"(query: string) -> string",45-47,false,3,1,retrieves cache key
+      cacheSet,function,"(key: string, result: LlmIntentResult) -> void",49-60,false,12,1,caches set
+      cacheGet,function,"(key: string) -> LlmIntentResult | null",62-64,false,3,1,caches get
+      buildIntentPrompt,function,"(schemas: ActionSchema[]) -> string",71-95,false,25,1,creates intent prompt
+      classifyIntent,function,"(query: string) -> Promise<LlmIntentResult | null>",100-186,true,87,1,classify intent
+      isLlmClassifierAvailable,function,() -> boolean,192-201,false,10,1,checks llm classifier available
+      clearIntentCache,function,() -> void,206-208,false,3,1,deletes intent cache
+      getIntentCacheStats,function,"() -> { size: number; maxSize: number }",213-218,false,6,1,retrieves intent cache stats
   src/discovery/serviceProber.ts:
     functions[13]{name,kind,sig,loc,async,lines,cc,does}:
       ServiceProber.constructor,method,"(config: ServiceProberConfig, dbManager: DatabaseManager)",22-25,false,4,1,constructor
@@ -956,24 +1012,24 @@ function_details:
       GetMessagesQuery.getLastUserQuery,method,"(beforeId: number) -> string | null",19-21,false,3,1,retrieves last user query
   src/config/appConfig.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      getConfigFieldsByCategory,function,"() -> Map<string, ConfigFieldMeta[]>",596-604,false,9,1,retrieves config fields by category
+      getConfigFieldsByCategory,function,"() -> Map<string, ConfigFieldMeta[]>",598-606,false,9,1,retrieves config fields by category
   src/config/configStore.ts:
     functions[15]{name,kind,sig,loc,async,lines,cc,does}:
       ConfigStoreImpl.constructor,method,(),19-26,false,8,1,constructor
-      ConfigStoreImpl.load,method,() -> AppConfig,29-59,false,31,1,retrieves
-      ConfigStoreImpl.persist,method,() -> void,62-69,false,8,1,caches
-      ConfigStoreImpl.getAll,method,() -> Readonly<AppConfig>,72-74,false,3,1,retrieves all
-      ConfigStoreImpl.get,method,"(path: string) -> T",77-79,false,3,1,retrieves
-      ConfigStoreImpl.set,method,"(path: string, value: unknown) -> void",82-96,false,15,1,updates
-      ConfigStoreImpl.setMany,method,"(updates: Record<string, unknown>) -> void",99-114,false,16,1,updates many
-      ConfigStoreImpl.reset,method,(section?) -> void,117-127,false,11,1,reset
-      ConfigStoreImpl.onChange,method,"(listener: ConfigListener) -> () => void",130-133,false,4,1,handles change
-      ConfigStoreImpl.notify,method,"(path: string, value: unknown) -> void",135-143,false,9,1,sends
-      ConfigStoreImpl.deepMerge,method,"(target: any, source: any) -> any",145-162,false,18,1,deep merge
-      ConfigStoreImpl.detectMissingConfig,method,"() -> string[]",167-175,false,9,1,detect missing config
-      ConfigStoreImpl.isLlmAvailable,method,() -> boolean,178-180,false,3,1,checks llm available
-      ConfigStoreImpl.isSttConfigured,method,() -> boolean,183-185,false,3,1,checks stt configured
-      ConfigStoreImpl.getConfigStatus,method,() -> ConfigStatus,188-196,false,9,1,retrieves config status
+      ConfigStoreImpl.load,method,() -> AppConfig,29-60,false,32,1,retrieves
+      ConfigStoreImpl.persist,method,() -> void,63-70,false,8,1,caches
+      ConfigStoreImpl.getAll,method,() -> Readonly<AppConfig>,73-75,false,3,1,retrieves all
+      ConfigStoreImpl.get,method,"(path: string) -> T",78-80,false,3,1,retrieves
+      ConfigStoreImpl.set,method,"(path: string, value: unknown) -> void",83-97,false,15,1,updates
+      ConfigStoreImpl.setMany,method,"(updates: Record<string, unknown>) -> void",100-115,false,16,1,updates many
+      ConfigStoreImpl.reset,method,(section?) -> void,118-128,false,11,1,reset
+      ConfigStoreImpl.onChange,method,"(listener: ConfigListener) -> () => void",131-134,false,4,1,handles change
+      ConfigStoreImpl.notify,method,"(path: string, value: unknown) -> void",136-144,false,9,1,sends
+      ConfigStoreImpl.deepMerge,method,"(target: any, source: any) -> any",146-163,false,18,1,deep merge
+      ConfigStoreImpl.detectMissingConfig,method,"() -> string[]",168-176,false,9,1,detect missing config
+      ConfigStoreImpl.isLlmAvailable,method,() -> boolean,179-181,false,3,1,checks llm available
+      ConfigStoreImpl.isSttConfigured,method,() -> boolean,184-186,false,3,1,checks stt configured
+      ConfigStoreImpl.getConfigStatus,method,() -> ConfigStatus,189-197,false,9,1,retrieves config status
   src/config/autoConfig.ts:
     functions[6]{name,kind,sig,loc,async,lines,cc,does}:
       runAutoConfig,function,() -> Promise<AutoConfigResult>,34-84,true,51,1,starts auto config
@@ -1001,7 +1057,7 @@ function_details:
       ChatAggregate.messageCount,method,() -> number,69-71,false,3,1,message count
   src/domain/audioSettings.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      withAudioSettingsDefaults,function,"(partial: Partial<AudioSettings>) -> AudioSettings",37-41,false,5,1,with audio settings defaults
+      withAudioSettingsDefaults,function,"(partial: Partial<AudioSettings>) -> AudioSettings",39-43,false,5,1,with audio settings defaults
   src/domain/chatEvents.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       createEvent,function,"(type: T, payload?) -> DomainEvent",160-171,false,12,1,creates event
@@ -1173,60 +1229,60 @@ function_details:
       PortScanPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",148-148,true,1,1,initializes
       PortScanPlugin.dispose,method,() -> Promise<void>,149-149,true,1,1,dispose
   src/plugins/files/fileSearchPlugin.ts:
-    functions[15]{name,kind,sig,loc,async,lines,cc,does}:
-      FileSearchPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",50-96,true,47,1,checks handle
-      FileSearchPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",98-115,true,18,1,starts
-      FileSearchPlugin.isReadRequest,method,"(lower: string) -> boolean",117-129,false,13,1,checks read request
-      FileSearchPlugin.executeSearch,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",131-176,true,46,1,starts search
-      FileSearchPlugin.executeRead,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",178-246,true,69,1,starts read
-      FileSearchPlugin.buildGridResult,method,"(response: FileSearchResponse, start: number) -> PluginResult",248-282,false,35,1,creates grid result
-      FileSearchPlugin.buildListResult,method,"(response: FileSearchResponse, start: number) -> PluginResult",284-316,false,33,1,creates list result
-      FileSearchPlugin.buildClarificationResult,method,"(response: FileSearchResponse, query: string, start: number) -> PluginResult",318-363,false,46,1,creates clarification result
-      FileSearchPlugin.parseSearchParams,method,"(input: string) -> {\n    query: string;\n    searchPath: string | null;\n    extensions: string[];\n  }",365-479,false,115,1,parses search params
-      FileSearchPlugin.extractFilePath,method,"(input: string) -> string | null",481-496,false,16,1,parses file path
-      FileSearchPlugin.browserFallback,method,"(start: number, query?, extensions?) -> PluginResult",498-524,false,27,1,browser fallback
-      FileSearchPlugin.formatBytes,method,"(bytes: number) -> string",526-531,false,6,1,formats bytes
-      FileSearchPlugin.errorResult,method,"(msg: string, start: number) -> PluginResult",533-540,false,8,1,error result
-      FileSearchPlugin.initialize,method,"(_context: PluginContext) -> Promise<void>",542-544,true,3,1,initializes
-      FileSearchPlugin.dispose,method,() -> Promise<void>,546-548,true,3,1,dispose
+    functions[14]{name,kind,sig,loc,async,lines,cc,does}:
+      FileSearchPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",105-109,true,5,1,checks handle
+      FileSearchPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",111-136,true,26,1,starts
+      FileSearchPlugin.executeSearch,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",140-185,true,46,1,starts search
+      FileSearchPlugin.executeRead,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",187-255,true,69,1,starts read
+      FileSearchPlugin.buildGridResult,method,"(response: FileSearchResponse, start: number) -> PluginResult",257-291,false,35,1,creates grid result
+      FileSearchPlugin.buildListResult,method,"(response: FileSearchResponse, start: number) -> PluginResult",293-325,false,33,1,creates list result
+      FileSearchPlugin.buildClarificationResult,method,"(response: FileSearchResponse, query: string, start: number) -> PluginResult",327-372,false,46,1,creates clarification result
+      FileSearchPlugin.parseSearchParams,method,"(input: string) -> {\n    query: string;\n    searchPath: string | null;\n    extensions: string[];\n  }",374-488,false,115,1,parses search params
+      FileSearchPlugin.extractFilePath,method,"(input: string) -> string | null",490-505,false,16,1,parses file path
+      FileSearchPlugin.browserFallback,method,"(start: number, query?, extensions?) -> PluginResult",507-533,false,27,1,browser fallback
+      FileSearchPlugin.formatBytes,method,"(bytes: number) -> string",535-540,false,6,1,formats bytes
+      FileSearchPlugin.errorResult,method,"(msg: string, start: number) -> PluginResult",542-549,false,8,1,error result
+      FileSearchPlugin.initialize,method,"(_context: PluginContext) -> Promise<void>",551-553,true,3,1,initializes
+      FileSearchPlugin.dispose,method,() -> Promise<void>,555-557,true,3,1,dispose
   src/plugins/system/processesPlugin.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      ProcessesPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",10-22,true,13,1,checks handle
-      ProcessesPlugin.execute,method,"(input: string, _context: PluginContext) -> Promise<PluginResult>",24-123,true,100,1,starts
+      ProcessesPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",19-23,true,5,1,checks handle
+      ProcessesPlugin.execute,method,"(input: string, _context: PluginContext) -> Promise<PluginResult>",25-119,true,95,1,starts
   src/plugins/system/diskInfoPlugin.ts:
     functions[16]{name,kind,sig,loc,async,lines,cc,does}:
-      DiskInfoPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",18-32,true,15,1,checks handle
-      DiskInfoPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",34-57,true,24,1,starts
-      DiskInfoPlugin.buildConfigPrompt,method,"(info: DiskInfo) -> string",59-77,false,19,1,creates config prompt
-      DiskInfoPlugin.buildProgressBar,method,"(percent: number, width: number) -> string",79-90,false,12,1,creates progress bar
-      DiskInfoPlugin.executeTauri,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",92-141,true,50,1,starts tauri
-      DiskInfoPlugin.executeRemote,method,"(host: string, input: string, context: PluginContext, start: number) -> Promise<PluginResult>",143-191,true,49,1,starts remote
-      DiskInfoPlugin.browserFallback,method,"(start: number) -> PluginResult",193-205,false,13,1,browser fallback
-      DiskInfoPlugin.formatDiskInfo,method,"(info: DiskInfo) -> string",207-239,false,33,1,formats disk info
-      DiskInfoPlugin.formatPartition,method,"(p: DiskPartition) -> string",241-251,false,11,1,formats partition
-      DiskInfoPlugin.formatBytes,method,"(bytes: number) -> string",253-258,false,6,1,formats bytes
-      DiskInfoPlugin.extractRemoteHost,method,"(input: string) -> string | null",260-274,false,15,1,parses remote host
-      DiskInfoPlugin.extractUser,method,"(input: string) -> string | undefined",276-279,false,4,1,parses user
-      DiskInfoPlugin.extractPort,method,"(input: string) -> number | undefined",281-284,false,4,1,parses port
-      DiskInfoPlugin.errorResult,method,"(msg: string, start: number) -> PluginResult",286-293,false,8,1,error result
-      DiskInfoPlugin.initialize,method,"(_context: PluginContext) -> Promise<void>",295-295,true,1,1,initializes
-      DiskInfoPlugin.dispose,method,() -> Promise<void>,296-296,true,1,1,dispose
+      DiskInfoPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",23-26,true,4,1,checks handle
+      DiskInfoPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",28-51,true,24,1,starts
+      DiskInfoPlugin.buildConfigPrompt,method,"(info: DiskInfo) -> string",53-71,false,19,1,creates config prompt
+      DiskInfoPlugin.buildProgressBar,method,"(percent: number, width: number) -> string",73-84,false,12,1,creates progress bar
+      DiskInfoPlugin.executeTauri,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",86-135,true,50,1,starts tauri
+      DiskInfoPlugin.executeRemote,method,"(host: string, input: string, context: PluginContext, start: number) -> Promise<PluginResult>",137-185,true,49,1,starts remote
+      DiskInfoPlugin.browserFallback,method,"(start: number) -> PluginResult",187-199,false,13,1,browser fallback
+      DiskInfoPlugin.formatDiskInfo,method,"(info: DiskInfo) -> string",201-233,false,33,1,formats disk info
+      DiskInfoPlugin.formatPartition,method,"(p: DiskPartition) -> string",235-245,false,11,1,formats partition
+      DiskInfoPlugin.formatBytes,method,"(bytes: number) -> string",247-252,false,6,1,formats bytes
+      DiskInfoPlugin.extractRemoteHost,method,"(input: string) -> string | null",254-268,false,15,1,parses remote host
+      DiskInfoPlugin.extractUser,method,"(input: string) -> string | undefined",270-273,false,4,1,parses user
+      DiskInfoPlugin.extractPort,method,"(input: string) -> number | undefined",275-278,false,4,1,parses port
+      DiskInfoPlugin.errorResult,method,"(msg: string, start: number) -> PluginResult",280-287,false,8,1,error result
+      DiskInfoPlugin.initialize,method,"(_context: PluginContext) -> Promise<void>",289-289,true,1,1,initializes
+      DiskInfoPlugin.dispose,method,() -> Promise<void>,290-290,true,1,1,dispose
   src/plugins/system/sshPlugin.ts:
-    functions[14]{name,kind,sig,loc,async,lines,cc,does}:
-      SshPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",93-105,true,13,1,checks handle
-      SshPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",107-159,true,53,1,starts
-      SshPlugin.listKnownHosts,method,"(context: PluginContext, start: number) -> Promise<PluginResult>",161-210,true,50,1,list known hosts
-      SshPlugin.testConnection,method,"(host: string, input: string, context: PluginContext, start: number) -> Promise<PluginResult>",212-250,true,39,1,checks connection
-      SshPlugin.resolveCommand,method,"(input: string, host: string) -> { command: string; description: string }",252-284,false,33,1,resolve command
-      SshPlugin.looksLikeShellCommand,method,"(text: string) -> boolean",286-297,false,12,1,looks like shell command
-      SshPlugin.formatSshResult,method,"(host: string, command: string, description: string, result: SshExecResult, start: number) -> PluginResult",299-357,false,59,1,formats ssh result
-      SshPlugin.analyzeSshError,method,"(stderr: string, exitCode: number, host: string) -> { diagnosis: string; suggestions: string[] } | null",359-436,false,78,1,processes ssh error
-      SshPlugin.extractHost,method,"(input: string) -> string | null",438-448,false,11,1,parses host
-      SshPlugin.extractUser,method,"(input: string) -> string | undefined",450-453,false,4,1,parses user
-      SshPlugin.extractPort,method,"(input: string) -> number | undefined",455-458,false,4,1,parses port
-      SshPlugin.errorResult,method,"(msg: string, start: number) -> PluginResult",460-467,false,8,1,error result
-      SshPlugin.initialize,method,"(_context: PluginContext) -> Promise<void>",469-469,true,1,1,initializes
-      SshPlugin.dispose,method,() -> Promise<void>,470-470,true,1,1,dispose
+    functions[15]{name,kind,sig,loc,async,lines,cc,does}:
+      SshPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",123-126,true,4,1,checks handle
+      SshPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",128-157,true,30,1,starts
+      SshPlugin.handleExecute,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",161-200,true,40,1,handles execute
+      SshPlugin.listKnownHosts,method,"(context: PluginContext, start: number) -> Promise<PluginResult>",202-259,true,58,1,list known hosts
+      SshPlugin.testConnection,method,"(host: string, input: string, context: PluginContext, start: number) -> Promise<PluginResult>",261-299,true,39,1,checks connection
+      SshPlugin.resolveCommand,method,"(input: string, host: string) -> { command: string; description: string }",301-333,false,33,1,resolve command
+      SshPlugin.looksLikeShellCommand,method,"(text: string) -> boolean",335-346,false,12,1,looks like shell command
+      SshPlugin.formatSshResult,method,"(host: string, command: string, description: string, result: SshExecResult, start: number) -> PluginResult",348-406,false,59,1,formats ssh result
+      SshPlugin.analyzeSshError,method,"(stderr: string, exitCode: number, host: string) -> { diagnosis: string; suggestions: string[] } | null",408-485,false,78,1,processes ssh error
+      SshPlugin.extractHost,method,"(input: string) -> string | null",487-497,false,11,1,parses host
+      SshPlugin.extractUser,method,"(input: string) -> string | undefined",499-502,false,4,1,parses user
+      SshPlugin.extractPort,method,"(input: string) -> number | undefined",504-507,false,4,1,parses port
+      SshPlugin.errorResult,method,"(msg: string, start: number) -> PluginResult",509-516,false,8,1,error result
+      SshPlugin.initialize,method,"(_context: PluginContext) -> Promise<void>",518-518,true,1,1,initializes
+      SshPlugin.dispose,method,() -> Promise<void>,519-519,true,1,1,dispose
   src/plugins/monitor/motionDetectionPlugin.ts:
     functions[17]{name,kind,sig,loc,async,lines,cc,does}:
       MotionDetectionPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",61-86,true,26,1,initializes
@@ -1249,50 +1305,50 @@ function_details:
   src/plugins/monitor/monitorPlugin.ts:
     functions[45]{name,kind,sig,loc,async,lines,cc,does}:
       MonitorPlugin.buildDbConflictPrompt,method,() -> string,98-113,false,16,1,creates db conflict prompt
-      MonitorPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",115-162,true,48,1,checks handle
-      MonitorPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",164-201,true,38,1,starts
-      MonitorPlugin.parseToggleMonitoring,method,"(input: string) -> { action: 'enable' | 'disable'; identifier: string } | null",203-211,false,9,1,parses toggle monitoring
-      MonitorPlugin.handleToggleMonitoring,method,"(action: 'enable' | 'disable', identifier: string, context: PluginContext, start: number) -> Promise<PluginResult>",213-330,true,118,1,handles toggle monitoring
-      MonitorPlugin.handleStart,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",334-593,true,260,1,handles start
-      MonitorPlugin.handleStop,method,"(input: string, start: number) -> Promise<PluginResult>",597-711,true,115,1,handles stop
-      MonitorPlugin.handleList,method,"(start: number) -> PluginResult",715-772,false,58,1,handles list
-      MonitorPlugin.handleLogs,method,"(input: string, start: number) -> PluginResult",776-891,false,116,1,handles logs
-      MonitorPlugin.handleConfig,method,"(input: string, start: number) -> PluginResult",895-1003,false,109,1,handles config
-      MonitorPlugin.handleExplain,method,"(start: number) -> PluginResult",1007-1072,false,66,1,handles explain
-      MonitorPlugin.poll,method,"(target: MonitorTarget, context: PluginContext) -> Promise<void>",1076-1216,true,141,1,poll
-      MonitorPlugin.emitUiEvent,method,"(detail: MonitorUiEventDetail) -> void",1218-1225,false,8,1,sends ui event
-      MonitorPlugin.isNoSignificantChangeSummary,method,"(summary: string) -> boolean",1227-1233,false,7,1,checks no significant change summary
-      MonitorPlugin.captureCameraSnapshot,method,"(target: MonitorTarget, context: PluginContext) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1235-1403,true,169,1,capture camera snapshot
-      MonitorPlugin.resolveDeviceIp,method,"(parsed: { id: string; type: MonitorTarget['type']; name: string }, context: PluginContext) -> Promise<string | null>",1405-1433,true,29,1,resolve device ip
-      MonitorPlugin.proxyUrl,method,"(url: string) -> string",1435-1447,false,13,1,proxy url
-      MonitorPlugin.fetchHttpSnapshot,method,"(url: string, captureStart: number, attempts: string[]) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1449-1482,true,34,1,retrieves http snapshot
-      MonitorPlugin.summarizeCaptureFailure,method,"(attempts: string[], _context: PluginContext) -> string",1484-1503,false,20,1,summarize capture failure
-      MonitorPlugin.ensureApiToken,method,"(target: MonitorTarget) -> Promise<string | null>",1505-1537,true,33,1,ensure api token
-      MonitorPlugin.detectResolution,method,"(base64: string, mimeType: string) -> Promise<string | undefined>",1539-1548,true,10,1,detect resolution
-      MonitorPlugin.describeCameraChange,method,"(prevBase64: string, currBase64: string, mimeType: 'image/jpeg' | 'image/png') -> Promise<string>",1550-1562,true,13,1,describe camera change
-      MonitorPlugin.formatCaptureDetails,method,"(capture: CaptureMetadata) -> string",1564-1572,false,9,1,formats capture details
-      MonitorPlugin.computeImageChangeScore,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1574-1598,true,25,1,processes image change score
-      MonitorPlugin.pixelDiff,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1605-1645,true,41,1,pixel diff
-      MonitorPlugin.createThumbnail,method,"(base64: string, mimeType: 'image/jpeg' | 'image/png', maxWidth: number) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null>",1647-1683,true,37,1,creates thumbnail
-      MonitorPlugin.loadBase64Image,method,"(base64: string, mimeType: string) -> Promise<HTMLImageElement>",1685-1692,false,8,1,retrieves base64 image
-      MonitorPlugin.blobToBase64,method,"(blob: Blob) -> Promise<string>",1694-1702,true,9,1,blob to base64
-      MonitorPlugin.parseTarget,method,"(input: string) -> {\n    id: string; type: MonitorTarget['type']; name: string;\n    address?: string; intervalMs: number; threshold: number;\n    rtspUsername?: string; rtspPassword?: string;\n  } | null",1706-1801,false,96,1,parses target
-      MonitorPlugin.simulateContent,method,"(target: MonitorTarget) -> string",1803-1811,false,9,1,simulate content
-      MonitorPlugin.quickDiff,method,"(a: string, b: string) -> number",1813-1821,false,9,1,quick diff
-      MonitorPlugin.formatTargetLogs,method,"(target: MonitorTarget, start: number) -> PluginResult",1823-1907,false,85,1,formats target logs
-      MonitorPlugin.logIcon,method,"(type: MonitorLogEntry['type']) -> string",1909-1919,false,11,1,logs icon
-      MonitorPlugin.buildMonitoringConfigPrompt,method,() -> ConfigPromptData,1923-1958,false,36,1,creates monitoring config prompt
-      MonitorPlugin.formatDuration,method,"(ms: number) -> string",1960-1967,false,8,1,formats duration
-      MonitorPlugin.verifyCredentials,method,"(ip: string, username: string, password: string, context: PluginContext) -> Promise<boolean>",1969-2017,true,49,1,validates credentials
-      MonitorPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",2019-2025,false,7,1,error result
-      MonitorPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",2027-2067,true,41,1,initializes
-      MonitorPlugin.loadMonitoredDevices,method,"(context: PluginContext) -> Promise<void>",2070-2135,true,66,1,retrieves monitored devices
-      MonitorPlugin.handleResolveDbConflict,method,"(keepId: string, context: PluginContext, start: number) -> Promise<PluginResult>",2137-2225,true,89,1,handles resolve db conflict
-      MonitorPlugin.handleVisionPipeline,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",2229-2244,true,16,1,handles vision pipeline
-      MonitorPlugin.handleVisionStatus,method,"(context: PluginContext, start: number) -> Promise<PluginResult>",2246-2291,true,46,1,handles vision status
-      MonitorPlugin.handleVisionStop,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",2293-2332,true,40,1,handles vision stop
-      MonitorPlugin.handleVisionStart,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",2334-2423,true,90,1,handles vision start
-      MonitorPlugin.dispose,method,() -> Promise<void>,2425-2437,true,13,1,dispose
+      MonitorPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",146-149,true,4,1,checks handle
+      MonitorPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",151-187,true,37,1,starts
+      MonitorPlugin.parseToggleMonitoring,method,"(input: string) -> { action: 'enable' | 'disable'; identifier: string } | null",189-197,false,9,1,parses toggle monitoring
+      MonitorPlugin.handleToggleMonitoring,method,"(action: 'enable' | 'disable', identifier: string, context: PluginContext, start: number) -> Promise<PluginResult>",199-316,true,118,1,handles toggle monitoring
+      MonitorPlugin.handleStart,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",320-579,true,260,1,handles start
+      MonitorPlugin.handleStop,method,"(input: string, start: number) -> Promise<PluginResult>",583-697,true,115,1,handles stop
+      MonitorPlugin.handleList,method,"(start: number) -> PluginResult",701-758,false,58,1,handles list
+      MonitorPlugin.handleLogs,method,"(input: string, start: number) -> PluginResult",762-877,false,116,1,handles logs
+      MonitorPlugin.handleConfig,method,"(input: string, start: number) -> PluginResult",881-989,false,109,1,handles config
+      MonitorPlugin.handleExplain,method,"(start: number) -> PluginResult",993-1058,false,66,1,handles explain
+      MonitorPlugin.poll,method,"(target: MonitorTarget, context: PluginContext) -> Promise<void>",1062-1202,true,141,1,poll
+      MonitorPlugin.emitUiEvent,method,"(detail: MonitorUiEventDetail) -> void",1204-1211,false,8,1,sends ui event
+      MonitorPlugin.isNoSignificantChangeSummary,method,"(summary: string) -> boolean",1213-1219,false,7,1,checks no significant change summary
+      MonitorPlugin.captureCameraSnapshot,method,"(target: MonitorTarget, context: PluginContext) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1221-1389,true,169,1,capture camera snapshot
+      MonitorPlugin.resolveDeviceIp,method,"(parsed: { id: string; type: MonitorTarget['type']; name: string }, context: PluginContext) -> Promise<string | null>",1391-1419,true,29,1,resolve device ip
+      MonitorPlugin.proxyUrl,method,"(url: string) -> string",1421-1433,false,13,1,proxy url
+      MonitorPlugin.fetchHttpSnapshot,method,"(url: string, captureStart: number, attempts: string[]) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null>",1435-1468,true,34,1,retrieves http snapshot
+      MonitorPlugin.summarizeCaptureFailure,method,"(attempts: string[], _context: PluginContext) -> string",1470-1489,false,20,1,summarize capture failure
+      MonitorPlugin.ensureApiToken,method,"(target: MonitorTarget) -> Promise<string | null>",1491-1523,true,33,1,ensure api token
+      MonitorPlugin.detectResolution,method,"(base64: string, mimeType: string) -> Promise<string | undefined>",1525-1534,true,10,1,detect resolution
+      MonitorPlugin.describeCameraChange,method,"(prevBase64: string, currBase64: string, mimeType: 'image/jpeg' | 'image/png') -> Promise<string>",1536-1548,true,13,1,describe camera change
+      MonitorPlugin.formatCaptureDetails,method,"(capture: CaptureMetadata) -> string",1550-1558,false,9,1,formats capture details
+      MonitorPlugin.computeImageChangeScore,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1560-1584,true,25,1,processes image change score
+      MonitorPlugin.pixelDiff,method,"(prevBase64: string, currBase64: string) -> Promise<number>",1591-1631,true,41,1,pixel diff
+      MonitorPlugin.createThumbnail,method,"(base64: string, mimeType: 'image/jpeg' | 'image/png', maxWidth: number) -> Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null>",1633-1669,true,37,1,creates thumbnail
+      MonitorPlugin.loadBase64Image,method,"(base64: string, mimeType: string) -> Promise<HTMLImageElement>",1671-1678,false,8,1,retrieves base64 image
+      MonitorPlugin.blobToBase64,method,"(blob: Blob) -> Promise<string>",1680-1688,true,9,1,blob to base64
+      MonitorPlugin.parseTarget,method,"(input: string) -> {\n    id: string; type: MonitorTarget['type']; name: string;\n    address?: string; intervalMs: number; threshold: number;\n    rtspUsername?: string; rtspPassword?: string;\n  } | null",1692-1787,false,96,1,parses target
+      MonitorPlugin.simulateContent,method,"(target: MonitorTarget) -> string",1789-1797,false,9,1,simulate content
+      MonitorPlugin.quickDiff,method,"(a: string, b: string) -> number",1799-1807,false,9,1,quick diff
+      MonitorPlugin.formatTargetLogs,method,"(target: MonitorTarget, start: number) -> PluginResult",1809-1893,false,85,1,formats target logs
+      MonitorPlugin.logIcon,method,"(type: MonitorLogEntry['type']) -> string",1895-1905,false,11,1,logs icon
+      MonitorPlugin.buildMonitoringConfigPrompt,method,() -> ConfigPromptData,1909-1944,false,36,1,creates monitoring config prompt
+      MonitorPlugin.formatDuration,method,"(ms: number) -> string",1946-1953,false,8,1,formats duration
+      MonitorPlugin.verifyCredentials,method,"(ip: string, username: string, password: string, context: PluginContext) -> Promise<boolean>",1955-2003,true,49,1,validates credentials
+      MonitorPlugin.errorResult,method,"(message: string, start: number) -> PluginResult",2005-2011,false,7,1,error result
+      MonitorPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",2013-2053,true,41,1,initializes
+      MonitorPlugin.loadMonitoredDevices,method,"(context: PluginContext) -> Promise<void>",2056-2121,true,66,1,retrieves monitored devices
+      MonitorPlugin.handleResolveDbConflict,method,"(keepId: string, context: PluginContext, start: number) -> Promise<PluginResult>",2123-2211,true,89,1,handles resolve db conflict
+      MonitorPlugin.handleVisionPipeline,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",2215-2230,true,16,1,handles vision pipeline
+      MonitorPlugin.handleVisionStatus,method,"(context: PluginContext, start: number) -> Promise<PluginResult>",2232-2277,true,46,1,handles vision status
+      MonitorPlugin.handleVisionStop,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",2279-2318,true,40,1,handles vision stop
+      MonitorPlugin.handleVisionStart,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",2320-2409,true,90,1,handles vision start
+      MonitorPlugin.dispose,method,() -> Promise<void>,2411-2423,true,13,1,dispose
   src/plugins/monitor/motionDetectionPlugin.test.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
       makeTauriCtx,function,(invokeImpl?),39-43,false,5,1,creates tauri ctx
@@ -1310,7 +1366,7 @@ function_details:
   src/plugins/discovery/serviceProbePlugin.ts:
     functions[8]{name,kind,sig,loc,async,lines,cc,does}:
       ServiceProbePlugin.initialize,method,"(context: PluginContext) -> Promise<void>",16-20,true,5,1,initializes
-      ServiceProbePlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",22-32,true,11,1,checks handle
+      ServiceProbePlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",28-32,true,5,1,checks handle
       ServiceProbePlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",34-96,true,63,1,starts
       ServiceProbePlugin.extractTarget,method,"(input: string) -> string | null",98-131,false,34,1,parses target
       ServiceProbePlugin.performSimpleProbe,method,"(target: string) -> Promise<{ services: any[], probeDuration: number }>",133-216,true,84,1,perform simple probe
@@ -1338,37 +1394,38 @@ function_details:
       generateRtspUrls,function,"(ip: string, vendor?) -> string[]",302-342,false,41,1,creates rtsp urls
       generateRecommendations,function,"(result: CameraDetectionResult) -> string[]",347-381,false,35,1,creates recommendations
   src/plugins/discovery/networkScanPlugin.ts:
-    functions[30]{name,kind,sig,loc,async,lines,cc,does}:
-      NetworkScanPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",23-25,true,3,1,initializes
-      NetworkScanPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",27-73,true,47,1,checks handle
-      NetworkScanPlugin.isStatusQuery,method,"(input: string) -> boolean",75-82,false,8,1,checks status query
-      NetworkScanPlugin.isFilterQuery,method,"(input: string) -> boolean",84-91,false,8,1,checks filter query
-      NetworkScanPlugin.isExportQuery,method,"(input: string) -> boolean",93-101,false,9,1,checks export query
-      NetworkScanPlugin.extractExportFormat,method,"(input: string) -> 'csv' | 'json'",103-107,false,5,1,parses export format
-      NetworkScanPlugin.extractFilterType,method,"(input: string) -> string | null",109-118,false,10,1,parses filter type
-      NetworkScanPlugin.handleDeviceFilter,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",120-235,true,116,1,handles device filter
-      NetworkScanPlugin.handleDeviceStatus,method,"(context: PluginContext, start: number) -> Promise<PluginResult>",237-302,true,66,1,handles device status
-      NetworkScanPlugin.handleExport,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",304-376,true,73,1,handles export
-      NetworkScanPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",378-584,true,207,1,starts
-      NetworkScanPlugin.buildCameraActionsPrompt,method,"(devices: NetworkDevice[]) -> any",586-666,false,81,1,creates camera actions prompt
-      NetworkScanPlugin.browserFallback,method,"(isCameraQuery: boolean, start: number, userSpecifiedSubnet: string | null, context?) -> Promise<PluginResult>",668-876,true,209,1,browser fallback
-      NetworkScanPlugin.detectSubnet,method,"(context?) -> Promise<{ localIp: string | null; subnet: string; detectionMethod: string }>",885-971,true,87,1,detect subnet
-      NetworkScanPlugin.getCommonSubnets,method,"() -> string[]",973-975,false,3,1,retrieves common subnets
-      NetworkScanPlugin.detectLocalIpViaWebRTC,method,() -> Promise<string | null>,977-1044,false,68,1,detect local ip via web rtc
-      NetworkScanPlugin.probeGateways,method,"(subnets: string[]) -> Promise<string | null>",1046-1081,true,36,1,probe gateways
-      NetworkScanPlugin.probeGateway,method,"(subnet: string) -> Promise<boolean>",1083-1103,false,21,1,probe gateway
-      NetworkScanPlugin.isPrivateIp,method,"(ip: string) -> boolean",1105-1109,false,5,1,checks private ip
-      NetworkScanPlugin.isValidCandidateIp,method,"(ip: string) -> boolean",1111-1116,false,6,1,checks valid candidate ip
-      NetworkScanPlugin.interfaceScore,method,"(ifaceName: string, ip: string) -> number",1118-1134,false,17,1,interface score
-      NetworkScanPlugin.pickBestInterface,method,"(interfaces: Array<[string, string]>) -> [string, string] | null",1136-1145,false,10,1,pick best interface
-      NetworkScanPlugin.formatRaspberryPiResult,method,"(result: NetworkScanResult) -> string",1147-1175,false,29,1,formats raspberry pi result
-      NetworkScanPlugin.formatScanResult,method,"(result: NetworkScanResult, isCameraQuery, scanStats?) -> string",1177-1279,false,103,1,formats scan result
-      NetworkScanPlugin.persistDevices,method,"(devices: NetworkDevice[], context: PluginContext) -> Promise<void>",1282-1346,true,65,1,caches devices
-      NetworkScanPlugin.determineScanStrategy,method,"(userSpecifiedSubnet: string | null, context: PluginContext) -> Promise<{\n    type: 'full' | 'incremental' | 'targeted';\n    subnet: string;\n    targetRanges?: string[];\n    triggeredBy: 'manual' | 'scheduled' | 'auto';\n  }>",1349-1392,true,44,1,determine scan strategy
-      NetworkScanPlugin.calculateIncrementalRanges,method,"(subnet: string, lastScan: any, context: PluginContext) -> Promise<string[]>",1395-1477,true,83,1,processes incremental ranges
-      NetworkScanPlugin.trackScanResults,method,"(scanId: string, subnet: string, scanType: 'full' | 'incremental' | 'targeted', result: NetworkScanResult, scanStart: number, triggeredBy: 'manual' | 'scheduled' | 'auto', context: PluginContext) -> Promise<{\n    devicesFound: number;\n    devicesUpdated: number;\n    newDevices: number;\n    scanDuration: number;\n    efficiency: string;\n  }>",1480-1554,true,75,1,track scan results
-      NetworkScanPlugin.getDefaultSubnet,method,"(context: PluginContext) -> Promise<string>",1557-1594,true,38,1,retrieves default subnet
-      NetworkScanPlugin.dispose,method,() -> Promise<void>,1596-1598,true,3,1,dispose
+    functions[31]{name,kind,sig,loc,async,lines,cc,does}:
+      NetworkScanPlugin.resolveRoute,method,"(input: string) -> string | null",44-50,false,7,1,resolve route
+      NetworkScanPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",52-54,true,3,1,initializes
+      NetworkScanPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",56-58,true,3,1,checks handle
+      NetworkScanPlugin.isStatusQuery,method,"(input: string) -> boolean",60-62,false,3,1,checks status query
+      NetworkScanPlugin.isFilterQuery,method,"(input: string) -> boolean",64-66,false,3,1,checks filter query
+      NetworkScanPlugin.isExportQuery,method,"(input: string) -> boolean",68-70,false,3,1,checks export query
+      NetworkScanPlugin.extractExportFormat,method,"(input: string) -> 'csv' | 'json'",72-76,false,5,1,parses export format
+      NetworkScanPlugin.extractFilterType,method,"(input: string) -> string | null",78-87,false,10,1,parses filter type
+      NetworkScanPlugin.handleDeviceFilter,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",89-204,true,116,1,handles device filter
+      NetworkScanPlugin.handleDeviceStatus,method,"(context: PluginContext, start: number) -> Promise<PluginResult>",206-271,true,66,1,handles device status
+      NetworkScanPlugin.handleExport,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",273-345,true,73,1,handles export
+      NetworkScanPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",347-553,true,207,1,starts
+      NetworkScanPlugin.buildCameraActionsPrompt,method,"(devices: NetworkDevice[]) -> any",555-635,false,81,1,creates camera actions prompt
+      NetworkScanPlugin.browserFallback,method,"(isCameraQuery: boolean, start: number, userSpecifiedSubnet: string | null, context?) -> Promise<PluginResult>",637-845,true,209,1,browser fallback
+      NetworkScanPlugin.detectSubnet,method,"(context?) -> Promise<{ localIp: string | null; subnet: string; detectionMethod: string }>",854-940,true,87,1,detect subnet
+      NetworkScanPlugin.getCommonSubnets,method,"() -> string[]",942-944,false,3,1,retrieves common subnets
+      NetworkScanPlugin.detectLocalIpViaWebRTC,method,() -> Promise<string | null>,946-1013,false,68,1,detect local ip via web rtc
+      NetworkScanPlugin.probeGateways,method,"(subnets: string[]) -> Promise<string | null>",1015-1050,true,36,1,probe gateways
+      NetworkScanPlugin.probeGateway,method,"(subnet: string) -> Promise<boolean>",1052-1072,false,21,1,probe gateway
+      NetworkScanPlugin.isPrivateIp,method,"(ip: string) -> boolean",1074-1078,false,5,1,checks private ip
+      NetworkScanPlugin.isValidCandidateIp,method,"(ip: string) -> boolean",1080-1085,false,6,1,checks valid candidate ip
+      NetworkScanPlugin.interfaceScore,method,"(ifaceName: string, ip: string) -> number",1087-1103,false,17,1,interface score
+      NetworkScanPlugin.pickBestInterface,method,"(interfaces: Array<[string, string]>) -> [string, string] | null",1105-1114,false,10,1,pick best interface
+      NetworkScanPlugin.formatRaspberryPiResult,method,"(result: NetworkScanResult) -> string",1116-1144,false,29,1,formats raspberry pi result
+      NetworkScanPlugin.formatScanResult,method,"(result: NetworkScanResult, isCameraQuery, scanStats?) -> string",1146-1248,false,103,1,formats scan result
+      NetworkScanPlugin.persistDevices,method,"(devices: NetworkDevice[], context: PluginContext) -> Promise<void>",1251-1315,true,65,1,caches devices
+      NetworkScanPlugin.determineScanStrategy,method,"(userSpecifiedSubnet: string | null, context: PluginContext) -> Promise<{\n    type: 'full' | 'incremental' | 'targeted';\n    subnet: string;\n    targetRanges?: string[];\n    triggeredBy: 'manual' | 'scheduled' | 'auto';\n  }>",1318-1361,true,44,1,determine scan strategy
+      NetworkScanPlugin.calculateIncrementalRanges,method,"(subnet: string, lastScan: any, context: PluginContext) -> Promise<string[]>",1364-1446,true,83,1,processes incremental ranges
+      NetworkScanPlugin.trackScanResults,method,"(scanId: string, subnet: string, scanType: 'full' | 'incremental' | 'targeted', result: NetworkScanResult, scanStart: number, triggeredBy: 'manual' | 'scheduled' | 'auto', context: PluginContext) -> Promise<{\n    devicesFound: number;\n    devicesUpdated: number;\n    newDevices: number;\n    scanDuration: number;\n    efficiency: string;\n  }>",1449-1523,true,75,1,track scan results
+      NetworkScanPlugin.getDefaultSubnet,method,"(context: PluginContext) -> Promise<string>",1526-1563,true,38,1,retrieves default subnet
+      NetworkScanPlugin.dispose,method,() -> Promise<void>,1565-1567,true,3,1,dispose
   src/plugins/discovery/autoScanScheduler.ts:
     functions[13]{name,kind,sig,loc,async,lines,cc,does}:
       AutoScanScheduler.constructor,method,"(config: Partial<AutoScanConfig>, onStatusChange?)",41-44,false,4,1,constructor
@@ -1385,18 +1442,19 @@ function_details:
       AutoScanScheduler.detectStatusChanges,method,"(devices: Array<{ ip: string; open_ports: number[]; response_time: number; last_seen: string; device_type: string }>) -> void",255-291,false,37,1,detect status changes
       AutoScanScheduler.persistResults,method,"(subnet: string, devices: Array<{ ip: string; open_ports: number[]; response_time: number; last_seen: string; device_type: string }>, scanStart: number) -> Promise<void>",293-319,true,27,1,caches results
   src/plugins/discovery/deviceConfigPlugin.ts:
-    functions[11]{name,kind,sig,loc,async,lines,cc,does}:
+    functions[12]{name,kind,sig,loc,async,lines,cc,does}:
       DeviceConfigPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",21-33,true,13,1,initializes
-      DeviceConfigPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",35-61,true,27,1,checks handle
-      DeviceConfigPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",63-90,true,28,1,starts
-      DeviceConfigPlugin.listConfiguredDevices,method,"(start: number) -> Promise<PluginResult>",92-174,true,83,1,list configured devices
-      DeviceConfigPlugin.addDevice,method,"(input: string, start: number) -> Promise<PluginResult>",176-261,true,86,1,creates device
-      DeviceConfigPlugin.saveDevice,method,"(input: string, start: number) -> Promise<PluginResult>",263-266,true,4,1,caches device
-      DeviceConfigPlugin.configureDevice,method,"(input: string, start: number) -> Promise<PluginResult>",268-342,true,75,1,initializes device
-      DeviceConfigPlugin.showHelp,method,"(start: number) -> PluginResult",344-367,false,24,1,show help
-      DeviceConfigPlugin.parseAddCommand,method,"(input: string) -> {\n    ip: string | null;\n    label: string | null;\n    rtspUrl: string | null;\n    httpUrl: string | null;\n    username: string | null;\n    password: string | null;\n    streamPath: string | null;\n    deviceType: 'camera' | 'server' | 'sensor' | 'other';\n  }",369-440,false,72,1,parses add command
-      DeviceConfigPlugin.parseConfigureCommand,method,"(input: string) -> {\n    identifier: string | null;\n  }",442-458,false,17,1,parses configure command
-      DeviceConfigPlugin.getDeviceTypeLabel,method,"(type: string) -> string",460-468,false,9,1,retrieves device type label
+      DeviceConfigPlugin.resolveRoute,method,"(input: string) -> string | null",46-52,false,7,1,resolve route
+      DeviceConfigPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",54-56,true,3,1,checks handle
+      DeviceConfigPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",58-85,true,28,1,starts
+      DeviceConfigPlugin.listConfiguredDevices,method,"(start: number) -> Promise<PluginResult>",87-169,true,83,1,list configured devices
+      DeviceConfigPlugin.addDevice,method,"(input: string, start: number) -> Promise<PluginResult>",171-256,true,86,1,creates device
+      DeviceConfigPlugin.saveDevice,method,"(input: string, start: number) -> Promise<PluginResult>",258-261,true,4,1,caches device
+      DeviceConfigPlugin.configureDevice,method,"(input: string, start: number) -> Promise<PluginResult>",263-337,true,75,1,initializes device
+      DeviceConfigPlugin.showHelp,method,"(start: number) -> PluginResult",339-362,false,24,1,show help
+      DeviceConfigPlugin.parseAddCommand,method,"(input: string) -> {\n    ip: string | null;\n    label: string | null;\n    rtspUrl: string | null;\n    httpUrl: string | null;\n    username: string | null;\n    password: string | null;\n    streamPath: string | null;\n    deviceType: 'camera' | 'server' | 'sensor' | 'other';\n  }",364-435,false,72,1,parses add command
+      DeviceConfigPlugin.parseConfigureCommand,method,"(input: string) -> {\n    identifier: string | null;\n  }",437-453,false,17,1,parses configure command
+      DeviceConfigPlugin.getDeviceTypeLabel,method,"(type: string) -> string",455-463,false,9,1,retrieves device type label
   src/plugins/http-browse/index.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       registerHttpBrowsePlugin,function,"(registry: PluginRegistry, options: HttpBrowsePluginOptions & {\n    tauriInvoke?: (cmd: string, args?: Record<string, unknown>) => Promise<unknown>;\n  }) -> HttpBrowsePlugin",23-38,false,16,1,registers http browse plugin
@@ -1452,16 +1510,17 @@ function_details:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       registerRtspCameraPlugin,function,"(registry: PluginRegistry, options: RegisterRtspCameraOptions) -> RtspCameraPlugin",28-58,false,31,1,registers rtsp camera plugin
   src/plugins/marketplace/marketplaceLoader.ts:
-    functions[9]{name,kind,sig,loc,async,lines,cc,does}:
-      MarketplacePlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",127-142,true,16,1,checks handle
-      MarketplacePlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",144-160,true,17,1,starts
-      MarketplacePlugin.handleBrowse,method,"(start: number) -> PluginResult",162-192,false,31,1,handles browse
-      MarketplacePlugin.handleSearch,method,"(input: string, start: number) -> PluginResult",194-227,false,34,1,handles search
-      MarketplacePlugin.handleInstall,method,"(input: string, start: number) -> PluginResult",229-291,false,63,1,handles install
-      MarketplacePlugin.handleUninstall,method,"(input: string, start: number) -> PluginResult",293-328,false,36,1,handles uninstall
-      MarketplacePlugin.getInstalledPluginIds,method,() -> Set<string>,330-338,false,9,1,retrieves installed plugin ids
-      MarketplacePlugin.initialize,method,"(context: PluginContext) -> Promise<void>",340-343,true,4,1,initializes
-      MarketplacePlugin.dispose,method,() -> Promise<void>,345-348,true,4,1,dispose
+    functions[10]{name,kind,sig,loc,async,lines,cc,does}:
+      MarketplacePlugin.resolveRoute,method,"(input: string) -> string | null",135-141,false,7,1,resolve route
+      MarketplacePlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",143-145,true,3,1,checks handle
+      MarketplacePlugin.execute,method,"(input: string, _context: PluginContext) -> Promise<PluginResult>",147-157,true,11,1,starts
+      MarketplacePlugin.handleBrowse,method,"(start: number) -> PluginResult",159-189,false,31,1,handles browse
+      MarketplacePlugin.handleSearch,method,"(input: string, start: number) -> PluginResult",191-224,false,34,1,handles search
+      MarketplacePlugin.handleInstall,method,"(input: string, start: number) -> PluginResult",226-288,false,63,1,handles install
+      MarketplacePlugin.handleUninstall,method,"(input: string, start: number) -> PluginResult",290-325,false,36,1,handles uninstall
+      MarketplacePlugin.getInstalledPluginIds,method,() -> Set<string>,327-335,false,9,1,retrieves installed plugin ids
+      MarketplacePlugin.initialize,method,"(context: PluginContext) -> Promise<void>",337-340,true,4,1,initializes
+      MarketplacePlugin.dispose,method,() -> Promise<void>,342-345,true,4,1,dispose
   src/plugins/local-network/onvifPlugin.ts:
     functions[6]{name,kind,sig,loc,async,lines,cc,does}:
       OnvifPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",27-39,true,13,1,checks handle
@@ -1573,7 +1632,7 @@ function_details:
       HttpBrowsePlugin.dispose,method,() -> Promise<void>,158-160,true,3,1,dispose
   src/plugins/__tests__/plugins.e2e.test.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
-      makeTauriCtx,function,"(invokeImpl: (cmd: string, args?: any) => Promise<any>) -> PluginContext",34-36,false,3,1,creates tauri ctx
+      makeTauriCtx,function,"(invokeImpl: (cmd: string, args?: any) => Promise<any>) -> PluginContext",35-37,false,3,1,creates tauri ctx
   src/plugins/scope/scopeRegistry.ts:
     functions[12]{name,kind,sig,loc,async,lines,cc,does}:
       ScopeRegistry.normalizeScopeId,method,(scopeId?) -> ScopeId,128-130,false,3,1,normalize scope id
@@ -1590,21 +1649,22 @@ function_details:
       ScopeRegistry.restore,method,() -> void,213-228,false,16,1,restore
   src/plugins/authBrowse/authBrowsePlugin.ts:
     functions[2]{name,kind,sig,loc,async,lines,cc,does}:
-      AuthBrowsePlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",34-54,true,21,1,checks handle
-      AuthBrowsePlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",56-190,true,135,1,starts
+      AuthBrowsePlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",44-50,true,7,1,checks handle
+      AuthBrowsePlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",52-186,true,135,1,starts
   src/plugins/frigate/frigateEventsPlugin.test.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       tauriCtx,function,(overrides?),13-17,false,5,1,tauri ctx
   src/plugins/frigate/frigateEventsPlugin.ts:
-    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
+    functions[9]{name,kind,sig,loc,async,lines,cc,does}:
       FrigateEventsPlugin.initialize,method,"(context: PluginContext) -> Promise<void>",35-76,true,42,1,initializes
       FrigateEventsPlugin.dispose,method,() -> Promise<void>,78-98,true,21,1,dispose
-      FrigateEventsPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",100-103,true,4,1,checks handle
-      FrigateEventsPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",105-157,true,53,1,starts
-      FrigateEventsPlugin.handleMqttEvent,method,"(envelope: FrigateMqttEnvelope) -> Promise<void>",159-246,true,88,1,handles mqtt event
-      FrigateEventsPlugin.fetchSnapshotBase64,method,"(baseUrl: string, camera: string, eventId: string | null) -> Promise<{ base64: string; mimeType: string } | null>",248-268,true,21,1,retrieves snapshot base64
-      FrigateEventsPlugin.blobToBase64,method,"(blob: Blob) -> Promise<string>",270-282,false,13,1,blob to base64
-      FrigateEventsPlugin.emitMonitorChange,method,"(detail: any) -> void",284-291,false,8,1,sends monitor change
+      FrigateEventsPlugin.resolveRoute,method,"(input: string) -> string | null",106-112,false,7,1,resolve route
+      FrigateEventsPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",114-116,true,3,1,checks handle
+      FrigateEventsPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",118-170,true,53,1,starts
+      FrigateEventsPlugin.handleMqttEvent,method,"(envelope: FrigateMqttEnvelope) -> Promise<void>",172-259,true,88,1,handles mqtt event
+      FrigateEventsPlugin.fetchSnapshotBase64,method,"(baseUrl: string, camera: string, eventId: string | null) -> Promise<{ base64: string; mimeType: string } | null>",261-281,true,21,1,retrieves snapshot base64
+      FrigateEventsPlugin.blobToBase64,method,"(blob: Blob) -> Promise<string>",283-295,false,13,1,blob to base64
+      FrigateEventsPlugin.emitMonitorChange,method,"(detail: any) -> void",297-304,false,8,1,sends monitor change
   src/plugins/chat/chatPlugin.ts:
     functions[4]{name,kind,sig,loc,async,lines,cc,does}:
       ChatLlmPlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",16-19,true,4,1,checks handle
@@ -1619,76 +1679,75 @@ function_details:
       buildSnapshotUrl,function,"(ip: string, username: string, password: string, vendorId: string, port: number) -> string",428-441,false,14,1,creates snapshot url
   src/plugins/camera/cameraLivePlugin.ts:
     functions[12]{name,kind,sig,loc,async,lines,cc,does}:
-      CameraLivePlugin.canHandle,method,"(input: string, context: PluginContext) -> Promise<boolean>",10-34,true,25,1,checks handle
-      CameraLivePlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",36-418,true,383,1,starts
-      CameraLivePlugin.resolveVendorFromDb,method,"(ip: string, context: PluginContext) -> Promise<string | null>",420-431,true,12,1,resolve vendor from db
-      CameraLivePlugin.mapVendorStringToId,method,"(vendor: string) -> string | null",433-447,false,15,1,converts vendor string to id
-      CameraLivePlugin.handleTestStreams,method,"(ip: string, username: string, password: string, context: PluginContext, start: number) -> Promise<PluginResult>",449-590,true,142,1,handles test streams
-      CameraLivePlugin.handleCredentialTest,method,"(username: string, password: string, start: number) -> PluginResult",592-649,false,58,1,handles credential test
-      CameraLivePlugin.blobToBase64,method,"(blob: Blob) -> Promise<string>",651-664,false,14,1,blob to base64
-      CameraLivePlugin.sanitizeRtspInput,method,"(input: string) -> string",666-672,false,7,1,sanitize rtsp input
-      CameraLivePlugin.extractRtspPath,method,"(rtspUrl: string) -> string | null",674-677,false,4,1,parses rtsp path
-      CameraLivePlugin.truncateOneLine,method,"(text: string, maxLen: number) -> string",679-683,false,5,1,truncate one line
-      CameraLivePlugin.initialize,method,"(context: PluginContext) -> Promise<void>",685-687,true,3,1,initializes
-      CameraLivePlugin.dispose,method,() -> Promise<void>,689-691,true,3,1,dispose
+      CameraLivePlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",17-20,true,4,1,checks handle
+      CameraLivePlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",22-404,true,383,1,starts
+      CameraLivePlugin.resolveVendorFromDb,method,"(ip: string, context: PluginContext) -> Promise<string | null>",406-417,true,12,1,resolve vendor from db
+      CameraLivePlugin.mapVendorStringToId,method,"(vendor: string) -> string | null",419-433,false,15,1,converts vendor string to id
+      CameraLivePlugin.handleTestStreams,method,"(ip: string, username: string, password: string, context: PluginContext, start: number) -> Promise<PluginResult>",435-576,true,142,1,handles test streams
+      CameraLivePlugin.handleCredentialTest,method,"(username: string, password: string, start: number) -> PluginResult",578-635,false,58,1,handles credential test
+      CameraLivePlugin.blobToBase64,method,"(blob: Blob) -> Promise<string>",637-650,false,14,1,blob to base64
+      CameraLivePlugin.sanitizeRtspInput,method,"(input: string) -> string",652-658,false,7,1,sanitize rtsp input
+      CameraLivePlugin.extractRtspPath,method,"(rtspUrl: string) -> string | null",660-663,false,4,1,parses rtsp path
+      CameraLivePlugin.truncateOneLine,method,"(text: string, maxLen: number) -> string",665-669,false,5,1,truncate one line
+      CameraLivePlugin.initialize,method,"(context: PluginContext) -> Promise<void>",671-673,true,3,1,initializes
+      CameraLivePlugin.dispose,method,() -> Promise<void>,675-677,true,3,1,dispose
   src/plugins/email/emailPlugin.ts:
-    functions[18]{name,kind,sig,loc,async,lines,cc,does}:
-      EmailPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",54-72,true,19,1,checks handle
-      EmailPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",74-104,true,31,1,starts
-      EmailPlugin.isConfigRequest,method,"(lower: string) -> boolean",108-116,false,9,1,checks config request
-      EmailPlugin.isSendRequest,method,"(lower: string) -> boolean",118-127,false,10,1,checks send request
-      EmailPlugin.isInboxRequest,method,"(lower: string) -> boolean",129-145,false,17,1,checks inbox request
-      EmailPlugin.isPollConfigRequest,method,"(lower: string) -> boolean",147-158,false,12,1,checks poll config request
-      EmailPlugin.handleConfig,method,"(_input: string, start: number) -> PluginResult",162-197,false,36,1,handles config
-      EmailPlugin.handleSend,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",199-252,true,54,1,handles send
-      EmailPlugin.handleInbox,method,"(context: PluginContext, start: number) -> Promise<PluginResult>",254-292,true,39,1,handles inbox
-      EmailPlugin.handlePollConfig,method,"(input: string, start: number) -> PluginResult",294-339,false,46,1,handles poll config
-      EmailPlugin.startPolling,method,(callback?) -> void,343-369,false,27,1,starts polling
-      EmailPlugin.stopPolling,method,() -> void,371-377,false,7,1,stops polling
-      EmailPlugin.getEmailConfig,method,() -> EmailConfig,381-392,false,12,1,retrieves email config
-      EmailPlugin.parseSendParams,method,"(input: string) -> {\n    to: string | null;\n    subject: string | null;\n    body: string | null;\n    attachments: string[];\n  }",394-426,false,33,1,parses send params
-      EmailPlugin.browserFallback,method,"(start: number) -> PluginResult",428-438,false,11,1,browser fallback
-      EmailPlugin.errorResult,method,"(msg: string, start: number) -> PluginResult",440-447,false,8,1,error result
-      EmailPlugin.initialize,method,"(_context: PluginContext) -> Promise<void>",449-453,true,5,1,initializes
-      EmailPlugin.dispose,method,() -> Promise<void>,455-458,true,4,1,dispose
+    functions[16]{name,kind,sig,loc,async,lines,cc,does}:
+      EmailPlugin.resolveRoute,method,"(input: string) -> string | null",76-82,false,7,1,resolve route
+      EmailPlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",84-86,true,3,1,checks handle
+      EmailPlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",88-105,true,18,1,starts
+      EmailPlugin.isPollConfigRequest,method,"(lower: string) -> boolean",107-118,false,12,1,checks poll config request
+      EmailPlugin.handleConfig,method,"(_input: string, start: number) -> PluginResult",122-157,false,36,1,handles config
+      EmailPlugin.handleSend,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",159-212,true,54,1,handles send
+      EmailPlugin.handleInbox,method,"(context: PluginContext, start: number) -> Promise<PluginResult>",214-252,true,39,1,handles inbox
+      EmailPlugin.handlePollConfig,method,"(input: string, start: number) -> PluginResult",254-299,false,46,1,handles poll config
+      EmailPlugin.startPolling,method,(callback?) -> void,303-329,false,27,1,starts polling
+      EmailPlugin.stopPolling,method,() -> void,331-337,false,7,1,stops polling
+      EmailPlugin.getEmailConfig,method,() -> EmailConfig,341-352,false,12,1,retrieves email config
+      EmailPlugin.parseSendParams,method,"(input: string) -> {\n    to: string | null;\n    subject: string | null;\n    body: string | null;\n    attachments: string[];\n  }",354-386,false,33,1,parses send params
+      EmailPlugin.browserFallback,method,"(start: number) -> PluginResult",388-398,false,11,1,browser fallback
+      EmailPlugin.errorResult,method,"(msg: string, start: number) -> PluginResult",400-407,false,8,1,error result
+      EmailPlugin.initialize,method,"(_context: PluginContext) -> Promise<void>",409-413,true,5,1,initializes
+      EmailPlugin.dispose,method,() -> Promise<void>,415-418,true,4,1,dispose
   src/plugins/protocol-bridge/protocolBridgePlugin.ts:
-    functions[36]{name,kind,sig,loc,async,lines,cc,does}:
-      ProtocolBridgePlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",123-151,true,29,1,checks handle
-      ProtocolBridgePlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",153-211,true,59,1,starts
-      ProtocolBridgePlugin.detectProtocolFromInput,method,"(input: string) -> BridgeProtocol | null",215-225,false,11,1,detect protocol from input
-      ProtocolBridgePlugin.handleAdd,method,"(input: string, start: number) -> PluginResult",229-329,false,101,1,handles add
-      ProtocolBridgePlugin.handleRemove,method,"(input: string, start: number) -> PluginResult",333-366,false,34,1,handles remove
-      ProtocolBridgePlugin.handleList,method,"(start: number) -> PluginResult",370-427,false,58,1,handles list
-      ProtocolBridgePlugin.handleStatus,method,"(start: number) -> PluginResult",431-467,false,37,1,handles status
-      ProtocolBridgePlugin.handleSend,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",471-504,true,34,1,handles send
-      ProtocolBridgePlugin.handleMqttSend,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",506-558,true,53,1,handles mqtt send
-      ProtocolBridgePlugin.handleRestSend,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",560-608,true,49,1,handles rest send
-      ProtocolBridgePlugin.handleWebSocket,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",612-722,true,111,1,handles web socket
-      ProtocolBridgePlugin.handleWsSend,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",724-784,true,61,1,handles ws send
-      ProtocolBridgePlugin.handleSse,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",788-902,true,115,1,handles sse
-      ProtocolBridgePlugin.handleGraphQL,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",906-979,true,74,1,handles graph ql
-      ProtocolBridgePlugin.handleRead,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",983-1035,true,53,1,handles read
-      ProtocolBridgePlugin.handleMqttRead,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",1037-1146,true,110,1,handles mqtt read
-      ProtocolBridgePlugin.handleRestRead,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",1148-1197,true,50,1,handles rest read
-      ProtocolBridgePlugin.fetchRest,method,"(method: string, url: string, body: string | undefined, context: PluginContext) -> Promise<{ responseText: string; statusCode: number }>",1201-1221,true,21,1,retrieves rest
-      ProtocolBridgePlugin.findCachedMqtt,method,"(topicFilter: string) -> MqttCacheEntry[]",1225-1239,false,15,1,retrieves cached mqtt
-      ProtocolBridgePlugin.mqttTopicMatches,method,"(topic: string, filterParts: string[]) -> boolean",1241-1253,false,13,1,mqtt topic matches
-      ProtocolBridgePlugin.jsonToVoiceSummary,method,"(data: unknown, depth) -> string",1258-1282,false,25,1,json to voice summary
-      ProtocolBridgePlugin.recordMessage,method,"(protocol: BridgeProtocol, direction: 'sent' | 'received', target: string, payload: string, source: 'text' | 'voice' | 'api') -> void",1284-1298,false,15,1,record message
-      ProtocolBridgePlugin.findEndpointForTarget,method,"(protocol: BridgeProtocol, target: string) -> BridgeEndpoint | undefined",1300-1307,false,8,1,retrieves endpoint for target
-      ProtocolBridgePlugin.updateEndpointActivity,method,"(protocol: BridgeProtocol, target: string) -> void",1309-1315,false,7,1,updates endpoint activity
-      ProtocolBridgePlugin.registerWsConnection,method,"(url: string) -> void",1317-1327,false,11,1,registers ws connection
-      ProtocolBridgePlugin.findWsConnection,method,"(url: string) -> WsConnection | undefined",1329-1331,false,3,1,retrieves ws connection
-      ProtocolBridgePlugin.addWsMessage,method,"(url: string, data: string, direction: 'in' | 'out') -> void",1333-1345,false,13,1,creates ws message
-      ProtocolBridgePlugin.directionLabel,method,"(dir: BridgeDirection) -> string",1347-1353,false,7,1,direction label
-      ProtocolBridgePlugin.formatDuration,method,"(ms: number) -> string",1355-1362,false,8,1,formats duration
-      ProtocolBridgePlugin.urlExampleForProtocol,method,"(protocol: BridgeProtocol) -> string",1364-1372,false,9,1,url example for protocol
-      ProtocolBridgePlugin.nextStepsForProtocol,method,"(protocol: BridgeProtocol, url: string, target: string, id: string) -> string",1374-1388,false,15,1,next steps for protocol
-      ProtocolBridgePlugin.suggestActionsForEndpoint,method,"(protocol: BridgeProtocol, url: string, target: string, id: string) -> ActionHint[]",1390-1420,false,31,1,suggest actions for endpoint
-      ProtocolBridgePlugin.withHints,method,"(result: PluginResult, hints: ActionHint[]) -> PluginResult",1426-1439,false,14,1,with hints
-      ProtocolBridgePlugin.errorResult,method,"(message: string, start: number) -> PluginResult",1441-1448,false,8,1,error result
-      ProtocolBridgePlugin.initialize,method,"(context: PluginContext) -> Promise<void>",1450-1473,true,24,1,initializes
-      ProtocolBridgePlugin.dispose,method,() -> Promise<void>,1475-1482,true,8,1,dispose
+    functions[37]{name,kind,sig,loc,async,lines,cc,does}:
+      ProtocolBridgePlugin.resolveRoute,method,"(input: string) -> string | null",153-159,false,7,1,resolve route
+      ProtocolBridgePlugin.canHandle,method,"(input: string, _context: PluginContext) -> Promise<boolean>",161-164,true,4,1,checks handle
+      ProtocolBridgePlugin.execute,method,"(input: string, context: PluginContext) -> Promise<PluginResult>",166-199,true,34,1,starts
+      ProtocolBridgePlugin.detectProtocolFromInput,method,"(input: string) -> BridgeProtocol | null",203-213,false,11,1,detect protocol from input
+      ProtocolBridgePlugin.handleAdd,method,"(input: string, start: number) -> PluginResult",217-317,false,101,1,handles add
+      ProtocolBridgePlugin.handleRemove,method,"(input: string, start: number) -> PluginResult",321-354,false,34,1,handles remove
+      ProtocolBridgePlugin.handleList,method,"(start: number) -> PluginResult",358-415,false,58,1,handles list
+      ProtocolBridgePlugin.handleStatus,method,"(start: number) -> PluginResult",419-455,false,37,1,handles status
+      ProtocolBridgePlugin.handleSend,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",459-492,true,34,1,handles send
+      ProtocolBridgePlugin.handleMqttSend,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",494-546,true,53,1,handles mqtt send
+      ProtocolBridgePlugin.handleRestSend,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",548-596,true,49,1,handles rest send
+      ProtocolBridgePlugin.handleWebSocket,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",600-710,true,111,1,handles web socket
+      ProtocolBridgePlugin.handleWsSend,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",712-772,true,61,1,handles ws send
+      ProtocolBridgePlugin.handleSse,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",776-890,true,115,1,handles sse
+      ProtocolBridgePlugin.handleGraphQL,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",894-967,true,74,1,handles graph ql
+      ProtocolBridgePlugin.handleRead,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",971-1023,true,53,1,handles read
+      ProtocolBridgePlugin.handleMqttRead,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",1025-1134,true,110,1,handles mqtt read
+      ProtocolBridgePlugin.handleRestRead,method,"(input: string, context: PluginContext, start: number) -> Promise<PluginResult>",1136-1185,true,50,1,handles rest read
+      ProtocolBridgePlugin.fetchRest,method,"(method: string, url: string, body: string | undefined, context: PluginContext) -> Promise<{ responseText: string; statusCode: number }>",1189-1209,true,21,1,retrieves rest
+      ProtocolBridgePlugin.findCachedMqtt,method,"(topicFilter: string) -> MqttCacheEntry[]",1213-1227,false,15,1,retrieves cached mqtt
+      ProtocolBridgePlugin.mqttTopicMatches,method,"(topic: string, filterParts: string[]) -> boolean",1229-1241,false,13,1,mqtt topic matches
+      ProtocolBridgePlugin.jsonToVoiceSummary,method,"(data: unknown, depth) -> string",1246-1270,false,25,1,json to voice summary
+      ProtocolBridgePlugin.recordMessage,method,"(protocol: BridgeProtocol, direction: 'sent' | 'received', target: string, payload: string, source: 'text' | 'voice' | 'api') -> void",1272-1286,false,15,1,record message
+      ProtocolBridgePlugin.findEndpointForTarget,method,"(protocol: BridgeProtocol, target: string) -> BridgeEndpoint | undefined",1288-1295,false,8,1,retrieves endpoint for target
+      ProtocolBridgePlugin.updateEndpointActivity,method,"(protocol: BridgeProtocol, target: string) -> void",1297-1303,false,7,1,updates endpoint activity
+      ProtocolBridgePlugin.registerWsConnection,method,"(url: string) -> void",1305-1315,false,11,1,registers ws connection
+      ProtocolBridgePlugin.findWsConnection,method,"(url: string) -> WsConnection | undefined",1317-1319,false,3,1,retrieves ws connection
+      ProtocolBridgePlugin.addWsMessage,method,"(url: string, data: string, direction: 'in' | 'out') -> void",1321-1333,false,13,1,creates ws message
+      ProtocolBridgePlugin.directionLabel,method,"(dir: BridgeDirection) -> string",1335-1341,false,7,1,direction label
+      ProtocolBridgePlugin.formatDuration,method,"(ms: number) -> string",1343-1350,false,8,1,formats duration
+      ProtocolBridgePlugin.urlExampleForProtocol,method,"(protocol: BridgeProtocol) -> string",1352-1360,false,9,1,url example for protocol
+      ProtocolBridgePlugin.nextStepsForProtocol,method,"(protocol: BridgeProtocol, url: string, target: string, id: string) -> string",1362-1376,false,15,1,next steps for protocol
+      ProtocolBridgePlugin.suggestActionsForEndpoint,method,"(protocol: BridgeProtocol, url: string, target: string, id: string) -> ActionHint[]",1378-1408,false,31,1,suggest actions for endpoint
+      ProtocolBridgePlugin.withHints,method,"(result: PluginResult, hints: ActionHint[]) -> PluginResult",1414-1427,false,14,1,with hints
+      ProtocolBridgePlugin.errorResult,method,"(message: string, start: number) -> PluginResult",1429-1436,false,8,1,error result
+      ProtocolBridgePlugin.initialize,method,"(context: PluginContext) -> Promise<void>",1438-1461,true,24,1,initializes
+      ProtocolBridgePlugin.dispose,method,() -> Promise<void>,1463-1470,true,8,1,dispose
   src-tauri/src/network_info.rs:
     functions[3]{name,kind,sig,loc,async,lines,cc,does}:
       get_local_network_info,function,"() -> Result<NetworkInfo,","-",false,1,1,retrieves local network info
@@ -1746,6 +1805,9 @@ function_details:
   src-tauri/src/useBackendStt.ts:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       useBackendStt,function,"(options: UseBackendSttOptions) -> UseBackendSttReturn",47-182,false,136,1,use backend stt
+  src-tauri/src/llm_query.rs:
+    functions[1]{name,kind,sig,loc,async,lines,cc,does}:
+      validate_sql,function,"(sql: &str) -> Result<(),","-",false,1,1,validates sql
   src-tauri/src/stt.rs:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       base64_decode,function,"(input: &str) -> Result<Vec<u8>,","-",false,1,1,base64 decode
@@ -1790,14 +1852,19 @@ function_details:
       analyse_movement,function,"(track: &CompletedTrack) -> MovementSummary","-",false,1,1,analyse movement
       movement_tag,function,"(summary: &MovementSummary, class: &str) -> String","-",false,1,1,movement tag
   src-tauri/src/motion_detection.rs:
-    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
       now_ms,function,() -> u64,"-",false,1,1,now ms
       resolve_db_path,function,"(db_path: &str) -> String","-",false,1,1,resolve db path
       resolve_script_path,function,"(script: &str) -> String","-",false,1,1,resolve script path
-      nl_to_sql,function,"(question: &str, new_schema: bool) -> String","-",false,1,1,nl to sql
-      extract_date_filter,function,"(q: &str, new_schema: bool) -> String","-",false,1,1,parses date filter
+      nl_to_sql,function,"(question: &str, _new_schema: bool) -> String","-",false,1,1,nl to sql
+      extract_time_filter,function,"(q: &str) -> String","-",false,1,1,parses time filter
+      extract_number_before,function,"(q: &str, suffixes: &[&str]) -> Option<u32>","-",false,1,1,parses number before
       extract_label_filter,function,"(q: &str) -> String","-",false,1,1,parses label filter
       extract_limit,function,"(q: &str) -> Option<u32>","-",false,1,1,parses limit
+  src-tauri/src/query_schema.rs:
+    functions[2]{name,kind,sig,loc,async,lines,cc,does}:
+      build_text_to_sql_prompt,function,"(schema: &str) -> String","-",false,1,1,creates text to sql prompt
+      detect_data_source,function,"(question: &str) -> DataSource","-",false,1,1,detect data source
   src-tauri/src/logging.rs:
     functions[6]{name,kind,sig,loc,async,lines,cc,does}:
       resolve_log_dir,function,() -> PathBuf,"-",false,1,1,resolve log dir
@@ -1860,10 +1927,11 @@ function_details:
     functions[1]{name,kind,sig,loc,async,lines,cc,does}:
       load_email_config_from_env,function,() -> EmailConfig,"-",false,1,1,retrieves email config from env
   src-tauri/src/audio_commands.rs:
-    functions[11]{name,kind,sig,loc,async,lines,cc,does}:
+    functions[15]{name,kind,sig,loc,async,lines,cc,does}:
       load_settings,function,"() -> crate::AudioSettings","-",false,1,1,retrieves settings
       stt_start,function,"(recording_state: tauri::State<SharedRecordingState>, active_stream: tauri::State<ActiveStream>) -> Result<String,","-",false,1,1,stt start
       stt_status,function,"(recording_state: tauri::State<SharedRecordingState>) -> Result<SttStatus,","-",false,1,1,stt status
+      stt_get_mic_level,function,"(recording_state: tauri::State<SharedRecordingState>) -> f32","-",false,1,1,stt get mic level
       stt_is_silence,function,"(recording_state: tauri::State<SharedRecordingState>, threshold_seconds: f32, rms_threshold: f32) -> bool","-",false,1,1,stt is silence
       backend_tts_stop,function,"(active_tts: tauri::State<ActiveTts>)","-",false,1,1,backend tts stop
       backend_tts_pause,function,"(active_tts: tauri::State<ActiveTts>)","-",false,1,1,backend tts pause
@@ -1872,12 +1940,22 @@ function_details:
       backend_tts_info,function,() -> TtsInfo,"-",false,1,1,backend tts info
       backend_audio_devices,function,"() -> Result<AudioDevices,","-",false,1,1,backend audio devices
       piper_is_installed,function,() -> bool,"-",false,1,1,piper is installed
+      wake_word_start,function,"(wake_word_state: tauri::State<SharedWakeWordState>, active_wake_word_stream: tauri::State<ActiveWakeWordStream>, app_handle: tauri::AppHandle) -> Result<String,","-",false,1,1,wake word start
+      wake_word_stop,function,"(wake_word_state: tauri::State<SharedWakeWordState>, active_wake_word_stream: tauri::State<ActiveWakeWordStream>) -> Result<String,","-",false,1,1,wake word stop
+      wake_word_check_triggered,function,"(wake_word_state: tauri::State<SharedWakeWordState>) -> Result<bool,","-",false,1,1,wake word check triggered
   src-tauri/src/disk_info.rs:
     functions[4]{name,kind,sig,loc,async,lines,cc,does}:
       parse_df_output,function,"() -> Result<Vec<DiskPartition>,","-",false,1,1,parses df output
       parse_df_simple,function,"() -> Result<Vec<DiskPartition>,","-",false,1,1,parses df simple
       parse_df_line,function,"(line: &str) -> Result<DiskPartition,","-",false,1,1,parses df line
       get_hostname,function,() -> String,"-",false,1,1,retrieves hostname
+  src-tauri/src/wake_word.rs:
+    functions[5]{name,kind,sig,loc,async,lines,cc,does}:
+      match_wake_word,function,"(audio: &[f32], sample_rate: u32) -> f32","-",false,1,1,filters wake word
+      start_wake_word_listening,function,"(state: &SharedWakeWordState, app_handle: tauri::AppHandle) -> Result<cpal::Stream,","-",false,1,1,starts wake word listening
+      stop_wake_word_listening,function,"(state: &SharedWakeWordState)","-",false,1,1,stops wake word listening
+      check_wake_word_triggered,function,"(state: &SharedWakeWordState) -> bool","-",false,1,1,checks wake word triggered
+      wake_word_get_level,function,"(state: tauri::State<SharedWakeWordState>) -> f32","-",false,1,1,wake word get level
   src-tauri/src/settings.rs:
     functions[15]{name,kind,sig,loc,async,lines,cc,does}:
       default_tts_enabled,function,() -> bool,"-",false,1,1,default tts enabled
@@ -1896,13 +1974,14 @@ function_details:
       get_settings,function,() -> AudioSettings,"-",false,1,1,retrieves settings
       save_settings,function,"(settings: AudioSettings) -> Result<(),","-",false,1,1,caches settings
   src-tauri/src/audio_capture.rs:
-    functions[7]{name,kind,sig,loc,async,lines,cc,does}:
+    functions[8]{name,kind,sig,loc,async,lines,cc,does}:
       list_input_devices,function,"() -> Result<Vec<String>,","-",false,1,1,list input devices
       start_recording,function,"(state: &SharedRecordingState) -> Result<cpal::Stream,","-",false,1,1,starts recording
       stop_and_encode_wav,function,"(state: &SharedRecordingState) -> Result<(String,","-",false,1,1,stops and encode wav
       resample_linear,function,"(samples: &[i16], from_rate: u32, to_rate: u32) -> Vec<i16>","-",false,1,1,resample linear
       preferred_input_config,function,"(device: &cpal::Device) -> Result<StreamConfig,","-",false,1,1,preferred input config
       base64_encode,function,"(data: &[u8]) -> String","-",false,1,1,base64 encode
+      get_mic_level,function,"(state: &SharedRecordingState) -> f32","-",false,1,1,retrieves mic level
       is_silence,function,"(state: &SharedRecordingState, threshold_seconds: f32, rms_threshold: f32) -> bool","-",false,1,1,checks silence
   src-tauri/src/network.rs:
     functions[7]{name,kind,sig,loc,async,lines,cc,does}:

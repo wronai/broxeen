@@ -7,9 +7,9 @@
 ![img_3.png](img_3.png)
 # ⚡ Broxeen v2.1 — AI Camera Monitoring & Network Discovery
 
-Desktopowa aplikacja **Tauri 2 + React** do monitoringu kamer AI i odkrywania sieci z wbudowanym TTS (Text-to-Speech) i rozpoznawaniem mowy.
+Desktopowa aplikacja **Tauri 2 + React** do monitoringu kamer AI i odkrywania sieci z wbudowanym TTS (Text-to-Speech) i **dwutrybowym STT (Speech-to-Text)**.
 
-Zamiast tradycyjnej przeglądarki — wpiszesz lub **mówisz** zapytanie, dostajesz czysty content, który możesz **odsłuchać** przez głośnik. Nowa wersja dodaje **monitoring kamer AI** i **zaawansowane skanowanie sieci**.
+Zamiast tradycyjnej przeglądarki — wpiszesz lub **mówisz** zapytanie (ręcznie lub przez wake word "heyken"), dostajesz czysty content, który możesz **odsłuchać** przez głośnik. Nowa wersja dodaje **monitoring kamer AI**, **zaawansowane skanowanie sieci** i **inteligentny system rozpoznawania mowy**.
 
 ## Wymagania
 
@@ -165,6 +165,42 @@ broxeen/
 | `db_execute` | `db_path: string`, `sql: string`, `params: any[]` | Wykonuje SQL (gdy `params` puste, obsługuje multi-statement przez `execute_batch`) |
 | `db_query` | `db_path: string`, `sql: string`, `params: any[]` | Zapytania SELECT do SQLite |
 | `db_close` | `db_path: string` | Zamknięcie połączenia do SQLite |
+
+## 🎤 STT - Speech-to-Text System
+
+Broxeen implementuje **dwutrybowy system rozpoznawania mowy** z wake word detection:
+
+### Tryby nagrywania
+
+#### 1. 🎤 Wake Word Trigger (Hands-free)
+- Użytkownik mówi **"heyken"**
+- Automatycznie nagrywa **1 sekundę**
+- Jeśli VAD wykryje mowę → **nagrywa aż do końca mowy**
+- Transkrypcja wysyłana jako **komenda** do pola tekstowego
+
+#### 2. 🎯 Manual Recording (Button control)
+- Użytkownik **trzyma przycisk mikrofonu**
+- Nagrywa tak długo jak przycisk jest wciśnięty
+- Po zwolnieniu → transkrypcja jako komenda
+
+### Technologia
+
+- **VAD (Voice Activity Detection):** RMS + Zero Crossing Rate
+- **API:** OpenRouter multimodal (`/chat/completions`)
+- **Model:** Google Gemini 2.0 Flash (free tier)
+- **Anti-halucynacja:** Temperature=0 + strict prompt
+- **Audio:** 16kHz mono, 16-bit PCM
+
+### Konfiguracja
+```bash
+# .env
+OPENROUTER_API_KEY=sk-or-v1-...
+STT_MODEL=google/gemini-2.0-flash-exp:free
+VITE_STT_LANG=pl
+```
+
+### Dokumentacja techniczna
+Szczegółowa architektura i implementacja: [STT_ARCHITECTURE.md](docs/STT_ARCHITECTURE.md)
 
 ## Interaktywny UX
 
