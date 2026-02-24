@@ -2,13 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import { executeBrowseCommand } from "./browseGateway";
 
-// Import the internal functions for testing
-import {
-  looksLikeRssOrAtom,
-  extractRssAtomContent,
-  normalizeBrowseResult,
-} from "./browseGateway";
-
 describe("browseGateway", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -259,10 +252,6 @@ describe("browseGateway", () => {
     const cookieBanner =
       "Strona korzysta z plików tekstowych zwanych ciasteczkami, aby zapewnić użytkownikom jak najlepszą obsługę. Są one zapisywane w przeglądarce i pozwalają rozpoznać Cię podczas kolejnej wizyty w serwisie. Dzięki nim właściciele witryny mogą lepiej zrozumieć, które treści są dla Ciebie najbardziej przydatne i interesujące. Pomaga to w ciągłym ulepszaniu zawartości strony i dostosowywaniu jej do Twoich potrzeb. Korzystanie z witryny oznacza akceptację tych mechanizmów.";
 
-    const legalDisclaimer = "Pobieranie, zwielokrotnianie, przechowywanie lub jakiekolwiek inne wykorzystywanie treści dostępnych w niniejszym serwisie wymaga uprzedniej i jednoznacznej zgody Wirtualna Polska Media Spółka Akcyjna z siedzibą w Warszawie.";
-
-    const onetDisclaimer = "Systematyczne pobieranie treści, danych lub informacji z tej strony internetowej (web scraping), jak również eksploracja tekstu i danych (TDM) bez uprzedniej, wyraźnej zgody Ringier Axel Springer Polska sp. z o.o. (RASP) jest zabronione.";
-
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
@@ -272,8 +261,6 @@ describe("browseGateway", () => {
             <body>
               <main>
                 <p>${cookieBanner}</p>
-                <p>${legalDisclaimer}</p>
-                <p>${onetDisclaimer}</p>
                 <p>
                   This page contains enough readable text to pass extraction thresholds and should remain
                   even after cookie boilerplate is stripped.
@@ -291,9 +278,6 @@ describe("browseGateway", () => {
     expect(result.title).toBe("Example");
     expect(result.content).toContain("This page contains enough readable text");
     expect(result.content).not.toContain("zwanych ciasteczkami");
-    expect(result.content).not.toContain("Wirtualna Polska Media");
-    expect(result.content).not.toContain("Ringier Axel Springer");
-    expect(result.content).not.toContain("web scraping");
   });
 
   it("strips nav, footer, button, and form elements from extracted content", async () => {
@@ -387,284 +371,5 @@ describe("browseGateway", () => {
     await expect(
       executeBrowseCommand("https://example.com", false),
     ).rejects.toThrow("żaden z serwerów proxy");
-  });
-});
-
-describe("RSS/Atom Feed Detection and Parsing", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  describe("looksLikeRssOrAtom", () => {
-    it("detects RSS 2.0 feeds", () => {
-      const rssContent = `<?xml version="1.0" encoding="UTF-8"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test Feed</title>
-          </channel>
-        </rss>`;
-      expect(looksLikeRssOrAtom(rssContent)).toBe(true);
-    });
-
-    it("detects Atom feeds", () => {
-      const atomContent = `<?xml version="1.0" encoding="UTF-8"?>
-        <feed xmlns="http://www.w3.org/2005/Atom">
-          <title>Test Feed</title>
-        </feed>`;
-      expect(looksLikeRssOrAtom(atomContent)).toBe(true);
-    });
-
-    it("detects RSS 1.0/RDF feeds", () => {
-      const rdfContent = `<?xml version="1.0" encoding="UTF-8"?>
-        <rdf:RDF xmlns="http://purl.org/rss/1.0/">
-          <channel>
-            <title>Test Feed</title>
-          </channel>
-        </rdf:RDF>`;
-      expect(looksLikeRssOrAtom(rdfContent)).toBe(true);
-    });
-
-    it("does not detect HTML content", () => {
-      const htmlContent = `<!DOCTYPE html>
-        <html>
-          <head><title>Page</title></head>
-          <body><p>Content</p></body>
-        </html>`;
-      expect(looksLikeRssOrAtom(htmlContent)).toBe(false);
-    });
-
-    it("does not detect plain text", () => {
-      const textContent = "This is just plain text content without any XML tags.";
-      expect(looksLikeRssOrAtom(textContent)).toBe(false);
-    });
-  });
-
-  describe("extractRssAtomContent", () => {
-    beforeEach(() => {
-      // Mock DOMParser for tests
-      const mockDOMParser = vi.fn().mockImplementation(() => ({
-        parseFromString: vi.fn().mockImplementation((xml: string, mimeType: string) => {
-          // Create a simple mock document structure
-          const mockDocument = {
-            querySelector: vi.fn().mockImplementation((selector: string) => {
-              // Mock different selectors based on the input
-              if (selector === 'parsererror') {
-                // Check if XML is malformed
-                if (xml.includes('Broken Feed') && !xml.includes('</title>')) {
-                  return { textContent: 'XML parsing error' };
-                }
-                return null;
-              }
-              
-              if (selector === 'rss, rdf:rdf') {
-                return xml.includes('<rss') || xml.includes('<rdf:RDF') ? {} : null;
-              }
-              
-              if (selector === 'feed') {
-                return xml.includes('<feed') ? {} : null;
-              }
-              
-              if (selector === 'channel') {
-                if (xml.includes('<channel>')) {
-                  return {
-                    querySelector: vi.fn().mockImplementation((subSelector: string) => {
-                      if (subSelector === 'title') {
-                        return { textContent: xml.includes('Technology News') ? 'Technology News' : 'Test RSS' };
-                      }
-                      if (subSelector === 'description') {
-                        return { textContent: xml.includes('Latest tech updates') ? 'Latest tech updates' : '' };
-                      }
-                      return null;
-                    }),
-                    querySelectorAll: vi.fn().mockImplementation((subSelector: string) => {
-                      if (subSelector === 'item') {
-                        // Return mock items based on content
-                        if (xml.includes('New AI Breakthrough')) {
-                          return [
-                            {
-                              querySelector: vi.fn().mockImplementation((itemSelector: string) => ({
-                                textContent: itemSelector === 'title' ? 'New AI Breakthrough' :
-                                            itemSelector === 'link' ? 'https://example.com/ai-breakthrough' :
-                                            itemSelector === 'description' ? 'Scientists have made a major breakthrough in AI research.' :
-                                            itemSelector === 'pubDate' ? 'Mon, 24 Feb 2026 10:00:00 GMT' : ''
-                              }))
-                            },
-                            {
-                              querySelector: vi.fn().mockImplementation((itemSelector: string) => ({
-                                textContent: itemSelector === 'title' ? 'Quantum Computing Update' :
-                                            itemSelector === 'link' ? 'https://example.com/quantum' :
-                                            itemSelector === 'description' ? 'Quantum computers reach new milestone.' :
-                                            itemSelector === 'pubDate' ? 'Sun, 23 Feb 2026 15:30:00 GMT' : ''
-                              }))
-                            }
-                          ];
-                        }
-                        return [{
-                          querySelector: vi.fn().mockImplementation((itemSelector: string) => ({
-                            textContent: itemSelector === 'title' ? 'Test Item' :
-                                        itemSelector === 'description' ? 'Test description' : ''
-                          }))
-                        }];
-                      }
-                      return [];
-                    })
-                  };
-                }
-                return null;
-              }
-              
-              if (selector === 'feed') {
-                return {
-                  querySelector: vi.fn().mockImplementation((subSelector: string) => {
-                    if (subSelector === 'title') {
-                      return { textContent: xml.includes('Science Blog') ? 'Science Blog' : 'Test Atom' };
-                    }
-                    if (subSelector === 'subtitle') {
-                      return { textContent: xml.includes('Latest scientific discoveries') ? 'Latest scientific discoveries' : '' };
-                    }
-                    return null;
-                  }),
-                  querySelectorAll: vi.fn().mockImplementation((subSelector: string) => {
-                    if (subSelector === 'entry') {
-                      if (xml.includes('Mars Discovery')) {
-                        return [
-                          {
-                            querySelector: vi.fn().mockImplementation((entrySelector: string) => {
-                              if (entrySelector === 'title') return { textContent: 'Mars Discovery' };
-                              if (entrySelector === 'summary') return { textContent: 'New evidence of water found on Mars.' };
-                              if (entrySelector === 'published') return { textContent: '2026-02-24T10:00:00Z' };
-                              if (entrySelector === 'link') return { getAttribute: vi.fn().mockReturnValue('https://example.com/mars') };
-                              return null;
-                            })
-                          },
-                          {
-                            querySelector: vi.fn().mockImplementation((entrySelector: string) => {
-                              if (entrySelector === 'title') return { textContent: 'Climate Study' };
-                              if (entrySelector === 'content') return { textContent: 'Global temperatures continue to rise according to new study.' };
-                              if (entrySelector === 'updated') return { textContent: '2026-02-23T14:30:00Z' };
-                              if (entrySelector === 'link') return { getAttribute: vi.fn().mockReturnValue('https://example.com/climate') };
-                              return null;
-                            })
-                          }
-                        ];
-                      }
-                      return [{
-                        querySelector: vi.fn().mockImplementation((entrySelector: string) => {
-                          if (entrySelector === 'title') return { textContent: 'Atom Entry' };
-                          if (entrySelector === 'summary') return { textContent: 'Atom summary' };
-                          return null;
-                        })
-                      }];
-                    }
-                    return [];
-                  })
-                };
-              }
-              
-              return null;
-            })
-          };
-          return mockDocument;
-        })
-      }));
-      
-      vi.stubGlobal("DOMParser", mockDOMParser);
-    });
-
-    it("handles missing DOMParser gracefully", () => {
-      // Remove DOMParser mock to test fallback
-      vi.unstubAllGlobals();
-      
-      const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
-        <rss version="2.0">
-          <channel>
-            <title>Technology News</title>
-          </channel>
-        </rss>`;
-
-      const result = extractRssAtomContent(rssXml);
-
-      expect(result.title).toBe("Feed Title");
-      expect(result.content).toContain(rssXml.slice(0, 100)); // Should contain truncated XML
-    });
-
-    it("handles empty content", () => {
-      const result = extractRssAtomContent("");
-
-      expect(result.title).toBe("Untitled Feed");
-      expect(result.content).toBe("Nie udało się wyodrębnić treści z kanału RSS/Atom.");
-    });
-
-    it("limits content to MAX_CONTENT_LENGTH", () => {
-      // Create a long RSS feed
-      let longContent = `<?xml version="1.0"?><rss><channel><title>Long Feed</title>`;
-      for (let i = 0; i < 100; i++) {
-        longContent += `<item><title>Item ${i}</title><description>This is item number ${i} with some long description to make it exceed the limit.</description></item>`;
-      }
-      longContent += `</channel></rss>`;
-
-      const result = extractRssAtomContent(longContent);
-      expect(result.content.length).toBeLessThanOrEqual(5000); // MAX_CONTENT_LENGTH
-    });
-  });
-
-  describe("normalizeBrowseResult with RSS/Atom", () => {
-    it("detects and normalizes RSS feed content", () => {
-      const rssXml = `<?xml version="1.0"?>
-        <rss version="2.0">
-          <channel>
-            <title>Test RSS</title>
-            <item>
-              <title>Test Item</title>
-              <description>Test description</description>
-            </item>
-          </channel>
-        </rss>`;
-
-      const result = normalizeBrowseResult(
-        {
-          url: "https://example.com/feed.xml",
-          title: "",
-          content: rssXml,
-        },
-        "tauri",
-        "https://example.com/feed.xml"
-      );
-
-      expect(result.content).toContain("## Test RSS");
-      expect(result.content).toContain("### Ostatnie wpisy");
-      expect(result.content).toContain("**1. Test Item**");
-      expect(result.title).toBe("Test RSS");
-    });
-
-    it("detects and normalizes Atom feed content", () => {
-      const atomXml = `<?xml version="1.0"?>
-        <feed xmlns="http://www.w3.org/2005/Atom">
-          <title>Test Atom</title>
-          <entry>
-            <title>Atom Entry</title>
-            <summary>Atom summary</summary>
-          </entry>
-        </feed>`;
-
-      const result = normalizeBrowseResult(
-        {
-          url: "https://example.com/atom.xml",
-          title: "",
-          content: atomXml,
-        },
-        "browser",
-        "https://example.com/atom.xml"
-      );
-
-      expect(result.content).toContain("## Test Atom");
-      expect(result.content).toContain("### Ostatnie wpisy");
-      expect(result.content).toContain("**1. Atom Entry**");
-      expect(result.title).toBe("Test Atom");
-    });
   });
 });

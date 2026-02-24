@@ -1,3 +1,28 @@
+## [1.0.80] - 2026-02-24
+
+### Summary
+
+refactor(tests): deep code analysis engine with 6 supporting modules
+
+### Docs
+
+- docs: update MICROPHONE_TOGGLE_SUMMARY.md
+
+### Test
+
+- update test-mic-toggle.js
+
+### Other
+
+- update src-tauri/src/content_cleaning.rs
+- update src/components/Chat.tsx
+- update src/lib/browseGateway.test.ts
+- update src/lib/browseGateway.ts
+- update src/plugins/protocol-bridge/protocolBridgePlugin.ts
+- update src/plugins/system/logsPlugin.test.ts
+- update src/plugins/voice/voiceCommandsPlugin.test.ts
+
+
 ## [1.0.79] - 2026-02-24
 
 ### Summary

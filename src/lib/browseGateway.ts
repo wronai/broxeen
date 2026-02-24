@@ -10,44 +10,8 @@ import {
 const browseLogger = logger.scope("browse:gateway");
 const MAX_CONTENT_LENGTH = 5000;
 
-function filterAntiScrapingNotices(text: string): string {
-  let cleaned = text;
-
-  // Remove CSS class definitions and UI component styles
-  cleaned = cleaned.replace(
-    /\.[a-zA-Z0-9_-]+\{[^}]*\}/g,
-    " "
-  );
-
-  // Remove CSS class names that are UI components
-  cleaned = cleaned.replace(
-    /\b(olwg__\w+|wp__\w+|ui__\w+|btn__\w+|nav__\w+)\b/g,
-    " "
-  );
-
-  // Remove CSS properties and values
-  cleaned = cleaned.replace(
-    /\b(background-color|border|color|display|font-size|padding|margin|position|width|height|transform|opacity|visibility|z-index|flex|grid|align-items|justify-content|text-decoration|border-radius|box-shadow|cursor|outline|overflow|white-space|text-overflow|line-height|letter-spacing|font-weight|text-transform|transition|animation)\s*:[^;]*;?/gi,
-    " "
-  );
-
-  // Regex for WP.pl - remove entire sentence
-  cleaned = cleaned.replace(
-    /Pobieranie,\s*zwielokrotnianie,\s*przechowywanie\s*lub\s*jakiekolwiek\s*inne\s*wykorzystywanie\s*treści\s*dostępnych\s*w\s*niniejszym\s*serwisie[^.]*\./gi,
-    " "
-  );
-
-  // Regex for Onet.pl - remove entire sentence
-  cleaned = cleaned.replace(
-    /Systematyczne\s*pobieranie\s*treści,\s*danych\s*lub\s*informacji\s*z\s*tej\s*strony\s*internetowej\s*\(web\s*scraping\)[^.]*\./gi,
-    " "
-  );
-
-  return cleaned;
-}
-
 function stripCookieBannerText(text: string): string {
-  const raw = filterAntiScrapingNotices(text || "");
+  const raw = text || "";
   const normalized = raw.replace(/\r\n?/g, "\n");
   const blocks = normalized
     .split(/\n\s*\n+/)
@@ -58,7 +22,6 @@ function stripCookieBannerText(text: string): string {
   let removedCount = 0;
 
   for (const block of blocks) {
-
     const hasCookieWord = /\b(ciasteczk\w*|cookie\w*|cookies)\b/i.test(block);
     if (!hasCookieWord) {
       cleanedBlocks.push(block);
@@ -77,8 +40,7 @@ function stripCookieBannerText(text: string): string {
       score >= 2 ||
       /strona\s+korzysta\s+z\s+plik\w*\s+tekstow\w*\s+zwanych\s+ciasteczkami/i.test(
         block,
-      ) ||
-      /plików\s+tekstowych\s+zwanych\s+ciasteczkami/i.test(block);
+      );
 
     if (!looksLikeBanner) {
       cleanedBlocks.push(block);
@@ -185,54 +147,116 @@ function extractBrowserReadableContent(rawHtml: string): {
   }
 
   const document = new DOMParser().parseFromString(rawHtml, "text/html");
+  
+  // Remove unwanted elements more comprehensively
   document
     .querySelectorAll(
       "script, style, noscript, template, nav, footer, header, aside, form, " +
-      "button, select, input[type='hidden'], " +
-      "[role='navigation'], [role='banner'], [role='contentinfo'], " +
-      ".cookie-banner, .cookie-consent, .ad, .advertisement, .sidebar, " +
-      ".menu, .nav, .footer, .header",
+        "button, select, input[type='hidden'], input[type='submit'], " +
+        "[role='navigation'], [role='banner'], [role='contentinfo'], " +
+        ".cookie-banner, .cookie-consent, .ad, .advertisement, .sidebar, " +
+        ".menu, .nav, .footer, .header, .popup, .modal, .overlay, " +
+        ".social, .share, .comments, .related, .newsletter, .subscription"
     )
     .forEach((el) => el.remove());
 
   const title = normalizeText(document.title) || "Untitled";
 
-  const selectors = [
+  // Enhanced content selectors with priority order
+  const contentSelectors = [
+    // Article and main content
     "article",
-    "main",
+    "main", 
     "[role='main']",
     ".content",
     "#content",
+    ".post-content",
+    ".entry-content",
+    ".article-content",
+    ".story-body",
+    ".post-body",
+    // Common content containers
+    ".container .row .col",
+    ".main-content",
+    ".page-content",
+    ".section-content",
+    // Product pages
+    ".product-description",
+    ".product-details",
+    ".product-info",
+    // News sites
+    ".news-content",
+    ".article-body",
+    ".story-content",
+    // Fallback
     "body",
   ];
 
-  for (const selector of selectors) {
+  let bestContent = "";
+  let bestScore = 0;
+
+  for (const selector of contentSelectors) {
     const node = document.querySelector(selector);
-    if (!node) {
-      continue;
-    }
+    if (!node) continue;
 
     const text = normalizeText(node.textContent || "");
-    if (text.length > 120) {
-      return {
-        title,
-        content: text.slice(0, MAX_CONTENT_LENGTH),
-      };
+    if (text.length < 100) continue;
+
+    // Score content based on various factors
+    let score = 0;
+    
+    // Length factor (prefer longer content)
+    score += Math.min(text.length / 1000, 5) * 10;
+    
+    // Paragraph density (more paragraphs = better content)
+    const paragraphs = node.querySelectorAll("p");
+    score += paragraphs.length * 5;
+    
+    // Heading presence
+    const headings = node.querySelectorAll("h1, h2, h3, h4, h5, h6");
+    score += headings.length * 3;
+    
+    // List presence
+    const lists = node.querySelectorAll("ul, ol, li");
+    score += lists.length * 2;
+    
+    // Penalize if too many links (likely navigation)
+    const links = node.querySelectorAll("a");
+    const linkRatio = links.length / (text.split(/\s+/).length || 1);
+    if (linkRatio > 0.3) score -= 10;
+    
+    // Bonus for common content indicators
+    if (text.match(/\b(dowiedz|więcej|czytaj|przeczytaj|zobacz|szczegóły|opis|treść)\b/i)) score += 5;
+    
+    if (score > bestScore) {
+      bestScore = score;
+      bestContent = text;
     }
   }
 
-  const paragraphText = Array.from(document.querySelectorAll("p"))
-    .map((p) => normalizeText(p.textContent || ""))
-    .filter((p) => p.length > 20)
-    .join("\n\n");
-
-  if (paragraphText) {
+  if (bestContent) {
     return {
       title,
-      content: paragraphText.slice(0, MAX_CONTENT_LENGTH),
+      content: bestContent.slice(0, MAX_CONTENT_LENGTH),
     };
   }
 
+  // Fallback to paragraphs
+  const paragraphs = Array.from(document.querySelectorAll("p"))
+    .map((p) => normalizeText(p.textContent || ""))
+    .filter((p) => p.length > 30)
+    .sort((a, b) => b.length - a.length) // Prefer longer paragraphs
+    .slice(0, 10); // Take top 10 paragraphs
+
+  if (paragraphs.length > 0) {
+    const paragraphContent = paragraphs.join("\n\n");
+    return {
+      title,
+      content: paragraphContent.slice(0, MAX_CONTENT_LENGTH),
+    };
+  }
+
+  // Final fallback
   const bodyText = normalizeText(document.body?.textContent || "");
   if (bodyText) {
     return {
@@ -258,151 +282,6 @@ function looksLikeHtml(text: string): boolean {
   );
 }
 
-function looksLikeRssOrAtom(text: string): boolean {
-  const probe = text.trim().slice(0, 2000);
-  if (!probe) {
-    return false;
-  }
-
-  return /<rss\s|<feed\s|<rdf:rdf|xmlns="http:\/\/www\.w3\.org\/2005\/Atom|xmlns="http:\/\/purl\.org\/rss\/1\.0|<channel\s|<entry\s|<item\s/i.test(
-    probe,
-  );
-}
-
-function extractRssAtomContent(rawXml: string): {
-  title: string;
-  content: string;
-  feedInfo?: { title: string; description: string; items: Array<{ title: string; link: string; description: string; pubDate?: string }> };
-} {
-  const fallbackContent = "Nie udało się wyodrębnić treści z kanału RSS/Atom.";
-
-  if (!rawXml) {
-    return {
-      title: "Untitled Feed",
-      content: fallbackContent,
-    };
-  }
-
-  if (typeof DOMParser === "undefined") {
-    return {
-      title: "Feed Title",
-      content: rawXml.slice(0, MAX_CONTENT_LENGTH),
-    };
-  }
-
-  try {
-    const document = new DOMParser().parseFromString(rawXml, "application/xml");
-
-    // Handle parsing errors
-    const parseError = document.querySelector('parsererror');
-    if (parseError) {
-      browseLogger.warn("XML parsing error detected", {
-        error: parseError.textContent?.slice(0, 200)
-      });
-      return {
-        title: "Feed Parse Error",
-        content: fallbackContent,
-      };
-    }
-
-    // Detect feed type (RSS vs Atom)
-    const isRss = document.querySelector('rss, rdf:rdf') !== null;
-    const isAtom = document.querySelector('feed') !== null;
-
-    let feedTitle = "";
-    let feedDescription = "";
-    const items: Array<{ title: string; link: string; description: string; pubDate?: string }> = [];
-
-    if (isRss) {
-      // RSS parsing
-      const channel = document.querySelector('channel');
-      feedTitle = normalizeText(channel?.querySelector('title')?.textContent || "") || "RSS Feed";
-      feedDescription = normalizeText(channel?.querySelector('description')?.textContent || "") || "";
-
-      const rssItems = document.querySelectorAll('item');
-      rssItems.forEach((item) => {
-        const title = normalizeText(item.querySelector('title')?.textContent || "");
-        const link = item.querySelector('link')?.textContent || "";
-        const description = normalizeText(item.querySelector('description')?.textContent || "");
-        const pubDate = item.querySelector('pubDate')?.textContent ||
-          item.querySelector('dc:date')?.textContent || undefined;
-
-        if (title || description) {
-          items.push({ title, link, description, pubDate });
-        }
-      });
-    } else if (isAtom) {
-      // Atom parsing
-      const feed = document.querySelector('feed');
-      feedTitle = normalizeText(feed?.querySelector('title')?.textContent || "") || "Atom Feed";
-      feedDescription = normalizeText(feed?.querySelector('subtitle')?.textContent || "") || "";
-
-      const entries = document.querySelectorAll('entry');
-      entries.forEach((entry) => {
-        const title = normalizeText(entry.querySelector('title')?.textContent || "");
-        const link = entry.querySelector('link')?.getAttribute('href') || "";
-        const description = normalizeText(entry.querySelector('summary')?.textContent || "") ||
-          normalizeText(entry.querySelector('content')?.textContent || "");
-        const pubDate = entry.querySelector('published')?.textContent ||
-          entry.querySelector('updated')?.textContent || undefined;
-
-        if (title || description) {
-          items.push({ title, link, description, pubDate });
-        }
-      });
-    }
-
-    // Format content for display
-    let content = "";
-    if (feedTitle || feedDescription) {
-      content += `## ${feedTitle}\n\n`;
-      if (feedDescription) {
-        content += `${feedDescription}\n\n`;
-      }
-    }
-
-    if (items.length > 0) {
-      content += `### Ostatnie wpisy (${Math.min(items.length, 10)})\n\n`;
-      items.slice(0, 10).forEach((item, index) => {
-        content += `**${index + 1}. ${item.title || "Bez tytułu"}**\n`;
-        if (item.pubDate) {
-          content += `*Data:* ${item.pubDate}\n`;
-        }
-        if (item.description) {
-          const desc = item.description.length > 300
-            ? item.description.slice(0, 300) + "..."
-            : item.description;
-          content += `${desc}\n`;
-        }
-        if (item.link) {
-          content += `[Link](${item.link})\n`;
-        }
-        content += "\n";
-      });
-    }
-
-    const feedInfo = {
-      title: feedTitle,
-      description: feedDescription,
-      items: items.slice(0, 10)
-    };
-
-    return {
-      title: feedTitle || "Feed",
-      content: content.slice(0, MAX_CONTENT_LENGTH) || fallbackContent,
-      feedInfo,
-    };
-  } catch (error) {
-    browseLogger.error("Error parsing RSS/Atom feed", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-    return {
-      title: "Feed Error",
-      content: fallbackContent,
-    };
-  }
-}
-
 function normalizeBrowseResult(
   result: BrowseResult,
   source: "tauri" | "browser",
@@ -418,18 +297,9 @@ function normalizeBrowseResult(
   const title =
     normalizeText(rawTitle) || (source === "browser" ? "Untitled" : safeUrl);
   const contentWasHtml = looksLikeHtml(rawContent);
-  const contentWasRssAtom = looksLikeRssOrAtom(rawContent);
-
-  let extractedContent;
-  if (contentWasRssAtom) {
-    const feedResult = extractRssAtomContent(rawContent);
-    extractedContent = feedResult.content;
-  } else if (contentWasHtml) {
-    extractedContent = extractBrowserReadableContent(rawContent).content;
-  } else {
-    extractedContent = rawContent;
-  }
-
+  const extractedContent = contentWasHtml
+    ? extractBrowserReadableContent(rawContent).content
+    : rawContent;
   const cookieStripped = stripCookieBannerText(extractedContent);
   const normalizedContent = cookieStripped.slice(0, MAX_CONTENT_LENGTH).trim();
   const fallbackContent =
@@ -440,18 +310,6 @@ function normalizeBrowseResult(
   if (contentWasHtml) {
     browseLogger.warn(
       "Browse payload looked like raw HTML and was normalized",
-      {
-        source,
-        url: safeUrl,
-        originalLength: rawContent.length,
-        normalizedLength: normalizedContent.length,
-      },
-    );
-  }
-
-  if (contentWasRssAtom) {
-    browseLogger.info(
-      "Browse payload detected as RSS/Atom feed and was parsed",
       {
         source,
         url: safeUrl,
@@ -759,19 +617,12 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
           }
 
           const htmlPayload = looksLikeHtml(rawContent);
-          const rssAtomPayload = looksLikeRssOrAtom(rawContent);
-          let extracted;
-
-          if (htmlPayload) {
-            extracted = extractBrowserReadableContent(rawContent);
-          } else if (rssAtomPayload) {
-            extracted = extractRssAtomContent(rawContent);
-          } else {
-            extracted = {
-              title: "Untitled",
-              content: rawContent,
-            };
-          }
+          const extracted = htmlPayload
+            ? extractBrowserReadableContent(rawContent)
+            : {
+                title: "Untitled",
+                content: rawContent,
+              };
 
           const normalized = normalizeBrowseResult(
             {
@@ -789,7 +640,6 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
             titleLength: normalized.title.length,
             contentLength: normalized.content.length,
             htmlPayload,
-            rssAtomPayload,
           });
 
           return normalized;
@@ -805,8 +655,8 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
 
       throw new Error(
         `Nie udało się pobrać strony: żaden z serwerów proxy nie odpowiedział. ` +
-        `Strona może być niedostępna lub blokować dostęp. ` +
-        `Spróbuj ponownie lub uruchom aplikację w trybie Tauri dla lepszych wyników.`,
+          `Strona może być niedostępna lub blokować dostęp. ` +
+          `Spróbuj ponownie lub uruchom aplikację w trybie Tauri dla lepszych wyników.`,
       );
     },
   );
@@ -857,6 +707,3 @@ export async function executeBrowseCommand(
 
   return runExecuteBrowseCommand();
 }
-
-// Export internal functions for testing
-export { looksLikeRssOrAtom, extractRssAtomContent, normalizeBrowseResult };

@@ -48,11 +48,6 @@ describe('LogsPlugin', () => {
       warn: vi.fn(),
       info: vi.fn(),
       debug: vi.fn(),
-      trace: vi.fn(),
-      group: vi.fn(),
-      groupEnd: vi.fn(),
-      time: vi.fn(),
-      timeEnd: vi.fn(),
     });
     
     plugin = new LogsPlugin();
@@ -66,29 +61,29 @@ describe('LogsPlugin', () => {
   });
 
   describe('canHandle', () => {
-    it('should recognize download logs commands', async () => {
-      expect(await plugin.canHandle('pobierz logi')).toBe(true);
-      expect(await plugin.canHandle('exportuj logi')).toBe(true);
-      expect(await plugin.canHandle('zapisz logi')).toBe(true);
-      expect(await plugin.canHandle('logi pobierz')).toBe(true);
+    it('should recognize download logs commands', () => {
+      expect(plugin.canHandle('pobierz logi')).toBe(true);
+      expect(plugin.canHandle('exportuj logi')).toBe(true);
+      expect(plugin.canHandle('zapisz logi')).toBe(true);
+      expect(plugin.canHandle('logi pobierz')).toBe(true);
     });
 
-    it('should recognize clear logs commands', async () => {
-      expect(await plugin.canHandle('wyczyść logi')).toBe(true);
-      expect(await plugin.canHandle('usuń logi')).toBe(true);
-      expect(await plugin.canHandle('clear log')).toBe(true);
+    it('should recognize clear logs commands', () => {
+      expect(plugin.canHandle('wyczyść logi')).toBe(true);
+      expect(plugin.canHandle('usuń logi')).toBe(true);
+      expect(plugin.canHandle('clear log')).toBe(true);
     });
 
-    it('should recognize show log level commands', async () => {
-      expect(await plugin.canHandle('poziom logów')).toBe(true);
-      expect(await plugin.canHandle('log level')).toBe(true);
-      expect(await plugin.canHandle('ustaw log')).toBe(true);
+    it('should recognize show log level commands', () => {
+      expect(plugin.canHandle('poziom logów')).toBe(true);
+      expect(plugin.canHandle('log level')).toBe(true);
+      expect(plugin.canHandle('ustaw log')).toBe(true);
     });
 
-    it('should not recognize unrelated commands', async () => {
-      expect(await plugin.canHandle('skanuj sieć')).toBe(false);
-      expect(await plugin.canHandle('znajdź kamery')).toBe(false);
-      expect(await plugin.canHandle('hello world')).toBe(false);
+    it('should not recognize unrelated commands', () => {
+      expect(plugin.canHandle('skanuj sieć')).toBe(false);
+      expect(plugin.canHandle('znajdź kamery')).toBe(false);
+      expect(plugin.canHandle('hello world')).toBe(false);
     });
   });
 
@@ -153,15 +148,13 @@ describe('LogsPlugin', () => {
 
     it('should clear logs', async () => {
       const mockClear = vi.fn();
-      // Preserve the full console mock but add the clear method
-      const mockConsole = global.console as any;
-      mockConsole.clear = mockClear;
+      global.console = { clear: mockClear } as any;
 
       const result = await plugin.execute('wyczyść logi');
 
       expect(result.status).toBe('success');
       expect(result.content[0].data).toContain('Logi zostały wyczyszczone');
-      // Note: console.clear() is called directly, not through the mock
+      expect(mockClear).toHaveBeenCalled();
     });
 
     it('should show log level', async () => {
@@ -170,8 +163,8 @@ describe('LogsPlugin', () => {
       const result = await plugin.execute('poziom logów');
 
       expect(result.status).toBe('success');
-      expect(result.content[0].data).toContain('Aktualny poziom logów:');
-      // Note: The actual level may vary, so just check the structure
+      expect(result.content[0].data).toContain('Aktualny poziom logów: **DEBUG**');
+      expect(result.content[0].data).toContain('Wszystkie komunikaty');
     });
 
     it('should handle default log level', async () => {
@@ -189,14 +182,14 @@ describe('LogsPlugin', () => {
       const result = await plugin.execute('pobierz logi');
 
       expect(result.status).toBe('success'); // Download logs doesn't fail on config error
-      expect(result.content[0].data).toContain('📋 Logi Broxeen');
+      expect(result.content[0].data).toContain('Logi zostały pobrane');
     });
 
     it('should return error for unrecognized commands', async () => {
       const result = await plugin.execute('nieznana komenda');
 
       expect(result.status).toBe('error');
-      expect(result.content[0].data).toBe('Nie rozpoznano komendy logów');
+      expect(result.error).toBe('Nie rozpoznano komendy logów');
     });
   });
 
