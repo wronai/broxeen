@@ -699,6 +699,39 @@ pub struct PingResult {
     pub max_rtt: Option<f32>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SimplePingResult {
+    pub reachable: bool,
+}
+
+#[tauri::command]
+pub async fn ping_host_simple(ip: String, timeout: Option<u64>) -> Result<SimplePingResult, String> {
+    let timeout = timeout.unwrap_or(3000);
+    backend_info(format!("ping_host_simple: {} (timeout: {}ms)", ip, timeout));
+
+    // Use TCP connect probe for faster results
+    let ports_to_try = vec![80, 443, 554, 8080];
+    
+    for port in ports_to_try {
+        let addr_str = format!("{}:{}", ip, port);
+        if let Ok(addr) = addr_str.parse::<SocketAddr>() {
+            match TcpStream::connect_timeout(&addr, Duration::from_millis(timeout)) {
+                Ok(_) => {
+                    backend_info(format!("ping_host_simple: {} reachable via port {}", ip, port));
+                    return Ok(SimplePingResult { reachable: true });
+                }
+                Err(_) => {
+                    // Try next port
+                    continue;
+                }
+            }
+        }
+    }
+
+    backend_info(format!("ping_host_simple: {} not reachable", ip));
+    Ok(SimplePingResult { reachable: false })
+}
+
 #[tauri::command]
 pub async fn ping_host(host: String, count: Option<u32>) -> Result<PingResult, String> {
     let count = count.unwrap_or(3);

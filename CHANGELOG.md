@@ -1,3 +1,20 @@
+## [1.0.85] - 2026-02-24
+
+### Summary
+
+feat(tests): configuration management system
+
+### Other
+
+- update src-tauri/src/main.rs
+- update src-tauri/src/network_scan.rs
+- update src/components/CameraLiveInline.tsx
+- update src/components/Chat.tsx
+- update src/plugins/camera/cameraLivePlugin.test.ts
+- update src/plugins/camera/cameraLivePlugin.ts
+- update src/plugins/discovery/networkScanPlugin.ts
+
+
 ## [1.0.84] - 2026-02-24
 
 ### Summary

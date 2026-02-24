@@ -515,6 +515,7 @@ fn main() {
             tts::tts_is_available,
             tts::tts_speak,
             tts::tts_stop,
+            network_scan::ping_host_simple,
             network_scan::ping_host,
             network_scan::scan_ports,
             network_scan::arp_scan,

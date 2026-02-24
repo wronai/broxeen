@@ -24,30 +24,6 @@ export class CameraLivePlugin implements Plugin {
   async execute(input: string, context: PluginContext): Promise<PluginResult> {
     const start = Date.now();
 
-    // Explicit stream test command (Tauri best-effort)
-    if (/^test\s+streams\b/i.test(input) || /testuj\s+streamy\b/i.test(input)) {
-      const ipMatch = input.match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/);
-      const userMatch = input.match(/user:(\S+)/i);
-      const passMatch = input.match(/(?:admin|pass|password):(\S*)/i);
-      const ip = ipMatch?.[1];
-      const username = userMatch?.[1] ?? 'admin';
-      const password = passMatch?.[1] ?? '';
-
-      if (!ip) {
-        return {
-          pluginId: this.id,
-          status: 'error',
-          content: [{
-            type: 'text',
-            data: '❌ Podaj IP kamery, np. `test streams 192.168.1.100 user:admin admin:HASŁO`',
-          }],
-          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
-        };
-      }
-
-      return this.handleTestStreams(ip, username, password, context, start);
-    }
-
     // Extract IP address or RTSP URL
     let ip: string | null = null;
     let rtspUrl: string | null = null;
@@ -81,24 +57,17 @@ export class CameraLivePlugin implements Plugin {
         // Return credential testing response
         return this.handleCredentialTest(username, password, start);
       }
-    } else if (/test.*streams/i.test(input)) {
-      // Handle "test streams IP user:username admin:password" command
-      const ipMatch = input.match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/);
-      const userMatch = input.match(/user:([^\s]+)/);
-      const passMatch = input.match(/admin:([^\s]+)/);
-
-      if (ipMatch) {
-        ip = ipMatch[1];
-        username = userMatch ? userMatch[1] : 'admin';
-        password = passMatch ? passMatch[1] : '';
-
-        return this.handleTestStreams(ip, username, password, context, start);
-      }
     } else {
       // Extract IP from "pokaż live IP" command
       const ipMatch = input.match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/);
       if (ipMatch) {
         ip = ipMatch[1];
+
+        // Verify IP is actually reachable before proceeding
+        const isReachable = await this.verifyIpReachability(ip, context);
+        if (!isReachable) {
+          return this.handleUnreachableIp(ip, start);
+        }
 
         // Try to get credentials from config store
         const { configStore } = await import('../../config/configStore');
@@ -129,6 +98,30 @@ export class CameraLivePlugin implements Plugin {
           rtspUrl = `rtsp://${auth}${ip}:554/stream`;
         }
       }
+    }
+
+    // Explicit stream test command (Tauri best-effort)
+    if (/^test\s+streams\b/i.test(input) || /testuj\s+streamy\b/i.test(input)) {
+      const ipMatch = input.match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/);
+      const userMatch = input.match(/user:(\S+)/i);
+      const passMatch = input.match(/(?:admin|pass|password):(\S*)/i);
+      const ip = ipMatch?.[1];
+      const username = userMatch?.[1] ?? 'admin';
+      const password = passMatch?.[1] ?? '';
+
+      if (!ip) {
+        return {
+          pluginId: this.id,
+          status: 'error',
+          content: [{
+            type: 'text',
+            data: '❌ Podaj IP kamery, np. `test streams 192.168.1.100 user:admin admin:HASŁO`',
+          }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+        };
+      }
+
+      return this.handleTestStreams(ip, username, password, context, start);
     }
 
     if (!ip || !rtspUrl) {
@@ -668,6 +661,84 @@ export class CameraLivePlugin implements Plugin {
     const one = String(text).replace(/\s+/g, ' ').trim();
     if (one.length <= maxLen) return one;
     return one.slice(0, Math.max(0, maxLen - 1)) + '…';
+  }
+
+  private async verifyIpReachability(ip: string, context: PluginContext): Promise<boolean> {
+    try {
+      if (context.isTauri && context.tauriInvoke) {
+        // Use Tauri ping_host_simple command for fast TCP probe
+        const result = await context.tauriInvoke('ping_host_simple', { ip, timeout: 3000 }) as { reachable: boolean };
+        return result.reachable;
+      } else {
+        // Browser fallback: try HTTP fetch to common ports
+        const controllers = [
+          new AbortController(),
+          new AbortController(),
+          new AbortController(),
+        ];
+        
+        const timeout = setTimeout(() => {
+          controllers.forEach(c => c.abort());
+        }, 3000);
+
+        try {
+          const promises = [
+            fetch(`http://${ip}:80`, { signal: controllers[0].signal }),
+            fetch(`http://${ip}:443`, { signal: controllers[1].signal }),
+            fetch(`http://${ip}:554`, { signal: controllers[2].signal }),
+          ];
+          
+          const results = await Promise.allSettled(promises);
+          clearTimeout(timeout);
+          
+          return results.some(r => r.status === 'fulfilled');
+        } catch {
+          clearTimeout(timeout);
+          return false;
+        }
+      }
+    } catch {
+      return false;
+    }
+  }
+
+  private handleUnreachableIp(ip: string, start: number): PluginResult {
+    const data = `❌ **Kamera niedostępna**
+
+🌐 **IP:** ${ip}
+📶 **Status:** Offline - nieosiągalny w sieci
+
+**Możliwe przyczyny:**
+- Kamera wyłączona lub rozładowana
+- Problem z zasilaniem lub połączeniem sieciowym
+- Kamera w innej podsieci lub VLAN
+- Zmieniony adres IP
+
+**Rekomendacje:**
+1. Sprawdź fizycznie kamerę (zasilanie, diody LED)
+2. Zweryfikuj połączenie sieciowe (kabel Ethernet/WiFi)
+3. Zeskanuj sieć w poszukiwaniu kamer: \`lista kamer\`
+4. Spróbuj innych adresów IP z tej samej podsieci
+
+---
+💡 **Sugerowane akcje:**
+- \`lista kamer\` — Znajdź dostępne kamery w sieci
+- \`skanuj sieć\` — Pełny skan urządzeń sieciowych`;
+
+    return {
+      pluginId: this.id,
+      status: 'error',
+      content: [{
+        type: 'text',
+        data,
+        title: `Kamera niedostępna: ${ip}`,
+      }],
+      metadata: {
+        duration_ms: Date.now() - start,
+        cached: false,
+        truncated: false,
+      },
+    };
   }
 
   async initialize(context: PluginContext): Promise<void> {

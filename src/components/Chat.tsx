@@ -2465,7 +2465,7 @@ ${analysis}`,
                           </div>
                         )}
                         {msg.role === "assistant" && msg.type === "camera_live" && msg.live && (
-                          <div className="shrink-0 w-full max-w-sm rounded-lg border border-gray-700 bg-black/50 overflow-hidden p-3">
+                          <div className="shrink-0 w-full rounded-lg border border-gray-700 bg-black/50 overflow-hidden p-3">
                             <CameraLiveInline
                               url={msg.live.url}
                               cameraId={msg.live.cameraId}
