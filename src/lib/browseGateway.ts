@@ -22,6 +22,14 @@ function stripCookieBannerText(text: string): string {
   let removedCount = 0;
 
   for (const block of blocks) {
+    // Skip legal disclaimer blocks (copyright, terms, etc.)
+    const isLegalDisclaimer = /\b(Pobieranie|zwielokrotnianie|przechowywanie|wykorzystywanie|treści|dostępnych|niniejszym|serwisie|wymaga|uprzedniej|jednoznacznej|zgody|Wirtualna|Polska|Media|Spółka|Akcyjna|siedzibą|Warszawie|właściciela|niniejszego|serwisu|bez|względu|sposób|eksploracji|wykorzystaną|metodę|manualną|zautomatyzowaną|technikę|programów|uczenia|maszynowego|sztucznej|inteligencji|Powyższe|zastrzeżenie|dotyczy|wykorzystywania|jedynie|celu|ułatwienia|wyszukiwania|przez|wyszukiwarki|internetowe|korzystania|ramach|stosunków|umownych|dozwolonego|użytku|określonego|właściwe|przepisy|prawa|Szczegółowa|treść|dotycząca|niniejszego|zastrzeżenia|znajduje|tutaj)\b/i.test(block);
+    
+    if (isLegalDisclaimer) {
+      removedCount += 1;
+      continue;
+    }
+
     const hasCookieWord = /\b(ciasteczk\w*|cookie\w*|cookies)\b/i.test(block);
     if (!hasCookieWord) {
       cleanedBlocks.push(block);
@@ -40,7 +48,8 @@ function stripCookieBannerText(text: string): string {
       score >= 2 ||
       /strona\s+korzysta\s+z\s+plik\w*\s+tekstow\w*\s+zwanych\s+ciasteczkami/i.test(
         block,
-      );
+      ) ||
+      /plików\s+tekstowych\s+zwanych\s+ciasteczkami/i.test(block);
 
     if (!looksLikeBanner) {
       cleanedBlocks.push(block);
@@ -220,6 +229,151 @@ function looksLikeHtml(text: string): boolean {
   );
 }
 
+function looksLikeRssOrAtom(text: string): boolean {
+  const probe = text.trim().slice(0, 2000);
+  if (!probe) {
+    return false;
+  }
+
+  return /<rss\s|<feed\s|<rdf:rdf|xmlns="http:\/\/www\.w3\.org\/2005\/Atom|xmlns="http:\/\/purl\.org\/rss\/1\.0|<channel\s|<entry\s|<item\s/i.test(
+    probe,
+  );
+}
+
+function extractRssAtomContent(rawXml: string): {
+  title: string;
+  content: string;
+  feedInfo?: { title: string; description: string; items: Array<{ title: string; link: string; description: string; pubDate?: string }> };
+} {
+  const fallbackContent = "Nie udało się wyodrębnić treści z kanału RSS/Atom.";
+
+  if (!rawXml) {
+    return {
+      title: "Untitled Feed",
+      content: fallbackContent,
+    };
+  }
+
+  if (typeof DOMParser === "undefined") {
+    return {
+      title: "Feed Title",
+      content: rawXml.slice(0, MAX_CONTENT_LENGTH),
+    };
+  }
+
+  try {
+    const document = new DOMParser().parseFromString(rawXml, "application/xml");
+    
+    // Handle parsing errors
+    const parseError = document.querySelector('parsererror');
+    if (parseError) {
+      browseLogger.warn("XML parsing error detected", { 
+        error: parseError.textContent?.slice(0, 200) 
+      });
+      return {
+        title: "Feed Parse Error",
+        content: fallbackContent,
+      };
+    }
+
+    // Detect feed type (RSS vs Atom)
+    const isRss = document.querySelector('rss, rdf:rdf') !== null;
+    const isAtom = document.querySelector('feed') !== null;
+
+    let feedTitle = "";
+    let feedDescription = "";
+    const items: Array<{ title: string; link: string; description: string; pubDate?: string }> = [];
+
+    if (isRss) {
+      // RSS parsing
+      const channel = document.querySelector('channel');
+      feedTitle = normalizeText(channel?.querySelector('title')?.textContent || "") || "RSS Feed";
+      feedDescription = normalizeText(channel?.querySelector('description')?.textContent || "") || "";
+
+      const rssItems = document.querySelectorAll('item');
+      rssItems.forEach((item) => {
+        const title = normalizeText(item.querySelector('title')?.textContent || "");
+        const link = item.querySelector('link')?.textContent || "";
+        const description = normalizeText(item.querySelector('description')?.textContent || "");
+        const pubDate = item.querySelector('pubDate')?.textContent || 
+                        item.querySelector('dc:date')?.textContent || undefined;
+
+        if (title || description) {
+          items.push({ title, link, description, pubDate });
+        }
+      });
+    } else if (isAtom) {
+      // Atom parsing
+      const feed = document.querySelector('feed');
+      feedTitle = normalizeText(feed?.querySelector('title')?.textContent || "") || "Atom Feed";
+      feedDescription = normalizeText(feed?.querySelector('subtitle')?.textContent || "") || "";
+
+      const entries = document.querySelectorAll('entry');
+      entries.forEach((entry) => {
+        const title = normalizeText(entry.querySelector('title')?.textContent || "");
+        const link = entry.querySelector('link')?.getAttribute('href') || "";
+        const description = normalizeText(entry.querySelector('summary')?.textContent || "") ||
+                           normalizeText(entry.querySelector('content')?.textContent || "");
+        const pubDate = entry.querySelector('published')?.textContent || 
+                        entry.querySelector('updated')?.textContent || undefined;
+
+        if (title || description) {
+          items.push({ title, link, description, pubDate });
+        }
+      });
+    }
+
+    // Format content for display
+    let content = "";
+    if (feedTitle || feedDescription) {
+      content += `## ${feedTitle}\n\n`;
+      if (feedDescription) {
+        content += `${feedDescription}\n\n`;
+      }
+    }
+
+    if (items.length > 0) {
+      content += `### Ostatnie wpisy (${Math.min(items.length, 10)})\n\n`;
+      items.slice(0, 10).forEach((item, index) => {
+        content += `**${index + 1}. ${item.title || "Bez tytułu"}**\n`;
+        if (item.pubDate) {
+          content += `*Data:* ${item.pubDate}\n`;
+        }
+        if (item.description) {
+          const desc = item.description.length > 300 
+            ? item.description.slice(0, 300) + "..." 
+            : item.description;
+          content += `${desc}\n`;
+        }
+        if (item.link) {
+          content += `[Link](${item.link})\n`;
+        }
+        content += "\n";
+      });
+    }
+
+    const feedInfo = {
+      title: feedTitle,
+      description: feedDescription,
+      items: items.slice(0, 10)
+    };
+
+    return {
+      title: feedTitle || "Feed",
+      content: content.slice(0, MAX_CONTENT_LENGTH) || fallbackContent,
+      feedInfo,
+    };
+  } catch (error) {
+    browseLogger.error("Error parsing RSS/Atom feed", { 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+    return {
+      title: "Feed Error",
+      content: fallbackContent,
+    };
+  }
+}
+
 function normalizeBrowseResult(
   result: BrowseResult,
   source: "tauri" | "browser",
@@ -235,9 +389,18 @@ function normalizeBrowseResult(
   const title =
     normalizeText(rawTitle) || (source === "browser" ? "Untitled" : safeUrl);
   const contentWasHtml = looksLikeHtml(rawContent);
-  const extractedContent = contentWasHtml
-    ? extractBrowserReadableContent(rawContent).content
-    : rawContent;
+  const contentWasRssAtom = looksLikeRssOrAtom(rawContent);
+  
+  let extractedContent;
+  if (contentWasHtml) {
+    extractedContent = extractBrowserReadableContent(rawContent).content;
+  } else if (contentWasRssAtom) {
+    const feedResult = extractRssAtomContent(rawContent);
+    extractedContent = feedResult.content;
+  } else {
+    extractedContent = rawContent;
+  }
+  
   const cookieStripped = stripCookieBannerText(extractedContent);
   const normalizedContent = cookieStripped.slice(0, MAX_CONTENT_LENGTH).trim();
   const fallbackContent =
@@ -248,6 +411,18 @@ function normalizeBrowseResult(
   if (contentWasHtml) {
     browseLogger.warn(
       "Browse payload looked like raw HTML and was normalized",
+      {
+        source,
+        url: safeUrl,
+        originalLength: rawContent.length,
+        normalizedLength: normalizedContent.length,
+      },
+    );
+  }
+
+  if (contentWasRssAtom) {
+    browseLogger.info(
+      "Browse payload detected as RSS/Atom feed and was parsed",
       {
         source,
         url: safeUrl,
@@ -555,12 +730,19 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
           }
 
           const htmlPayload = looksLikeHtml(rawContent);
-          const extracted = htmlPayload
-            ? extractBrowserReadableContent(rawContent)
-            : {
-                title: "Untitled",
-                content: rawContent,
-              };
+          const rssAtomPayload = looksLikeRssOrAtom(rawContent);
+          let extracted;
+          
+          if (htmlPayload) {
+            extracted = extractBrowserReadableContent(rawContent);
+          } else if (rssAtomPayload) {
+            extracted = extractRssAtomContent(rawContent);
+          } else {
+            extracted = {
+              title: "Untitled",
+              content: rawContent,
+            };
+          }
 
           const normalized = normalizeBrowseResult(
             {
@@ -578,6 +760,7 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
             titleLength: normalized.title.length,
             contentLength: normalized.content.length,
             htmlPayload,
+            rssAtomPayload,
           });
 
           return normalized;

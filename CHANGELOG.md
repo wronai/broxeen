@@ -1,3 +1,22 @@
+## [1.0.76] - 2026-02-24
+
+### Summary
+
+fix(tests): configuration management system
+
+### Test
+
+- update test-wp-fix.js
+- update test-wp-fix.mjs
+
+### Other
+
+- update src/lib/browseGateway.test.ts
+- update src/lib/browseGateway.ts
+- update src/plugins/system/logsPlugin.test.ts
+- update src/plugins/voice/voiceCommandsPlugin.test.ts
+
+
 ## [1.0.75] - 2026-02-24
 
 ### Summary
