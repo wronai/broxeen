@@ -27,6 +27,9 @@
  */
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
+import { logger } from '../../lib/logger';
+
+const browseLogger = logger.scope('bridge:rss');
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -1535,9 +1538,51 @@ export class ProtocolBridgePlugin implements Plugin {
     const url = urlMatch[1].startsWith('http') ? urlMatch[1] : `https://${urlMatch[1]}`;
     
     try {
-      // Use the browse gateway to fetch and parse RSS feed
-      const { executeBrowseCommand } = await import('../../lib/browseGateway');
-      const result = await executeBrowseCommand(url, context.isTauri);
+      let result;
+      
+      if (context.isTauri) {
+        // Use Tauri RSS parser for better XML handling
+        const { invoke } = await import('@tauri-apps/api/core');
+        const rawContent = await invoke('browse', { url });
+        
+        // Try to parse as RSS feed first
+        try {
+          const formattedContent = await invoke('parse_rss_feed_command', { 
+            url, 
+            content: rawContent.content, 
+            maxItems: 10 
+          });
+          
+          this.recordMessage('rss', 'received', url, formattedContent as string, 'api');
+          this.updateEndpointActivity('rss', url);
+
+          return this.withHints(
+            {
+              pluginId: this.id,
+              status: 'success',
+              content: [{
+                type: 'text',
+                data: formattedContent as string,
+                title: `RSS: ${url}`,
+                summary: `Kanał RSS odczytany: ${rawContent.title || url}`,
+              }],
+              metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, source_url: url },
+            },
+            [
+              { label: 'Odśwież', command: `bridge rss ${url}` },
+              { label: 'Status', command: 'bridge status' },
+            ],
+          );
+        } catch (rssError) {
+          // If RSS parsing fails, fall back to regular browse
+          browseLogger.warn('RSS parsing failed, falling back to regular browse', { url, error: rssError });
+          result = rawContent;
+        }
+      } else {
+        // Browser fallback - use regular browse
+        const { executeBrowseCommand } = await import('../../lib/browseGateway');
+        result = await executeBrowseCommand(url, context.isTauri);
+      }
       
       this.recordMessage('rss', 'received', url, result.content, 'api');
       this.updateEndpointActivity('rss', url);
@@ -1581,9 +1626,51 @@ export class ProtocolBridgePlugin implements Plugin {
     const url = urlMatch[1].startsWith('http') ? urlMatch[1] : `https://${urlMatch[1]}`;
     
     try {
-      // Use the browse gateway to fetch and parse Atom feed
-      const { executeBrowseCommand } = await import('../../lib/browseGateway');
-      const result = await executeBrowseCommand(url, context.isTauri);
+      let result;
+      
+      if (context.isTauri) {
+        // Use Tauri RSS parser for better XML handling
+        const { invoke } = await import('@tauri-apps/api/core');
+        const rawContent = await invoke('browse', { url });
+        
+        // Try to parse as Atom feed first
+        try {
+          const formattedContent = await invoke('parse_rss_feed_command', { 
+            url, 
+            content: rawContent.content, 
+            maxItems: 10 
+          });
+          
+          this.recordMessage('atom', 'received', url, formattedContent as string, 'api');
+          this.updateEndpointActivity('atom', url);
+
+          return this.withHints(
+            {
+              pluginId: this.id,
+              status: 'success',
+              content: [{
+                type: 'text',
+                data: formattedContent as string,
+                title: `Atom: ${url}`,
+                summary: `Kanał Atom odczytany: ${rawContent.title || url}`,
+              }],
+              metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, source_url: url },
+            },
+            [
+              { label: 'Odśwież', command: `bridge atom ${url}` },
+              { label: 'Status', command: 'bridge status' },
+            ],
+          );
+        } catch (atomError) {
+          // If Atom parsing fails, fall back to regular browse
+          browseLogger.warn('Atom parsing failed, falling back to regular browse', { url, error: atomError });
+          result = rawContent;
+        }
+      } else {
+        // Browser fallback - use regular browse
+        const { executeBrowseCommand } = await import('../../lib/browseGateway');
+        result = await executeBrowseCommand(url, context.isTauri);
+      }
       
       this.recordMessage('atom', 'received', url, result.content, 'api');
       this.updateEndpointActivity('atom', url);

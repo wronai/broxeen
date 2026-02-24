@@ -119,3 +119,28 @@ pub fn truncate_to_chars(text: &str, max_chars: usize) -> String {
 pub fn normalize_whitespace(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
+
+pub fn is_bot_protection_text(text: &str) -> bool {
+    let lower = text.to_lowercase();
+    
+    let bot_phrases = [
+        "pobieranie, zwielokrotnianie, przechowywanie",
+        "czy jesteś robotem",
+        "czy jestes robotem",
+        "włącz javascript",
+        "enable javascript",
+        "verify you are human",
+        "please verify you are a human",
+        "checking your browser before accessing",
+        "attention required! | cloudflare",
+        "potwierdź, że jesteś człowiekiem",
+    ];
+
+    for phrase in bot_phrases {
+        if lower.contains(phrase) {
+            return true;
+        }
+    }
+    
+    false
+}

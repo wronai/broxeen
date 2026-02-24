@@ -193,7 +193,80 @@ impl DataSource {
 
 /// Detect which data source a query targets based on keywords.
 /// This is a lightweight pre-filter; the LLM handles the actual SQL generation.
+/// Enhanced with LLM-based detection when API key is available.
 pub fn detect_data_source(question: &str) -> DataSource {
+    // Try LLM-based detection first if API key is available
+    if let Ok(api_key) = std::env::var("OPENROUTER_API_KEY") {
+        if !api_key.is_empty() {
+            if let Some(llm_source) = detect_data_source_llm(question, &api_key) {
+                return llm_source;
+            }
+        }
+    }
+
+    // Fallback to keyword-based detection
+    detect_data_source_keywords(question)
+}
+
+/// LLM-based data source detection
+fn detect_data_source_llm(question: &str, api_key: &str) -> Option<DataSource> {
+    use serde_json::{json, Value};
+    
+    let prompt = format!(
+        r#"Analyze this question and determine which data source it targets.
+        
+Data sources:
+- Monitoring: camera detections, motion, objects, people, vehicles, AI analysis
+- Devices: network devices, cameras, services, hosts, IP addresses, RTSP, MQTT
+- Chat: conversations, messages, history, commands
+
+Question: "{}"
+
+Respond with only one word: "Monitoring", "Devices", or"Chat"."#,
+        question
+    );
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .json(&json!({
+            "model": std::env::var("LLM_MODEL").unwrap_or_else(|_| "google/gemini-2.0-flash-exp:free".to_string()),
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.0,
+            "max_tokens": 10
+        }))
+        .send()
+        .await;
+
+    if let Ok(resp) = response {
+        if let Ok(text) = resp.text().await {
+            if let Ok(json_val) = serde_json::from_str::<Value>(&text) {
+                if let Some(content) = json_val
+                    .get("choices")
+                    .and_then(|c| c.get(0))
+                    .and_then(|c| c.get("message"))
+                    .and_then(|m| m.get("content"))
+                    .and_then(|c| c.as_str())
+                {
+                    let content = content.trim().to_lowercase();
+                    return match content.as_str() {
+                        "monitoring" => Some(DataSource::Monitoring),
+                        "devices" => Some(DataSource::Devices),
+                        "chat" => Some(DataSource::Chat),
+                        _ => None,
+                    };
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Keyword-based data source detection (original implementation)
+fn detect_data_source_keywords(question: &str) -> DataSource {
     let q = question.to_lowercase();
 
     // Monitoring / detection keywords

@@ -74,7 +74,9 @@ describe('HttpBrowsePlugin', () => {
     expect(result.status).toBe('success');
     expect(result.content).toHaveLength(1);
     expect(result.content[0].type).toBe('text');
-    expect(result.content[0].data).toBe('Example content');
+    // The new natural presentation adds formatting, so we check for the original content within
+    expect(result.content[0].data).toContain('Example content');
+    expect(result.content[0].data).toContain('🌐 **Przeglądam stronę:** https://example.com');
     expect(result.content[0].title).toBe('Example Page');
     expect(result.metadata?.url).toBe('https://example.com');
     expect(result.metadata?.executionTime).toBeGreaterThanOrEqual(0);

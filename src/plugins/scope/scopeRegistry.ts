@@ -55,7 +55,7 @@ export const BUILTIN_SCOPES: Record<ScopeId, Omit<ScopeDefinition, 'remotePlugin
       'rtsp-camera', 'camera-health', 'camera-ptz', 'camera-snapshot', 'camera-live',
       'mqtt', 'service-probe', 'monitor', 'protocol-bridge', 'processes',
       'disk-info', 'ssh', 'advanced-port-scan', 'http-browse', 'chat-llm',
-      'monitoring-query',
+      'monitoring-query', 'voice-commands', 'logs', 'file-search', 'email', 'auth-browse', 'docker', 'remote-machine'
     ],
     allowInternet: false,
     allowLan: true,

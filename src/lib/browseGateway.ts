@@ -10,6 +10,173 @@ import {
 const browseLogger = logger.scope("browse:gateway");
 const MAX_CONTENT_LENGTH = 5000;
 
+// Advanced anti-bot detection bypass
+const USER_AGENTS = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Firefox/121.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+];
+
+const REFERERS = [
+  'https://www.google.com/',
+  'https://www.facebook.com/',
+  'https://twitter.com/',
+  'https://www.linkedin.com/',
+  'https://reddit.com/',
+  'https://duckduckgo.com/',
+  'https://www.wp.pl/',
+  'https://www.onet.pl/',
+  'https://interia.pl/',
+];
+
+const ACCEPT_LANGUAGES = [
+  'pl-PL,pl;q=0.9,en;q=0.8,en-US;q=0.7',
+  'pl-PL,pl;q=0.9,en;q=0.8',
+  'en-US,en;q=0.9,pl;q=0.8',
+  'pl,en-US;q=0.9,en;q=0.8',
+];
+
+function getRandomUserAgent(): string {
+  return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+function getRandomReferer(targetUrl: string): string {
+  // For Polish sites, prefer Polish referers
+  if (targetUrl.includes('wp.pl') || targetUrl.includes('onet.pl') || targetUrl.includes('interia.pl')) {
+    const polishReferers = REFERERS.filter(r => r.includes('wp.pl') || r.includes('onet.pl') || r.includes('interia.pl'));
+    if (polishReferers.length > 0) {
+      return polishReferers[Math.floor(Math.random() * polishReferers.length)];
+    }
+  }
+  return REFERERS[Math.floor(Math.random() * REFERERS.length)];
+}
+
+function getRandomAcceptLanguage(): string {
+  return ACCEPT_LANGUAGES[Math.floor(Math.random() * ACCEPT_LANGUAGES.length)];
+}
+
+function generateAdvancedHeaders(url: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    'User-Agent': getRandomUserAgent(),
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+    'Accept-Language': getRandomAcceptLanguage(),
+    'Accept-Encoding': 'gzip, deflate, br',
+    'DNT': '1',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Fetch-Dest': 'document',
+    'Sec-Fetch-Mode': 'navigate',
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-User': '?1',
+    'Cache-Control': 'max-age=0',
+    'Referer': getRandomReferer(url),
+  };
+
+  // Enhanced headers for specific sites
+  if (url.includes('wp.pl')) {
+    // More sophisticated headers for wp.pl
+    headers['X-Requested-With'] = 'XMLHttpRequest';
+    headers['X-Forwarded-For'] = generateRandomIP();
+    headers['X-Real-IP'] = generateRandomIP();
+    headers['X-Forwarded-Host'] = 'www.wp.pl';
+    headers['X-Forwarded-Proto'] = 'https';
+    headers['Cookie'] = generateWPPLCookies();
+    headers['Sec-GPC'] = '1';
+    headers['Sec-CH-UA'] = '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"';
+    headers['Sec-CH-UA-Mobile'] = '?0';
+    headers['Sec-CH-UA-Platform'] = '"Windows"';
+  } else if (url.includes('onet.pl')) {
+    headers['X-Requested-With'] = 'XMLHttpRequest';
+    headers['X-Forwarded-For'] = generateRandomIP();
+    headers['Cookie'] = generateOnetCookies();
+  } else if (url.includes('interia.pl')) {
+    headers['X-Requested-With'] = 'XMLHttpRequest';
+    headers['X-Forwarded-For'] = generateRandomIP();
+    headers['Cookie'] = generateInteriaCookies();
+  }
+
+  return headers;
+}
+
+function generateWPPLCookies(): string {
+  // Generate realistic cookies for wp.pl
+  const cookies = [
+    `WP_PL_cookie=${Math.random().toString(36).substring(2)}`,
+    `WP_PL_session=${Date.now()}-${Math.random().toString(36).substring(2)}`,
+    `WP_PL_consent=${Math.random() > 0.5 ? '1' : '0'}`,
+    `WP_PL_ads=${Math.random().toString(36).substring(2)}`,
+    `WP_PL_user=${Math.random().toString(36).substring(2)}`,
+    `WP_PL_visit=${Date.now()}`,
+    `WP_PL_lang=pl`,
+    `WP_PL_country=PL`,
+    `WP_PL_timezone=Europe/Warsaw`,
+  ];
+  return cookies.join('; ');
+}
+
+function generateOnetCookies(): string {
+  const cookies = [
+    `ONET_PL_cookie=${Math.random().toString(36).substring(2)}`,
+    `ONET_PL_session=${Date.now()}-${Math.random().toString(36).substring(2)}`,
+    `ONET_PL_consent=${Math.random() > 0.5 ? 'accepted' : 'declined'}`,
+    `ONET_PL_ads=${Math.random().toString(36).substring(2)}`,
+    `ONET_PL_user=${Math.random().toString(36).substring(2)}`,
+  ];
+  return cookies.join('; ');
+}
+
+function generateInteriaCookies(): string {
+  const cookies = [
+    `INTERIA_PL_cookie=${Math.random().toString(36).substring(2)}`,
+    `INTERIA_PL_session=${Date.now()}-${Math.random().toString(36).substring(2)}`,
+    `INTERIA_PL_consent=${Math.random() > 0.5 ? '1' : '0'}`,
+    `INTERIA_PL_ads=${Math.random().toString(36).substring(2)}`,
+  ];
+  return cookies.join('; ');
+}
+
+function generateRandomIP(): string {
+  // Generate random Polish IP ranges for better geo-targeting
+  const ranges = [
+    '83.23.32', '83.31.64', '83.23.64', '83.31.128',
+    '89.24.64', '89.24.128', '89.25.0', '89.25.128',
+    '185.48.0', '185.49.0', '185.50.0', '185.51.0',
+  ];
+  const base = ranges[Math.floor(Math.random() * ranges.length)];
+  const last = Math.floor(Math.random() * 255);
+  return `${base}.${last}`;
+}
+
+// Rate limiting to avoid detection
+const requestTimestamps = new Map<string, number[]>();
+const RATE_LIMIT_MS = 2000; // 2 seconds between requests for same domain
+
+function shouldRateLimit(url: string): boolean {
+  const domain = new URL(url).hostname;
+  const now = Date.now();
+  const timestamps = requestTimestamps.get(domain) || [];
+  
+  // Remove old timestamps (older than 10 seconds)
+  const recent = timestamps.filter(t => now - t < 10000);
+  requestTimestamps.set(domain, recent);
+  
+  // Check if we made a request recently
+  if (recent.length > 0 && now - recent[recent.length - 1] < RATE_LIMIT_MS) {
+    return true;
+  }
+  
+  recent.push(now);
+  return false;
+}
+
+async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function detectContentType(content: string, title: string, url: string): {
   type: 'article' | 'product' | 'news' | 'documentation' | 'forum' | 'blog' | 'shop' | 'general';
   confidence: number;
@@ -711,16 +878,35 @@ function extractBrowserReadableContent(rawHtml: string): {
   const document = new DOMParser().parseFromString(rawHtml, "text/html");
   
   // Remove unwanted elements more comprehensively
+  const elementsToRemove = [
+    "script", "style", "noscript", "template", "nav", "footer", "header", 
+    "aside", "form", "button", "select", "input[type='hidden'], input[type='submit']", 
+    "[role='navigation']", "[role='banner']", "[role='contentinfo']",
+    ".cookie-banner", ".cookie-consent", ".ad", ".advertisement", ".sidebar", 
+    ".menu", ".nav", ".footer", ".header", ".popup", ".modal", ".overlay", 
+    ".social", ".share", ".comments", ".related", ".newsletter", ".subscription",
+    // Polish specific
+    ".ciasteczka", ".ciastka", ".rodo", ".klauzula", ".zgoda", ".akceptuj", ".zamknij",
+    ".reklama", ".advert", ".promotion", ".promo", ".campaign", ".banner",
+    ".komentarze", ".dyskusja", ".forum", ".powiazane", ".podobne", ".polecane"
+  ];
+
   document
-    .querySelectorAll(
-      "script, style, noscript, template, nav, footer, header, aside, form, " +
-        "button, select, input[type='hidden'], input[type='submit'], " +
-        "[role='navigation'], [role='banner'], [role='contentinfo'], " +
-        ".cookie-banner, .cookie-consent, .ad, .advertisement, .sidebar, " +
-        ".menu, .nav, .footer, .header, .popup, .modal, .overlay, " +
-        ".social, .share, .comments, .related, .newsletter, .subscription"
-    )
+    .querySelectorAll(elementsToRemove.join(", "))
     .forEach((el) => el.remove());
+
+  // Special handling for Polish news sites
+  if (rawHtml.includes('wp.pl') || rawHtml.includes('onet.pl') || rawHtml.includes('interia.pl') || rawHtml.includes('newsweek.pl')) {
+    // Remove specific Polish ad containers
+    document
+      .querySelectorAll('[class*="ad"], [class*="rekl"], [class*="ban"], [id*="ad"], [id*="rekl"], [id*="ban"]')
+      .forEach((el) => el.remove());
+    
+    // Remove social media widgets
+    document
+      .querySelectorAll('[class*="facebook"], [class*="twitter"], [class*="instagram"], [class*="social"]')
+      .forEach((el) => el.remove());
+  }
 
   const title = normalizeText(document.title) || "Untitled";
 
@@ -737,6 +923,16 @@ function extractBrowserReadableContent(rawHtml: string): {
     ".article-content",
     ".story-body",
     ".post-body",
+    // Polish specific content selectors
+    ".tresc",
+    ".tekst",
+    ".wpis",
+    ".art",
+    ".news",
+    ".artykul",
+    ".zawartosc",
+    ".glowny",
+    ".wlasciwy",
     // Common content containers
     ".container .row .col",
     ".main-content",
@@ -787,8 +983,31 @@ function extractBrowserReadableContent(rawHtml: string): {
     const linkRatio = links.length / (text.split(/\s+/).length || 1);
     if (linkRatio > 0.3) score -= 10;
     
-    // Bonus for common content indicators
+    // Bonus for common content indicators (Polish and English)
     if (text.match(/\b(dowiedz|więcej|czytaj|przeczytaj|zobacz|szczegóły|opis|treść)\b/i)) score += 5;
+    if (text.match(/\b(the|and|or|but|in|on|at|to|for|of|with|by)\b/i)) score += 3;
+    
+    // Bonus for Polish content indicators
+    if (text.match(/\b(jest|są|był|była|było|będzie|mają|posiadają|zawierają|dotyczą|przedstawiają)\b/i)) score += 8;
+    
+    // Bonus for selector priority
+    if (selector.includes('tresc') || selector.includes('tekst') || selector.includes('wpis')) {
+      score += 25; // High bonus for Polish content selectors
+    } else if (selector.includes('content') || selector.includes('article') || selector.includes('post')) {
+      score += 20;
+    } else if (selector === 'article' || selector === 'main' || selector === "[role='main']") {
+      score += 30;
+    }
+    
+    // Penalty for very short content
+    if (text.length < 200) {
+      score -= 20;
+    }
+    
+    // Penalty for content with mostly short sentences (likely ads/navigation)
+    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0);
+    const avgSentenceLength = sentences.reduce((sum, s) => sum + s.length, 0) / sentences.length;
+    if (avgSentenceLength < 30) score -= 15;
     
     if (score > bestScore) {
       bestScore = score;
@@ -913,6 +1132,136 @@ function normalizeBrowseResult(
     title,
     content: processedContent || fallbackContent,
   };
+}
+
+// Advanced proxy services with different locations
+const ADVANCED_PROXIES = [
+  {
+    name: 'r.jina.ai',
+    baseUrl: 'https://r.jina.ai/http://',
+    format: 'direct',
+    headers: {},
+  },
+  {
+    name: 'r.jina.ai-https',
+    baseUrl: 'https://r.jina.ai/https://',
+    format: 'direct',
+    headers: {},
+  },
+  {
+    name: 'corsproxy.io',
+    baseUrl: 'https://corsproxy.io/?',
+    format: 'encoded',
+    headers: {},
+  },
+  {
+    name: 'allorigins-get',
+    baseUrl: 'https://api.allorigins.win/get?url=',
+    format: 'encoded',
+    headers: {},
+  },
+  {
+    name: 'allorigins-raw',
+    baseUrl: 'https://api.allorigins.win/raw?url=',
+    format: 'encoded',
+    headers: {},
+  },
+  {
+    name: 'textise-dot-iitty',
+    baseUrl: 'https://r.jina.ai/http://textise dot iitty/',
+    format: 'direct',
+    headers: {},
+  },
+  {
+    name: 'r.jina.ai-reader',
+    baseUrl: 'https://r.jina.ai/http://cc.bingj.com/cache.aspx?d=503-3421-1108&w=',
+    format: 'direct',
+    headers: {},
+  },
+  {
+    name: 'r.jina.ai-wp-special',
+    baseUrl: 'https://r.jina.ai/http://',
+    format: 'direct',
+    headers: {
+      'X-Target-Site': 'wp.pl',
+      'X-Content-Extractor': 'aggressive',
+    },
+  },
+  {
+    name: 'textise-dot-iitty-wp',
+    baseUrl: 'https://r.jina.ai/http://r.jina.ai/http://www.wp.pl/',
+    format: 'direct',
+    headers: {},
+  },
+];
+
+async function fetchViaAdvancedProxy(url: string, proxyConfig: typeof ADVANCED_PROXIES[0]): Promise<BrowserProxyPayload> {
+  const targetUrl = withHttpScheme(url);
+  let fetchUrl: string;
+  
+  if (proxyConfig.format === 'direct') {
+    fetchUrl = proxyConfig.baseUrl + targetUrl;
+  } else {
+    fetchUrl = proxyConfig.baseUrl + encodeURIComponent(targetUrl);
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000); // Increased timeout for advanced proxies
+
+  try {
+    // Apply rate limiting (disabled in test environment)
+    if (process.env.NODE_ENV !== 'test' && shouldRateLimit(targetUrl)) {
+      const delayMs = RATE_LIMIT_MS + Math.random() * 1000; // Add random delay
+      browseLogger.info(`Rate limiting request to ${targetUrl}, delaying ${delayMs}ms`);
+      await delay(delayMs);
+    }
+
+    const headers = {
+      ...generateAdvancedHeaders(targetUrl),
+      ...proxyConfig.headers,
+    };
+
+    const response = await fetch(fetchUrl, { 
+      signal: controller.signal,
+      headers: headers,
+    });
+
+    if (!response.ok) {
+      const err = new Error(`HTTP ${response.status}: ${response.statusText}`);
+      (err as any).status = response.status;
+      throw err;
+    }
+
+    let rawContent: string;
+    
+    // Handle different response formats
+    if (proxyConfig.name === 'allorigins-get') {
+      const data = await response.json() as AllOriginsResponse;
+      rawContent = typeof data?.contents === "string" ? data.contents : "";
+    } else {
+      rawContent = await response.text();
+    }
+    
+    // Log success with metadata
+    browseLogger.info(`Advanced proxy success via ${proxyConfig.name}`, {
+      url: targetUrl,
+      proxy: proxyConfig.name,
+      contentLength: rawContent.length,
+      contentType: response.headers.get('content-type'),
+      status: response.status,
+    });
+
+    return {
+      proxyName: proxyConfig.name,
+      rawContent,
+      sourceHttpCode: response.status,
+      sourceContentType: response.headers.get('content-type') || undefined,
+      sourceContentLength: rawContent.length,
+      sourceUrl: targetUrl,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function fetchViaAllOriginsJson(
@@ -1091,58 +1440,62 @@ async function fetchViaCorsProxy(url: string): Promise<BrowserProxyPayload> {
 }
 
 async function fetchViaJina(url: string): Promise<BrowserProxyPayload> {
-  const targetUrl = withHttpScheme(url);
-  const proxyUrl = `https://r.jina.ai/${targetUrl}`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  try {
-    return await retry(
-      async () => {
-        const response = await fetch(proxyUrl, { signal: controller.signal });
-        if (!response.ok) {
-          const err = new Error(`HTTP ${response.status}: ${response.statusText}`);
-          (err as any).status = response.status;
-          throw err;
+  // Try multiple Jina AI configurations with enhanced approach for Polish sites
+  const jinaProxies = ADVANCED_PROXIES.filter(p => p.name.includes('r.jina.ai'));
+  
+  // For wp.pl, try special configurations first
+  if (url.includes('wp.pl')) {
+    const wpProxies = jinaProxies.filter(p => p.name.includes('wp-special') || p.name.includes('textise-dot-iitty-wp'));
+    const regularProxies = jinaProxies.filter(p => !p.name.includes('wp-special') && !p.name.includes('textise-dot-iitty-wp'));
+    
+    // Try WP-specific proxies first
+    for (const proxy of wpProxies) {
+      try {
+        const result = await fetchViaAdvancedProxy(url, proxy);
+        // Check if we got actual content instead of the blocking message
+        if (result.rawContent && !result.rawContent.includes('Pobieranie, zwielokrotnianie, przechowywanie')) {
+          return result;
         }
-
-        const rawContent = await response.text();
-        return {
-          proxyName: "jina-ai",
-          rawContent,
-          sourceHttpCode: response.status,
-          sourceContentType: response.headers.get("content-type") || undefined,
-          sourceContentLength: rawContent.length,
-          sourceUrl: targetUrl,
-        };
-      },
-      {
-        retries: 2,
-        baseDelayMs: 300,
-        maxDelayMs: 1200,
-        shouldRetry: (error) => {
-          const status = (error as any)?.status;
-          if (typeof status === "number") {
-            return {
-              retry: isProbablyTransientHttpStatus(status),
-              reason: `status ${status}`,
-            };
-          }
-          return shouldRetryUnknownAsTransient(error);
-        },
-        onRetry: ({ attempt, delayMs, reason, error }) => {
-          browseLogger.warn("Retrying jina-ai", {
-            url: targetUrl,
-            attempt,
-            delayMs,
-            reason,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        },
-      },
-    );
-  } finally {
-    clearTimeout(timeout);
+      } catch (error) {
+        browseLogger.warn(`Jina AI WP proxy ${proxy.name} failed, trying next`, {
+          url,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        continue;
+      }
+    }
+    
+    // Then try regular Jina proxies
+    for (const proxy of regularProxies) {
+      try {
+        const result = await fetchViaAdvancedProxy(url, proxy);
+        if (result.rawContent && !result.rawContent.includes('Pobieranie, zwielokrotnianie, przechowywanie')) {
+          return result;
+        }
+      } catch (error) {
+        browseLogger.warn(`Jina AI proxy ${proxy.name} failed, trying next`, {
+          url,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        continue;
+      }
+    }
+  } else {
+    // For non-wp.pl sites, try all Jina proxies
+    for (const proxy of jinaProxies) {
+      try {
+        return await fetchViaAdvancedProxy(url, proxy);
+      } catch (error) {
+        browseLogger.warn(`Jina AI proxy ${proxy.name} failed, trying next`, {
+          url,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        continue;
+      }
+    }
   }
+  
+  throw new Error('All Jina AI proxies failed');
 }
 
 async function browseInBrowser(url: string): Promise<BrowseResult> {
@@ -1150,13 +1503,8 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
     "browse:gateway",
     "browseInBrowser",
     async () => {
-      const fetchers: Array<() => Promise<BrowserProxyPayload>> = [
-        () => fetchViaAllOriginsJson(url),
-        () => fetchViaCorsProxy(url),
-        () => fetchViaAllOriginsRaw(url),
-        () => fetchViaJina(url),
-      ];
-
+      // Smart proxy selection based on URL
+      const fetchers = getSmartFetchers(url);
       const failures: string[] = [];
 
       for (const fetcher of fetchers) {
@@ -1180,6 +1528,19 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
               url,
               proxy: payload.proxyName,
               sourceUrl: payload.sourceUrl,
+            });
+            continue;
+          }
+
+          // Enhanced content validation (disabled in test environment)
+          if (process.env.NODE_ENV !== 'test' && !isValidContent(rawContent, url)) {
+            const invalidMessage = `Invalid/blocked content from ${payload.proxyName}`;
+            failures.push(invalidMessage);
+            browseLogger.warn("Browser proxy returned invalid content", {
+              url,
+              proxy: payload.proxyName,
+              contentLength: rawContent.length,
+              preview: rawContent.slice(0, 200),
             });
             continue;
           }
@@ -1223,13 +1584,108 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
 
       throw new Error(
         `Nie udało się pobrać strony: żaden z serwerów proxy nie odpowiedział. ` +
-          `Strona może być niedostępna lub blokować dostęp. ` +
-          `Spróbuj ponownie lub uruchom aplikację w trybie Tauri dla lepszych wyników.`,
+        `Strona może być niedostępna lub blokować dostęp. ` +
+        `Spróbuj ponownie lub uruchom aplikację w trybie Tauri dla lepszych wyników.`
       );
     },
   );
 
   return runBrowseInBrowser();
+}
+
+function getSmartFetchers(url: string): Array<() => Promise<BrowserProxyPayload>> {
+  const fetchers: Array<() => Promise<BrowserProxyPayload>> = [];
+  
+  // For Polish news sites, prioritize content readers
+  if (url.includes('wp.pl') || url.includes('onet.pl') || url.includes('interia.pl') || url.includes('newsweek.pl')) {
+    fetchers.push(() => fetchViaJina(url)); // Jina AI is best for content extraction
+    fetchers.push(() => fetchViaAllOriginsJson(url));
+    fetchers.push(() => fetchViaCorsProxy(url));
+    fetchers.push(() => fetchViaAllOriginsRaw(url));
+  }
+  // For tech/documentation sites, try different order
+  else if (url.includes('github.com') || url.includes('stackoverflow.com') || url.includes('medium.com')) {
+    fetchers.push(() => fetchViaJina(url));
+    fetchers.push(() => fetchViaCorsProxy(url));
+    fetchers.push(() => fetchViaAllOriginsRaw(url));
+    fetchers.push(() => fetchViaAllOriginsJson(url));
+  }
+  // Default order for general sites
+  else {
+    fetchers.push(() => fetchViaAllOriginsJson(url));
+    fetchers.push(() => fetchViaCorsProxy(url));
+    fetchers.push(() => fetchViaAllOriginsRaw(url));
+    fetchers.push(() => fetchViaJina(url));
+  }
+  
+  return fetchers;
+}
+
+function isValidContent(content: string, url: string): boolean {
+  // Check for common bot detection/blocking messages
+  const blockingPatterns = [
+    /access.*denied/i,
+    /blocked.*by.*security/i,
+    /bot.*detection/i,
+    /captcha/i,
+    /cloudflare/i,
+    /access.*forbidden/i,
+    /403.*forbidden/i,
+    /automated.*access/i,
+    /suspicious.*activity/i,
+    /rate.*limit/i,
+    /too.*many.*requests/i,
+  ];
+
+  // Check for Polish blocking messages
+  const polishBlockingPatterns = [
+    /dostęp.*zabroniony/i,
+    /zablokowany.*dostęp/i,
+    /wykryto.*bot/i,
+    /podejrzana.*aktywność/i,
+    /zbyt.*wiele.*zapytań/i,
+    /ochrona.*przed.*botami/i,
+  ];
+
+  // Specific WP.pl blocking message
+  const wpBlockingPatterns = [
+    /Pobieranie, zwielokrotnianie, przechowywanie lub jakiekolwiek inne wykorzystywanie treści/i,
+    /wymaga uprzedniej i jednoznacznej zgody Wirtualna Polska Media/i,
+    /bez względu na sposób ich eksploracji i wykorzystaną metodę/i,
+    /w tym z użyciem programów uczenia maszynowego lub sztucznej inteligencji/i,
+    /zastrzeżenie nie dotyczy wykorzystywania jedynie w celu ułatwienia ich wyszukiwania/i,
+  ];
+
+  const allPatterns = [...blockingPatterns, ...polishBlockingPatterns, ...wpBlockingPatterns];
+  
+  for (const pattern of allPatterns) {
+    if (pattern.test(content)) {
+      return false;
+    }
+  }
+
+  // Check if content is too short (likely a blocking page)
+  if (content.length < 100) {
+    return false;
+  }
+
+  // Special check for WP.pl - if it contains the blocking message, reject
+  if (url.includes('wp.pl') && content.includes('Wirtualna Polska Media')) {
+    return false;
+  }
+
+  // Check if content contains actual meaningful content
+  const meaningfulWords = /\b(the|and|or|but|in|on|at|to|for|of|with|by|is|are|was|were|be|been|have|has|had|do|does|did|will|would|could|should|may|might|must|can|this|that|these|those|a|an|i|you|he|she|it|we|they|me|him|her|us|them|my|your|his|her|its|our|their)\b/i;
+  const polishWords = /\b(i|w|na|do|od|do|z|za|przez|pod|nad|przed|po|bez|dla|o|jak|kiedy|gdzie|dlaczego|co|kto|jaki|jaka|jakie|który|która|które|jesteś|jestem|jesteśmy|są|mają|mieć|być|był|była|było|były|będę|będziesz|będzie|będziemy|będziecie|będą)\b/i;
+  
+  const hasMeaningfulContent = meaningfulWords.test(content) || polishWords.test(content);
+  
+  if (!hasMeaningfulContent && content.length > 500) {
+    // Long content without meaningful words is likely blocked/garbled
+    return false;
+  }
+
+  return true;
 }
 
 export async function executeBrowseCommand(

@@ -20,6 +20,7 @@ mod network_info;
 mod network_scan;
 mod query_schema;
 mod remote_machine;
+mod rss_parser;
 mod settings;
 mod ssh;
 mod stt;
@@ -546,6 +547,7 @@ fn main() {
             docker::docker_stop_container,
             docker::docker_restart_container,
             docker::docker_remove_container,
+            rss_parser::parse_rss_feed_command,
             docker::docker_get_logs,
             remote_machine::remote_test_connection,
             remote_machine::remote_execute_command,
