@@ -1,4 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
+import { loadEnv } from "vite";
+
+// Load test environment variables
+const testEnv = loadEnv("test", process.cwd(), "");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -33,5 +37,6 @@ export default defineConfig({
     url: "http://localhost:5173",
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
+    env: testEnv,
   },
 });

@@ -40,22 +40,24 @@ describe('LogsPlugin', () => {
       configStore: mockConfigStore,
     };
 
-    // Mock console methods BEFORE creating plugin
-    const originalConsole = global.console;
-    global.console = {
-      ...originalConsole,
+    // Mock console methods using vi.stubGlobal
+    vi.stubGlobal('console', {
       clear: vi.fn(),
       log: vi.fn(),
       error: vi.fn(),
       warn: vi.fn(),
       info: vi.fn(),
       debug: vi.fn(),
-    } as any;
+    });
     
     plugin = new LogsPlugin();
     
     // Mock fetch for version
     global.fetch = vi.fn();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   describe('canHandle', () => {

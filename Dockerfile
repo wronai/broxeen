@@ -10,6 +10,7 @@ COPY package.json ./
 # Use npm ci as universal fallback
 RUN npm install --legacy-peer-deps
 
+# Copy source code
 COPY . .
 
 # ── Test stage — run vitest ──────────────────────────

@@ -52,3 +52,17 @@ services:
       - CI=true
     profiles:
       - test
+
+  # ── E2E Tests (Playwright) ─────────────────────────────
+  broxeen-e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile.e2e
+    environment:
+      - CI=true
+      - BASE_URL=http://host.docker.internal:5173
+    volumes:
+      - ./playwright-report:/app/playwright-report
+      - ./test-results:/app/test-results
+    profiles:
+      - e2e

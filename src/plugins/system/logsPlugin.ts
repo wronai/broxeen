@@ -109,7 +109,7 @@ export class LogsPlugin implements Plugin {
         },
       };
     } catch (error) {
-      logger.error("Failed to execute log command", { 
+      this.logger.error("Failed to execute log command", { 
         action: command.action, 
         error: error instanceof Error ? error.message : String(error) 
       });
@@ -172,14 +172,14 @@ export class LogsPlugin implements Plugin {
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        logger.info("Logs downloaded successfully", { filename });
+        this.logger.info("Logs downloaded successfully", { filename });
         return `✅ Logi zostały pobrane jako plik: ${filename}`;
       } else {
         // Tauri environment - return content for manual save
         return `📋 Logi Broxeen (${appInfo.timestamp}):\n\n${logContent}`;
       }
     } catch (error) {
-      logger.error("Failed to download logs", { error });
+      this.logger.error("Failed to download logs", { error });
       throw error;
     }
   }
@@ -246,7 +246,7 @@ export class LogsPlugin implements Plugin {
       console.clear();
     }
     
-    logger.info("Logs cleared by user request");
+    this.logger.info("Logs cleared by user request");
     return '✅ Logi zostały wyczyszczone';
   }
 
@@ -280,6 +280,6 @@ export class LogsPlugin implements Plugin {
   }
 
   async dispose(): Promise<void> {
-    logger.info("Logs plugin disposed");
+    this.logger.info("Logs plugin disposed");
   }
 }

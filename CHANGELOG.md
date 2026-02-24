@@ -1,3 +1,21 @@
+## [1.0.69] - 2026-02-24
+
+### Summary
+
+refactor(docs): deep code analysis engine with 4 supporting modules
+
+### Other
+
+- update .dockerignore
+- update .env.test
+- update Dockerfile.e2e
+- update e2e/new-plugins.spec.ts
+- update playwright.config.ts
+- scripts: update test-docker.sh
+- update src/plugins/system/logsPlugin.test.ts
+- update src/plugins/system/logsPlugin.ts
+
+
 ## [1.0.68] - 2026-02-24
 
 ### Summary
