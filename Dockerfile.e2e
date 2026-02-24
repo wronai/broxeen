@@ -1,9 +1,6 @@
 # ── E2E Testing with Playwright ───────────────────────────
 FROM mcr.microsoft.com/playwright:v1.49.0-jammy
 
-# Enable corepack for pnpm support
-RUN corepack enable
-
 WORKDIR /app
 
 # Install dependencies
@@ -17,8 +14,11 @@ RUN npx playwright install-deps
 # Copy source code
 COPY . .
 
-# Create test user with different UID
-RUN useradd -m -u 1001 testuser && chown -R testuser:testuser /app
+# Create test user with different UID and fix permissions
+RUN useradd -m -u 1001 testuser && \
+    chown -R testuser:testuser /app && \
+    mkdir -p /app/test-results /app/playwright-report && \
+    chown -R testuser:testuser /app/test-results /app/playwright-report
 USER testuser
 
 # Default command - run E2E tests

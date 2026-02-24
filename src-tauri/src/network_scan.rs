@@ -18,6 +18,67 @@ use crate::logging::{backend_info, backend_warn};
 
 use std::sync::OnceLock;
 
+/// Anonymizes passwords in RTSP URLs by replacing them with ***
+fn anonymize_rtsp_url(url: &str) -> String {
+    if let Some(at_pos) = url.find('@') {
+        if let Some(scheme_end) = url.find("://") {
+            if at_pos > scheme_end + 3 {
+                let before_auth = &url[..scheme_end + 3];
+                let after_auth = &url[at_pos..];
+                if let Some(colon_pos) = url[scheme_end + 3..at_pos].find(':') {
+                    let username = &url[scheme_end + 3..scheme_end + 3 + colon_pos];
+                    format!("{}{}:***{}", before_auth, username, after_auth)
+                } else {
+                    url.to_string()
+                }
+            } else {
+                url.to_string()
+            }
+        } else {
+            url.to_string()
+        }
+    } else {
+        url.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_anonymize_rtsp_url_with_password() {
+        let url = "rtsp://admin:Tom4Camera@192.168.188.176:554/Streaming/Channels/102";
+        let expected = "rtsp://admin:***@192.168.188.176:554/Streaming/Channels/102";
+        assert_eq!(anonymize_rtsp_url(url), expected);
+    }
+
+    #[test]
+    fn test_anonymize_rtsp_url_with_numeric_password() {
+        let url = "rtsp://admin:123456@192.168.188.146:554/h264Preview_01_main";
+        let expected = "rtsp://admin:***@192.168.188.146:554/h264Preview_01_main";
+        assert_eq!(anonymize_rtsp_url(url), expected);
+    }
+
+    #[test]
+    fn test_anonymize_rtsp_url_without_password() {
+        let url = "rtsp://admin@192.168.1.100:554/stream";
+        assert_eq!(anonymize_rtsp_url(url), url);
+    }
+
+    #[test]
+    fn test_anonymize_rtsp_url_no_auth() {
+        let url = "rtsp://192.168.1.100:554/stream";
+        assert_eq!(anonymize_rtsp_url(url), url);
+    }
+
+    #[test]
+    fn test_anonymize_non_rtsp_url() {
+        let url = "http://admin:password@example.com";
+        assert_eq!(anonymize_rtsp_url(url), url);
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CapturedFrame {
     pub base64: String,
@@ -119,7 +180,7 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
         if !url_for_thread.to_lowercase().starts_with("rtsp://") {
             backend_warn(&format!(
                 "rtsp worker rejected non-RTSP url: camera_id={} url={}",
-                camera_id_for_thread, url_for_thread
+                camera_id_for_thread, anonymize_rtsp_url(&url_for_thread)
             ));
             let mut err = cache_for_thread
                 .last_error
@@ -127,7 +188,7 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
                 .expect("last_error lock poisoned");
             *err = Some(format!(
                 "RTSP worker expected rtsp:// URL, got: {}",
-                url_for_thread
+                anonymize_rtsp_url(&url_for_thread)
             ));
             return;
         }
@@ -173,7 +234,7 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
                 "rtsp worker started: camera_id={} elapsed_ms={} url={}",
                 camera_id_for_thread,
                 started_at.elapsed().as_millis(),
-                url_for_thread
+                anonymize_rtsp_url(&url_for_thread)
             ));
 
             let mut stdout = child
