@@ -1,3 +1,14 @@
+## [1.0.91] - 2026-02-24
+
+### Summary
+
+refactor(config): code quality metrics with 2 supporting modules
+
+### Other
+
+- update vite.config.ts.timestamp-1771934009465-792f03b6f9fa9.mjs
+
+
 ## [1.0.90] - 2026-02-24
 
 ### Summary
