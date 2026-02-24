@@ -1,0 +1,2 @@
+export LITELLM_MODEL="local/model"
+export NLP2CMD_LLM_MODEL_PATH="/home/tom/github/wronai/broxeen/mock_polish_llm_test.py"

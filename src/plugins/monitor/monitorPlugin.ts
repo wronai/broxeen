@@ -1409,10 +1409,12 @@ export class MonitorPlugin implements Plugin {
   ): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png'; capture: CaptureMetadata } | null> {
     const captureStart = Date.now();
     const attempts: string[] = [];
+    console.log(`[Monitor] Starting snapshot capture for ${target.name} (${target.address})`);
 
     // ── 1. RTSP via Tauri (preferred) ──
     if (context.isTauri && context.tauriInvoke && target.rtspUrl) {
       attempts.push(`RTSP: ${target.rtspUrl}`);
+      console.log(`[Monitor] Trying RTSP capture for ${target.name}`);
       try {
         const result = await context.tauriInvoke('rtsp_capture_frame', {
           url: target.rtspUrl,
@@ -1420,6 +1422,7 @@ export class MonitorPlugin implements Plugin {
           camera_id: target.id,
         }) as { base64: string };
         if (result?.base64) {
+          console.log(`[Monitor] RTSP capture successful for ${target.name}, frame size: ${result.base64.length} bytes`);
           const capture: CaptureMetadata = {
             method: 'rtsp',
             url: target.rtspUrl,
@@ -1432,13 +1435,16 @@ export class MonitorPlugin implements Plugin {
           return { base64: result.base64, mimeType: 'image/jpeg', capture };
         }
         attempts.push('RTSP: pusta odpowiedź');
+        console.log(`[Monitor] RTSP capture failed for ${target.name}: empty response`);
       } catch (err) {
         attempts.push(`RTSP fail: ${err instanceof Error ? err.message : String(err)}`);
+        console.log(`[Monitor] RTSP capture failed for ${target.name}:`, err);
       }
     } else if (!context.isTauri) {
       attempts.push('RTSP: niedostępny (tryb przeglądarkowy, brak Tauri)');
     } else if (!target.rtspUrl) {
       attempts.push('RTSP: brak URL');
+      console.log(`[Monitor] No RTSP URL for ${target.name}`);
     }
 
     // ── 2. Configured HTTP snapshot URL ──
