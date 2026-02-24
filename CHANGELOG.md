@@ -1,3 +1,14 @@
+## [1.0.84] - 2026-02-24
+
+### Summary
+
+refactor(tests): test module improvements
+
+### Test
+
+- update test_rss.xml
+
+
 ## [1.0.83] - 2026-02-24
 
 ### Summary
