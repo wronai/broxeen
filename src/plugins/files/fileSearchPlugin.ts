@@ -462,8 +462,9 @@ export class FileSearchPlugin implements Plugin {
       extensions.push('pdf', 'jpg', 'jpeg', 'png', 'docx', 'xlsx');
     }
 
-    // Clean up query — remove command words
+    // Clean up query — remove scope prefixes and command words
     query = query
+      .replace(/^(local|public|tor|vpn|ssh)\$\s+/i, '') // Remove scope prefixes
       .replace(/znajd[źz]\s+plik[iy]?/gi, '')
       .replace(/wyszukaj\s+plik[iy]?/gi, '')
       .replace(/szukaj\s+plik[iy]?/gi, '')

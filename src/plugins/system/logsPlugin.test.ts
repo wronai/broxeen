@@ -48,6 +48,21 @@ describe('LogsPlugin', () => {
       warn: vi.fn(),
       info: vi.fn(),
       debug: vi.fn(),
+      trace: vi.fn(),
+      table: vi.fn(),
+      group: vi.fn(),
+      groupEnd: vi.fn(),
+      groupCollapsed: vi.fn(),
+      time: vi.fn(),
+      timeEnd: vi.fn(),
+      timeLog: vi.fn(),
+      assert: vi.fn(),
+      count: vi.fn(),
+      countReset: vi.fn(),
+      dir: vi.fn(),
+      dirxml: vi.fn(),
+      profile: vi.fn(),
+      profileEnd: vi.fn(),
     });
     
     plugin = new LogsPlugin();
@@ -61,29 +76,29 @@ describe('LogsPlugin', () => {
   });
 
   describe('canHandle', () => {
-    it('should recognize download logs commands', () => {
-      expect(plugin.canHandle('pobierz logi')).toBe(true);
-      expect(plugin.canHandle('exportuj logi')).toBe(true);
-      expect(plugin.canHandle('zapisz logi')).toBe(true);
-      expect(plugin.canHandle('logi pobierz')).toBe(true);
+    it('should recognize download logs commands', async () => {
+      expect(await plugin.canHandle('pobierz logi')).toBe(true);
+      expect(await plugin.canHandle('exportuj logi')).toBe(true);
+      expect(await plugin.canHandle('zapisz logi')).toBe(true);
+      expect(await plugin.canHandle('logi pobierz')).toBe(true);
     });
 
-    it('should recognize clear logs commands', () => {
-      expect(plugin.canHandle('wyczyść logi')).toBe(true);
-      expect(plugin.canHandle('usuń logi')).toBe(true);
-      expect(plugin.canHandle('clear log')).toBe(true);
+    it('should recognize clear logs commands', async () => {
+      expect(await plugin.canHandle('wyczyść logi')).toBe(true);
+      expect(await plugin.canHandle('usuń logi')).toBe(true);
+      expect(await plugin.canHandle('clear log')).toBe(true);
     });
 
-    it('should recognize show log level commands', () => {
-      expect(plugin.canHandle('poziom logów')).toBe(true);
-      expect(plugin.canHandle('log level')).toBe(true);
-      expect(plugin.canHandle('ustaw log')).toBe(true);
+    it('should recognize show log level commands', async () => {
+      expect(await plugin.canHandle('poziom logów')).toBe(true);
+      expect(await plugin.canHandle('log level')).toBe(true);
+      expect(await plugin.canHandle('ustaw log')).toBe(true);
     });
 
-    it('should not recognize unrelated commands', () => {
-      expect(plugin.canHandle('skanuj sieć')).toBe(false);
-      expect(plugin.canHandle('znajdź kamery')).toBe(false);
-      expect(plugin.canHandle('hello world')).toBe(false);
+    it('should not recognize unrelated commands', async () => {
+      expect(await plugin.canHandle('skanuj sieć')).toBe(false);
+      expect(await plugin.canHandle('znajdź kamery')).toBe(false);
+      expect(await plugin.canHandle('hello world')).toBe(false);
     });
   });
 
@@ -189,7 +204,7 @@ describe('LogsPlugin', () => {
       const result = await plugin.execute('nieznana komenda');
 
       expect(result.status).toBe('error');
-      expect(result.error).toBe('Nie rozpoznano komendy logów');
+      expect(result.content[0].data).toBe('Nie rozpoznano komendy logów');
     });
   });
 

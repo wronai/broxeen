@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::time::SystemTime;
+use rust_search::SearchBuilder;
 
 use crate::logging::backend_info;
 
@@ -123,93 +124,70 @@ fn format_time(time: SystemTime) -> Option<String> {
     Some(dt.format("%Y-%m-%d %H:%M:%S").to_string())
 }
 
-fn should_skip_dir(name: &str) -> bool {
-    matches!(
-        name,
-        ".git" | "node_modules" | "target" | ".cache" | "__pycache__" | ".venv"
-            | "venv" | ".env" | "dist" | "build" | ".next" | ".nuxt"
-            | ".svelte-kit" | "coverage" | ".cargo" | ".rustup"
-    )
-}
 
-fn walk_and_search(
-    dir: &Path,
+fn search_with_rust_search(
+    base_path: &Path,
     query: &str,
     extensions: &[String],
     max_results: usize,
     max_depth: usize,
-    current_depth: usize,
-    results: &mut Vec<FileSearchResult>,
-) {
-    if current_depth > max_depth || results.len() >= max_results {
-        return;
-    }
-
-    let entries = match fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(_) => return,
+) -> Vec<FileSearchResult> {
+    let mut results = Vec::new();
+    
+    // Build search pattern
+    let search_pattern = if query.is_empty() {
+        if extensions.is_empty() {
+            "*"
+        } else {
+            &extensions.join(",")
+        }
+    } else {
+        query
     };
-
-    for entry in entries {
-        if results.len() >= max_results {
-            break;
-        }
-
-        let entry = match entry {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-
-        let path = entry.path();
-        let name = entry.file_name().to_string_lossy().to_string();
-
-        // Skip hidden files and known junk directories
-        if name.starts_with('.') && name != ".env" {
-            continue;
-        }
-
-        let metadata = match entry.metadata() {
+    
+    let search_builder = SearchBuilder::default()
+        .location(base_path.to_str().unwrap_or("."))
+        .search_input(search_pattern)
+        .depth(max_depth)
+        .ignore_case()
+        .limit(max_results);
+    
+    // Execute search
+    let found_paths: Vec<String> = search_builder.build().collect();
+    
+    // Convert to FileSearchResult with metadata
+    for path_str in found_paths {
+        let path = PathBuf::from(&path_str);
+        
+        // Skip if path doesn't exist or is not accessible
+        let metadata = match fs::metadata(&path) {
             Ok(m) => m,
             Err(_) => continue,
         };
-
+        
+        // Skip directories
         if metadata.is_dir() {
-            if should_skip_dir(&name) {
-                continue;
-            }
-            // Recurse into subdirectories
-            walk_and_search(&path, query, extensions, max_results, max_depth, current_depth + 1, results);
             continue;
         }
-
-        // File matching
-        let ext = path
-            .extension()
+        
+        let name = path.file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| path_str.clone());
+        
+        let ext = path.extension()
             .map(|e| e.to_string_lossy().to_string())
             .unwrap_or_default();
-
-        // Filter by extension if specified
+        
+        // Apply extension filter if specified
         if !extensions.is_empty() && !extensions.iter().any(|e| e.eq_ignore_ascii_case(&ext)) {
             continue;
         }
-
-        let name_lower = name.to_lowercase();
-        let query_lower = query.to_lowercase();
-
-        // Match by filename or path
-        let matches = query_lower.is_empty()
-            || name_lower.contains(&query_lower)
-            || path.to_string_lossy().to_lowercase().contains(&query_lower);
-
-        if !matches {
-            continue;
-        }
-
+        
         let modified = metadata.modified().ok().and_then(format_time);
         let mime = guess_mime_type(&ext);
         let file_type = classify_file_type(&ext);
-
-        // Generate preview for text files (first 500 chars)
+        
+        // Generate preview for text files
         let preview = if is_text_file(&ext) && metadata.len() < 1_000_000 {
             fs::read_to_string(&path)
                 .ok()
@@ -224,9 +202,9 @@ fn walk_and_search(
         } else {
             None
         };
-
+        
         results.push(FileSearchResult {
-            path: path.to_string_lossy().to_string(),
+            path: path_str,
             name,
             extension: ext,
             size_bytes: metadata.len(),
@@ -236,7 +214,13 @@ fn walk_and_search(
             preview,
             mime_type: mime.to_string(),
         });
+        
+        if results.len() >= max_results {
+            break;
+        }
     }
+    
+    results
 }
 
 #[tauri::command]
@@ -267,8 +251,8 @@ pub async fn file_search(
     let depth = max_depth.unwrap_or(8);
     let exts = extensions.unwrap_or_default();
 
-    let mut results = Vec::new();
-    walk_and_search(&base_path, &query, &exts, max, depth, 0, &mut results);
+    // Use rust_search for faster searching
+    let mut results = search_with_rust_search(&base_path, &query, &exts, max, depth);
 
     // Sort by modification date (newest first)
     results.sort_by(|a, b| b.modified.cmp(&a.modified));
@@ -349,4 +333,250 @@ pub async fn file_read_content(
         mime_type: mime.to_string(),
         truncated,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::PathBuf;
+    use tempfile::TempDir;
+
+    fn create_test_files(temp_dir: &TempDir, files: &[(&str, &str)]) {
+        for (path, content) in files {
+            let full_path = temp_dir.path().join(path);
+            if let Some(parent) = full_path.parent() {
+                fs::create_dir_all(parent).unwrap();
+            }
+            fs::write(&full_path, content).unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn test_file_search_basic() {
+        let temp_dir = TempDir::new().unwrap();
+        
+        create_test_files(&temp_dir, &[
+            ("test.txt", "Hello World"),
+            ("subdir/nested.rs", "fn main() {}"),
+            ("another.py", "print('hello')"),
+        ]);
+
+        let result = file_search(
+            "test".to_string(),
+            Some(temp_dir.path().to_str().unwrap().to_string()),
+            None,
+            Some(10),
+            Some(5),
+        ).await.unwrap();
+
+        assert_eq!(result.total_found, 1);
+        assert_eq!(result.results.len(), 1);
+        assert!(result.results[0].name.contains("test"));
+        assert_eq!(result.results[0].extension, "txt");
+    }
+
+    #[tokio::test]
+    async fn test_file_search_extension_filter() {
+        let temp_dir = TempDir::new().unwrap();
+        
+        create_test_files(&temp_dir, &[
+            ("file1.rs", "rust code"),
+            ("file2.py", "python code"),
+            ("file3.rs", "more rust"),
+            ("file4.js", "javascript"),
+        ]);
+
+        let result = file_search(
+            "".to_string(),
+            Some(temp_dir.path().to_str().unwrap().to_string()),
+            Some(vec!["rs".to_string()]),
+            Some(10),
+            Some(5),
+        ).await.unwrap();
+
+        assert_eq!(result.total_found, 2);
+        assert!(result.results.iter().all(|r| r.extension == "rs"));
+    }
+
+    #[tokio::test]
+    async fn test_file_search_case_insensitive() {
+        let temp_dir = TempDir::new().unwrap();
+        
+        create_test_files(&temp_dir, &[
+            ("README.md", "# Project"),
+            ("readme.txt", "text file"),
+            ("Readme.MD", "another readme"),
+        ]);
+
+        let result = file_search(
+            "readme".to_string(),
+            Some(temp_dir.path().to_str().unwrap().to_string()),
+            None,
+            Some(10),
+            Some(5),
+        ).await.unwrap();
+
+        assert_eq!(result.total_found, 3);
+    }
+
+    #[tokio::test]
+    async fn test_file_search_max_results() {
+        let temp_dir = TempDir::new().unwrap();
+        
+        for i in 0..20 {
+            create_test_files(&temp_dir, &[(&format!("file{}.txt", i), &format!("content {}", i))]);
+        }
+
+        let result = file_search(
+            "file".to_string(),
+            Some(temp_dir.path().to_str().unwrap().to_string()),
+            None,
+            Some(5),
+            Some(5),
+        ).await.unwrap();
+
+        assert_eq!(result.total_found, 5);
+        assert!(result.truncated);
+    }
+
+    #[tokio::test]
+    async fn test_file_search_nonexistent_path() {
+        let result = file_search(
+            "test".to_string(),
+            Some("/nonexistent/path".to_string()),
+            None,
+            Some(10),
+            Some(5),
+        ).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("nie istnieje"));
+    }
+
+    #[tokio::test]
+    async fn test_file_read_content_text() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("test.txt");
+        fs::write(&test_file, "Hello World\nThis is a test file").unwrap();
+
+        let result = file_read_content(
+            test_file.to_str().unwrap().to_string(),
+            Some(100),
+        ).await.unwrap();
+
+        assert_eq!(result.name, "test.txt");
+        assert_eq!(result.mime_type, "text/plain");
+        assert!(result.content.contains("Hello World"));
+        assert!(!result.truncated);
+    }
+
+    #[tokio::test]
+    async fn test_file_read_content_image() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("test.png");
+        
+        // Create a small PNG header (1x1 pixel PNG)
+        let png_data = vec![
+            0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+            0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+            0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+            0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
+            0x54, 0x08, 0x99, 0x01, 0x01, 0x01, 0x00, 0x00,
+            0xFE, 0xFF, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01,
+            0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44,
+            0xAE, 0x42, 0x60, 0x82
+        ];
+        fs::write(&test_file, png_data).unwrap();
+
+        let result = file_read_content(
+            test_file.to_str().unwrap().to_string(),
+            Some(100),
+        ).await.unwrap();
+
+        assert_eq!(result.name, "test.png");
+        assert_eq!(result.mime_type, "image/png");
+        assert!(result.content.starts_with("data:image/png;base64,"));
+        assert!(!result.truncated);
+    }
+
+    #[tokio::test]
+    async fn test_file_read_content_binary() {
+        let temp_dir = TempDir::new().unwrap();
+        let test_file = temp_dir.path().join("test.bin");
+        fs::write(&test_file, vec![0x00, 0x01, 0x02, 0x03]).unwrap();
+
+        let result = file_read_content(
+            test_file.to_str().unwrap().to_string(),
+            Some(100),
+        ).await.unwrap();
+
+        assert_eq!(result.name, "test.bin");
+        assert_eq!(result.mime_type, "application/octet-stream");
+        assert!(result.content.contains("[Plik binarny:"));
+        assert!(!result.truncated);
+    }
+
+    #[tokio::test]
+    async fn test_file_read_content_nonexistent() {
+        let result = file_read_content(
+            "/nonexistent/file.txt".to_string(),
+            Some(100),
+        ).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("nie istnieje"));
+    }
+
+    #[tokio::test]
+    async fn test_file_read_content_directory() {
+        let temp_dir = TempDir::new().unwrap();
+
+        let result = file_read_content(
+            temp_dir.path().to_str().unwrap().to_string(),
+            Some(100),
+        ).await;
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("katalogiem"));
+    }
+
+    #[test]
+    fn test_guess_mime_type() {
+        assert_eq!(guess_mime_type("txt"), "text/plain");
+        assert_eq!(guess_mime_type("pdf"), "application/pdf");
+        assert_eq!(guess_mime_type("png"), "image/png");
+        assert_eq!(guess_mime_type("rs"), "text/x-source");
+        assert_eq!(guess_mime_type("unknown"), "application/octet-stream");
+    }
+
+    #[test]
+    fn test_classify_file_type() {
+        assert_eq!(classify_file_type("txt"), "plik tekstowy");
+        assert_eq!(classify_file_type("pdf"), "dokument PDF");
+        assert_eq!(classify_file_type("png"), "obraz");
+        assert_eq!(classify_file_type("rs"), "kod Rust");
+        assert_eq!(classify_file_type("unknown"), "plik");
+    }
+
+    #[test]
+    fn test_is_text_file() {
+        assert!(is_text_file("txt"));
+        assert!(is_text_file("rs"));
+        assert!(is_text_file("py"));
+        assert!(is_text_file("json"));
+        assert!(!is_text_file("png"));
+        assert!(!is_text_file("pdf"));
+        assert!(!is_text_file("exe"));
+    }
+
+    #[test]
+    fn test_format_time() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        
+        let time = UNIX_EPOCH + std::time::Duration::from_secs(1640995200); // 2022-01-01 00:00:00 UTC
+        let formatted = format_time(time).unwrap();
+        assert_eq!(formatted, "2022-01-01 00:00:00");
+    }
 }

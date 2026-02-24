@@ -696,15 +696,17 @@ describe('MonitorPlugin', () => {
 });
 
 describe('Scope: VPN + Tor', () => {
-  it('BUILTIN_SCOPES has all 6 scopes including vpn and tor', () => {
+  it('BUILTIN_SCOPES has all 8 scopes including vpn and tor', () => {
     const ids = Object.keys(BUILTIN_SCOPES);
     expect(ids).toContain('local');
+    expect(ids).toContain('public');
+    expect(ids).toContain('ssh');
     expect(ids).toContain('network');
     expect(ids).toContain('internet');
     expect(ids).toContain('vpn');
     expect(ids).toContain('tor');
     expect(ids).toContain('remote');
-    expect(ids).toHaveLength(6);
+    expect(ids).toHaveLength(8);
   });
 
   it('VPN scope allows LAN + internet + monitor', () => {
@@ -727,9 +729,9 @@ describe('Scope: VPN + Tor', () => {
     expect(tor.allowedPlugins).not.toContain('network-scan');
   });
 
-  it('fresh ScopeRegistry loads all 6 scopes', () => {
+  it('fresh ScopeRegistry loads all 8 scopes', () => {
     const registry = new ScopeRegistry();
-    expect(registry.getAllScopes()).toHaveLength(6);
+    expect(registry.getAllScopes()).toHaveLength(8);
     expect(registry.getScope('vpn')).toBeDefined();
     expect(registry.getScope('tor')).toBeDefined();
   });

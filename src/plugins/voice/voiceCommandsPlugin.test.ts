@@ -2,16 +2,26 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { VoiceCommandsPlugin } from './voiceCommandsPlugin';
 import type { PluginContext } from '../../core/types';
 
+// Mock the configStore module
+vi.mock('../../config/configStore', () => ({
+  configStore: {
+    get: vi.fn(),
+    set: vi.fn(),
+  },
+}));
+
 describe('VoiceCommandsPlugin', () => {
   let plugin: VoiceCommandsPlugin;
   let mockContext: PluginContext;
   let mockConfigStore: any;
 
-  beforeEach(() => {
-    mockConfigStore = {
-      get: vi.fn(),
-      set: vi.fn(),
-    };
+  beforeEach(async () => {
+    // Get the mocked configStore
+    const { configStore } = await import('../../config/configStore');
+    mockConfigStore = configStore;
+    
+    // Clear mock calls
+    vi.clearAllMocks();
 
     mockContext = {
       isTauri: false,
@@ -29,34 +39,34 @@ describe('VoiceCommandsPlugin', () => {
   });
 
   describe('canHandle', () => {
-    it('should recognize microphone disable commands', () => {
-      expect(plugin.canHandle('wyłącz mikrofon')).toBe(true);
-      expect(plugin.canHandle('mikrofon off')).toBe(true);
-      expect(plugin.canHandle('zatrzymaj mikrofon')).toBe(true);
+    it('should recognize microphone disable commands', async () => {
+      expect(await plugin.canHandle('wyłącz mikrofon')).toBe(true);
+      expect(await plugin.canHandle('mikrofon off')).toBe(true);
+      expect(await plugin.canHandle('zatrzymaj mikrofon')).toBe(true);
     });
 
-    it('should recognize microphone enable commands', () => {
-      expect(plugin.canHandle('włącz mikrofon')).toBe(true);
-      expect(plugin.canHandle('mikrofon włącz')).toBe(true);
-      expect(plugin.canHandle('uruchom mikrofon')).toBe(true);
+    it('should recognize microphone enable commands', async () => {
+      expect(await plugin.canHandle('włącz mikrofon')).toBe(true);
+      expect(await plugin.canHandle('mikrofon włącz')).toBe(true);
+      expect(await plugin.canHandle('uruchom mikrofon')).toBe(true);
     });
 
-    it('should recognize voice control disable commands', () => {
-      expect(plugin.canHandle('wyłącz sterowanie głosowe')).toBe(true);
-      expect(plugin.canHandle('sterowanie głosowe off')).toBe(true);
-      expect(plugin.canHandle('zatrzymaj sterowanie głosowe')).toBe(true);
+    it('should recognize voice control disable commands', async () => {
+      expect(await plugin.canHandle('wyłącz sterowanie głosowe')).toBe(true);
+      expect(await plugin.canHandle('sterowanie głosowe off')).toBe(true);
+      expect(await plugin.canHandle('zatrzymaj sterowanie głosowe')).toBe(true);
     });
 
-    it('should recognize voice control enable commands', () => {
-      expect(plugin.canHandle('włącz sterowanie głosowe')).toBe(true);
-      expect(plugin.canHandle('sterowanie głosowe włącz')).toBe(true);
-      expect(plugin.canHandle('uruchom sterowanie głosowe')).toBe(true);
+    it('should recognize voice control enable commands', async () => {
+      expect(await plugin.canHandle('włącz sterowanie głosowe')).toBe(true);
+      expect(await plugin.canHandle('sterowanie głosowe włącz')).toBe(true);
+      expect(await plugin.canHandle('uruchom sterowanie głosowe')).toBe(true);
     });
 
-    it('should not recognize unrelated commands', () => {
-      expect(plugin.canHandle('skanuj sieć')).toBe(false);
-      expect(plugin.canHandle('znajdź kamery')).toBe(false);
-      expect(plugin.canHandle('hello world')).toBe(false);
+    it('should not recognize unrelated commands', async () => {
+      expect(await plugin.canHandle('skanuj sieć')).toBe(false);
+      expect(await plugin.canHandle('znajdź kamery')).toBe(false);
+      expect(await plugin.canHandle('hello world')).toBe(false);
     });
   });
 
@@ -113,14 +123,14 @@ describe('VoiceCommandsPlugin', () => {
       const result = await plugin.execute('wyłącz mikrofon');
 
       expect(result.status).toBe('error');
-      expect(result.error).toContain('Błąd podczas wykonywania komendy');
+      expect(result.content[0].data).toContain('Błąd podczas wykonywania komendy');
     });
 
     it('should return error for unrecognized commands', async () => {
       const result = await plugin.execute('nieznana komenda');
 
       expect(result.status).toBe('error');
-      expect(result.error).toBe('Nie rozpoznano komendy głosowej');
+      expect(result.content[0].data).toBe('Nie rozpoznano komendy głosowej');
     });
   });
 
