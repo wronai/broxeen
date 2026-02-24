@@ -42,7 +42,7 @@ opencv = { version = "0.93", default-features = false, features = [
 ], optional = true }
 ort = { version = "2.0.0-rc.11", features = ["download-binaries"], optional = true }
 ndarray = { version = "0.16", optional = true }
-image = { version = "0.25", features = ["jpeg"], optional = true }
+image = { version = "0.25", features = ["jpeg"] }
 flume = { version = "0.11", optional = true }
 config = { version = "0.14", optional = true }
 anyhow = { version = "1", optional = true }
@@ -66,5 +66,5 @@ harness = false
 [features]
 default = ["custom-protocol", "local-llm"]
 custom-protocol = ["tauri/custom-protocol"]
-vision = ["dep:opencv", "dep:ort", "dep:ndarray", "dep:image", "dep:flume", "dep:config", "dep:anyhow", "dep:thiserror", "dep:uuid"]
+vision = ["dep:opencv", "dep:ort", "dep:ndarray", "dep:flume", "dep:config", "dep:anyhow", "dep:thiserror", "dep:uuid"]
 local-llm = ["dep:ollama-rs"]

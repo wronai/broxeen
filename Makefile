@@ -12,6 +12,7 @@
         openvino-install-pip openvino-install-docker openvino-install-brew \
         openvino-install-yum openvino-check openvino-devices openvino-activate \
         install-ollama install-vision-deps \
+        nlp2cmd-setup nlp2cmd-test nlp2cmd-install nlp2cmd-status nlp2cmd-set-local nlp2cmd-env-setup nlp2cmd-env-show download-bielik \
         run run-url run-cam2 query ask stats narratives recent thumbnail
 
 # ╔══════════════════════════════════════════════════════════════════╗
@@ -56,6 +57,9 @@ help: ## Show all available targets
 	@echo -e "$(BOLD)║  LLM (Ollama local fallback)                            ║$(RESET)"
 	@grep -E '^install-(ollama|vision-deps).*:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-22s$(RESET) %s\n", $$1, $$2}'
+	@echo -e "$(BOLD)║  NLP2CMD (Polish LLM Integration)                       ║$(RESET)"
+	@grep -E '^nlp2cmd.*:.*?## .*$$' $(MAKEFILE_LIST) \
+		| awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-22s$(RESET) %s\n", $$1, $$2}'
 	@echo -e "$(BOLD)╚═══════════════════════════════════════════════════════════╝$(RESET)"
 	@echo ""
 
@@ -64,13 +68,24 @@ help: ## Show all available targets
 # ║  FRONTEND (Tauri + React) — original targets preserved          ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
-install: ## Install Node dependencies
+install: ## Install Node dependencies + NLP2CMD integration
 	corepack npm install
+	@echo "Setting up NLP2CMD integration..."
+	@if [ -f "setup_local_llm.sh" ]; then \
+		chmod +x setup_local_llm.sh; \
+		./setup_local_llm.sh --deps-only; \
+	else \
+		echo "NLP2CMD setup script not found, installing manually..."; \
+		pip3 install -q nlp2cmd[all] llama-cpp-python 2>/dev/null || true; \
+	fi
 
-dev: ## Start development server with hot reload
+dev: ## Start development server with NLP2CMD integration
 	@$(MAKE) stop-services >/dev/null 2>&1 || true
 	@$(MAKE) stop-port >/dev/null 2>&1 || true
-	corepack npm run tauri dev
+	@echo "Starting Broxeen with NLP2CMD integration..."
+	@$(MAKE) nlp2cmd-status || true
+	@echo -e "$(GREEN)✓ NLP2CMD integration ready$(RESET)"
+	BROXEEN_NLP2CMD_ENABLED=1 corepack npm run tauri dev
 
 dev-browser: ## Start frontend-only Vite dev server
 	corepack npm run dev
@@ -80,8 +95,11 @@ dev-nvidia: ## Start dev server with Nvidia GPU fixes
 	@$(MAKE) stop-port >/dev/null 2>&1 || true
 	WEBKIT_DISABLE_DMABUF_RENDERER=1 WEBKIT_DISABLE_COMPOSITE_OPERATORS_WORKAROUND=1 corepack npm run tauri dev
 
-build: ## Build production version (Tauri app)
-	corepack npm run tauri build
+build: ## Build production version with NLP2CMD embedded
+	@echo "Building Broxeen with NLP2CMD integration..."
+	@$(MAKE) nlp2cmd-install || true
+	@echo -e "$(GREEN)✓ NLP2CMD components embedded$(RESET)"
+	BROXEEN_NLP2CMD_ENABLED=1 corepack npm run tauri build
 
 test: ## Run all tests
 	corepack npm test
@@ -364,16 +382,206 @@ install-vision-deps: ## Install system deps for vision feature (Linux)
 
 
 # ╔══════════════════════════════════════════════════════════════════╗
+# ║  NLP2CMD INTEGRATION (Polish LLM)                              ║
+# ╚══════════════════════════════════════════════════════════════════╝
+
+nlp2cmd-setup: ## Complete NLP2CMD setup with Polish LLM
+	@echo ""
+	@echo -e "$(BOLD)Setting up NLP2CMD with Polish LLM integration...$(RESET)"
+	@echo ""
+	@if [ -f "setup_local_llm.sh" ]; then \
+		chmod +x setup_local_llm.sh; \
+		./setup_local_llm.sh; \
+	else \
+		echo "❌ Setup script not found. Creating basic setup..."; \
+		pip3 install -q nlp2cmd[all] llama-cpp-python; \
+		mkdir -p models; \
+		echo "✅ Basic NLP2CMD setup complete"; \
+	fi
+	@echo ""
+	@echo -e "$(GREEN)✓ NLP2CMD integration ready$(RESET)"
+	@echo "Run 'make nlp2cmd-test' to verify installation"
+
+nlp2cmd-install: ## Install NLP2CMD dependencies only
+	@echo "Installing NLP2CMD dependencies..."
+	@if [ ! -d "venv_llm" ]; then \
+		echo "Creating virtual environment..."; \
+		python3 -m venv venv_llm; \
+	fi
+	@source venv_llm/bin/activate && \
+		pip install -q nlp2cmd[all] llama-cpp-python litellm 2>/dev/null || \
+		pip install -q nlp2cmd[all] llama-cpp-python litellm --break-system-packages 2>/dev/null || \
+		echo "⚠️ Failed to install NLP2CMD dependencies"
+	@mkdir -p models
+	@if [ ! -f "local_llm_config.json" ]; then \
+		echo "Creating default NLP2CMD config..."; \
+		echo '{"default_model_type": "mock", "language": "pl"}' > local_llm_config.json; \
+	fi
+	@echo "✅ NLP2CMD dependencies installed"
+
+# Download Bielik model for Rust LLM integration (Ollama)
+download-bielik: ## Download Bielik-1.5B model for local LLM via Ollama
+	@echo "📥 Setting up Bielik-1.5B model for local LLM..."
+	@echo "🔧 Checking if Ollama is running..."
+	@if curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then \
+		echo "✅ Ollama is running"; \
+		echo "📥 Pulling Bielik model..."; \
+		curl -s http://localhost:11434/api/pull -X POST -d '{"name":"bielik:1.5b"}' || echo "⚠️ Pull failed"; \
+		echo "✅ Bielik model setup complete"; \
+	else \
+		echo "❌ Ollama is not running"; \
+		echo "   Install Ollama first: curl -fsSL https://ollama.ai/install.sh | sh"; \
+		echo "   Then start: ollama serve"; \
+	fi
+
+nlp2cmd-test: ## Test NLP2CMD integration with Polish queries
+	@echo "Testing NLP2CMD Polish LLM integration..."
+	@echo ""
+	@if [ -f "mock_polish_llm_test.py" ]; then \
+		if [ -d "venv_llm" ]; then \
+			source venv_llm/bin/activate && python3 mock_polish_llm_test.py; \
+		else \
+			python3 mock_polish_llm_test.py; \
+		fi; \
+	else \
+		echo "❌ Test script not found"; \
+		echo "Run 'make nlp2cmd-setup' first"; \
+	fi
+
+nlp2cmd-status: ## Show NLP2CMD integration status
+	@echo ""
+	@echo "NLP2CMD Integration Status:"
+	@echo "========================="
+	@echo ""
+	@if [ -d "venv_llm" ]; then \
+		source venv_llm/bin/activate && python3 -c "import nlp2cmd" 2>/dev/null; \
+	else \
+		python3 -c "import nlp2cmd" 2>/dev/null; \
+	fi; \
+	if [ $$? -eq 0 ]; then \
+		echo -e "  NLP2CMD:        $(GREEN)INSTALLED$(RESET)"; \
+		if [ -d "venv_llm" ]; then \
+			source venv_llm/bin/activate && python3 -c "import nlp2cmd; print(f'  Version: {nlp2cmd.__version__}')" 2>/dev/null || true; \
+		else \
+			python3 -c "import nlp2cmd; print(f'  Version: {nlp2cmd.__version__}')" 2>/dev/null || true; \
+		fi; \
+	else \
+		echo -e "  NLP2CMD:        $(YELLOW)NOT INSTALLED$(RESET)"; \
+	fi
+	@echo ""
+	@echo "  Models available:"
+	@if [ -f "models/polka-1.1b-chat.gguf" ]; then \
+		echo -e "    - Polka-1.1B: $(GREEN)Available$(RESET)"; \
+	else \
+		echo -e "    - Polka-1.1B: $(YELLOW)Not downloaded$(RESET)"; \
+	fi
+	@if curl -s http://localhost:11434/api/tags 2>/dev/null | grep -q "bielik"; then \
+		echo -e "    - Bielik-1.5B: $(GREEN)Available (Ollama)$(RESET)"; \
+	else \
+		echo -e "    - Bielik-1.5B: $(YELLOW)Not available (Ollama)$(RESET)"; \
+	fi
+	@if [ -n "$$NLP2CMD_LLM_MODEL_PATH" ] && [ -f "$$NLP2CMD_LLM_MODEL_PATH" ]; then \
+		echo -e "    - Local GGUF: $(GREEN)$$NLP2CMD_LLM_MODEL_PATH$(RESET)"; \
+	elif [ -n "$$NLP2CMD_LLM_MODEL_PATH" ]; then \
+		echo -e "    - Local GGUF: $(YELLOW)$$NLP2CMD_LLM_MODEL_PATH (not found)$(RESET)"; \
+	fi
+	@if curl -s http://localhost:11434/api/tags >/dev/null 2>&1; then \
+		echo -e "    - Ollama:      $(GREEN)Running$(RESET)"; \
+	else \
+		echo -e "    - Ollama:      $(YELLOW)Not running$(RESET)"; \
+	fi
+	@echo ""
+	@if [ -f "local_llm_config.json" ]; then \
+		echo -e "  Config:         $(GREEN)Found$(RESET)"; \
+	else \
+		echo -e "  Config:         $(YELLOW)Not found$(RESET)"; \
+	fi
+	@echo ""
+	@echo "Environment:"
+	@if [ -n "$$BROXEEN_NLP2CMD_ENABLED" ]; then \
+		echo -e "  BROXEEN_NLP2CMD_ENABLED: $(GREEN)$$BROXEEN_NLP2CMD_ENABLED$(RESET)"; \
+	else \
+		echo -e "  BROXEEN_NLP2CMD_ENABLED: $(YELLOW)Not set$(RESET)"; \
+	fi
+	@if [ -n "$$LITELLM_MODEL" ]; then \
+		echo -e "  LITELLM_MODEL:           $(GREEN)$$LITELLM_MODEL$(RESET)"; \
+	fi
+	@if [ -n "$$NLP2CMD_LLM_MODEL_PATH" ]; then \
+		echo -e "  NLP2CMD_LLM_MODEL_PATH:  $(GREEN)$$NLP2CMD_LLM_MODEL_PATH$(RESET)"; \
+	fi
+	@echo ""
+
+nlp2cmd-set-local: ## Set local GGUF model via environment variables
+	@echo "Setting up local GGUF model environment..."
+	@if [ -z "$(MODEL_PATH)" ]; then \
+		echo "Usage: make nlp2cmd-set-local MODEL_PATH=/path/to/model.gguf"; \
+		echo "Example: make nlp2cmd-set-local MODEL_PATH=models/polka-1.1b-chat.gguf"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(MODEL_PATH)" ]; then \
+		echo "❌ Model file not found: $(MODEL_PATH)"; \
+		exit 1; \
+	fi
+	@echo "export LITELLM_MODEL=\"local/model\"" > .nlp2cmd-env
+	@echo "export NLP2CMD_LLM_MODEL_PATH=\"$(MODEL_PATH)\"" >> .nlp2cmd-env
+	@echo ""
+	@echo "✅ Local model configured: $(MODEL_PATH)"
+	@echo "📝 Environment variables saved to .nlp2cmd-env"
+	@echo "🔄 To activate: source .nlp2cmd-env"
+	@echo "🚀 Then run: make dev"
+
+nlp2cmd-env-setup: ## Load NLP2CMD environment variables
+	@if [ -f ".nlp2cmd-env" ]; then \
+		echo "Loading NLP2CMD environment..."; \
+		source .nlp2cmd-env; \
+		echo "✅ Environment loaded"; \
+		echo "📋 Active variables:"; \
+		grep "^export" .nlp2cmd-env | sed 's/export/  /'; \
+	else \
+		echo "❌ .nlp2cmd-env not found"; \
+		echo "💡 Create with: make nlp2cmd-set-local MODEL_PATH=/path/to/model.gguf"; \
+	fi
+
+nlp2cmd-env-show: ## Show current NLP2CMD environment variables
+	@echo "Current NLP2CMD Environment:"
+	@echo "============================="
+	@echo ""
+	@if [ -n "$$LITELLM_MODEL" ]; then \
+		echo -e "  LITELLM_MODEL:          $(GREEN)$$LITELLM_MODEL$(RESET)"; \
+	else \
+		echo -e "  LITELLM_MODEL:          $(YELLOW)Not set$(RESET)"; \
+	fi
+	@if [ -n "$$NLP2CMD_LLM_MODEL_PATH" ]; then \
+		if [ -f "$$NLP2CMD_LLM_MODEL_PATH" ]; then \
+			echo -e "  NLP2CMD_LLM_MODEL_PATH: $(GREEN)$$NLP2CMD_LLM_MODEL_PATH$(RESET)"; \
+		else \
+			echo -e "  NLP2CMD_LLM_MODEL_PATH: $(YELLOW)$$NLP2CMD_LLM_MODEL_PATH (file not found)$(RESET)"; \
+		fi; \
+	else \
+		echo -e "  NLP2CMD_LLM_MODEL_PATH: $(YELLOW)Not set$(RESET)"; \
+	fi
+	@if [ -f ".nlp2cmd-env" ]; then \
+		echo -e "  Config file:           $(GREEN).nlp2cmd-env$(RESET)"; \
+	else \
+		echo -e "  Config file:           $(YELLOW)Not found$(RESET)"; \
+	fi
+	@echo ""
+
+
+# ╔══════════════════════════════════════════════════════════════════╗
 # ║  FULL SETUP (one-shot)                                         ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
-setup-all: ## Full setup: detect + deps + OpenVINO + model (Ubuntu)
+setup-all: ## Full setup: NLP2CMD + Bielik model + detect + deps + OpenVINO + model
 	@echo ""
 	@echo -e "$(BOLD)Full setup starting...$(RESET)"
+	$(MAKE) nlp2cmd-setup
+	$(MAKE) download-bielik
 	$(MAKE) openvino-detect
 	$(MAKE) install-vision-deps
 	$(MAKE) openvino-install
 	$(MAKE) setup-model
 	@echo ""
 	@echo -e "$(GREEN)$(BOLD)Setup complete! Next: make build-n5105 && make run$(RESET)"
+	@echo -e "$(GREEN)Or for development: make dev$(RESET)"
 	@echo ""

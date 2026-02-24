@@ -1221,7 +1221,9 @@ export class MonitorPlugin implements Plugin {
           }
 
           const thumbMaxWidth = configStore.get<number>('monitor.thumbnailMaxWidth') || 500;
+          console.log(`[Monitor] Creating thumbnail for ${target.name}, max width: ${thumbMaxWidth}`);
           const thumbnail = await this.createThumbnail(snapshot.base64, snapshot.mimeType, thumbMaxWidth);
+          console.log(`[Monitor] Thumbnail created: ${thumbnail ? 'YES' : 'NO'}, base64 length: ${thumbnail?.base64.length || 0}`);
 
           const summary = await this.describeCameraChange(previousSnapshot, snapshot.base64, snapshot.mimeType);
 
@@ -1249,6 +1251,7 @@ export class MonitorPlugin implements Plugin {
             thumbnailBase64: thumbnail?.base64,
             thumbnailMimeType: thumbnail?.mimeType,
           });
+          console.log(`[Monitor] Emitted UI event with thumbnail: ${thumbnail?.base64 ? 'YES' : 'NO'}, length: ${thumbnail?.base64?.length || 0}`);
         }
 
         return;
@@ -1817,6 +1820,23 @@ export class MonitorPlugin implements Plugin {
     mimeType: 'image/jpeg' | 'image/png',
     maxWidth: number,
   ): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null> {
+    // In Tauri, use the backend resize_image command
+    if (typeof window === 'undefined' || window.__TAURI__) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const resizedBase64 = await invoke('resize_image', {
+          base64,
+          maxWidth,
+        }) as string;
+        return { base64: resizedBase64, mimeType: 'image/jpeg' };
+      } catch (err) {
+        console.warn('Failed to resize image in Tauri:', err);
+        // Return original image as fallback
+        return { base64, mimeType };
+      }
+    }
+
+    // Browser fallback using canvas
     if (typeof document === 'undefined') return null;
 
     try {

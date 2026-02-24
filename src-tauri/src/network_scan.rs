@@ -506,6 +506,39 @@ pub async fn rtsp_capture_frame(url: String, camera_id: String) -> Result<Captur
     }
 }
 
+#[tauri::command]
+pub async fn resize_image(base64: String, max_width: u32) -> Result<String, String> {
+    use base64::{engine::general_purpose, Engine as _};
+    use image::GenericImageView;
+    
+    // Decode base64
+    let jpeg_bytes = general_purpose::STANDARD
+        .decode(&base64)
+        .map_err(|e| format!("Failed to decode base64: {}", e))?;
+    
+    // Simple thumbnail generation using image crate (already a dependency)
+    let img = image::load_from_memory(&jpeg_bytes)
+        .map_err(|e| format!("Failed to load image: {}", e))?;
+    
+    let (width, height) = img.dimensions();
+    if width <= max_width {
+        // No resize needed, return original
+        return Ok(base64);
+    }
+    
+    let scale = max_width as f64 / width as f64;
+    let new_width = max_width;
+    let new_height = (height as f64 * scale) as u32;
+    
+    let resized = img.resize(new_width, new_height, image::imageops::FilterType::Lanczos3);
+    
+    let mut output = Vec::new();
+    resized.write_to(&mut std::io::Cursor::new(&mut output), image::ImageFormat::Jpeg)
+        .map_err(|e| format!("Failed to encode JPEG: {}", e))?;
+    
+    Ok(general_purpose::STANDARD.encode(&output))
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RtspWorkerStat {
     pub camera_id: String,

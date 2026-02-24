@@ -530,6 +530,7 @@ fn main() {
             network_scan::rtsp_stop_all_workers,
             network_scan::http_fetch_base64,
             network_scan::camera_health_check,
+            network_scan::resize_image,
             network_info::get_local_network_info,
             network_info::list_network_interfaces,
             disk_info::get_disk_info,
