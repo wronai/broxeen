@@ -1,21 +1,79 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('New Plugins - Voice Commands and Logs', () => {
-    test.beforeEach(async ({ page }) => {
+    test.beforeEach(async ({ page, context }) => {
+        // Clear all context data including localStorage
+        await context.clearCookies();
+        await context.clearPermissions();
+        
         await page.goto('http://localhost:5173');
         await page.waitForLoadState('networkidle');
         await page.waitForSelector('input[type="text"]', { timeout: 10000 });
+        
+        // Clear localStorage after page loads
+        await page.evaluate(() => {
+            try {
+                localStorage.clear();
+                console.log('🧹 localStorage cleared');
+            } catch (e) {
+                console.log('Cannot clear localStorage:', e);
+            }
+        });
+        
+        // Check environment variables and LLM classifier status
+        const llmStatus = await page.evaluate(() => {
+            const env = (window as any).importmeta?.env || {};
+            return {
+                VITE_OPENROUTER_API_KEY: env.VITE_OPENROUTER_API_KEY,
+                NODE_ENV: env.NODE_ENV,
+                hasApiKey: !!env.VITE_OPENROUTER_API_KEY
+            };
+        });
+        
+        console.log('🔑 Test environment:', llmStatus);
+        
+        // Check if LLM classifier is actually disabled
+        const llmClassifierStatus = await page.evaluate(() => {
+            // Try to access config store directly
+            try {
+                const configStore = (window as any).configStore;
+                if (configStore) {
+                    const apiKey = configStore.get('llm.apiKey');
+                    return {
+                        hasApiKey: !!apiKey,
+                        apiKey: apiKey ? '***' : 'empty'
+                    };
+                }
+            } catch (e) {
+                console.log('Cannot access config store:', e);
+            }
+            return { error: 'config store not accessible' };
+        });
+        
+        console.log('🤖 LLM Classifier status:', llmClassifierStatus);
     });
 
     test('voice commands plugin can disable and enable microphone', async ({ page }) => {
         console.log('🎤 Testing Voice Commands Plugin');
 
+        // Set up console log monitoring before the action
+        const logs: string[] = [];
+        page.on('console', msg => {
+            const text = msg.text();
+            if (text.includes('🔍') || text.includes('🎯') || text.includes('🔌') || text.includes('⚠️')) {
+                logs.push(text);
+                console.log('🔍 Browser console:', text);
+            }
+        });
+
         // Test disable microphone command
         await page.fill('input[type="text"]', 'wyłącz mikrofon');
         await page.press('input[type="text"]', 'Enter');
         
-        // Wait for response
-        await page.waitForTimeout(1000);
+        // Wait for processing and log collection
+        await page.waitForTimeout(3000);
+        
+        console.log('📋 Collected intent detection logs:', logs);
         
         // Check if response contains microphone disabled message
         const messages = page.locator('[data-testid="message"]');

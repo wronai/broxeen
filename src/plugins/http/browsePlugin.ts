@@ -107,14 +107,17 @@ export class HttpBrowsePlugin implements Plugin {
       // Execute browse using existing gateway
       const result = await executeBrowseCommand(url);
       
+      // Create a more natural presentation
+      const naturalContent = this.createNaturalPresentation(result, resolveType, input);
+      
       return {
         pluginId: this.id,
         status: 'success',
         content: [
           {
             type: 'text',
-            data: result.content,
-            title: result.title,
+            data: naturalContent.content,
+            title: naturalContent.title,
           }
         ],
         metadata: {
@@ -125,6 +128,8 @@ export class HttpBrowsePlugin implements Plugin {
           resolveType,
           executionTime: Date.now() - startTime,
           scope: context.scope,
+          contentType: naturalContent.contentType,
+          contentLength: naturalContent.content.length,
         },
       };
 
@@ -149,6 +154,61 @@ export class HttpBrowsePlugin implements Plugin {
         },
       };
     }
+  }
+
+  private createNaturalPresentation(result: any, resolveType: string, originalInput: string): {
+    content: string;
+    title: string;
+    contentType: string;
+  } {
+    let content = result.content || '';
+    let title = result.title || 'Bez tytułu';
+    
+    // Detect if this is a search result vs direct browse
+    const isSearch = resolveType === 'search';
+    const isDirectUrl = resolveType === 'exact' || resolveType === 'fuzzy';
+    
+    // Create natural introduction
+    let intro = '';
+    if (isSearch) {
+      intro = `🔍 **Wyniki wyszukiwania dla:** "${originalInput}"\n\n`;
+    } else if (isDirectUrl) {
+      intro = `🌐 **Przeglądam stronę:** ${result.url}\n\n`;
+    } else {
+      intro = `📄 **Treść strony:**\n\n`;
+    }
+    
+    // Add content type indicator if available
+    let contentType = 'general';
+    if (content.includes('🛍️ Produkt')) contentType = 'product';
+    else if (content.includes('📰 Wiadomości')) contentType = 'news';
+    else if (content.includes('📚 Dokumentacja')) contentType = 'documentation';
+    else if (content.includes('✍️ Blog')) contentType = 'blog';
+    else if (content.includes('💬 Forum')) contentType = 'forum';
+    else if (content.includes('🏪 Sklep')) contentType = 'shop';
+    else if (content.includes('📄 Artykuł')) contentType = 'article';
+    
+    // Format the final content
+    let finalContent = intro;
+    
+    // If content already has structured formatting, keep it
+    if (content.includes('**') && content.includes('\n\n')) {
+      finalContent += content;
+    } else {
+      // Otherwise, add basic formatting
+      finalContent += `**${title}**\n\n${content}`;
+    }
+    
+    // Add helpful footer for search results
+    if (isSearch) {
+      finalContent += '\n\n---\n*💡 Wskazówka: Aby odwiedzić konkretną stronę, podaj jej pełny adres URL.*';
+    }
+    
+    return {
+      content: finalContent,
+      title: title,
+      contentType: contentType
+    };
   }
 
   async initialize(context: PluginContext): Promise<void> {

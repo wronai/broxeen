@@ -48,12 +48,15 @@ pub fn render_and_extract(url: &str, timeout_secs: u64) -> Result<(String, Strin
     ));
 
     let output = Command::new(&chrome)
-        .arg("--headless")
+        .arg("--headless=new")
         .arg("--disable-gpu")
         .arg("--no-sandbox")
         .arg("--disable-dev-shm-usage")
         .arg("--disable-extensions")
         .arg("--disable-background-networking")
+        .arg("--window-size=1920,1080")
+        .arg("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+        .arg("--accept-lang=pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
         .arg(format!("--timeout={}", timeout_secs * 1000))
         .arg("--dump-dom")
         .arg(url)
@@ -203,12 +206,14 @@ pub fn capture_screenshot(
     ));
 
     let output = Command::new(&chrome)
-        .arg("--headless")
+        .arg("--headless=new")
         .arg("--disable-gpu")
         .arg("--no-sandbox")
         .arg("--disable-dev-shm-usage")
+        .arg("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+        .arg("--accept-lang=pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
         .arg(format!("--screenshot={}", screenshot_path.display()))
-        .arg("--window-size=1280,900")
+        .arg("--window-size=1920,1080")
         .arg("--hide-scrollbars")
         .arg(format!("--timeout={}", timeout_secs * 1000))
         .arg(url)
@@ -256,12 +261,14 @@ pub async fn screenshot_and_describe(
     ));
 
     let output = Command::new(&chrome)
-        .arg("--headless")
+        .arg("--headless=new")
         .arg("--disable-gpu")
         .arg("--no-sandbox")
         .arg("--disable-dev-shm-usage")
+        .arg("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+        .arg("--accept-lang=pl-PL,pl;q=0.9,en-US;q=0.8,en;q=0.7")
         .arg(format!("--screenshot={}", screenshot_path.display()))
-        .arg("--window-size=1280,900")
+        .arg("--window-size=1920,1080")
         .arg("--hide-scrollbars")
         .arg(format!("--timeout={}", timeout_secs * 1000))
         .arg(url)
@@ -317,10 +324,12 @@ async fn describe_image_with_vision(
                         "type": "text",
                         "text": format!(
                             "To jest zrzut ekranu strony {}. \
-                             Opisz dokładnie treść widoczną na stronie po polsku. \
-                             Skup się na głównej treści (środek strony), pomiń nagłówki nawigacyjne, \
-                             stopki, banery cookies i reklamy. \
-                             Podaj tylko treść merytoryczną, bez komentarzy o layoucie.",
+                             Opisz dokładnie treść strony tak, jak widzi ją człowiek po polsku. \
+                             Skup się na głównej, merytorycznej treści (środek strony). Pomiń nagłówki nawigacyjne i stopki. \
+                             CAŁKOWICIE ZIGNORUJ i nie wspominaj o banerach cookies (np. 'Zgadzam się', 'Zarządzaj cookies') \
+                             oraz o komunikatach typu 'Czy jesteś robotem?', 'Weryfikacja', 'Captch', 'Zgody'. \
+                             Jeśli główna treść jest zasłonięta, postaraj się opisać to, co jest pod spodem na tyle, na ile to możliwe. \
+                             Podaj tylko czystą treść artykułu/strony, bez komentarzy o layoucie strony czy uciążliwych oknach.",
                             url
                         )
                     },
