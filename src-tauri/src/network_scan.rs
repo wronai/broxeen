@@ -19,7 +19,7 @@ use crate::logging::{backend_info, backend_warn};
 use std::sync::OnceLock;
 
 /// Anonymizes passwords in RTSP URLs by replacing them with ***
-fn anonymize_rtsp_url(url: &str) -> String {
+pub fn anonymize_rtsp_url(url: &str) -> String {
     if let Some(at_pos) = url.find('@') {
         if let Some(scheme_end) = url.find("://") {
             if at_pos > scheme_end + 3 {

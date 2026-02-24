@@ -1,3 +1,15 @@
+## [1.0.87] - 2026-02-24
+
+### Summary
+
+refactor(src-tauri): core module improvements
+
+### Other
+
+- update src-tauri/src/motion_detection.rs
+- update src-tauri/src/network_scan.rs
+
+
 ## [1.0.86] - 2026-02-24
 
 ### Summary

@@ -203,7 +203,7 @@ pub async fn motion_pipeline_start(
 
     backend_info(format!(
         "Starting native vision pipeline: camera={} rtsp={}",
-        camera_id, request.rtsp_url
+        camera_id, crate::network_scan::anonymize_rtsp_url(&request.rtsp_url)
     ));
 
     // Build VisionConfig from StartPipelineRequest fields (v0.3)
