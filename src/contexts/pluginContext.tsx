@@ -62,10 +62,15 @@ export function PluginProvider({ context, children }: PluginProviderProps) {
         context.commandBus.execute(command, payload),
 
       ask: async (rawInput, source = "text", scope = "local") => {
+        console.log(`🔍 PluginContext.ask() called with: "${rawInput}" (scope: ${scope})`);
         const intent = await context.intentRouter.detect(rawInput);
+        console.log(`🎯 Intent detected: ${intent.intent} (confidence: ${intent.confidence})`);
+        
         const plugin = context.intentRouter.route(intent.intent, scope);
+        console.log(`🔌 Plugin found: ${plugin?.id || 'null'}`);
         
         if (!plugin) {
+          console.log(`⚠️ No plugin found for intent: ${intent.intent}, using fallback`);
           // Fallback: generate action suggestions instead of throwing
           const { generateFallback } = await import('../core/fallbackHandler');
           const fallback = await generateFallback({

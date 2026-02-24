@@ -177,7 +177,8 @@ describe("Chat — renderowanie", () => {
   });
   it("pokazuje wiadomość powitalną", () => {
     render(<Chat settings={defaultSettings} />);
-    expect(screen.getByText(/Witaj w Broxeen/i)).toBeInTheDocument();
+    // Check for welcome screen H1 specifically
+    expect(screen.getByRole('heading', { name: /Witaj w Broxeen/i })).toBeInTheDocument();
   });
 
   it("pokazuje pole input", () => {
@@ -701,7 +702,7 @@ describe("Chat — mikrofon", () => {
 
     // First check if the microphone button appears (cloud STT fallback)
     await waitFor(() => {
-      expect(screen.getByTitle(/Mów \(STT w chmurze\)/i)).toBeInTheDocument();
+      expect(screen.getByTitle(/Włącz mikrofon \(STT w chmurze\)/i)).toBeInTheDocument();
     });
     
     // Check for the status message about web speech being unsupported

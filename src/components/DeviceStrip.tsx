@@ -136,7 +136,7 @@ export default function DeviceStrip({ devicesDb, onDeviceClick, onAddDevice }: D
       </button>
 
       {expanded && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-72 rounded-xl border border-gray-700 bg-gray-900 shadow-2xl">
+        <div className="fixed right-4 top-20 z-[60] w-72 rounded-xl border border-gray-700 bg-gray-900 shadow-2xl">
           <div className="flex items-center justify-between border-b border-gray-800 px-3 py-2">
             <span className="text-xs font-semibold text-gray-300">Skonfigurowane urządzenia</span>
             <button

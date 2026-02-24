@@ -1,3 +1,32 @@
+## [1.0.72] - 2026-02-24
+
+### Summary
+
+feat(tests): configuration management system
+
+### Docs
+
+- docs: update MICROPHONE_TOGGLE_SUMMARY.md
+
+### Test
+
+- update test-debug.js
+- update test-mic-toggle.js
+
+### Other
+
+- update .env.test
+- update playwright.config.ts
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/components/DeviceStrip.tsx
+- update src/config/configStore.ts
+- update src/contexts/pluginContext.tsx
+- update src/core/bootstrap.ts
+- update src/debug-intent.test.ts
+- update src/debug-plugins.test.ts
+
+
 ## [1.0.71] - 2026-02-24
 
 ### Summary

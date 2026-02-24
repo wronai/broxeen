@@ -104,12 +104,17 @@ export async function bootstrapApp(config: {
 function safeRegister(registry: PluginRegistry, router: IntentRouter, plugin: any, label: string): void {
   try {
     registry.register(plugin);
+    console.log(`📋 ${label} registered in registry`);
+    
     if ('capabilities' in plugin) {
+      console.log(`🔌 ${label} is DataSourcePlugin, registering as data source`);
       router.registerDataSourcePlugin(plugin);
     } else {
+      console.log(`🔌 ${label} is Plugin, registering as legacy plugin`);
+      console.log(`🔌 ${label} supportedIntents:`, plugin.supportedIntents);
       router.registerPlugin(plugin);
     }
-    console.log(`✅ ${label} registered`);
+    console.log(`✅ ${label} registered successfully`);
   } catch (err) {
     console.warn(`⚠️ ${label} registration failed:`, err);
   }

@@ -44,6 +44,11 @@ class ConfigStoreImpl {
     // Env var overrides (Vite + Tauri)
     const env = typeof import.meta !== 'undefined' ? import.meta.env : ({} as Record<string, string>);
 
+    console.log('🔑 Environment variables:', {
+      VITE_OPENROUTER_API_KEY: env.VITE_OPENROUTER_API_KEY,
+      NODE_ENV: env.NODE_ENV
+    });
+
     if (env.VITE_OPENROUTER_API_KEY) merged.llm.apiKey = env.VITE_OPENROUTER_API_KEY;
     if (env.VITE_LLM_MODEL) merged.llm.model = env.VITE_LLM_MODEL;
     if (env.VITE_LLM_MAX_TOKENS) merged.llm.maxTokens = Number(env.VITE_LLM_MAX_TOKENS);

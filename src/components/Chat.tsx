@@ -84,6 +84,16 @@ export default function Chat({ settings }: ChatProps) {
   const dbManager = useDatabaseManager();
   const { addToCommandHistory, addToNetworkHistory } = useHistoryPersistence(dbManager);
 
+  // Initialize welcome message if EventStore is empty (only in production, not tests)
+  useEffect(() => {
+    if (messages.length === 0 && process.env.NODE_ENV !== 'test') {
+      eventStore.append({
+        type: "message_added",
+        payload: INITIAL_MESSAGES[0],
+      });
+    }
+  }, [messages.length, eventStore]);
+
   const [input, setInput] = useState("");
   const [expandedImage, setExpandedImage] = useState<{ data: string; mimeType?: string } | null>(null);
   const [expandedLive, setExpandedLive] = useState<{ url: string; cameraId: string; fps?: number; initialBase64?: string; initialMimeType?: string } | null>(null);
@@ -101,8 +111,9 @@ export default function Chat({ settings }: ChatProps) {
 
   const showWelcomeScreen = useMemo(() => {
     // Show welcome screen only for the initial state (single system message).
-    // If any additional system notices are appended (e.g. STT fallback), render normal chat view.
-    return messages.length === 1 && messages[0]?.role === "system";
+    // Ignore status notices (id >= 1000000) when checking message count.
+    const userMessages = messages.filter(m => m.id < 1000000);
+    return userMessages.length === 1 && userMessages[0]?.role === "system";
   }, [messages]);
   const [inputFocused, setInputFocused] = useState(false);
   const [showQuickHistory, setShowQuickHistory] = useState(false);
@@ -323,7 +334,10 @@ export default function Chat({ settings }: ChatProps) {
     const q = input.trim().toLowerCase();
     if (!inputFocused) return [];
     if (!q) return [];
+    // Disable autocomplete when microphone is active to prevent conflicts
     if (isListening || stt.isRecording || stt.isTranscribing) return [];
+    // Also disable when wake word is enabled to avoid interference
+    if (wakeWordEnabled) return [];
 
     const recent = getRecentQueries();
     const candidates = [
@@ -344,7 +358,7 @@ export default function Chat({ settings }: ChatProps) {
       if (filtered.length >= 8) break;
     }
     return filtered;
-  }, [baseAutocompleteSuggestions, input, inputFocused, isListening, stt.isRecording, stt.isTranscribing, messages]);
+  }, [baseAutocompleteSuggestions, input, inputFocused, isListening, stt.isRecording, stt.isTranscribing, wakeWordEnabled, messages]);
 
   const tts = useTts({
     rate: settings.tts_rate,
@@ -2026,33 +2040,39 @@ ${analysis}`,
 
     if (e.key === "ArrowUp") {
       e.preventDefault();
-      const history = inputHistoryRef.current;
-      if (history.length > 0) {
-        // Move index backwards (older)
-        const nextIndex =
-          historyIndexRef.current === -1
-            ? history.length - 1
-            : Math.max(0, historyIndexRef.current - 1);
+      // Only trigger history navigation if autocomplete is NOT showing
+      if (!showAutocomplete) {
+        const history = inputHistoryRef.current;
+        if (history.length > 0) {
+          // Move index backwards (older)
+          const nextIndex =
+            historyIndexRef.current === -1
+              ? history.length - 1
+              : Math.max(0, historyIndexRef.current - 1);
 
-        historyIndexRef.current = nextIndex;
-        setInput(history[nextIndex]);
+          historyIndexRef.current = nextIndex;
+          setInput(history[nextIndex]);
+        }
       }
       return;
     }
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      const history = inputHistoryRef.current;
-      if (historyIndexRef.current !== -1) {
-        // Move index forwards (newer)
-        const nextIndex = historyIndexRef.current + 1;
-        if (nextIndex >= history.length) {
-          // Reached the end, clear input
-          historyIndexRef.current = -1;
-          setInput("");
-        } else {
-          historyIndexRef.current = nextIndex;
-          setInput(history[nextIndex]);
+      // Only trigger history navigation if autocomplete is NOT showing
+      if (!showAutocomplete) {
+        const history = inputHistoryRef.current;
+        if (historyIndexRef.current !== -1) {
+          // Move index forwards (newer)
+          const nextIndex = historyIndexRef.current + 1;
+          if (nextIndex >= history.length) {
+            // Reached the end, clear input
+            historyIndexRef.current = -1;
+            setInput("");
+          } else {
+            historyIndexRef.current = nextIndex;
+            setInput(history[nextIndex]);
+          }
         }
       }
       return;
@@ -2072,9 +2092,25 @@ ${analysis}`,
     }
 
     if (!stt.isSupported) {
-      chatLogger.warn("Microphone pressed but cloud STT is unsupported", {
-        reason: stt.unsupportedReason,
+      chatLogger.warn("Microphone pressed but STT is unsupported", {
+        speechSupported,
+        sttSupported: stt.isSupported,
+        speechUnsupportedReason,
+        sttUnsupportedReason: stt.unsupportedReason,
       });
+      
+      // Show user-friendly message about unavailable speech recognition
+      if (speechUnsupportedReason) {
+        appendStatusNotice(
+          "mic_unsupported", 
+          `ℹ️ ${speechUnsupportedReason}`
+        );
+      } else if (stt.unsupportedReason) {
+        appendStatusNotice(
+          "mic_unsupported", 
+          `ℹ️ ${stt.unsupportedReason}`
+        );
+      }
       return;
     }
 
@@ -2972,19 +3008,19 @@ ${analysis}`,
                 </button>
               )}
 
-              {settings.mic_enabled && (speechSupported || stt.isSupported) && (
+              {settings.mic_enabled && (
                 <button
                   onClick={toggleMic}
                   className={`rounded-xl p-2.5 transition ${isListening || stt.isRecording
-                    ? "animate-pulse bg-red-600 text-white"
+                    ? "animate-pulse bg-green-600 text-white"
                     : "bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white"
                     }`}
                   title={
                     isListening || stt.isRecording
-                      ? "Zatrzymaj"
+                      ? "Zatrzymaj mikrofon"
                       : speechSupported
-                        ? "Mów (mikrofon)"
-                        : "Mów (STT w chmurze)"
+                        ? "Włącz mikrofon"
+                        : "Włącz mikrofon (STT w chmurze)"
                   }
                 >
                   {isListening || stt.isRecording ? (
@@ -2995,13 +3031,13 @@ ${analysis}`,
                 </button>
               )}
 
-              {(settings.mic_enabled && (speechSupported || stt.isSupported)) && (
+              {settings.mic_enabled && (
                 <div className="flex items-center">
                   <span
                     className={`ml-1 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${micPhase === 'transcribing'
                       ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
                       : micPhase === 'recording' || micPhase === 'listening'
-                        ? 'border-red-500/40 bg-red-500/10 text-red-300'
+                        ? 'border-green-500/40 bg-green-500/10 text-green-300'
                         : 'border-gray-700 bg-gray-800/40 text-gray-400'
                       }`}
                     title={
@@ -3013,7 +3049,7 @@ ${analysis}`,
                             ? 'Słucham'
                             : settings.auto_listen
                               ? `Auto-listen ON (${settings.auto_listen_silence_ms}ms)`
-                              : 'Mikrofon idle'
+                              : 'Mikrofon wyłączony'
                     }
                   >
                     {micPhase === 'transcribing'
@@ -3024,7 +3060,7 @@ ${analysis}`,
                           ? 'Słucham'
                           : settings.auto_listen
                             ? `Auto (${Math.round(settings.auto_listen_silence_ms / 100) / 10}s)`
-                            : 'Idle'}
+                            : 'Wyłączony'}
                   </span>
                 </div>
               )}
