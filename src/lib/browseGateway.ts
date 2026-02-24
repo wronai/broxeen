@@ -10,8 +10,26 @@ import {
 const browseLogger = logger.scope("browse:gateway");
 const MAX_CONTENT_LENGTH = 5000;
 
+function filterAntiScrapingNotices(text: string): string {
+  let cleaned = text;
+
+  // Regex for WP.pl
+  cleaned = cleaned.replace(
+    /Pobieranie,\s*zwielokrotnianie,\s*przechowywanie\s*lub\s*jakiekolwiek\s*inne\s*wykorzystywanie\s*treści\s*dostępnych\s*w\s*niniejszym\s*serwisie[\s\S]{0,2000}?(?:właściwe\s*przepisy\s*prawa\.|znajduje\s*się\s*tutaj\.?)/gi,
+    " "
+  );
+
+  // Regex for Onet.pl
+  cleaned = cleaned.replace(
+    /Systematyczne\s*pobieranie\s*treści,\s*danych\s*lub\s*informacji\s*z\s*tej\s*strony\s*internetowej\s*\(web\s*scraping\)[\s\S]{0,2000}?wyszukiwania\s*przez\s*wyszukiwarki\s*internetowe\.?/gi,
+    " "
+  );
+
+  return cleaned;
+}
+
 function stripCookieBannerText(text: string): string {
-  const raw = text || "";
+  const raw = filterAntiScrapingNotices(text || "");
   const normalized = raw.replace(/\r\n?/g, "\n");
   const blocks = normalized
     .split(/\n\s*\n+/)
@@ -22,13 +40,6 @@ function stripCookieBannerText(text: string): string {
   let removedCount = 0;
 
   for (const block of blocks) {
-    // Skip legal disclaimer blocks (copyright, terms, etc.)
-    const isLegalDisclaimer = /\b(Pobieranie|zwielokrotnianie|przechowywanie|wykorzystywanie|treści|dostępnych|niniejszym|serwisie|wymaga|uprzedniej|jednoznacznej|zgody|Wirtualna|Polska|Media|Spółka|Akcyjna|siedzibą|Warszawie|właściciela|niniejszego|serwisu|bez|względu|sposób|eksploracji|wykorzystaną|metodę|manualną|zautomatyzowaną|technikę|programów|uczenia|maszynowego|sztucznej|inteligencji|Powyższe|zastrzeżenie|dotyczy|wykorzystywania|jedynie|celu|ułatwienia|wyszukiwania|przez|wyszukiwarki|internetowe|korzystania|ramach|stosunków|umownych|dozwolonego|użytku|określonego|właściwe|przepisy|prawa|Szczegółowa|treść|dotycząca|niniejszego|zastrzeżenia|znajduje|tutaj)\b/i.test(block);
-    
-    if (isLegalDisclaimer) {
-      removedCount += 1;
-      continue;
-    }
 
     const hasCookieWord = /\b(ciasteczk\w*|cookie\w*|cookies)\b/i.test(block);
     if (!hasCookieWord) {
@@ -159,10 +170,10 @@ function extractBrowserReadableContent(rawHtml: string): {
   document
     .querySelectorAll(
       "script, style, noscript, template, nav, footer, header, aside, form, " +
-        "button, select, input[type='hidden'], " +
-        "[role='navigation'], [role='banner'], [role='contentinfo'], " +
-        ".cookie-banner, .cookie-consent, .ad, .advertisement, .sidebar, " +
-        ".menu, .nav, .footer, .header",
+      "button, select, input[type='hidden'], " +
+      "[role='navigation'], [role='banner'], [role='contentinfo'], " +
+      ".cookie-banner, .cookie-consent, .ad, .advertisement, .sidebar, " +
+      ".menu, .nav, .footer, .header",
     )
     .forEach((el) => el.remove());
 
@@ -263,12 +274,12 @@ function extractRssAtomContent(rawXml: string): {
 
   try {
     const document = new DOMParser().parseFromString(rawXml, "application/xml");
-    
+
     // Handle parsing errors
     const parseError = document.querySelector('parsererror');
     if (parseError) {
-      browseLogger.warn("XML parsing error detected", { 
-        error: parseError.textContent?.slice(0, 200) 
+      browseLogger.warn("XML parsing error detected", {
+        error: parseError.textContent?.slice(0, 200)
       });
       return {
         title: "Feed Parse Error",
@@ -295,8 +306,8 @@ function extractRssAtomContent(rawXml: string): {
         const title = normalizeText(item.querySelector('title')?.textContent || "");
         const link = item.querySelector('link')?.textContent || "";
         const description = normalizeText(item.querySelector('description')?.textContent || "");
-        const pubDate = item.querySelector('pubDate')?.textContent || 
-                        item.querySelector('dc:date')?.textContent || undefined;
+        const pubDate = item.querySelector('pubDate')?.textContent ||
+          item.querySelector('dc:date')?.textContent || undefined;
 
         if (title || description) {
           items.push({ title, link, description, pubDate });
@@ -313,9 +324,9 @@ function extractRssAtomContent(rawXml: string): {
         const title = normalizeText(entry.querySelector('title')?.textContent || "");
         const link = entry.querySelector('link')?.getAttribute('href') || "";
         const description = normalizeText(entry.querySelector('summary')?.textContent || "") ||
-                           normalizeText(entry.querySelector('content')?.textContent || "");
-        const pubDate = entry.querySelector('published')?.textContent || 
-                        entry.querySelector('updated')?.textContent || undefined;
+          normalizeText(entry.querySelector('content')?.textContent || "");
+        const pubDate = entry.querySelector('published')?.textContent ||
+          entry.querySelector('updated')?.textContent || undefined;
 
         if (title || description) {
           items.push({ title, link, description, pubDate });
@@ -340,8 +351,8 @@ function extractRssAtomContent(rawXml: string): {
           content += `*Data:* ${item.pubDate}\n`;
         }
         if (item.description) {
-          const desc = item.description.length > 300 
-            ? item.description.slice(0, 300) + "..." 
+          const desc = item.description.length > 300
+            ? item.description.slice(0, 300) + "..."
             : item.description;
           content += `${desc}\n`;
         }
@@ -364,8 +375,8 @@ function extractRssAtomContent(rawXml: string): {
       feedInfo,
     };
   } catch (error) {
-    browseLogger.error("Error parsing RSS/Atom feed", { 
-      error: error instanceof Error ? error.message : String(error) 
+    browseLogger.error("Error parsing RSS/Atom feed", {
+      error: error instanceof Error ? error.message : String(error)
     });
     return {
       title: "Feed Error",
@@ -390,7 +401,7 @@ function normalizeBrowseResult(
     normalizeText(rawTitle) || (source === "browser" ? "Untitled" : safeUrl);
   const contentWasHtml = looksLikeHtml(rawContent);
   const contentWasRssAtom = looksLikeRssOrAtom(rawContent);
-  
+
   let extractedContent;
   if (contentWasHtml) {
     extractedContent = extractBrowserReadableContent(rawContent).content;
@@ -400,7 +411,7 @@ function normalizeBrowseResult(
   } else {
     extractedContent = rawContent;
   }
-  
+
   const cookieStripped = stripCookieBannerText(extractedContent);
   const normalizedContent = cookieStripped.slice(0, MAX_CONTENT_LENGTH).trim();
   const fallbackContent =
@@ -732,7 +743,7 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
           const htmlPayload = looksLikeHtml(rawContent);
           const rssAtomPayload = looksLikeRssOrAtom(rawContent);
           let extracted;
-          
+
           if (htmlPayload) {
             extracted = extractBrowserReadableContent(rawContent);
           } else if (rssAtomPayload) {
@@ -776,8 +787,8 @@ async function browseInBrowser(url: string): Promise<BrowseResult> {
 
       throw new Error(
         `Nie udało się pobrać strony: żaden z serwerów proxy nie odpowiedział. ` +
-          `Strona może być niedostępna lub blokować dostęp. ` +
-          `Spróbuj ponownie lub uruchom aplikację w trybie Tauri dla lepszych wyników.`,
+        `Strona może być niedostępna lub blokować dostęp. ` +
+        `Spróbuj ponownie lub uruchom aplikację w trybie Tauri dla lepszych wyników.`,
       );
     },
   );

@@ -30,7 +30,7 @@ import type { Plugin, PluginContext, PluginResult } from '../../core/types';
 
 // ─── Types ──────────────────────────────────────────────────
 
-export type BridgeProtocol = 'mqtt' | 'rest' | 'websocket' | 'sse' | 'graphql';
+export type BridgeProtocol = 'mqtt' | 'rest' | 'websocket' | 'sse' | 'graphql' | 'rss' | 'atom';
 export type BridgeDirection = 'in' | 'out' | 'bidirectional';
 
 export interface BridgeEndpoint {
@@ -96,6 +96,8 @@ const PROTOCOL_LABELS: Record<BridgeProtocol, { icon: string; pl: string; en: st
   websocket: { icon: '🔌', pl: 'WebSocket', en: 'WebSocket' },
   sse:       { icon: '📻', pl: 'SSE',       en: 'Server-Sent Events' },
   graphql:   { icon: '💎', pl: 'GraphQL',   en: 'GraphQL' },
+  rss:       { icon: '📰', pl: 'RSS',       en: 'RSS' },
+  atom:      { icon: '🗞️', pl: 'Atom',      en: 'Atom' },
 };
 
 // ─── Plugin ─────────────────────────────────────────────────
@@ -134,6 +136,8 @@ export class ProtocolBridgePlugin implements Plugin {
     /graphql/i, /zapytaj.*api/i,
     /po[łl][aą]cz.*si[eę].*z/i, /nas[łl]uchuj/i,
     /strumie[ńn].*danych/i,
+    /rss|atom|kana[łl]|feed/i, /subskrybuj.*rss|subskrybuj.*atom/i,
+    /czytaj.*rss|czytaj.*atom|odczytaj.*feed/i,
   ];
 
   /** Data-driven command routing table - [pattern, handler-key] */
@@ -148,6 +152,8 @@ export class ProtocolBridgePlugin implements Plugin {
     [/websocket|web.?socket|bridge.*ws\b|po[łl][aą]cz.*ws/i, 'websocket'],
     [/\bsse\b|server.?sent|nas[łl]uchuj.*zdarze|bridge.*sse/i, 'sse'],
     [/graphql|bridge.*graphql|zapytaj.*api/i, 'graphql'],
+    [/rss|bridge.*rss|czytaj.*rss|odczytaj.*rss/i, 'rss'],
+    [/atom|bridge.*atom|czytaj.*atom|odczytaj.*atom/i, 'atom'],
   ];
 
   private static resolveRoute(input: string): string | null {
@@ -181,6 +187,8 @@ export class ProtocolBridgePlugin implements Plugin {
       case 'websocket': return this.handleWebSocket(input, context, start);
       case 'sse':       return this.handleSse(input, context, start);
       case 'graphql':   return this.handleGraphQL(input, context, start);
+      case 'rss':       return this.handleRss(input, context, start);
+      case 'atom':      return this.handleAtom(input, context, start);
     }
 
     // Natural language auto-detection fallback
@@ -190,6 +198,8 @@ export class ProtocolBridgePlugin implements Plugin {
         case 'websocket': return this.handleWebSocket(input, context, start);
         case 'sse': return this.handleSse(input, context, start);
         case 'graphql': return this.handleGraphQL(input, context, start);
+        case 'rss': return this.handleRss(input, context, start);
+        case 'atom': return this.handleAtom(input, context, start);
         default: break;
       }
     }
@@ -208,6 +218,10 @@ export class ProtocolBridgePlugin implements Plugin {
     if (/połącz.*się.*z|polacz.*sie.*z/i.test(lower) && /wss?:\/\//i.test(input)) return 'websocket';
     if (/nasłuchuj|nasluchuj|strumień|strumien/i.test(lower) && /https?:\/\//i.test(input)) return 'sse';
     if (/zapytaj.*api/i.test(lower)) return 'graphql';
+    
+    // RSS/Atom detection
+    if (/rss|\.xml.*rss|kana[łl].*rss/i.test(lower) || /(rss|feed)/i.test(input)) return 'rss';
+    if (/atom|\.xml.*atom|kana[łl].*atom/i.test(lower) || /atom/i.test(input)) return 'atom';
 
     return null;
   }
@@ -227,6 +241,10 @@ export class ProtocolBridgePlugin implements Plugin {
       protocol = 'sse';
     } else if (/graphql/i.test(lower)) {
       protocol = 'graphql';
+    } else if (/rss|feed/i.test(lower)) {
+      protocol = 'rss';
+    } else if (/atom/i.test(lower)) {
+      protocol = 'atom';
     } else if (/rest|api|http/i.test(lower)) {
       protocol = 'rest';
     } else {
@@ -238,13 +256,15 @@ export class ProtocolBridgePlugin implements Plugin {
         return this.withHints(
           this.errorResult(
             '❌ Podaj protokół mostu.\n\n' +
-            'Dostępne protokoły: `mqtt`, `rest`, `websocket`, `sse`, `graphql`\n\n' +
+            'Dostępne protokoły: `mqtt`, `rest`, `websocket`, `sse`, `graphql`, `rss`, `atom`\n\n' +
             'Przykłady:\n' +
             '- "dodaj bridge mqtt ws://broker:9001 home/sensors/#"\n' +
             '- "dodaj bridge rest https://api.example.com/sensors"\n' +
             '- "dodaj bridge ws wss://live.example.com/feed"\n' +
             '- "dodaj bridge sse https://api.example.com/events"\n' +
-            '- "dodaj bridge graphql https://api.example.com/graphql"',
+            '- "dodaj bridge graphql https://api.example.com/graphql"\n' +
+            '- "dodaj bridge rss https://example.com/feed.xml"\n' +
+            '- "dodaj bridge atom https://example.com/atom.xml"',
             start,
           ),
           [
@@ -252,6 +272,8 @@ export class ProtocolBridgePlugin implements Plugin {
             { label: 'REST', command: 'dodaj bridge rest https://api.example.com' },
             { label: 'WebSocket', command: 'dodaj bridge ws wss://example.com/feed' },
             { label: 'SSE', command: 'dodaj bridge sse https://api.example.com/events' },
+            { label: 'RSS', command: 'dodaj bridge rss https://example.com/feed.xml' },
+            { label: 'Atom', command: 'dodaj bridge atom https://example.com/atom.xml' },
           ],
         );
       }
@@ -259,24 +281,39 @@ export class ProtocolBridgePlugin implements Plugin {
 
     // Extract URL
     const urlMatch = input.match(/(wss?:\/\/[^\s]+|https?:\/\/[^\s]+|mqtts?:\/\/[^\s]+)/i);
-    if (!urlMatch) {
+    let url: string;
+    
+    if (!urlMatch && (protocol === 'rss' || protocol === 'atom')) {
+      // For RSS/Atom, also accept URLs without explicit scheme if they end with .xml
+      const xmlUrlMatch = input.match(/([^\s]+\.(xml|rss|atom))/i);
+      if (!xmlUrlMatch) {
+        const label = PROTOCOL_LABELS[protocol];
+        return this.errorResult(
+          `❌ Brak adresu URL dla mostu ${label.pl}.\n\n` +
+          this.urlExampleForProtocol(protocol),
+          start,
+        );
+      }
+      url = `https://${xmlUrlMatch[1]}`; // Default to https for XML files
+    } else if (!urlMatch) {
       const label = PROTOCOL_LABELS[protocol];
       return this.errorResult(
         `❌ Brak adresu URL dla mostu ${label.pl}.\n\n` +
         this.urlExampleForProtocol(protocol),
         start,
       );
+    } else {
+      url = urlMatch[1];
     }
-    const url = urlMatch[1];
 
     // Extract targets (MQTT topics or REST paths after URL)
     const afterUrl = input.slice(input.indexOf(url) + url.length).trim();
     const targets = afterUrl
       ? afterUrl.split(/\s+/).filter(t => t.length > 0 && !t.startsWith('-'))
-      : protocol === 'mqtt' ? ['#'] : ['/'];
+      : protocol === 'mqtt' ? ['#'] : protocol === 'rss' || protocol === 'atom' ? ['feed'] : ['/'];
 
     const id = `${protocol}-${Date.now().toString(36)}`;
-    const direction: BridgeDirection = protocol === 'sse' ? 'in' : 'bidirectional';
+    const direction: BridgeDirection = protocol === 'sse' || protocol === 'rss' || protocol === 'atom' ? 'in' : 'bidirectional';
     const endpoint: BridgeEndpoint = {
       id,
       protocol,
@@ -1356,6 +1393,8 @@ export class ProtocolBridgePlugin implements Plugin {
       case 'websocket': return 'Przykład: "dodaj bridge ws wss://live.example.com/feed"';
       case 'sse': return 'Przykład: "dodaj bridge sse https://api.example.com/events"';
       case 'graphql': return 'Przykład: "dodaj bridge graphql https://api.example.com/graphql"';
+      case 'rss': return 'Przykład: "dodaj bridge rss https://example.com/feed.xml"';
+      case 'atom': return 'Przykład: "dodaj bridge atom https://example.com/atom.xml"';
     }
   }
 
@@ -1372,6 +1411,10 @@ export class ProtocolBridgePlugin implements Plugin {
         return `Teraz możesz:\n- "bridge sse ${url}" — pokaż zdarzenia\n${common}`;
       case 'graphql':
         return `Teraz możesz:\n- "bridge graphql ${url} { query }" — zapytanie\n${common}`;
+      case 'rss':
+        return `Teraz możesz:\n- "bridge rss ${url}" — odczytaj kanał RSS\n${common}`;
+      case 'atom':
+        return `Teraz możesz:\n- "bridge atom ${url}" — odczytaj kanał Atom\n${common}`;
     }
   }
 
@@ -1403,6 +1446,16 @@ export class ProtocolBridgePlugin implements Plugin {
         return [
           { label: 'Zapytanie', command: `bridge graphql ${url} { }` },
           { label: 'Schemat', command: `bridge graphql ${url} { __schema { types { name } } }` },
+        ];
+      case 'rss':
+        return [
+          { label: 'Odczytaj RSS', command: `bridge rss ${url}` },
+          { label: 'Status', command: 'bridge status' },
+        ];
+      case 'atom':
+        return [
+          { label: 'Odczytaj Atom', command: `bridge atom ${url}` },
+          { label: 'Status', command: 'bridge status' },
         ];
     }
   }
@@ -1457,6 +1510,100 @@ export class ProtocolBridgePlugin implements Plugin {
       } catch (err) {
         console.warn('[ProtocolBridge] Failed to pre-load MQTT cache:', err);
       }
+    }
+  }
+
+  // ─── RSS/Atom Handlers ───────────────────────────────────
+
+  private async handleRss(input: string, context: PluginContext, start: number): Promise<PluginResult> {
+    const urlMatch = input.match(/(https?:\/\/[^\s]+|[^\s]+\.(xml|rss))/i);
+    if (!urlMatch) {
+      return this.errorResult(
+        '❌ Podaj adres URL kanału RSS.\n\n' +
+        'Przykład: "bridge rss https://example.com/feed.xml"',
+        start,
+      );
+    }
+
+    const url = urlMatch[1].startsWith('http') ? urlMatch[1] : `https://${urlMatch[1]}`;
+    
+    try {
+      // Use the browse gateway to fetch and parse RSS feed
+      const { executeBrowseCommand } = await import('../../lib/browseGateway');
+      const result = await executeBrowseCommand(url, context.isTauri);
+      
+      this.recordMessage('rss', 'received', url, result.content, 'api');
+      this.updateEndpointActivity('rss', url);
+
+      return this.withHints(
+        {
+          pluginId: this.id,
+          status: 'success',
+          content: [{
+            type: 'text',
+            data: `📰 **RSS Feed** — ${url}\n\n` +
+              `${result.content}`,
+            title: `RSS: ${url}`,
+            summary: `Kanał RSS odczytany: ${result.title || url}`,
+          }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, source_url: url },
+        },
+        [
+          { label: 'Odśwież', command: `bridge rss ${url}` },
+          { label: 'Status', command: 'bridge status' },
+        ],
+      );
+    } catch (error) {
+      return this.errorResult(
+        `❌ Nie udało się odczytać kanału RSS: ${error instanceof Error ? error.message : String(error)}`,
+        start,
+      );
+    }
+  }
+
+  private async handleAtom(input: string, context: PluginContext, start: number): Promise<PluginResult> {
+    const urlMatch = input.match(/(https?:\/\/[^\s]+|[^\s]+\.(xml|atom))/i);
+    if (!urlMatch) {
+      return this.errorResult(
+        '❌ Podaj adres URL kanału Atom.\n\n' +
+        'Przykład: "bridge atom https://example.com/atom.xml"',
+        start,
+      );
+    }
+
+    const url = urlMatch[1].startsWith('http') ? urlMatch[1] : `https://${urlMatch[1]}`;
+    
+    try {
+      // Use the browse gateway to fetch and parse Atom feed
+      const { executeBrowseCommand } = await import('../../lib/browseGateway');
+      const result = await executeBrowseCommand(url, context.isTauri);
+      
+      this.recordMessage('atom', 'received', url, result.content, 'api');
+      this.updateEndpointActivity('atom', url);
+
+      return this.withHints(
+        {
+          pluginId: this.id,
+          status: 'success',
+          content: [{
+            type: 'text',
+            data: `🗞️ **Atom Feed** — ${url}\n\n` +
+              `${result.content}`,
+            title: `Atom: ${url}`,
+            summary: `Kanał Atom odczytany: ${result.title || url}`,
+          }],
+          metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, source_url: url },
+        },
+        [
+          { label: 'Odśwież', command: `bridge atom ${url}` },
+          { label: 'Status', command: 'bridge status' },
+        ],
+      );
+    } catch (error) {
+      return this.errorResult(
+        `❌ Nie udało się odczytać kanału Atom: ${error instanceof Error ? error.message : String(error)}`,
+        start,
+      );
     }
   }
 

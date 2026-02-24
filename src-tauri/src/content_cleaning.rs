@@ -4,11 +4,13 @@
 /// and content truncation.
 
 use crate::logging::{backend_warn};
+use regex_lite::Regex;
 
 pub const MIN_READABLE_CONTENT_LENGTH: usize = 120;
 pub const MAX_BACKEND_CONTENT_CHARS: usize = 20_000;
 
 pub fn strip_cookie_banner_text(text: &str) -> String {
+    let text = filter_anti_scraping_notices(text);
     let raw = text.trim();
     if raw.is_empty() {
         return String::new();
@@ -67,7 +69,42 @@ pub fn strip_cookie_banner_text(text: &str) -> String {
         || lower.contains("niniejszego") 
         || lower.contains("zastrzeżenia") 
         || lower.contains("znajduje") 
-        || lower.contains("tutaj");
+        || lower.contains("tutaj")
+        // Onet.pl Ringier Axel Springer Polska
+        || lower.contains("systematyczne")
+        || lower.contains("pobieranie")
+        || lower.contains("danych")
+        || lower.contains("informacji")
+        || lower.contains("strony")
+        || lower.contains("internetowej")
+        || lower.contains("web scraping")
+        || lower.contains("eksploracja")
+        || lower.contains("tekstu")
+        || lower.contains("indeksowanie")
+        || lower.contains("przeszukiwanie")
+        || lower.contains("pobieraniem")
+        || lower.contains("roboty")
+        || lower.contains("crawlers")
+        || lower.contains("oprogramowanie")
+        || lower.contains("narzędzia")
+        || lower.contains("tworzenia")
+        || lower.contains("rozwoju")
+        || lower.contains("szkolenia")
+        || lower.contains("systemów")
+        || lower.contains("ai")
+        || lower.contains("ringier")
+        || lower.contains("axel")
+        || lower.contains("springer")
+        || lower.contains("polska")
+        || lower.contains("rasp")
+        || lower.contains("zabronione")
+        || lower.contains("wyjątek")
+        || lower.contains("stanowią")
+        || lower.contains("sytuacje")
+        || lower.contains("których")
+        || lower.contains("ulepszenia")
+        || lower.contains("wyszukiwania")
+        || lower.contains("wyszukiwarki");
 
     if is_legal_disclaimer {
         return String::new(); // Remove entire legal disclaimer block
@@ -173,6 +210,22 @@ pub fn truncate_to_chars(text: &str, max_chars: usize) -> String {
         ));
     }
     truncated
+}
+
+pub fn filter_anti_scraping_notices(text: &str) -> String {
+    let mut cleaned = text.to_string();
+
+    // Regex for WP.pl and similar portals
+    if let Ok(re) = Regex::new(r"(?i)Pobieranie,\s*zwielokrotnianie,\s*przechowywanie\s*lub\s*jakiekolwiek\s*inne\s*wykorzystywanie\s*treści\s*dostępnych\s*w\s*niniejszym\s*serwisie.{0,2000}?(?:właściwe\s*przepisy\s*prawa\.|znajduje\s*się\s*tutaj\.?)") {
+        cleaned = re.replace_all(&cleaned, " ").to_string();
+    }
+
+    // Regex for Onet.pl and similar portals (RASP)
+    if let Ok(re) = Regex::new(r"(?i)Systematyczne\s*pobieranie\s*treści,\s*danych\s*lub\s*informacji\s*z\s*tej\s*strony\s*internetowej\s*\(web\s*scraping\).{0,2000}?wyszukiwania\s*przez\s*wyszukiwarki\s*internetowe\.?") {
+        cleaned = re.replace_all(&cleaned, " ").to_string();
+    }
+
+    cleaned
 }
 
 pub fn normalize_whitespace(text: &str) -> String {

@@ -1,3 +1,17 @@
+## [1.0.78] - 2026-02-24
+
+### Summary
+
+refactor(tests): deep code analysis engine with 4 supporting modules
+
+### Other
+
+- update src-tauri/src/content_cleaning.rs
+- update src/lib/browseGateway.test.ts
+- update src/lib/browseGateway.ts
+- update src/plugins/protocol-bridge/protocolBridgePlugin.ts
+
+
 ## [1.0.77] - 2026-02-24
 
 ### Summary

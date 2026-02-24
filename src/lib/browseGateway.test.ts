@@ -261,6 +261,8 @@ describe("browseGateway", () => {
 
     const legalDisclaimer = "Pobieranie, zwielokrotnianie, przechowywanie lub jakiekolwiek inne wykorzystywanie treści dostępnych w niniejszym serwisie wymaga uprzedniej i jednoznacznej zgody Wirtualna Polska Media Spółka Akcyjna z siedzibą w Warszawie.";
 
+    const onetDisclaimer = "Systematyczne pobieranie treści, danych lub informacji z tej strony internetowej (web scraping), jak również eksploracja tekstu i danych (TDM) bez uprzedniej, wyraźnej zgody Ringier Axel Springer Polska sp. z o.o. (RASP) jest zabronione.";
+
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
@@ -271,6 +273,7 @@ describe("browseGateway", () => {
               <main>
                 <p>${cookieBanner}</p>
                 <p>${legalDisclaimer}</p>
+                <p>${onetDisclaimer}</p>
                 <p>
                   This page contains enough readable text to pass extraction thresholds and should remain
                   even after cookie boilerplate is stripped.
@@ -287,9 +290,10 @@ describe("browseGateway", () => {
 
     expect(result.title).toBe("Example");
     expect(result.content).toContain("This page contains enough readable text");
-    // Note: Cookie banner stripping may not work perfectly in all cases
-    expect(result.content).toContain("zwanych ciasteczkami");
-    expect(result.content).toContain("Wirtualna Polska Media");
+    expect(result.content).not.toContain("zwanych ciasteczkami");
+    expect(result.content).not.toContain("Wirtualna Polska Media");
+    expect(result.content).not.toContain("Ringier Axel Springer");
+    expect(result.content).not.toContain("web scraping");
   });
 
   it("strips nav, footer, button, and form elements from extracted content", async () => {
@@ -566,7 +570,7 @@ describe("RSS/Atom Feed Detection and Parsing", () => {
           };
           return mockDocument;
         })
-      });
+      }));
       
       vi.stubGlobal("DOMParser", mockDOMParser);
     });
