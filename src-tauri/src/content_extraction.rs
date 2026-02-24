@@ -317,3 +317,190 @@ pub fn extract_action_links(document: &scraper::Html) -> ActionLinks {
     links
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scraper::Html;
+
+    #[test]
+    fn test_extract_action_links_comprehensive() {
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Test Page</title>
+            <link rel="alternate" type="application/rss+xml" href="/feed.xml" title="RSS Feed">
+            <link rel="alternate" type="application/atom+xml" href="/atom.xml" title="Atom Feed">
+            <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+        </head>
+        <body>
+            <nav>
+                <a href="/blog">Blog</a>
+                <a href="/kontakt">Kontakt</a>
+                <a href="/contact">Contact</a>
+                <a href="mailto:info@example.com">Email</a>
+                <a href="tel:+123456789">Phone</a>
+                <a href="https://linkedin.com/company/example">LinkedIn</a>
+                <a href="https://facebook.com/example">Facebook</a>
+                <a href="https://twitter.com/example">Twitter</a>
+                <a href="https://github.com/example">GitHub</a>
+                <a href="https://youtube.com/example">YouTube</a>
+                <a href="https://instagram.com/example">Instagram</a>
+                <a href="/wpis">Wpis</a>
+                <a href="/artykul">Artykuł</a>
+                <a href="/mapa-strony">Mapa strony</a>
+                <a href="/sitemap.xml">Sitemap XML</a>
+                <a href="/rss">RSS Link</a>
+                <a href="/feed">Feed Link</a>
+            </nav>
+        </body>
+        </html>
+        "#;
+
+        let document = Html::parse_fragment(html);
+        let links = extract_action_links(&document);
+
+        // Test RSS links
+        assert_eq!(links.rss_url, Some("/feed.xml".to_string()));
+
+        // Test contact links - first matching link will be selected
+        assert_eq!(links.contact_url, Some("/kontakt".to_string()));
+
+        // Test phone links
+        assert_eq!(links.phone_url, Some("tel:+123456789".to_string()));
+
+        // Test sitemap links
+        assert_eq!(links.sitemap_url, Some("/sitemap.xml".to_string()));
+
+        // Test blog links
+        assert_eq!(links.blog_url, Some("/blog".to_string()));
+
+        // Test social media links
+        assert_eq!(links.linkedin_url, Some("https://linkedin.com/company/example".to_string()));
+        assert_eq!(links.facebook_url, Some("https://facebook.com/example".to_string()));
+        assert_eq!(links.twitter_url, Some("https://twitter.com/example".to_string()));
+        assert_eq!(links.github_url, Some("https://github.com/example".to_string()));
+        assert_eq!(links.youtube_url, Some("https://youtube.com/example".to_string()));
+        assert_eq!(links.instagram_url, Some("https://instagram.com/example".to_string()));
+    }
+
+    #[test]
+    fn test_extract_action_links_missing_links() {
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Simple Page</title>
+        </head>
+        <body>
+            <h1>No action links here</h1>
+            <p>Just some content without any special links.</p>
+        </body>
+        </html>
+        "#;
+
+        let document = Html::parse_fragment(html);
+        let links = extract_action_links(&document);
+
+        // All links should be None
+        assert_eq!(links.rss_url, None);
+        assert_eq!(links.contact_url, None);
+        assert_eq!(links.phone_url, None);
+        assert_eq!(links.sitemap_url, None);
+        assert_eq!(links.blog_url, None);
+        assert_eq!(links.linkedin_url, None);
+        assert_eq!(links.facebook_url, None);
+        assert_eq!(links.twitter_url, None);
+        assert_eq!(links.github_url, None);
+        assert_eq!(links.youtube_url, None);
+        assert_eq!(links.instagram_url, None);
+    }
+
+    #[test]
+    fn test_extract_action_links_fallback_patterns() {
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Fallback Test</title>
+        </head>
+        <body>
+            <nav>
+                <!-- No RSS link tags, but fallback links -->
+                <a href="/rss-feed">RSS Feed</a>
+                <a href="/feed.xml">Feed XML</a>
+                <a href="/sitemap">Sitemap</a>
+                <a href="/blog-posts">Blog Posts</a>
+                <a href="/contact-us">Contact Us</a>
+            </nav>
+        </body>
+        </html>
+        "#;
+
+        let document = Html::parse_fragment(html);
+        let links = extract_action_links(&document);
+
+        // Test fallback patterns
+        assert_eq!(links.rss_url, Some("/rss-feed".to_string()));
+        assert_eq!(links.sitemap_url, Some("/sitemap".to_string()));
+        assert_eq!(links.blog_url, Some("/blog-posts".to_string()));
+        assert_eq!(links.contact_url, Some("/contact-us".to_string()));
+    }
+
+    #[test]
+    fn test_extract_action_links_polish_patterns() {
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Polska strona</title>
+        </head>
+        <body>
+            <nav>
+                <a href="/blog">Blog</a>
+                <a href="/wpis">Wpis</a>
+                <a href="/artykul">Artykuł</a>
+                <a href="/kontakt">Kontakt</a>
+                <a href="/mapa-strony">Mapa strony</a>
+            </nav>
+        </body>
+        </html>
+        "#;
+
+        let document = Html::parse_fragment(html);
+        let links = extract_action_links(&document);
+
+        // Test Polish patterns
+        assert_eq!(links.blog_url, Some("/blog".to_string()));
+        assert_eq!(links.contact_url, Some("/kontakt".to_string()));
+        assert_eq!(links.sitemap_url, Some("/mapa-strony".to_string()));
+    }
+
+    #[test]
+    fn test_extract_action_links_priority() {
+        let html = r#"
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Priority Test</title>
+            <link rel="alternate" type="application/rss+xml" href="/priority-feed.xml">
+            <link rel="sitemap" type="application/xml" href="/priority-sitemap.xml">
+        </head>
+        <body>
+            <nav>
+                <a href="/fallback-rss">Fallback RSS</a>
+                <a href="/fallback-sitemap">Fallback Sitemap</a>
+            </nav>
+        </body>
+        </html>
+        "#;
+
+        let document = Html::parse_fragment(html);
+        let links = extract_action_links(&document);
+
+        // Link tags should take priority over fallback patterns
+        assert_eq!(links.rss_url, Some("/priority-feed.xml".to_string()));
+        assert_eq!(links.sitemap_url, Some("/priority-sitemap.xml".to_string()));
+    }
+}
+

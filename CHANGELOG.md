@@ -1,3 +1,30 @@
+## [1.0.83] - 2026-02-24
+
+### Summary
+
+feat(tests): deep code analysis engine with 5 supporting modules
+
+### Docs
+
+- docs: update README
+
+### Test
+
+- update test_rss.xml
+
+### Other
+
+- update img_5.png
+- update src-tauri/src/content_extraction.rs
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/components/QuickActionButtons.test.ts
+- update src/components/QuickActionButtons.test.tsx
+- update src/plugins/monitor/monitorPlugin.ts
+- update src/utils/quickActionResolver.test.ts
+- update src/utils/quickActionResolver.ts
+
+
 ## [1.0.82] - 2026-02-24
 
 ### Summary

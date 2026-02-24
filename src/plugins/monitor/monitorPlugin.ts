@@ -321,6 +321,101 @@ export class MonitorPlugin implements Plugin {
     };
   }
 
+  // ── Add to Monitoring (Website/URL) ──────────────────────
+
+  private async handleAddToMonitoring(input: string, context: PluginContext, start: number): Promise<PluginResult> {
+    // Extract URL from the command
+    const urlMatch = input.match(/(?:dodaj\s+do\s+monitorowania|add\s+to\s+monitoring)\s+(https?:\/\/[^\s]+)/i);
+    if (!urlMatch) {
+      return this.errorResult(
+        'Podaj adres URL do monitorowania, np.:\n' +
+        '- "dodaj do monitorowania https://example.com"\n' +
+        '- "dodaj do monitorowania https://prototypowanie.pl"',
+        start,
+      );
+    }
+
+    const url = urlMatch[1];
+    const hostname = new URL(url).hostname;
+    const targetId = `endpoint-${hostname.replace(/[^a-zA-Z0-9]/g, '-')}`;
+    
+    // Check if already monitoring
+    if (this.targets.has(targetId)) {
+      const existing = this.targets.get(targetId)!;
+      return {
+        pluginId: this.id,
+        status: 'success',
+        content: [{
+          type: 'text',
+          data: `⚠️ **${hostname}** jest już monitorowane.\n\n` +
+            `Od: ${new Date(existing.startedAt).toLocaleString('pl-PL')}\n` +
+            `Interwał: ${existing.intervalMs / 1000}s\n` +
+            `Próg zmian: ${(existing.threshold * 100).toFixed(0)}%\n` +
+            `Wykrytych zmian: ${existing.changeCount}\n\n` +
+            `💡 Użyj "stop monitoring ${hostname}" aby zatrzymać.`,
+        }],
+        metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+      };
+    }
+
+    // Create endpoint monitoring target
+    const defaultThreshold = configStore.get<number>('monitor.defaultChangeThreshold') || 0.15;
+    const defaultIntervalMs = configStore.get<number>('monitor.defaultIntervalMs') || 60000; // 1 minute for websites
+    
+    const target: MonitorTarget = {
+      id: targetId,
+      type: 'endpoint',
+      name: hostname,
+      address: url,
+      intervalMs: defaultIntervalMs,
+      threshold: defaultThreshold,
+      active: true,
+      startedAt: Date.now(),
+      changeCount: 0,
+      logs: [{
+        timestamp: Date.now(),
+        type: 'start',
+        message: `Rozpoczęto monitoring: ${hostname}`,
+      }],
+      httpUrl: url, // Store the URL for polling
+    };
+
+    this.targets.set(targetId, target);
+
+    processRegistry.upsertRunning({
+      id: `monitor:${targetId}`,
+      type: 'monitor',
+      label: `Monitoring: ${target.name}`,
+      pluginId: this.id,
+      stopCommand: `stop monitoring ${target.name}`,
+    });
+
+    // Start polling timer
+    const timer = setInterval(() => {
+      this.pollEndpoint(target, context);
+    }, target.intervalMs);
+    this.timers.set(targetId, timer);
+
+    const data = `✅ **Dodano do monitorowania:**\n\n` +
+      `📌 **Cel:** ${hostname}\n` +
+      `📍 **Typ:** Endpoint (strona WWW)\n` +
+      `🌐 **Adres:** ${url}\n` +
+      `⏱️ **Interwał:** co ${target.intervalMs / 1000}s\n` +
+      `📊 **Próg zmian:** ${(target.threshold * 100).toFixed(0)}%\n\n` +
+      `Zmiany będą automatycznie zgłaszane w tym czacie.\n\n` +
+      `💡 **Komendy:**\n` +
+      `- "pokaż logi monitoringu ${hostname}"\n` +
+      `- "stop monitoring ${hostname}"\n` +
+      `- "aktywne monitoringi"`;
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [{ type: 'text', data, title: `Monitor: ${hostname}` }],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
+
   // ── Start Monitoring ────────────────────────────────────
 
   private async handleStart(input: string, context: PluginContext, start: number): Promise<PluginResult> {
@@ -1207,6 +1302,87 @@ export class MonitorPlugin implements Plugin {
     }
   }
 
+  private async pollEndpoint(target: MonitorTarget, context: PluginContext): Promise<void> {
+    if (!target.active || !target.httpUrl) return;
+
+    target.lastChecked = Date.now();
+
+    try {
+      // Fetch website content
+      const response = await fetch(target.httpUrl, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'Broxeen-Monitor/1.0 (Website Monitoring)',
+        },
+      });
+
+      if (!response.ok) {
+        target.logs.push({
+          timestamp: Date.now(),
+          type: 'error',
+          message: `Błąd HTTP: ${response.status} ${response.statusText}`,
+        });
+        return;
+      }
+
+      const currentContent = await response.text();
+      
+      // Store content for comparison (limit size to prevent memory issues)
+      const truncatedContent = currentContent.length > 50000 
+        ? currentContent.slice(0, 50000) + '...[TRUNCATED]'
+        : currentContent;
+
+      // Compare with previous content
+      const previousContent = target.lastSnapshot || '';
+      target.lastSnapshot = truncatedContent;
+
+      if (!previousContent) {
+        target.logs.push({
+          timestamp: Date.now(),
+          type: 'check',
+          message: `Pierwszy zapis treści strony (${truncatedContent.length} znaków)`,
+          details: `URL: ${target.httpUrl} | Status: ${response.status}`,
+        });
+        return;
+      }
+
+      // Compute content change score
+      const changeScore = this.computeTextChangeScore(previousContent, truncatedContent);
+
+      target.logs.push({
+        timestamp: Date.now(),
+        type: 'check',
+        message: changeScore > target.threshold
+          ? `Zmiana wykryta! (${(changeScore * 100).toFixed(1)}%)`
+          : `Brak zmian (${(changeScore * 100).toFixed(1)}%)`,
+        changeScore,
+        details: `URL: ${target.httpUrl} | Status: ${response.status} | diff:${(changeScore * 100).toFixed(1)}% próg:${(target.threshold * 100).toFixed(0)}%`,
+      });
+
+      if (changeScore > target.threshold) {
+        target.changeCount++;
+        target.lastChange = Date.now();
+
+        target.logs.push({
+          timestamp: Date.now(),
+          type: 'change',
+          message: `🔔 Zmiana na ${target.name}: ${(changeScore * 100).toFixed(1)}% różnicy`,
+          changeScore,
+          details: `URL: ${target.httpUrl} | Zmiana treści strony`,
+        });
+
+        console.log(`🔔 [Monitor] Change detected on ${target.name}: ${(changeScore * 100).toFixed(1)}%`);
+      }
+    } catch (error) {
+      target.logs.push({
+        timestamp: Date.now(),
+        type: 'error',
+        message: `Błąd pollingu: ${error instanceof Error ? error.message : String(error)}`,
+        details: `URL: ${target.httpUrl}`,
+      });
+    }
+  }
+
   private emitUiEvent(detail: MonitorUiEventDetail): void {
     if (typeof window === 'undefined') return;
     try {
@@ -1672,6 +1848,43 @@ export class MonitorPlugin implements Plugin {
     } catch {
       return null;
     }
+  }
+
+  private computeTextChangeScore(previousContent: string, currentContent: string): number {
+    if (!previousContent || !currentContent) return 0;
+    if (previousContent === currentContent) return 0;
+
+    // Normalize text content for comparison
+    const normalize = (text: string) => {
+      return text
+        .toLowerCase()
+        .replace(/\s+/g, ' ')           // normalize whitespace
+        .replace(/[^\w\s]/g, ' ')       // replace punctuation with spaces
+        .replace(/\s+/g, ' ')           // normalize whitespace again
+        .trim();
+    };
+
+    const prevNormalized = normalize(previousContent);
+    const currNormalized = normalize(currentContent);
+
+    // Simple character-based diff
+    const len = Math.min(prevNormalized.length, currNormalized.length);
+    if (len === 0) return 0;
+
+    let differences = 0;
+    for (let i = 0; i < len; i++) {
+      if (prevNormalized[i] !== currNormalized[i]) {
+        differences++;
+      }
+    }
+
+    // Account for length differences
+    const lengthDiff = Math.abs(prevNormalized.length - currNormalized.length);
+    const totalDiff = differences + lengthDiff;
+    const maxLength = Math.max(prevNormalized.length, currNormalized.length);
+
+    // Return ratio of differences to total length (0..1)
+    return Math.max(0, Math.min(1, totalDiff / maxLength));
   }
 
   private loadBase64Image(base64: string, mimeType: string): Promise<HTMLImageElement> {

@@ -107,6 +107,34 @@ describe('resolveQuickActions', () => {
     expect(result!.actions.some(a => a.id === 'qa-search-more')).toBe(true);
   });
 
+  // ── RSS feeds ────────────────────────────────────────────
+
+  it('generates RSS monitoring actions for RSS feeds', () => {
+    const result = resolveQuickActions(msg(
+      'rss.wp.pl:\nWykryto adres RSS serwisu WP.pl. Mogę monitorować ten kanał dla Ciebie i powiadamiać Cię o nowych wpisach.\n\nJeśli chcesz, abym pobrał aktualne nagłówki z tego źródła, wykonam następujące polecenie:\n\n```bash\ncurl -s https://rss.wp.pl/rss.xml | grep -oPm1 "(?<=<title>)[^<]+" | sed \'1d\'\n```\n\nCzy mam dodać ten adres do stałego monitoringu Broxeen, aby sprawdzać zmiany automatycznie?',
+    ));
+    expect(result).not.toBeNull();
+    expect(result!.actions.some(a => a.id === 'qa-rss-monitor')).toBe(true);
+    expect(result!.actions.some(a => a.id === 'qa-rss-refresh')).toBe(true);
+    
+    const monitorAction = result!.actions.find(a => a.id === 'qa-rss-monitor');
+    expect(monitorAction?.label).toBe('Dodaj do monitoringu');
+    expect(monitorAction?.executeQuery).toBe('dodaj do monitorowania https://rss.wp.pl/rss.xml');
+    
+    const refreshAction = result!.actions.find(a => a.id === 'qa-rss-refresh');
+    expect(refreshAction?.label).toBe('Odśwież');
+    expect(refreshAction?.executeQuery).toBe('bridge rss https://rss.wp.pl/rss.xml');
+  });
+
+  it('generates RSS actions for generic RSS feeds', () => {
+    const result = resolveQuickActions(msg(
+      'Wykryto kanał RSS: https://example.com/feed.xml. Kanał zawiera najnowsze artykuły.',
+    ));
+    expect(result).not.toBeNull();
+    expect(result!.actions.some(a => a.id === 'qa-rss-monitor')).toBe(true);
+    expect(result!.actions.some(a => a.id === 'qa-rss-refresh')).toBe(true);
+  });
+
   // ── SSH results ─────────────────────────────────────────
 
   it('generates follow-up SSH commands after SSH result', () => {

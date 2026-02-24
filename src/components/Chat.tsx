@@ -68,7 +68,7 @@ interface ChatProps {
   settings: AudioSettings;
 }
 
-type QueryScope = 'local' | 'internet' | 'tor' | 'vpn' | 'ssh';
+type QueryScope = 'local' | 'internet' | 'tor' | 'vpn';
 
 interface ScopeOption {
   id: QueryScope;
@@ -165,12 +165,6 @@ export default function Chat({ settings }: ChatProps) {
       name: 'VPN',
       icon: <Zap size={16} />,
       description: 'Przeszukuj przez połączenie VPN'
-    },
-    {
-      id: 'ssh',
-      name: 'SSH',
-      icon: <Search size={16} />,
-      description: 'Przeszukuj przez połączenie SSH'
     }
   ];
 
@@ -1603,8 +1597,7 @@ ${analysis}`,
       'local': 'local$',
       'internet': 'public$', 
       'tor': 'tor$',
-      'vpn': 'vpn$',
-      'ssh': 'ssh$'
+      'vpn': 'vpn$'
     };
 
     const prefix = prefixMap[scope];
@@ -1631,12 +1624,7 @@ ${analysis}`,
     historyIndexRef.current = -1; // Reset index
 
     setInput("");
-    chatLogger.info("Handling submit", { 
-      originalQuery, 
-      prefixedQuery: query, 
-      scope: currentScope,
-      queryLength: query.length 
-    });
+    chatLogger.info("Handling submit", { queryLength: query.length });
 
     // Emit user message directly to store (without prefix for display)
     eventStore.append({
@@ -1645,7 +1633,7 @@ ${analysis}`,
     });
 
     // ── Config commands — handled locally with interactive prompts ──
-    const configResult = handleConfigCommand(originalQuery);
+    const configResult = handleConfigCommand(query);
     if (configResult) {
       eventStore.append({
         type: "message_added",
@@ -1657,7 +1645,7 @@ ${analysis}`,
           configPrompt: configResult.prompt,
         },
       });
-      addToCommandHistory(originalQuery, configResult.text, 'other', true);
+      addToCommandHistory(query, configResult.text, 'other', true);
       return;
     }
 
@@ -1665,14 +1653,14 @@ ${analysis}`,
 
     // Show thinking message while processing
     const thinkingId = nextMessageId();
-    const thinkingLabel = /plik|dokument|file/i.test(originalQuery)
+    const thinkingLabel = /plik|dokument|file/i.test(query)
       ? 'Szukam plików na dysku'
-      : /email|mail|poczta|skrzynk/i.test(originalQuery)
+      : /email|mail|poczta|skrzynk/i.test(query)
         ? 'Sprawdzam skrzynkę email'
-        : /skan|kamer|sieć|siec/i.test(originalQuery)
+        : /skan|kamer|sieć|siec/i.test(query)
           ? 'Skanuję sieć'
           : 'Przetwarzam zapytanie';
-    const estimatedSec = /plik|dokument|file/i.test(originalQuery) ? 8 : /email|mail/i.test(originalQuery) ? 10 : 5;
+    const estimatedSec = /plik|dokument|file/i.test(query) ? 8 : /email|mail/i.test(query) ? 10 : 5;
 
     eventStore.append({
       type: "message_added",
@@ -1693,7 +1681,7 @@ ${analysis}`,
       processRegistry.upsertRunning({
         id: processId,
         type: 'query',
-        label: `Zapytanie: ${originalQuery.length > 60 ? originalQuery.slice(0, 57) + '...' : originalQuery}`,
+        label: `Zapytanie: ${query.length > 60 ? query.slice(0, 57) + '...' : query}`,
         details: `scope=${currentScope}`,
         stopCommand: undefined,
       });
@@ -1733,12 +1721,12 @@ ${analysis}`,
             payload: {
               id: nextMessageId(),
               role: "assistant",
-              text: `🎤 Transkrypcja: "${originalQuery}"\n\n${fallback.text}`,
+              text: `🎤 Transkrypcja: "${query}"\n\n${fallback.text}`,
               type: "config_prompt",
               configPrompt: fallback.configPrompt,
             },
           });
-          addToCommandHistory(originalQuery, fallback.text, 'other', true);
+          addToCommandHistory(query, fallback.text, 'other', true);
           processRegistry.complete(processId);
           processRegistry.remove(processId);
           return;
@@ -1763,7 +1751,7 @@ ${analysis}`,
               configPrompt: fallbackPrompt,
             },
           });
-          addToCommandHistory(originalQuery, textData, categorizeCommand(originalQuery), true);
+          addToCommandHistory(query, textData, categorizeCommand(query), true);
           processRegistry.complete(processId);
           processRegistry.remove(processId);
           return;
@@ -1865,7 +1853,7 @@ ${analysis}`,
         }
 
         // Add to command history
-        addToCommandHistory(originalQuery, fullResult.trim(), categorizeCommand(originalQuery), true);
+        addToCommandHistory(query, fullResult.trim(), categorizeCommand(query), true);
 
         processRegistry.complete(processId);
         processRegistry.remove(processId);
@@ -1935,7 +1923,7 @@ ${analysis}`,
         }
 
         // Add to command history
-        addToCommandHistory(originalQuery, errorMessage, categorizeCommand(originalQuery), false);
+        addToCommandHistory(query, errorMessage, categorizeCommand(query), false);
 
         processRegistry.fail(processId, errorMessage);
         processRegistry.remove(processId);
