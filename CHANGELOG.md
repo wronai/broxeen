@@ -1,3 +1,15 @@
+## [1.0.74] - 2026-02-24
+
+### Summary
+
+feat(tests): API layer enhancements
+
+### Other
+
+- update src/components/Chat.test.tsx
+- update src/core/intentRouter.ts
+
+
 ## [1.0.73] - 2026-02-24
 
 ### Summary

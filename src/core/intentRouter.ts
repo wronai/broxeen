@@ -18,6 +18,16 @@ export class IntentRouter implements IIntentRouter {
   }
 
   private initializeDefaultPatterns(): void {
+    // Camera live preview intents (checked first so specific IPs aren't caught by network scan)
+    this.intentPatterns.set('camera:live', [
+      /^rtsp:\/\//i,
+      /pokaż.*live|pokaz.*live/i,
+      /live.*preview/i,
+      /podgląd.*live|podglad.*live/i,
+      /pokaż\s+kamer[ęe]\s+\d{1,3}\.\d{1,3}\./i,
+      /pokaz\s+kamer[ęe]\s+\d{1,3}\.\d{1,3}\./i,
+    ]);
+
     // HTTP/Browse intents
     this.intentPatterns.set('browse:url', [
       /https?:\/\/[^\s]+/i,
@@ -558,13 +568,7 @@ export class IntentRouter implements IIntentRouter {
       /query\s+(?:db|database|detection|monitoring)/i,
     ]);
 
-    // Camera live preview intents
-    this.intentPatterns.set('camera:live', [
-      /^rtsp:\/\//i,
-      /pokaż.*live|pokaz.*live/i,
-      /live.*preview/i,
-      /podgląd.*live|podglad.*live/i,
-    ]);
+    // Camera live preview intents moved to top of file
 
     // Voice command intents
     this.intentPatterns.set('voice:command', [
@@ -634,7 +638,7 @@ export class IntentRouter implements IIntentRouter {
   async detect(input: string): Promise<IntentDetection> {
     const normalizedInput = input.toLowerCase().trim();
     console.log(`🔍 Detecting intent for input: "${input}"`);
-    
+
     // LLM-first approach when enabled
     if (this.useLlmClassifier) {
       try {
@@ -651,12 +655,12 @@ export class IntentRouter implements IIntentRouter {
         console.warn(`⚠️ LLM intent classification failed, falling back to regex:`, error);
       }
     }
-    
+
     // Fallback to regex-based detection
     console.log(`🔄 Using regex-based intent detection for: "${normalizedInput}"`);
     for (const [intent, patterns] of this.intentPatterns) {
       if (intent === 'chat:ask') continue; // skip fallback for now
-      
+
       for (const pattern of patterns) {
         if (pattern.test(normalizedInput)) {
           console.log(`✅ Intent detected: ${intent} with pattern: ${pattern}`);
@@ -682,7 +686,7 @@ export class IntentRouter implements IIntentRouter {
     console.log(`🔍 Routing intent: "${intent}" with scope: "${scope || 'none'}"`);
     console.log(`📋 Available plugins: ${Array.from(this.plugins.keys()).join(', ')}`);
     console.log(`📋 Available intents: ${Array.from(this.plugins.values()).map(p => `${p.id}: [${p.supportedIntents?.join(', ')}]`).join(' | ')}`);
-    
+
     // Check legacy plugins first
     for (const plugin of this.plugins.values()) {
       console.log(`🔍 Checking plugin: ${plugin.id}, supportedIntents: [${plugin.supportedIntents?.join(', ')}], includes: ${plugin.supportedIntents?.includes(intent)}`);
@@ -734,7 +738,7 @@ export class IntentRouter implements IIntentRouter {
 
     const keywords = keywordMap[intent] || [];
     const matches = keywords.filter(keyword => input.includes(keyword)).length;
-    
+
     // Base confidence + keyword bonus
     const baseConfidence = intent === 'chat:ask' ? 0.5 : 0.6;
     return Math.min(0.9, baseConfidence + (matches * 0.1));

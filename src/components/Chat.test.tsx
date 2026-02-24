@@ -204,10 +204,10 @@ describe("Chat — renderowanie", () => {
       </CqrsProvider>
     );
     
-    // Wait for welcome screen to appear
-    await waitFor(() => {
-      expect(screen.getByText(/Witaj w Broxeen/i)).toBeInTheDocument();
-    });
+    // Check for welcome screen text using querySelector
+    const welcomeElement = document.querySelector('h1');
+    expect(welcomeElement).toBeInTheDocument();
+    expect(welcomeElement?.textContent).toMatch(/Witaj w Broxeen/i);
   });
 
   it("pokazuje pole input", () => {
