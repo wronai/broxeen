@@ -329,14 +329,16 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
             ));
 
             if let Some(msg) = &stderr_text {
+                let anonymized_msg = anonymize_rtsp_url(msg);
                 backend_warn(&format!(
                     "rtsp worker stderr: camera_id={} error={}",
-                    camera_id_for_thread, msg
+                    camera_id_for_thread, anonymized_msg
                 ));
             }
 
             if let Some(msg) = stderr_text {
-                return Err(format!("ffmpeg exited: {}", msg));
+                let anonymized_msg = anonymize_rtsp_url(&msg);
+                return Err(format!("ffmpeg exited: {}", anonymized_msg));
             }
 
             Err("ffmpeg exited".to_string())

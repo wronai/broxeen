@@ -1,3 +1,17 @@
+## [1.0.86] - 2026-02-24
+
+### Summary
+
+feat(config): deep code analysis engine with 4 supporting modules
+
+### Other
+
+- update src-tauri/src/motion_detection.rs
+- update src-tauri/src/network_scan.rs
+- update src/config/appConfig.ts
+- update src/plugins/camera/cameraLivePlugin.ts
+
+
 ## [1.0.85] - 2026-02-24
 
 ### Summary

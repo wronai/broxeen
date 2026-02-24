@@ -432,7 +432,7 @@ pub async fn motion_pipeline_status() -> Result<PipelineListResult, String> {
         .values()
         .map(|n| PipelineStatus {
             camera_id: n.handle.camera_id.clone(),
-            rtsp_url: n.handle.rtsp_url.clone(),
+            rtsp_url: crate::network_scan::anonymize_rtsp_url(&n.handle.rtsp_url),
             started_at: n.handle.started_at,
             running: true,
         })
@@ -470,7 +470,7 @@ pub async fn motion_pipeline_status() -> Result<PipelineListResult, String> {
         .values()
         .map(|p| PipelineStatus {
             camera_id: p.camera_id.clone(),
-            rtsp_url: p.rtsp_url.clone(),
+            rtsp_url: crate::network_scan::anonymize_rtsp_url(&p.rtsp_url),
             started_at: p.started_at,
             running: true,
         })

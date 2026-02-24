@@ -71,6 +71,7 @@ export interface CameraDefaults {
   rtspPort: number;
   httpPort: number;
   defaultStreamPath: string;
+  reachabilityTimeoutMs: number;
 }
 
 // ── Monitoring / Watch Configuration ───────────────────────
@@ -218,6 +219,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     rtspPort: 554,
     httpPort: 80,
     defaultStreamPath: '/stream',
+    reachabilityTimeoutMs: 8000,
   },
   monitor: {
     defaultIntervalMs: 3000,
@@ -579,6 +581,13 @@ export const CONFIG_FIELD_META: ConfigFieldMeta[] = [
     type: 'string',
     category: 'camera',
     placeholder: '/stream',
+  },
+  {
+    key: 'camera.reachabilityTimeoutMs',
+    label: 'Timeout sprawdzania kamery (ms)',
+    description: 'Timeout w milisekundach dla sprawdzania dostępności kamery',
+    type: 'number',
+    category: 'camera',
   },
   // Locale
   {

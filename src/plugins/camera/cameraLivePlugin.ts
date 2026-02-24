@@ -665,9 +665,13 @@ export class CameraLivePlugin implements Plugin {
 
   private async verifyIpReachability(ip: string, context: PluginContext): Promise<boolean> {
     try {
+      // Get timeout from config
+      const { configStore } = await import('../../config/configStore');
+      const timeout = configStore.get('camera.reachabilityTimeoutMs') as number ?? 8000;
+
       if (context.isTauri && context.tauriInvoke) {
         // Use Tauri ping_host_simple command for fast TCP probe
-        const result = await context.tauriInvoke('ping_host_simple', { ip, timeout: 3000 }) as { reachable: boolean };
+        const result = await context.tauriInvoke('ping_host_simple', { ip, timeout }) as { reachable: boolean };
         return result.reachable;
       } else {
         // Browser fallback: try HTTP fetch to common ports
@@ -677,9 +681,9 @@ export class CameraLivePlugin implements Plugin {
           new AbortController(),
         ];
         
-        const timeout = setTimeout(() => {
+        const timeoutId = setTimeout(() => {
           controllers.forEach(c => c.abort());
-        }, 3000);
+        }, timeout);
 
         try {
           const promises = [
@@ -689,11 +693,11 @@ export class CameraLivePlugin implements Plugin {
           ];
           
           const results = await Promise.allSettled(promises);
-          clearTimeout(timeout);
+          clearTimeout(timeoutId);
           
           return results.some(r => r.status === 'fulfilled');
         } catch {
-          clearTimeout(timeout);
+          clearTimeout(timeoutId);
           return false;
         }
       }
