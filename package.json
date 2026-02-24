@@ -1,8 +1,12 @@
 {
   "name": "broxeen",
   "private": true,
-  "version": "1.0.88",
+  "version": "1.0.89",
   "type": "module",
+  "main": "index.html",
+  "exports": {
+    ".": "./index.html"
+  },
   "scripts": {
     "dev": "vite",
     "dev:browser": "vite --open",

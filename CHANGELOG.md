@@ -1,3 +1,18 @@
+## [1.0.89] - 2026-02-24
+
+### Summary
+
+feat(tests): config module improvements
+
+### Build
+
+- deps: update package.json
+
+### Other
+
+- update src/components/Chat.test.tsx
+
+
 ## [1.0.88] - 2026-02-24
 
 ### Summary

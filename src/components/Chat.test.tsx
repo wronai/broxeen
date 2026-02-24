@@ -486,8 +486,9 @@ describe("Chat — browse flow", () => {
     await waitFor(() => {
       expect(mockAskFn).toHaveBeenCalled();
     });
-    // Plugin ask was called with the phonetically resolved query with scope prefix
-    expect(mockAskFn.mock.calls[0][0]).toMatch(/local$.*onet/i);
+    // Plugin ask was called with the original phonetic query with scope prefix
+    // (normalization happens inside the plugin, not before ask is called)
+    expect(mockAskFn.mock.calls[0][0]).toBe("local$ onet kropka pe el");
   });
 
   it("zapytanie wyszukiwania → DuckDuckGo URL", async () => {
