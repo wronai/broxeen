@@ -192,19 +192,8 @@ impl DataSource {
 }
 
 /// Detect which data source a query targets based on keywords.
-/// This is a lightweight pre-filter; the LLM handles the actual SQL generation.
-/// Enhanced with LLM-based detection when API key is available.
+/// This is a lightweight pre-filter; the LLM handles the actual SQL generation in text_to_sql().
 pub fn detect_data_source(question: &str) -> DataSource {
-    // Try LLM-based detection first if API key is available
-    if let Ok(api_key) = std::env::var("OPENROUTER_API_KEY") {
-        if !api_key.is_empty() {
-            if let Some(llm_source) = detect_data_source_llm(question, &api_key) {
-                return llm_source;
-            }
-        }
-    }
-
-    // Fallback to keyword-based detection
     detect_data_source_keywords(question)
 }
 

@@ -1,3 +1,16 @@
+## [1.0.81] - 2026-02-24
+
+### Summary
+
+fix(tests): multi-language support with 3 supporting modules
+
+### Other
+
+- update src-tauri/compile_errors.txt
+- update src-tauri/src/query_schema.rs
+- update src/plugins/protocol-bridge/rssParser.test.ts
+
+
 ## [1.0.80] - 2026-02-24
 
 ### Summary

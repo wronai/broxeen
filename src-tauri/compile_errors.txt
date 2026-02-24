@@ -1,0 +1,41 @@
+    Blocking waiting for file lock on build directory
+    Checking broxeen v1.0.1 (/home/tom/github/wronai/broxeen/src-tauri)
+error: expected `|`, found `:`
+   --> src/query_schema.rs:243:24
+    |
+243 |         if let Ok(text): Result<String, _> = resp.text() {
+    |                        ^ ----------------- specifying the type of a pattern isn't supported
+    |                        |
+    |                        expected `|`
+
+error[E0425]: cannot find value `text` in this scope
+   --> src/query_schema.rs:244:66
+    |
+244 |             if let Ok(json_val) = serde_json::from_str::<Value>(&text) {
+    |                                                                  ^^^^ not found in this scope
+
+warning: unused import: `cpal::traits::StreamTrait`
+  --> src/audio_commands.rs:21:5
+   |
+21 | use cpal::traits::StreamTrait;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `active_wake_word`
+  --> src/audio_commands.rs:86:21
+   |
+86 | fn resume_wake_word(active_wake_word: &ActiveWakeWordStream) -> Result<(), String> {
+   |                     ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_active_wake_word`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `include_timeouts`
+   --> src/network_scan.rs:196:27
+    |
+196 |         let run_worker = |include_timeouts: bool| -> Result<(), String> {
+    |                           ^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_include_timeouts`
+
+For more information about this error, try `rustc --explain E0425`.
+warning: `broxeen` (bin "broxeen") generated 3 warnings
+error: could not compile `broxeen` (bin "broxeen") due to 2 previous errors; 3 warnings emitted
