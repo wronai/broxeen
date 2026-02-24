@@ -19,8 +19,8 @@ pub async fn text_to_sql(question: &str, data_source: DataSource) -> Result<Stri
     #[cfg(feature = "local-llm")]
     {
         let local_llm = crate::local_llm::get_local_llm();
-        if local_llm.is_available() {
-            log::info!("🤖 Using local LLM for SQL generation");
+        if local_llm.is_available().await {
+            tracing::info!("🤖 Using local LLM for SQL generation");
             return local_llm.text_to_sql(question, data_source).await;
         }
     }
@@ -96,6 +96,11 @@ pub async fn text_to_sql_remote(question: &str, data_source: DataSource) -> Resu
 }
 
 /// Validate that the SQL is a safe SELECT query.
+pub fn validate_sql_public(sql: &str) -> Result<(), String> {
+    validate_sql(sql)
+}
+
+/// Validate that the SQL is a safe SELECT query.
 fn validate_sql(sql: &str) -> Result<(), String> {
     let upper = sql.to_uppercase();
     let trimmed = upper.trim_start();
@@ -134,8 +139,8 @@ pub async fn execute_nl_query(
     #[cfg(feature = "local-llm")]
     {
         let local_llm = crate::local_llm::get_local_llm();
-        if local_llm.is_available() {
-            log::info!("🤖 Using local LLM for query: {}", question);
+        if local_llm.is_available().await {
+            tracing::info!("🤖 Using local LLM for query: {}", question);
             
             let data_source = query_schema::detect_data_source(question);
             let sql = local_llm.text_to_sql(question, data_source).await?;

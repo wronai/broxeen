@@ -1,32 +1,21 @@
-//! local_llm.rs — Local LLM integration using llama-cpp-rs.
+//! local_llm.rs — Local LLM integration using Ollama HTTP API.
 //!
-//! Provides local LLM inference for text-to-SQL queries using GGUF models.
+//! Provides local LLM inference for text-to-SQL queries using Ollama.
 //! Replaces remote OpenRouter API calls with local Bielik model inference.
 //!
 //! Features:
-//! - Local GGUF model loading (Bielik-1.5B)
+//! - Local Ollama integration (Bielik-1.5B)
 //! - Text-to-SQL generation with schema constraints
 //! - Fallback to remote API when local model unavailable
 //! - Polish language support
 
 use std::env;
-use std::path::Path;
 use std::sync::Arc;
-use std::time::Duration;
-
-#[cfg(feature = "local-llm")]
-use llama_cpp_rs::{
-    LLamaModel, 
-    LLamaParams, 
-    Tokenization,
-    SamplingParams,
-    CompletionParams
-};
 
 use crate::query_schema::{self, DataSource};
 
-/// Default model path for Bielik
-const DEFAULT_MODEL_PATH: &str = "models/Bielik-1.5B-v3.0-Instruct.Q8_0.gguf";
+/// Default model for Bielik
+const DEFAULT_MODEL: &str = "bielik:1.5b";
 
 /// System prompt for text-to-SQL generation
 const SQL_SYSTEM_PROMPT: &str = r#"Jesteś ekspertem SQL, który konwertuje pytania w języku polskim na zapytania SQLite SELECT.
@@ -47,30 +36,28 @@ Teraz konwertuj to pytanie: "#;
 /// Local LLM configuration
 #[derive(Debug, Clone)]
 pub struct LocalLlmConfig {
-    pub model_path: String,
+    pub model: String,
     pub max_tokens: u32,
     pub temperature: f32,
-    pub context_size: u32,
-    pub gpu_layers: i32,
+    pub ollama_url: String,
+    pub port: u16,
 }
 
 impl Default for LocalLlmConfig {
     fn default() -> Self {
         Self {
-            model_path: DEFAULT_MODEL_PATH.to_string(),
+            model: DEFAULT_MODEL.to_string(),
             max_tokens: 300,
             temperature: 0.0,
-            context_size: 2048,
-            gpu_layers: 0, // CPU-only by default
+            ollama_url: "http://localhost".to_string(),
+            port: 11434,
         }
     }
 }
 
 /// Local LLM wrapper
 pub struct LocalLlm {
-    #[cfg(feature = "local-llm")]
-    model: Option<Arc<LLamaModel>>,
-    config: LocalLlmConfig,
+    pub config: LocalLlmConfig,
 }
 
 impl LocalLlm {
@@ -82,90 +69,73 @@ impl LocalLlm {
 
     /// Create LocalLlm with custom config
     pub fn with_config(config: LocalLlmConfig) -> Self {
-        #[cfg(feature = "local-llm")]
-        let model = if Path::new(&config.model_path).exists() {
-            match LLamaModel::from_file(&config.model_path, &LLamaParams::default()) {
-                Ok(model) => {
-                    log::info!("✅ Loaded local LLM: {}", config.model_path);
-                    Some(Arc::new(model))
-                }
-                Err(e) => {
-                    log::warn!("⚠️ Failed to load local LLM {}: {}", config.model_path, e);
-                    None
-                }
-            }
-        } else {
-            log::warn!("⚠️ Local LLM model not found: {}", config.model_path);
-            None
-        };
-
-        #[cfg(not(feature = "local-llm"))]
-        log::info!("📝 Local LLM feature not enabled, using remote API");
-
-        Self { 
-            #[cfg(feature = "local-llm")]
-            model,
-            config 
-        }
+        tracing::info!("📝 Local LLM initialized with model: {}", config.model);
+        Self { config }
     }
 
     /// Check if local LLM is available
-    pub fn is_available(&self) -> bool {
-        #[cfg(feature = "local-llm")]
-        return self.model.is_some();
-        #[cfg(not(feature = "local-llm"))]
-        return false;
+    pub async fn is_available(&self) -> bool {
+        let url = format!("{}:{}/api/tags", self.config.ollama_url, self.config.port);
+        
+        match reqwest::get(&url).await {
+            Ok(response) => response.status().is_success(),
+            Err(_) => false,
+        }
     }
 
     /// Generate SQL from natural language using local LLM
     pub async fn text_to_sql(&self, question: &str, data_source: DataSource) -> Result<String, String> {
-        #[cfg(feature = "local-llm")]
-        if let Some(model) = &self.model {
-            return self.generate_sql_local(model, question, data_source).await;
+        if self.is_available().await {
+            return self.generate_sql_local(question, data_source).await;
         }
 
         // Fallback to remote API
-        crate::llm_query::text_to_sql(question, data_source).await
+        crate::llm_query::text_to_sql_remote(question, data_source).await
     }
 
-    #[cfg(feature = "local-llm")]
-    async fn generate_sql_local(
-        &self,
-        model: &Arc<LLamaModel>,
-        question: &str,
-        data_source: DataSource,
-    ) -> Result<String, String> {
+    async fn generate_sql_local(&self, question: &str, data_source: DataSource) -> Result<String, String> {
         let schema_prompt = query_schema::build_text_to_sql_prompt(data_source.schema());
         let full_prompt = format!("{}\n\n{}", SQL_SYSTEM_PROMPT, schema_prompt);
         
         // Build completion prompt
         let prompt = format!("{}\n\nPytanie: {}\n\nSQL:", full_prompt, question);
 
-        // Sampling parameters for consistent SQL generation
-        let sampling_params = SamplingParams {
-            temperature: self.config.temperature,
-            top_p: 0.9,
-            top_k: 40,
-            repeat_penalty: 1.1,
-            ..Default::default()
-        };
+        // Call Ollama API directly
+        let url = format!("{}:{}/api/generate", self.config.ollama_url, self.config.port);
+        
+        let payload = serde_json::json!({
+            "model": self.config.model,
+            "prompt": prompt,
+            "stream": false,
+            "options": {
+                "temperature": self.config.temperature,
+                "num_predict": self.config.max_tokens,
+                "top_p": 0.9,
+                "top_k": 40
+            }
+        });
 
-        // Completion parameters
-        let completion_params = CompletionParams {
-            prompt: &prompt,
-            max_tokens: Some(self.config.max_tokens),
-            sampling_params,
-            ..Default::default()
-        };
-
-        // Generate completion
-        let result = model
-            .complete(&completion_params)
+        let client = reqwest::Client::new();
+        let response = client
+            .post(&url)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
             .await
-            .map_err(|e| format!("Local LLM generation failed: {}", e))?;
+            .map_err(|e| format!("Local LLM request failed: {}", e))?;
 
-        let sql = result
-            .completion
+        if !response.status().is_success() {
+            return Err(format!("Local LLM HTTP error: {}", response.status()));
+        }
+
+        let data: serde_json::Value = response
+            .json()
+            .await
+            .map_err(|e| format!("Local LLM JSON parse error: {}", e))?;
+
+        let sql = data["response"]
+            .as_str()
+            .unwrap_or("")
             .trim()
             .trim_start_matches("```sql")
             .trim_start_matches("```")
@@ -178,10 +148,31 @@ impl LocalLlm {
         }
 
         // Validate SQL
-        crate::llm_query::validate_sql(&sql)?;
+        crate::llm_query::validate_sql_public(&sql)?;
 
-        log::debug!("🔧 Generated SQL: {}", sql);
+        tracing::debug!("🔧 Generated SQL: {}", sql);
         Ok(sql)
+    }
+
+    /// Pull model if not available
+    pub async fn pull_model(&self) -> Result<(), String> {
+        let url = format!("{}:{}/api/pull", self.config.ollama_url, self.config.port);
+        
+        let payload = serde_json::json!({
+            "name": self.config.model
+        });
+
+        let client = reqwest::Client::new();
+        let _response = client
+            .post(&url)
+            .header("Content-Type", "application/json")
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to pull model: {}", e))?;
+        
+        tracing::info!("✅ Model pull initiated: {}", self.config.model);
+        Ok(())
     }
 }
 
@@ -190,8 +181,8 @@ impl LocalLlmConfig {
     pub fn from_env() -> Self {
         let mut config = Self::default();
 
-        if let Ok(path) = env::var("LOCAL_LLM_MODEL_PATH") {
-            config.model_path = path;
+        if let Ok(model) = env::var("LOCAL_LLM_MODEL") {
+            config.model = model;
         }
 
         if let Ok(tokens) = env::var("LOCAL_LLM_MAX_TOKENS") {
@@ -206,15 +197,13 @@ impl LocalLlmConfig {
             }
         }
 
-        if let Ok(ctx) = env::var("LOCAL_LLM_CONTEXT_SIZE") {
-            if let Ok(ctx) = ctx.parse() {
-                config.context_size = ctx;
-            }
+        if let Ok(url) = env::var("LOCAL_LLM_OLLAMA_URL") {
+            config.ollama_url = url;
         }
 
-        if let Ok(gpu) = env::var("LOCAL_LLM_GPU_LAYERS") {
-            if let Ok(gpu) = gpu.parse() {
-                config.gpu_layers = gpu;
+        if let Ok(port) = env::var("LOCAL_LLM_OLLAMA_PORT") {
+            if let Ok(port) = port.parse() {
+                config.port = port;
             }
         }
 
@@ -236,25 +225,48 @@ pub fn get_local_llm() -> &'static LocalLlm {
     }
 }
 
-/// Execute text-to-SQL query with local LLM fallback
-pub async fn execute_nl_query_local(
-    question: &str,
-    db_path_override: Option<&str>,
-) -> Result<crate::llm_query::NlQueryResult, String> {
+/// Setup Bielik model in Ollama
+pub async fn setup_bielik_model() -> Result<(), String> {
     let local_llm = get_local_llm();
     
-    if local_llm.is_available() {
-        log::info!("🤖 Using local LLM for query: {}", question);
-        
-        let data_source = query_schema::detect_data_source(question);
-        let sql = local_llm.text_to_sql(question, data_source).await?;
-        
-        // Execute the SQL (reuse existing logic)
-        crate::llm_query::execute_sql_with_query(sql, question, data_source, db_path_override).await
-    } else {
-        log::info!("🌐 Using remote API for query: {}", question);
-        crate::llm_query::execute_nl_query(question, db_path_override).await
+    if !local_llm.is_available().await {
+        return Err("Ollama is not running".into());
     }
+
+    // Check if Bielik model exists
+    let url = format!("{}:{}/api/tags", local_llm.config.ollama_url, local_llm.config.port);
+    
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to list models: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err("Failed to connect to Ollama".into());
+    }
+
+    let data: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse models: {}", e))?;
+
+    let bielik_exists = data["models"]
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .any(|m| m["name"].as_str().unwrap_or("").contains("bielik"));
+    
+    if !bielik_exists {
+        tracing::info!("📥 Bielik model not found, pulling from Ollama...");
+        local_llm.pull_model().await?;
+        tracing::info!("✅ Bielik model pull initiated");
+    } else {
+        tracing::info!("✅ Bielik model already available");
+    }
+    
+    Ok(())
 }
 
 #[cfg(test)]
@@ -265,7 +277,7 @@ mod tests {
     fn test_local_llm_config_from_env() {
         // Test default config
         let config = LocalLlmConfig::default();
-        assert_eq!(config.model_path, DEFAULT_MODEL_PATH);
+        assert_eq!(config.model, DEFAULT_MODEL);
         assert_eq!(config.max_tokens, 300);
         assert_eq!(config.temperature, 0.0);
 

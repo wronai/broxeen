@@ -53,9 +53,7 @@ roxmltree = "0.19"
 rust_search = "2.0"
 
 # ── Local LLM support ───────────────────────────────────────────────────────
-llama_cpp_rs = { version = "0.1", optional = true }
-hf-hub = { version = "0.4", optional = true }
-tokio-util = { version = "0.7", features = ["io"], optional = true }
+ollama-rs = { version = "0.2", optional = true }
 
 [dev-dependencies]
 tempfile = "3.0"
@@ -69,4 +67,4 @@ harness = false
 default = ["custom-protocol", "local-llm"]
 custom-protocol = ["tauri/custom-protocol"]
 vision = ["dep:opencv", "dep:ort", "dep:ndarray", "dep:image", "dep:flume", "dep:config", "dep:anyhow", "dep:thiserror", "dep:uuid"]
-local-llm = ["dep:llama_cpp_rs", "dep:hf-hub", "dep:tokio-util"]
+local-llm = ["dep:ollama-rs"]
