@@ -106,6 +106,7 @@ export class LogsPlugin implements Plugin {
       const result = await this.executeCommand(command.action, query);
 
       return {
+        pluginId: this.name,
         status: 'success',
         content: [{
           type: 'text' as const,
@@ -115,7 +116,6 @@ export class LogsPlugin implements Plugin {
           duration_ms: 0,
           cached: false,
           truncated: false,
-          pluginId: this.name,
         },
       };
     } catch (error) {

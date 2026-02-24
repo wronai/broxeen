@@ -657,7 +657,6 @@ export class IntentRouter implements IIntentRouter {
     for (const [intent, patterns] of this.intentPatterns) {
       if (intent === 'chat:ask') continue; // skip fallback for now
       
-      console.log(`🔍 Checking intent: ${intent} with ${patterns.length} patterns`);
       for (const pattern of patterns) {
         if (pattern.test(normalizedInput)) {
           console.log(`✅ Intent detected: ${intent} with pattern: ${pattern}`);
@@ -680,10 +679,16 @@ export class IntentRouter implements IIntentRouter {
   }
 
   route(intent: string, scope?: string): Plugin | DataSourcePlugin | null {
+    console.log(`🔍 Routing intent: "${intent}" with scope: "${scope || 'none'}"`);
+    console.log(`📋 Available plugins: ${Array.from(this.plugins.keys()).join(', ')}`);
+    console.log(`📋 Available intents: ${Array.from(this.plugins.values()).map(p => `${p.id}: [${p.supportedIntents?.join(', ')}]`).join(' | ')}`);
+    
     // Check legacy plugins first
     for (const plugin of this.plugins.values()) {
+      console.log(`🔍 Checking plugin: ${plugin.id}, supportedIntents: [${plugin.supportedIntents?.join(', ')}], includes: ${plugin.supportedIntents?.includes(intent)}`);
       if (!plugin.supportedIntents || !plugin.supportedIntents.includes(intent)) continue;
       if (scope && !scopeRegistry.isPluginAllowed(plugin.id, scope)) continue;
+      console.log(`✅ Found plugin: ${plugin.id} for intent: ${intent}`);
       return plugin;
     }
     // Check DataSourcePlugins

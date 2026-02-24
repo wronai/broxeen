@@ -116,6 +116,7 @@ export class VoiceCommandsPlugin implements Plugin {
       await this.executeCommand(command.action);
 
       return {
+        pluginId: this.name,
         status: 'success',
         content: [{
           type: 'text' as const,
@@ -125,7 +126,6 @@ export class VoiceCommandsPlugin implements Plugin {
           duration_ms: 0,
           cached: false,
           truncated: false,
-          pluginId: this.name,
         },
       };
     } catch (error) {

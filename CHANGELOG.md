@@ -1,3 +1,16 @@
+## [1.0.71] - 2026-02-24
+
+### Summary
+
+feat(None): API layer enhancements
+
+### Other
+
+- update src/core/intentRouter.ts
+- update src/plugins/system/logsPlugin.ts
+- update src/plugins/voice/voiceCommandsPlugin.ts
+
+
 ## [1.0.70] - 2026-02-24
 
 ### Summary
