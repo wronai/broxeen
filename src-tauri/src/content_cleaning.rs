@@ -14,6 +14,65 @@ pub fn strip_cookie_banner_text(text: &str) -> String {
         return String::new();
     }
 
+    // Filter out legal disclaimer blocks first
+    let lower = raw.to_lowercase();
+    let is_legal_disclaimer = lower.contains("pobieranie") 
+        || lower.contains("zwielokrotnianie") 
+        || lower.contains("przechowywanie") 
+        || lower.contains("wykorzystywanie") 
+        || lower.contains("wirtualna polska") 
+        || lower.contains("media spółka") 
+        || lower.contains("akcyjna") 
+        || lower.contains("siedzibą") 
+        || lower.contains("właścicielem") 
+        || lower.contains("niniejszego") 
+        || lower.contains("serwisu") 
+        || lower.contains("bez względu") 
+        || lower.contains("sposób") 
+        || lower.contains("eksploracji") 
+        || lower.contains("wykorzystaną") 
+        || lower.contains("metodę") 
+        || lower.contains("manualną") 
+        || lower.contains("zautomatyzowaną") 
+        || lower.contains("technikę") 
+        || lower.contains("programów") 
+        || lower.contains("uczenia") 
+        || lower.contains("maszynowego") 
+        || lower.contains("sztucznej") 
+        || lower.contains("inteligencji") 
+        || lower.contains("powyższe") 
+        || lower.contains("zastrzeżenie") 
+        || lower.contains("dotyczy") 
+        || lower.contains("wykorzystywania") 
+        || lower.contains("jedynie") 
+        || lower.contains("celu") 
+        || lower.contains("ułatwienia") 
+        || lower.contains("wyszukiwania") 
+        || lower.contains("przez") 
+        || lower.contains("wyszukiwarki") 
+        || lower.contains("internetowe") 
+        || lower.contains("korzystania") 
+        || lower.contains("ramach") 
+        || lower.contains("stosunków") 
+        || lower.contains("umownych") 
+        || lower.contains("dozwolonego") 
+        || lower.contains("użytku") 
+        || lower.contains("określonego") 
+        || lower.contains("właściwe") 
+        || lower.contains("przepisy") 
+        || lower.contains("prawa") 
+        || lower.contains("szczegółowa") 
+        || lower.contains("treść") 
+        || lower.contains("dotycząca") 
+        || lower.contains("niniejszego") 
+        || lower.contains("zastrzeżenia") 
+        || lower.contains("znajduje") 
+        || lower.contains("tutaj");
+
+    if is_legal_disclaimer {
+        return String::new(); // Remove entire legal disclaimer block
+    }
+
     let lower = raw.to_lowercase();
     let has_cookie_word = lower.contains("ciasteczk") || lower.contains("cookie") || lower.contains("cookies");
     if !has_cookie_word {
@@ -40,7 +99,7 @@ pub fn strip_cookie_banner_text(text: &str) -> String {
         score += 1;
     }
 
-    let looks_like_banner = score >= 2 || lower.contains("strona korzysta z plik");
+    let looks_like_banner = score >= 2 || lower.contains("strona korzysta z plik") || lower.contains("plików tekstowych zwanych ciasteczkami");
     if !looks_like_banner {
         return raw.to_string();
     }

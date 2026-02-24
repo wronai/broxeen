@@ -2415,7 +2415,7 @@ ${analysis}`,
                       )}
 
                       <div className="flex flex-col sm:flex-row gap-4">
-                        {msg.role === "assistant" && msg.screenshotBase64 && (
+                        {msg.screenshotBase64 && (
                           <div className="shrink-0 max-w-[256px] max-h-[300px] overflow-y-auto rounded-lg border border-gray-700 bg-black/50 scrollbar-thin scrollbar-thumb-gray-600">
                             <img
                               src={`data:image/png;base64,${msg.screenshotBase64}`}

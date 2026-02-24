@@ -1,3 +1,22 @@
+## [1.0.77] - 2026-02-24
+
+### Summary
+
+refactor(tests): deep code analysis engine with 3 supporting modules
+
+### Test
+
+- update test-wp-fix.js
+- update test-wp-fix.mjs
+
+### Other
+
+- update src-tauri/src/content_cleaning.rs
+- update src/components/Chat.tsx
+- update src/lib/browseGateway.test.ts
+- update src/lib/browseGateway.ts
+
+
 ## [1.0.76] - 2026-02-24
 
 ### Summary

@@ -828,3 +828,6 @@ export async function executeBrowseCommand(
 
   return runExecuteBrowseCommand();
 }
+
+// Export internal functions for testing
+export { looksLikeRssOrAtom, extractRssAtomContent, normalizeBrowseResult };
