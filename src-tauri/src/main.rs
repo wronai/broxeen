@@ -14,6 +14,7 @@ mod frigate_mqtt;
 mod file_search;
 mod llm;
 mod llm_query;
+mod local_llm;
 mod logging;
 mod network;
 mod network_info;

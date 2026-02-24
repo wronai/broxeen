@@ -1,6 +1,6 @@
 //! llm_query.rs — Lightweight LLM-powered text-to-SQL engine.
 //!
-//! Uses OpenRouter API (via reqwest) to convert natural language questions
+//! Uses OpenRouter API or local LLM (Bielik) to convert natural language questions
 //! into SQLite SELECT queries, constrained by database schemas.
 //!
 //! No `vision` feature required — works in the default build.
@@ -13,7 +13,24 @@ const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 
 /// Call the LLM to generate SQL from a natural language question.
 /// Returns the raw SQL string or an error.
+/// Tries local LLM first, falls back to OpenRouter API.
 pub async fn text_to_sql(question: &str, data_source: DataSource) -> Result<String, String> {
+    // Try local LLM first if available
+    #[cfg(feature = "local-llm")]
+    {
+        let local_llm = crate::local_llm::get_local_llm();
+        if local_llm.is_available() {
+            log::info!("🤖 Using local LLM for SQL generation");
+            return local_llm.text_to_sql(question, data_source).await;
+        }
+    }
+
+    // Fallback to remote API
+    text_to_sql_remote(question, data_source).await
+}
+
+/// Call remote OpenRouter API to generate SQL
+pub async fn text_to_sql_remote(question: &str, data_source: DataSource) -> Result<String, String> {
     let api_key = env::var("OPENROUTER_API_KEY").unwrap_or_default();
     if api_key.is_empty() {
         return Err("OPENROUTER_API_KEY not set".into());
@@ -108,11 +125,46 @@ fn validate_sql(sql: &str) -> Result<(), String> {
 
 /// Execute a text-to-SQL query against the appropriate database.
 /// Returns (sql, columns, rows, db_path).
+/// Uses local LLM if available, falls back to remote API.
 pub async fn execute_nl_query(
     question: &str,
     db_path_override: Option<&str>,
 ) -> Result<NlQueryResult, String> {
+    // Try local LLM first if available
+    #[cfg(feature = "local-llm")]
+    {
+        let local_llm = crate::local_llm::get_local_llm();
+        if local_llm.is_available() {
+            log::info!("🤖 Using local LLM for query: {}", question);
+            
+            let data_source = query_schema::detect_data_source(question);
+            let sql = local_llm.text_to_sql(question, data_source).await?;
+            
+            return execute_sql_with_query(sql, question, data_source, db_path_override).await;
+        }
+    }
+
+    // Original implementation with remote API
+    execute_nl_query_remote(question, db_path_override).await
+}
+
+/// Execute query using remote API (original implementation)
+pub async fn execute_nl_query_remote(
+    question: &str,
+    db_path_override: Option<&str>,
+) -> Result<NlQueryResult, String> {
     let data_source = query_schema::detect_data_source(question);
+    let sql = text_to_sql_remote(question, data_source).await?;
+    execute_sql_with_query(sql, question, data_source, db_path_override).await
+}
+
+/// Execute SQL query and return results
+pub async fn execute_sql_with_query(
+    sql: String,
+    question: &str,
+    data_source: DataSource,
+    db_path_override: Option<&str>,
+) -> Result<NlQueryResult, String> {
     let db_file = db_path_override.unwrap_or(data_source.db_filename());
     let resolved = crate::motion_detection::resolve_db_path(db_file);
 
@@ -123,9 +175,6 @@ pub async fn execute_nl_query(
             resolved
         ));
     }
-
-    // Generate SQL via LLM
-    let sql = text_to_sql(question, data_source).await?;
 
     // Execute against SQLite
     let conn = rusqlite::Connection::open(&resolved).map_err(|e| {

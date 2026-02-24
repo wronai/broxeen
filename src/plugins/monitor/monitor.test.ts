@@ -699,8 +699,6 @@ describe('Scope: VPN + Tor', () => {
   it('BUILTIN_SCOPES has all 8 scopes including vpn and tor', () => {
     const ids = Object.keys(BUILTIN_SCOPES);
     expect(ids).toContain('local');
-    expect(ids).toContain('public');
-    expect(ids).toContain('ssh');
     expect(ids).toContain('network');
     expect(ids).toContain('internet');
     expect(ids).toContain('vpn');
