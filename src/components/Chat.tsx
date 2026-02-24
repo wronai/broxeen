@@ -497,17 +497,29 @@ export default function Chat({ settings }: ChatProps) {
       const detail = custom.detail;
       if (!detail?.summary) return;
 
+      console.log('[Chat] Received monitor_change event:', {
+        targetName: detail.targetName,
+        changeScore: detail.changeScore,
+        hasThumbnail: !!detail.thumbnailBase64,
+        thumbnailSize: detail.thumbnailBase64?.length || 0,
+        mimeType: detail.thumbnailMimeType
+      });
+
       const pct = Math.round(detail.changeScore * 100);
       const mime = detail.thumbnailMimeType || "image/jpeg";
       const dataUrl = detail.thumbnailBase64
         ? `data:${mime};base64,${detail.thumbnailBase64}`
         : null;
 
+      console.log('[Chat] Data URL created:', dataUrl ? `YES (${dataUrl.length} chars)` : 'NO');
+
       const monitoringText = [
         `👁️ **Monitoring**: **${detail.targetName}** (${pct}%)`,
         dataUrl ? `\n\n![](${dataUrl})` : "",
         `\n\n${detail.summary}`,
       ].join("");
+
+      console.log('[Chat] Monitoring message length:', monitoringText.length);
 
       // Single message: header + optional embedded thumbnail + one-sentence summary
       eventStore.append({
