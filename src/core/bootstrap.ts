@@ -307,6 +307,20 @@ async function registerCorePlugins(
     safeRegister(registry, router, new EmailPlugin(), 'EmailPlugin');
   } catch (e) { console.warn('EmailPlugin unavailable:', e); }
 
+  // ── System plugins ─────────────────────────────────────────────
+
+  try {
+    const { LogsPlugin } = await import('../plugins/system/logsPlugin');
+    safeRegister(registry, router, new LogsPlugin(), 'LogsPlugin');
+  } catch (e) { console.warn('LogsPlugin unavailable:', e); }
+
+  // ── Voice Commands plugin ──────────────────────────────────────
+
+  try {
+    const { VoiceCommandsPlugin } = await import('../plugins/voice/voiceCommandsPlugin');
+    safeRegister(registry, router, new VoiceCommandsPlugin(), 'VoiceCommandsPlugin');
+  } catch (e) { console.warn('VoiceCommandsPlugin unavailable:', e); }
+
   // ── Fallback ─────────────────────────────────────────────────
 
   try {

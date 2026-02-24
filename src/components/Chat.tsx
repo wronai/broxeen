@@ -852,7 +852,7 @@ export default function Chat({ settings }: ChatProps) {
     if (!settings.mic_enabled) {
       chatLogger.warn("Cannot enable wake word: microphone disabled in settings");
       if (wakeWordRunningRef.current) {
-        invoke("wake_word_stop").catch(() => {});
+        invoke("wake_word_stop").catch(() => { });
         wakeWordRunningRef.current = false;
       }
       return;
@@ -877,7 +877,7 @@ export default function Chat({ settings }: ChatProps) {
     return () => {
       if (wakeWordRunningRef.current) {
         chatLogger.debug("Cleanup: stopping wake word listening");
-        invoke("wake_word_stop").catch(() => {});
+        invoke("wake_word_stop").catch(() => { });
         wakeWordRunningRef.current = false;
       }
     };
@@ -904,7 +904,7 @@ export default function Chat({ settings }: ChatProps) {
           isRecording: stt.isRecording,
           isTranscribing: stt.isTranscribing,
         });
-        invoke("wake_word_stop").catch(() => {});
+        invoke("wake_word_stop").catch(() => { });
         wakeWordRunningRef.current = false;
         wakeWordStoppedForSttRef.current = true;
       }
@@ -917,7 +917,7 @@ export default function Chat({ settings }: ChatProps) {
         });
         wakeWordTriggeredSttRef.current = false;
         wakeWordStoppedForSttRef.current = false;
-        
+
         if (!wakeWordRunningRef.current) {
           chatLogger.info("→ Restarting wake word listener...");
           invoke("wake_word_start")
@@ -941,8 +941,8 @@ export default function Chat({ settings }: ChatProps) {
     if (autocompleteSuggestions.length > 0) {
       setShowAutocomplete(true);
       setAutocompleteActiveIndex((idx) => {
-        if (idx < 0) return 0;
-        if (idx >= autocompleteSuggestions.length) return 0;
+        if (idx < 0) return -1;
+        if (idx >= autocompleteSuggestions.length) return -1;
         return idx;
       });
     } else {
@@ -1046,8 +1046,7 @@ export default function Chat({ settings }: ChatProps) {
   };
 
   const handleInputBlur = () => {
-    setInputFocused(false);
-    // Small delay to allow click events to fire
+    // Small delay to allow click events on autocomplete to fire
     setTimeout(() => {
       setInputFocused(false);
     }, 200);
@@ -1973,9 +1972,10 @@ ${analysis}`,
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Tab' && showAutocomplete && autocompleteSuggestions.length > 0) {
       e.preventDefault();
-      const choice = autocompleteSuggestions[Math.min(autocompleteActiveIndex, autocompleteSuggestions.length - 1)];
+      const choice = autocompleteSuggestions[Math.max(0, Math.min(autocompleteActiveIndex, autocompleteSuggestions.length - 1))];
       if (choice) {
         setInput(choice);
+        setAutocompleteActiveIndex(-1);
         setTimeout(() => {
           const inputElement = document.querySelector("input[type='text']") as HTMLInputElement | null;
           if (inputElement) {
@@ -1989,18 +1989,32 @@ ${analysis}`,
 
     if (e.key === 'ArrowDown' && showAutocomplete && autocompleteSuggestions.length > 0) {
       e.preventDefault();
-      setAutocompleteActiveIndex((idx) => (idx + 1) % autocompleteSuggestions.length);
+      setAutocompleteActiveIndex((idx) => idx === -1 ? 0 : (idx + 1) % autocompleteSuggestions.length);
       return;
     }
 
     if (e.key === 'ArrowUp' && showAutocomplete && autocompleteSuggestions.length > 0) {
       e.preventDefault();
-      setAutocompleteActiveIndex((idx) => (idx - 1 + autocompleteSuggestions.length) % autocompleteSuggestions.length);
+      setAutocompleteActiveIndex((idx) => idx <= 0 ? autocompleteSuggestions.length - 1 : idx - 1);
       return;
     }
 
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
+
+      // If autocomplete is open and user actively selected an item, submit that item.
+      if (showAutocomplete && autocompleteSuggestions.length > 0 && autocompleteActiveIndex >= 0) {
+        const choice = autocompleteSuggestions[autocompleteActiveIndex];
+        if (choice) {
+          setShowAutocomplete(false);
+          setAutocompleteActiveIndex(-1);
+          setInput(""); // clear input before submit
+          handleSubmit(choice);
+          return;
+        }
+      }
+
+      // Otherwise, submit whatever the user typed.
       handleSubmit();
       return;
     }
@@ -3019,10 +3033,10 @@ ${analysis}`,
                   onFocus={handleInputFocus}
                   onBlur={handleInputBlur}
                   placeholder={
-                    stt.isRecording 
-                      ? "🎙️ Nagrywam..." 
-                      : stt.isTranscribing 
-                        ? "🔧 Przetwarzam audio..." 
+                    stt.isRecording
+                      ? "🎙️ Nagrywam..."
+                      : stt.isTranscribing
+                        ? "🔧 Przetwarzam audio..."
                         : "Wpisz adres, zapytanie lub naciśnij przycisk mikrofonu..."
                   }
                   className="w-full rounded-xl bg-gray-800/80 px-4 py-3 pr-12 text-sm text-white placeholder-gray-500 outline-none ring-1 ring-gray-700/60 transition-all duration-200 focus:ring-2 focus:ring-broxeen-500/70 focus:shadow-[0_0_20px_rgba(14,165,233,0.12)]"
