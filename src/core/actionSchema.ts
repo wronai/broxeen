@@ -401,6 +401,50 @@ export const ACTION_SCHEMAS: readonly ActionSchema[] = [
     examples: ['marketplace', 'zainstaluj plugin'],
     executeQuery: 'marketplace',
   },
+
+  // ── Voice Commands domain ─────────────────────────────
+  {
+    intent: 'voice:command',
+    domain: 'system',
+    label: 'Komendy głosowe',
+    description: 'Włącz/wyłącz mikrofon i sterowanie głosowe',
+    icon: '🎤',
+    keywords: ['mikrofon', 'głos', 'sterowanie', 'voice', 'microphone', 'włącz', 'wyłącz'],
+    examples: ['włącz mikrofon', 'wyłącz sterowanie głosowe', 'mikrofon off'],
+    executeQuery: 'włącz mikrofon',
+  },
+
+  // ── Logs domain ────────────────────────────────────────
+  {
+    intent: 'logs:download',
+    domain: 'system',
+    label: 'Pobierz logi',
+    description: 'Eksportuj logi systemowe do pliku',
+    icon: '📥',
+    keywords: ['logi', 'pobierz', 'exportuj', 'zapisz', 'logs', 'download'],
+    examples: ['pobierz logi', 'exportuj logi', 'zapisz logi'],
+    executeQuery: 'pobierz logi',
+  },
+  {
+    intent: 'logs:clear',
+    domain: 'system',
+    label: 'Wyczyść logi',
+    description: 'Usuń logi systemowe',
+    icon: '🧹',
+    keywords: ['logi', 'wyczyść', 'usuń', 'clear', 'logs'],
+    examples: ['wyczyść logi', 'usuń logi', 'clear logs'],
+    executeQuery: 'wyczyść logi',
+  },
+  {
+    intent: 'logs:level',
+    domain: 'system',
+    label: 'Poziom logów',
+    description: 'Sprawdź aktualny poziom logowania',
+    icon: '📊',
+    keywords: ['logi', 'poziom', 'level', 'status', 'logs'],
+    examples: ['poziom logów', 'log level', 'status logów'],
+    executeQuery: 'poziom logów',
+  },
 ] as const;
 
 // ── Query helpers ────────────────────────────────────────────

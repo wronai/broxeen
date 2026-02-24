@@ -1,3 +1,23 @@
+## [1.0.70] - 2026-02-24
+
+### Summary
+
+feat(docs): CLI interface with 3 supporting modules
+
+### Docs
+
+- docs: update TODO.md
+
+### Other
+
+- update src/components/Chat.tsx
+- update src/core/actionSchema.ts
+- update src/core/intentRouter.ts
+- update src/core/pluginRegistry.ts
+- update src/plugins/system/logsPlugin.ts
+- update src/plugins/voice/voiceCommandsPlugin.ts
+
+
 ## [1.0.69] - 2026-02-24
 
 ### Summary

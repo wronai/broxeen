@@ -566,6 +566,57 @@ export class IntentRouter implements IIntentRouter {
       /podgląd.*live|podglad.*live/i,
     ]);
 
+    // Voice command intents
+    this.intentPatterns.set('voice:command', [
+      /wyłącz.*mikrofon/i,
+      /włącz.*mikrofon/i,
+      /mikrofon.*off/i,
+      /mikrofon.*on/i,
+      /zatrzymaj.*mikrofon/i,
+      /stop.*mikrofon/i,
+      /uruchom.*mikrofon/i,
+      /start.*mikrofon/i,
+      /wyłącz.*sterowanie.*głosowe/i,
+      /włącz.*sterowanie.*głosowe/i,
+      /sterowanie.*głosowe.*off/i,
+      /sterowanie.*głosowe.*on/i,
+      /zatrzymaj.*sterowanie.*głosowe/i,
+      /stop.*sterowanie.*głosowe/i,
+      /uruchom.*sterowanie.*głosowe/i,
+      /start.*sterowanie.*głosowe/i,
+    ]);
+
+    // Logs management intents
+    this.intentPatterns.set('logs:download', [
+      /pobierz.*logi/i,
+      /exportuj.*logi/i,
+      /zapisz.*logi/i,
+      /logi.*pobierz/i,
+      /logi.*export/i,
+      /logi.*zapisz/i,
+      /pokaz.*logi/i,
+      /pokaż.*logi/i,
+      /drukuj.*logi/i,
+    ]);
+
+    this.intentPatterns.set('logs:clear', [
+      /wyczyść.*logi/i,
+      /usuń.*logi/i,
+      /clear.*log/i,
+      /wyczyść.*log/i,
+      /usuń.*log/i,
+      /czystość.*log/i,
+    ]);
+
+    this.intentPatterns.set('logs:level', [
+      /poziom.*logów/i,
+      /log.*level/i,
+      /ustaw.*log/i,
+      /sprawdź.*log/i,
+      /status.*log/i,
+      /poziom.*log/i,
+    ]);
+
     // Chat/LLM intents (fallback)
     this.intentPatterns.set('chat:ask', [
       /.+/, // catch-all (non-empty)
@@ -602,10 +653,11 @@ export class IntentRouter implements IIntentRouter {
     }
     
     // Fallback to regex-based detection
-    console.log(`🔄 Using regex-based intent detection`);
+    console.log(`🔄 Using regex-based intent detection for: "${normalizedInput}"`);
     for (const [intent, patterns] of this.intentPatterns) {
       if (intent === 'chat:ask') continue; // skip fallback for now
       
+      console.log(`🔍 Checking intent: ${intent} with ${patterns.length} patterns`);
       for (const pattern of patterns) {
         if (pattern.test(normalizedInput)) {
           console.log(`✅ Intent detected: ${intent} with pattern: ${pattern}`);
@@ -630,13 +682,13 @@ export class IntentRouter implements IIntentRouter {
   route(intent: string, scope?: string): Plugin | DataSourcePlugin | null {
     // Check legacy plugins first
     for (const plugin of this.plugins.values()) {
-      if (!plugin.supportedIntents.includes(intent)) continue;
+      if (!plugin.supportedIntents || !plugin.supportedIntents.includes(intent)) continue;
       if (scope && !scopeRegistry.isPluginAllowed(plugin.id, scope)) continue;
       return plugin;
     }
     // Check DataSourcePlugins
     for (const plugin of this.dataSourcePlugins.values()) {
-      if (!plugin.capabilities.intents.includes(intent as any)) continue;
+      if (!plugin.capabilities || !plugin.capabilities.intents || !plugin.capabilities.intents.includes(intent as any)) continue;
       if (scope && !scopeRegistry.isPluginAllowed(plugin.id, scope)) continue;
       return plugin;
     }

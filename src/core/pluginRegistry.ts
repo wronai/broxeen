@@ -52,11 +52,11 @@ export class PluginRegistry implements IPluginRegistry {
 
   findByIntent(intent: string): (Plugin | DataSourcePlugin)[] {
     const legacyPlugins = Array.from(this.plugins.values()).filter(plugin =>
-      plugin.supportedIntents.includes(intent)
+      plugin.supportedIntents && plugin.supportedIntents.includes(intent)
     );
     
     const dataSourcePlugins = Array.from(this.dataSourcePlugins.values()).filter(plugin =>
-      plugin.capabilities.intents.includes(intent as any)
+      plugin.capabilities && plugin.capabilities.intents && plugin.capabilities.intents.includes(intent as any)
     );
     
     return [...legacyPlugins, ...dataSourcePlugins];

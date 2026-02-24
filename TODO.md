@@ -348,3 +348,7 @@ Eksperci ze strony Digitaldep zaznaczają, że samo znalezienie kamery w sieci l
 
 Witryna IPOX podkreśla, że producenci często dostarczają dedykowane oprogramowanie wspierające użytkownika, które automatyzuje proces wykrywania sprzętu i pomaga uniknąć konfliktów adresów w sieci.
 URL: https://html.duckduckgo.com/html/?q=wyszukaj%20kamere%20w%20sieci%20lokalnej
+## Issues Found - 2026-02-24
+
+- [JS005-noentrypointmainmoduleexports] 🔵 **No entry point (main/module/exports)** (`package.json`)
+  - Consider adding a "main" or "exports" field for proper module resolution.

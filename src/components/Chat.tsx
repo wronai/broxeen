@@ -172,6 +172,12 @@ export default function Chat({ settings }: ChatProps) {
       'lista urządzeń',
       'tylko kamery',
       'pokaż kamery',
+      'kamera',
+      'kamery',
+      'znajdź kamery',
+      'pokaż kamery w sieci',
+      'status kamer',
+      'monitoruj kamery',
       'przeglądaj ',
       'wyszukaj ',
       'znajdź pliki ',
@@ -332,7 +338,6 @@ export default function Chat({ settings }: ChatProps) {
       if (!trimmed) continue;
       const key = trimmed.toLowerCase();
       if (seen.has(key)) continue;
-      if (key === q) continue;
       if (!key.includes(q)) continue;
       seen.add(key);
       filtered.push(trimmed);
