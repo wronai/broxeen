@@ -1,3 +1,24 @@
+## [1.0.82] - 2026-02-24
+
+### Summary
+
+fix(tests): deep code analysis engine with 6 supporting modules
+
+### Other
+
+- update src-tauri/src/content_extraction.rs
+- update src-tauri/src/main.rs
+- update src-tauri/src/query_schema.rs
+- update src/commands/browseCommand.ts
+- update src/components/Chat.test.tsx
+- update src/components/Chat.tsx
+- update src/components/QuickActionButtons.test.ts
+- update src/components/QuickActionButtons.tsx
+- update src/domain/chatEvents.ts
+- update src/lib/browseGateway.ts
+- ... and 3 more
+
+
 ## [1.0.81] - 2026-02-24
 
 ### Summary

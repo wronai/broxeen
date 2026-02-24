@@ -116,6 +116,8 @@ export class MonitorPlugin implements Plugin {
   // Each entry: [pattern, handler-key]. Checked in order; first match wins.
   // Replaces 45+ individual regex tests with a single scannable table.
   private static readonly COMMAND_ROUTES: ReadonlyArray<[RegExp, string]> = [
+    // Add to monitoring — website/URL monitoring
+    [/\b(?:dodaj\s+do\s+monitorowania|add\s+to\s+monitoring)\b/i, 'add-to-monitoring'],
     // Vision / AI pipeline — checked first (highest priority)
     [/vision.*pipeline|pipeline.*vision|ai.*monitor|monitoring.*ai|detekcja.*ai|yolo.*monitor|start.*vision|uruchom.*vision|w[łl]ącz.*vision|status.*vision|stop.*vision|zatrzymaj.*vision/i, 'vision'],
     // DB conflict resolution
@@ -136,6 +138,8 @@ export class MonitorPlugin implements Plugin {
 
   // All patterns that canHandle should match (includes COMMAND_ROUTES + start-triggers)
   private static readonly CAN_HANDLE_PATTERNS: ReadonlyArray<RegExp> = [
+    // Add to monitoring
+    /\b(?:dodaj\s+do\s+monitorowania|add\s+to\s+monitoring)\b/i,
     // Start / observe keywords
     /\b(?:monitoruj|obserwuj|[śs]led[źz])\b/i,
     /monitor.*flag/i,
@@ -157,6 +161,8 @@ export class MonitorPlugin implements Plugin {
       if (!pattern.test(lower)) continue;
 
       switch (key) {
+        case 'add-to-monitoring':
+          return await this.handleAddToMonitoring(input, context, start);
         case 'vision':
           return await this.handleVisionPipeline(input, context, start);
         case 'resolve': {

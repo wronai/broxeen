@@ -371,7 +371,7 @@ function getContentTypeLabel(type: string): string {
     'shop': '🏪 Sklep',
     'general': '🌐 Strona'
   };
-  return labels[type] || '🌐 Strona';
+  return labels[type as keyof typeof labels] || '🌐 Strona';
 }
 
 function summarizeBlog(content: string, title: string, sentences: string[], metadata: Record<string, string>): string {
@@ -630,7 +630,7 @@ function getMetadataLabel(key: string): string {
     'author': 'Autor',
     'version': 'Wersja'
   };
-  return labels[key] || key.charAt(0).toUpperCase() + key.slice(1);
+  return labels[key as keyof typeof labels] || key.charAt(0).toUpperCase() + key.slice(1);
 }
 
 function stripCookieBannerText(text: string): string {
@@ -646,7 +646,7 @@ function stripCookieBannerText(text: string): string {
 
   // Enhanced patterns for unwanted content
   const unwantedPatterns = [
-    // Cookie and privacy banners
+    // Cookie and privacy banners (enhanced)
     /\b(ciasteczk\w*|cookie\w*|cookies)\b/i,
     /\b(polityk\w*\s+prywatn\w*|privacy\s+policy)/i,
     /\b(akcept|zgadzam\s+się|consent)/iu,
@@ -654,6 +654,15 @@ function stripCookieBannerText(text: string): string {
     /\b(użytkownik\w*|user)/i,
     /\b(zapisywan\w*|stored)/i,
     /\b(najlepsz\w*\s+obsług\w*|best\s+experience)/i,
+    // Enhanced cookie banner patterns
+    /\b(strona\s+korzysta\s+z\s+plików\s+tekstowych\s+zwanych\s+ciasteczkami)/i,
+    /\b(w\s+celu\s+zapewnienia\s+najlepszej\s+możliwej\s+obslugi)/i,
+    /\b(zapewnić\s+Ci\s+najlepszą\s+możliwą\s+obsługę)/i,
+    /\b(są\s+one\s+zapisywane\s+w\s+przeglądarce)/i,
+    /\b(pozwalają\s+rozpoznać\s+Ciebie)/i,
+    /\b(właściciele\s+witryny\s+mogą\s+better\s+zrozumieć)/i,
+    /\b(ciągłym\s+ulepszaniu\s+zawartości)/i,
+    /\b(korzystanie\s+z\s+witryny\s+oznacza\s+akceptację)/i,
     // Navigation and menus
     /\b(menu|nawigacja|navigation|home|strona\s+główna)/i,
     /\b(kontakt|contact|o\s+nas|about\s+us)/i,
@@ -672,6 +681,9 @@ function stripCookieBannerText(text: string): string {
     // Common boilerplate
     /\b(więcej\s+informacji|more\s+info|dowiedz\s+się\s+więcej)/i,
     /\b(czytaj\s+dalej|read\s+more|kontynuuj)/i,
+    // Low quality content indicators
+    /\b(wdrożenie\s+oprogramowania\s+w\s+24h)/i,
+    /\b(ta\s+strona\s+korzysta\s+z\s+ciasteczek)/i,
   ];
 
   for (const block of blocks) {
@@ -818,6 +830,14 @@ export interface BrowseResult {
   rss_url?: string;
   contact_url?: string;
   phone_url?: string;
+  sitemap_url?: string;
+  blog_url?: string;
+  linkedin_url?: string;
+  facebook_url?: string;
+  twitter_url?: string;
+  github_url?: string;
+  youtube_url?: string;
+  instagram_url?: string;
 }
 
 interface AllOriginsResponse {
@@ -1083,9 +1103,9 @@ function normalizeBrowseResult(
     : rawContent;
   const cookieStripped = stripCookieBannerText(extractedContent);
   
-  // Apply human-like summarization for browser mode only if content is substantial and not in test mode
+  // Apply human-like summarization for browser mode if content is substantial
   let processedContent = cookieStripped.slice(0, MAX_CONTENT_LENGTH).trim();
-  if (source === "browser" && processedContent.length > 500 && process.env.NODE_ENV !== 'test') {
+  if (source === "browser" && processedContent.length > 500) {
     processedContent = createHumanLikeSummary(processedContent, title, safeUrl);
   }
   
@@ -1216,9 +1236,9 @@ async function fetchViaAdvancedProxy(url: string, proxyConfig: typeof ADVANCED_P
       await delay(delayMs);
     }
 
-    const headers = {
+    const headers: Record<string, string> = {
       ...generateAdvancedHeaders(targetUrl),
-      ...proxyConfig.headers,
+      ...Object.fromEntries(Object.entries(proxyConfig.headers).filter(([_, v]) => v !== undefined)),
     };
 
     const response = await fetch(fetchUrl, { 
@@ -1656,7 +1676,25 @@ function isValidContent(content: string, url: string): boolean {
     /zastrzeżenie nie dotyczy wykorzystywania jedynie w celu ułatwienia ich wyszukiwania/i,
   ];
 
-  const allPatterns = [...blockingPatterns, ...polishBlockingPatterns, ...wpBlockingPatterns];
+  // Low quality content patterns
+  const lowQualityPatterns = [
+    /wdrożenie\s+oprogramowania\s+w\s+24h/i,
+    /ta\s+strona\s+korzysta\s+z\s+ciasteczek/i,
+    /w\s+celu\s+zapewnienia\s+najlepszej\s+możliwej\s+obslugi/i,
+    /strona\s+jest\s+w\s+budowie/i,
+    /under\s+construction/i,
+    /coming\s+soon/i,
+    /placeholder\s+page/i,
+    /default\s+website\s+page/i,
+    /this\s+is\s+a\s+placeholder/i,
+    /welcome\s+to\s+nginx/i,
+    /apache2.*default\s+page/i,
+    /test\s+page\s+for/i,
+    /it\s+works/i,
+    /server\s+default\s+page/i,
+  ];
+
+  const allPatterns = [...blockingPatterns, ...polishBlockingPatterns, ...wpBlockingPatterns, ...lowQualityPatterns];
   
   for (const pattern of allPatterns) {
     if (pattern.test(content)) {
@@ -1682,6 +1720,12 @@ function isValidContent(content: string, url: string): boolean {
   
   if (!hasMeaningfulContent && content.length > 500) {
     // Long content without meaningful words is likely blocked/garbled
+    return false;
+  }
+
+  // Additional check: if content is mostly cookie/privacy boilerplate, reject
+  const cookiePrivacyRatio = (content.match(/cookie|privacy|ciasteczk|prywatność/gi) || []).length / content.split(/\s+/).length;
+  if (cookiePrivacyRatio > 0.1) {
     return false;
   }
 

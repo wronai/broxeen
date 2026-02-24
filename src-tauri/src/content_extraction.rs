@@ -204,9 +204,17 @@ pub struct ActionLinks {
     pub rss_url: Option<String>,
     pub contact_url: Option<String>,
     pub phone_url: Option<String>,
+    pub sitemap_url: Option<String>,
+    pub blog_url: Option<String>,
+    pub linkedin_url: Option<String>,
+    pub facebook_url: Option<String>,
+    pub twitter_url: Option<String>,
+    pub github_url: Option<String>,
+    pub youtube_url: Option<String>,
+    pub instagram_url: Option<String>,
 }
 
-/// Extract quick action links (RSS, Contact, Phone) from parsed HTML
+/// Extract quick action links (RSS, Contact, Phone, Social Media, etc.) from parsed HTML
 pub fn extract_action_links(document: &scraper::Html) -> ActionLinks {
     let mut links = ActionLinks::default();
 
@@ -221,6 +229,27 @@ pub fn extract_action_links(document: &scraper::Html) -> ActionLinks {
             if let Some(el) = document.select(&sel).next() {
                 links.rss_url = el.value().attr("href").map(|s| s.to_string());
             }
+        }
+    }
+
+    // Sitemap
+    if let Ok(sel) = scraper::Selector::parse("link[type='application/xml'][rel='sitemap'], a[href*='sitemap']") {
+        if let Some(el) = document.select(&sel).next() {
+            links.sitemap_url = el.value().attr("href").map(|s| s.to_string());
+        }
+    }
+    if links.sitemap_url.is_none() {
+        if let Ok(sel) = scraper::Selector::parse("a[href*='sitemap.xml'], a[href*='mapa-strony']") {
+            if let Some(el) = document.select(&sel).next() {
+                links.sitemap_url = el.value().attr("href").map(|s| s.to_string());
+            }
+        }
+    }
+
+    // Blog
+    if let Ok(sel) = scraper::Selector::parse("a[href*='blog'], a[href*='wpis'], a[href*='artykul']") {
+        if let Some(el) = document.select(&sel).next() {
+            links.blog_url = el.value().attr("href").map(|s| s.to_string());
         }
     }
 
@@ -240,6 +269,48 @@ pub fn extract_action_links(document: &scraper::Html) -> ActionLinks {
     if let Ok(sel) = scraper::Selector::parse("a[href^='tel:']") {
         if let Some(el) = document.select(&sel).next() {
             links.phone_url = el.value().attr("href").map(|s| s.to_string());
+        }
+    }
+
+    // Social Media - LinkedIn
+    if let Ok(sel) = scraper::Selector::parse("a[href*='linkedin.com'], a[href*='linkedin']") {
+        if let Some(el) = document.select(&sel).next() {
+            links.linkedin_url = el.value().attr("href").map(|s| s.to_string());
+        }
+    }
+
+    // Social Media - Facebook
+    if let Ok(sel) = scraper::Selector::parse("a[href*='facebook.com'], a[href*='facebook']") {
+        if let Some(el) = document.select(&sel).next() {
+            links.facebook_url = el.value().attr("href").map(|s| s.to_string());
+        }
+    }
+
+    // Social Media - Twitter/X
+    if let Ok(sel) = scraper::Selector::parse("a[href*='twitter.com'], a[href*='x.com'], a[href*='twitter']") {
+        if let Some(el) = document.select(&sel).next() {
+            links.twitter_url = el.value().attr("href").map(|s| s.to_string());
+        }
+    }
+
+    // Social Media - GitHub
+    if let Ok(sel) = scraper::Selector::parse("a[href*='github.com'], a[href*='github']") {
+        if let Some(el) = document.select(&sel).next() {
+            links.github_url = el.value().attr("href").map(|s| s.to_string());
+        }
+    }
+
+    // Social Media - YouTube
+    if let Ok(sel) = scraper::Selector::parse("a[href*='youtube.com'], a[href*='youtube']") {
+        if let Some(el) = document.select(&sel).next() {
+            links.youtube_url = el.value().attr("href").map(|s| s.to_string());
+        }
+    }
+
+    // Social Media - Instagram
+    if let Ok(sel) = scraper::Selector::parse("a[href*='instagram.com'], a[href*='instagram']") {
+        if let Some(el) = document.select(&sel).next() {
+            links.instagram_url = el.value().attr("href").map(|s| s.to_string());
         }
     }
 

@@ -128,8 +128,6 @@ export class HttpBrowsePlugin implements Plugin {
           resolveType,
           executionTime: Date.now() - startTime,
           scope: context.scope,
-          contentType: naturalContent.contentType,
-          contentLength: naturalContent.content.length,
         },
       };
 
@@ -202,6 +200,13 @@ export class HttpBrowsePlugin implements Plugin {
     // Add helpful footer for search results
     if (isSearch) {
       finalContent += '\n\n---\n*💡 Wskazówka: Aby odwiedzić konkretną stronę, podaj jej pełny adres URL.*';
+    }
+    
+    // Add monitoring option for direct website browsing
+    if (isDirectUrl && result.url) {
+      finalContent += '\n\n---\n**🔍 Opcje monitorowania:**\n';
+      finalContent += `- \`dodaj do monitorowania ${result.url}\` — Monitoruj dostępność i zmiany na tej stronie\n`;
+      finalContent += `- \`monitoruj ${new URL(result.url).hostname}\` — Monitoruj dostępność domeny\n`;
     }
     
     return {

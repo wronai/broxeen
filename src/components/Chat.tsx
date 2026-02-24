@@ -38,6 +38,7 @@ import { CameraLiveInline } from "./CameraLiveInline";
 import { ActionSuggestions } from "./ActionSuggestions";
 import { QuickCommands } from "./QuickCommands";
 import { ChatConfigPrompt, buildApiKeyPrompt, buildConfigOverviewPrompt, buildMonitorConfigPrompt, buildNetworkConfigPrompt, buildModelSelectionPrompt } from "./ChatConfigPrompt";
+import { MessageWithQuickActions, QuickActionButtons } from "./QuickActionButtons";
 import type { ConfigPromptData } from "./ChatConfigPrompt";
 import { processRegistry } from "../core/processRegistry";
 import type { AudioSettings } from "../domain/audioSettings";
@@ -67,7 +68,7 @@ interface ChatProps {
   settings: AudioSettings;
 }
 
-type QueryScope = 'local' | 'internet' | 'tor' | 'vpn';
+type QueryScope = 'local' | 'internet' | 'tor' | 'vpn' | 'ssh';
 
 interface ScopeOption {
   id: QueryScope;
@@ -164,6 +165,12 @@ export default function Chat({ settings }: ChatProps) {
       name: 'VPN',
       icon: <Zap size={16} />,
       description: 'Przeszukuj przez połączenie VPN'
+    },
+    {
+      id: 'ssh',
+      name: 'SSH',
+      icon: <Search size={16} />,
+      description: 'Przeszukuj przez połączenie SSH'
     }
   ];
 
@@ -1586,33 +1593,59 @@ ${analysis}`,
     return null;
   };
 
+  // Add scope prefix to query based on current scope
+  const addScopePrefix = (query: string, scope: QueryScope): string => {
+    // Don't add prefix if query already has one
+    const hasPrefix = /^(local|public|tor|vpn|ssh)\$\s/.test(query);
+    if (hasPrefix) return query;
+
+    const prefixMap = {
+      'local': 'local$',
+      'internet': 'public$', 
+      'tor': 'tor$',
+      'vpn': 'vpn$',
+      'ssh': 'ssh$'
+    };
+
+    const prefix = prefixMap[scope];
+    return prefix ? `${prefix} ${query}` : query;
+  };
+
   const handleSubmit = async (text?: string) => {
-    const query = (text || input).trim();
-    if (!query) {
+    const originalQuery = (text || input).trim();
+    if (!originalQuery) {
       chatLogger.debug("Ignoring empty submit");
       return;
     }
 
+    // Add scope prefix to the query
+    const query = addScopePrefix(originalQuery, currentScope);
+
     // Hide command history when user submits
     setShowCommandHistory(false);
 
-    // Save to history
-    if (inputHistoryRef.current[inputHistoryRef.current.length - 1] !== query) {
-      inputHistoryRef.current.push(query);
+    // Save to history (use original query without prefix)
+    if (inputHistoryRef.current[inputHistoryRef.current.length - 1] !== originalQuery) {
+      inputHistoryRef.current.push(originalQuery);
     }
     historyIndexRef.current = -1; // Reset index
 
     setInput("");
-    chatLogger.info("Handling submit", { queryLength: query.length });
+    chatLogger.info("Handling submit", { 
+      originalQuery, 
+      prefixedQuery: query, 
+      scope: currentScope,
+      queryLength: query.length 
+    });
 
-    // Emit user message directly to store
+    // Emit user message directly to store (without prefix for display)
     eventStore.append({
       type: "message_added",
-      payload: { id: nextMessageId(), role: "user", text: query },
+      payload: { id: nextMessageId(), role: "user", text: originalQuery },
     });
 
     // ── Config commands — handled locally with interactive prompts ──
-    const configResult = handleConfigCommand(query);
+    const configResult = handleConfigCommand(originalQuery);
     if (configResult) {
       eventStore.append({
         type: "message_added",
@@ -1624,7 +1657,7 @@ ${analysis}`,
           configPrompt: configResult.prompt,
         },
       });
-      addToCommandHistory(query, configResult.text, 'other', true);
+      addToCommandHistory(originalQuery, configResult.text, 'other', true);
       return;
     }
 
@@ -1632,14 +1665,14 @@ ${analysis}`,
 
     // Show thinking message while processing
     const thinkingId = nextMessageId();
-    const thinkingLabel = /plik|dokument|file/i.test(query)
+    const thinkingLabel = /plik|dokument|file/i.test(originalQuery)
       ? 'Szukam plików na dysku'
-      : /email|mail|poczta|skrzynk/i.test(query)
+      : /email|mail|poczta|skrzynk/i.test(originalQuery)
         ? 'Sprawdzam skrzynkę email'
-        : /skan|kamer|sieć|siec/i.test(query)
+        : /skan|kamer|sieć|siec/i.test(originalQuery)
           ? 'Skanuję sieć'
           : 'Przetwarzam zapytanie';
-    const estimatedSec = /plik|dokument|file/i.test(query) ? 8 : /email|mail/i.test(query) ? 10 : 5;
+    const estimatedSec = /plik|dokument|file/i.test(originalQuery) ? 8 : /email|mail/i.test(originalQuery) ? 10 : 5;
 
     eventStore.append({
       type: "message_added",
@@ -1660,7 +1693,7 @@ ${analysis}`,
       processRegistry.upsertRunning({
         id: processId,
         type: 'query',
-        label: `Zapytanie: ${query.length > 60 ? query.slice(0, 57) + '...' : query}`,
+        label: `Zapytanie: ${originalQuery.length > 60 ? originalQuery.slice(0, 57) + '...' : originalQuery}`,
         details: `scope=${currentScope}`,
         stopCommand: undefined,
       });
@@ -1700,12 +1733,12 @@ ${analysis}`,
             payload: {
               id: nextMessageId(),
               role: "assistant",
-              text: `🎤 Transkrypcja: "${query}"\n\n${fallback.text}`,
+              text: `🎤 Transkrypcja: "${originalQuery}"\n\n${fallback.text}`,
               type: "config_prompt",
               configPrompt: fallback.configPrompt,
             },
           });
-          addToCommandHistory(query, fallback.text, 'other', true);
+          addToCommandHistory(originalQuery, fallback.text, 'other', true);
           processRegistry.complete(processId);
           processRegistry.remove(processId);
           return;
@@ -1730,7 +1763,7 @@ ${analysis}`,
               configPrompt: fallbackPrompt,
             },
           });
-          addToCommandHistory(query, textData, categorizeCommand(query), true);
+          addToCommandHistory(originalQuery, textData, categorizeCommand(originalQuery), true);
           processRegistry.complete(processId);
           processRegistry.remove(processId);
           return;
@@ -1832,7 +1865,7 @@ ${analysis}`,
         }
 
         // Add to command history
-        addToCommandHistory(query, fullResult.trim(), categorizeCommand(query), true);
+        addToCommandHistory(originalQuery, fullResult.trim(), categorizeCommand(originalQuery), true);
 
         processRegistry.complete(processId);
         processRegistry.remove(processId);
@@ -1902,7 +1935,7 @@ ${analysis}`,
         }
 
         // Add to command history
-        addToCommandHistory(query, errorMessage, categorizeCommand(query), false);
+        addToCommandHistory(originalQuery, errorMessage, categorizeCommand(originalQuery), false);
 
         processRegistry.fail(processId, errorMessage);
         processRegistry.remove(processId);
@@ -2580,6 +2613,19 @@ ${analysis}`,
                                     })()}
                                   </ReactMarkdown>
                                 </div>
+                                <QuickActionButtons 
+                                  message={msg} 
+                                  onActionClick={(action, url) => {
+                                    // Handle quick action clicks
+                                    if (action === 'contact' && url.startsWith('mailto:')) {
+                                      window.location.href = url;
+                                    } else if (action === 'phone' && url.startsWith('tel:')) {
+                                      window.location.href = url;
+                                    } else {
+                                      window.open(url, '_blank');
+                                    }
+                                  }} 
+                                />
                               </MessageResultCard>
                             </div>
                           )}

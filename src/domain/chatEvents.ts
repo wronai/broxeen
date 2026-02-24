@@ -17,6 +17,14 @@ export interface ChatMessage {
   rssUrl?: string;
   contactUrl?: string;
   phoneUrl?: string;
+  sitemapUrl?: string;
+  blogUrl?: string;
+  linkedinUrl?: string;
+  facebookUrl?: string;
+  twitterUrl?: string;
+  githubUrl?: string;
+  youtubeUrl?: string;
+  instagramUrl?: string;
   pageTitle?: string;
   title?: string;
   timestamp?: number;
@@ -85,6 +93,14 @@ export type DomainEvent =
         rssUrl?: string;
         contactUrl?: string;
         phoneUrl?: string;
+        sitemapUrl?: string;
+        blogUrl?: string;
+        linkedinUrl?: string;
+        facebookUrl?: string;
+        twitterUrl?: string;
+        githubUrl?: string;
+        youtubeUrl?: string;
+        instagramUrl?: string;
       };
       timestamp: number;
     }

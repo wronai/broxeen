@@ -185,6 +185,14 @@ pub struct BrowseResult {
     pub rss_url: Option<String>,
     pub contact_url: Option<String>,
     pub phone_url: Option<String>,
+    pub sitemap_url: Option<String>,
+    pub blog_url: Option<String>,
+    pub linkedin_url: Option<String>,
+    pub facebook_url: Option<String>,
+    pub twitter_url: Option<String>,
+    pub github_url: Option<String>,
+    pub youtube_url: Option<String>,
+    pub instagram_url: Option<String>,
 }
 
 
@@ -259,6 +267,14 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
             rss_url: None,
             contact_url: None,
             phone_url: None,
+            sitemap_url: None,
+            blog_url: None,
+            linkedin_url: None,
+            facebook_url: None,
+            twitter_url: None,
+            github_url: None,
+            youtube_url: None,
+            instagram_url: None,
         });
     }
 
@@ -421,6 +437,14 @@ async fn browse(url: String) -> Result<BrowseResult, String> {
         rss_url: action_links.rss_url,
         contact_url: action_links.contact_url,
         phone_url: action_links.phone_url,
+        sitemap_url: action_links.sitemap_url,
+        blog_url: action_links.blog_url,
+        linkedin_url: action_links.linkedin_url,
+        facebook_url: action_links.facebook_url,
+        twitter_url: action_links.twitter_url,
+        github_url: action_links.github_url,
+        youtube_url: action_links.youtube_url,
+        instagram_url: action_links.instagram_url,
     })
 }
 

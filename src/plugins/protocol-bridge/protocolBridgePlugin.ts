@@ -1405,6 +1405,7 @@ export class ProtocolBridgePlugin implements Plugin {
       case 'graphql': return 'Przykład: "dodaj bridge graphql https://api.example.com/graphql"';
       case 'rss': return 'Przykład: "dodaj bridge rss https://example.com/feed.xml"';
       case 'atom': return 'Przykład: "dodaj bridge atom https://example.com/atom.xml"';
+      default: return 'Przykład: "dodaj bridge [protocol] [url]"';
     }
   }
 
@@ -1425,6 +1426,8 @@ export class ProtocolBridgePlugin implements Plugin {
         return `Teraz możesz:\n- "bridge rss ${url}" — odczytaj kanał RSS\n${common}`;
       case 'atom':
         return `Teraz możesz:\n- "bridge atom ${url}" — odczytaj kanał Atom\n${common}`;
+      default:
+        return `Teraz możesz:\n- "bridge ${protocol} ${url}" — użyj protokołu\n${common}`;
     }
   }
 
@@ -1466,6 +1469,11 @@ export class ProtocolBridgePlugin implements Plugin {
         return [
           { label: 'Odczytaj Atom', command: `bridge atom ${url}` },
           { label: 'Status', command: 'bridge status' },
+        ];
+      default:
+        return [
+          { label: 'Status', command: 'bridge status' },
+          { label: 'Lista', command: 'lista bridge' },
         ];
     }
   }
@@ -1549,7 +1557,7 @@ export class ProtocolBridgePlugin implements Plugin {
         try {
           const formattedContent = await invoke('parse_rss_feed_command', { 
             url, 
-            content: rawContent.content, 
+            content: (rawContent as any).content, 
             maxItems: 10 
           });
           
@@ -1564,7 +1572,7 @@ export class ProtocolBridgePlugin implements Plugin {
                 type: 'text',
                 data: formattedContent as string,
                 title: `RSS: ${url}`,
-                summary: `Kanał RSS odczytany: ${rawContent.title || url}`,
+                summary: `Kanał RSS odczytany: ${(rawContent as any).title || url}`,
               }],
               metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, source_url: url },
             },
@@ -1584,7 +1592,7 @@ export class ProtocolBridgePlugin implements Plugin {
         result = await executeBrowseCommand(url, context.isTauri);
       }
       
-      this.recordMessage('rss', 'received', url, result.content, 'api');
+      this.recordMessage('rss', 'received', url, (result as any).content, 'api');
       this.updateEndpointActivity('rss', url);
 
       return this.withHints(
@@ -1594,9 +1602,9 @@ export class ProtocolBridgePlugin implements Plugin {
           content: [{
             type: 'text',
             data: `📰 **RSS Feed** — ${url}\n\n` +
-              `${result.content}`,
+              `${(result as any).content}`,
             title: `RSS: ${url}`,
-            summary: `Kanał RSS odczytany: ${result.title || url}`,
+            summary: `Kanał RSS odczytany: ${(result as any).title || url}`,
           }],
           metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, source_url: url },
         },
@@ -1631,17 +1639,17 @@ export class ProtocolBridgePlugin implements Plugin {
       if (context.isTauri) {
         // Use Tauri RSS parser for better XML handling
         const { invoke } = await import('@tauri-apps/api/core');
-        const rawContent = await invoke('browse', { url });
+        const rawContent = await invoke<{ content: string }>('browse', { url });
         
         // Try to parse as Atom feed first
         try {
-          const formattedContent = await invoke('parse_rss_feed_command', { 
+          const formattedContent = await invoke<string>('parse_rss_feed_command', { 
             url, 
             content: rawContent.content, 
             maxItems: 10 
           });
           
-          this.recordMessage('atom', 'received', url, formattedContent as string, 'api');
+          this.recordMessage('atom', 'received', url, formattedContent, 'api');
           this.updateEndpointActivity('atom', url);
 
           return this.withHints(
@@ -1650,9 +1658,9 @@ export class ProtocolBridgePlugin implements Plugin {
               status: 'success',
               content: [{
                 type: 'text',
-                data: formattedContent as string,
+                data: formattedContent,
                 title: `Atom: ${url}`,
-                summary: `Kanał Atom odczytany: ${rawContent.title || url}`,
+                summary: `Kanał Atom odczytany: ${(rawContent as any).title || url}`,
               }],
               metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, source_url: url },
             },
@@ -1684,7 +1692,7 @@ export class ProtocolBridgePlugin implements Plugin {
             data: `🗞️ **Atom Feed** — ${url}\n\n` +
               `${result.content}`,
             title: `Atom: ${url}`,
-            summary: `Kanał Atom odczytany: ${result.title || url}`,
+            summary: `Kanał Atom odczytany: ${url}`,
           }],
           metadata: { duration_ms: Date.now() - start, cached: false, truncated: false, source_url: url },
         },
