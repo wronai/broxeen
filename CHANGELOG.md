@@ -1,3 +1,14 @@
+## [1.0.88] - 2026-02-24
+
+### Summary
+
+feat(tests): test module improvements
+
+### Other
+
+- update src-tauri/test_anon.rs
+
+
 ## [1.0.87] - 2026-02-24
 
 ### Summary
