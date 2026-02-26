@@ -368,15 +368,30 @@ URL: https://html.duckduckgo.com/html/?q=wyszukaj%20kamere%20w%20sieci%20lokalne
 - [x] **0 cargo warnings** — naprawiono `static_mut_refs` w `local_llm.rs` (OnceLock), `#[allow(dead_code)]` dla API publicznego, unused imports/vars
 - [x] **0 tsc errors** — `tsc --noEmit` czyste
 
-### Pre-existing test failures (8 tests, nie spowodowane cleanup)
-- `Chat.test.tsx` — config prompt test
-- `quickActionResolver.test.ts` — RSS monitoring/generic RSS actions (2)
-- `cameraLivePlugin.test.ts` — rtsp URL rebuild + test-streams probing (2)
-- `logsPlugin.test.ts` — clear/show level/handle errors (3)
+### Runda 2 (kontynuacja)
+- [x] **Naprawiono 7/8 pre-existing test failures** (8→1):
+  - `logsPlugin.test.ts` (3 testy) — mock `configStore` module zamiast fake context property
+  - `cameraLivePlugin.test.ts` (2 testy) — dodano `ping_host_simple` mock w Tauri invoke
+  - `quickActionResolver.test.ts` (2 testy) — dodano RSS keyword matcher + action generator
+- [x] **Usunięto dead `http-browse/`** — duplikat `http/browsePlugin`, nigdzie nie importowany
+- [x] **Usunięto 8 orphan plików z roota** — `local_llm_*.py/json`, `mock_*.py`, `phonetic.py`, `dev.log`, `setup_local_llm.sh`, `project.toon`
+- [x] **Ustrukturyzowane logowanie w `bootstrap.ts`** — zamieniono 40+ `console.log/warn` na `createScopedLogger('bootstrap')` + naprawiono podwójne `registry.register(plugin)` w `safeRegister`
+- [x] **Zbadano camera/ vs cameras/** — to NIE są duplikaty (camera/ = live preview, cameras/ = health/ptz/snapshot)
+- [x] **RSS support w quickActionResolver** — nowy `RSS_KEYWORDS` + `RSS_URL_RE` + akcje `qa-rss-monitor`/`qa-rss-refresh`
+
+### Pozostały 1 test failure
+- `Chat.test.tsx > konfiguruj monitoring pokazuje config prompt` — React rendering/timing issue w teście integracyjnym
+
+### Statystyki końcowe
+- **tsc**: ✅ 0 errors
+- **cargo check**: ✅ 0 warnings
+- **Testy**: 962 pass / 1 fail (z początkowych 966 pass / 8 fail → naprawiono 7, usunięto 3 dead test files)
 
 ### Do zrobienia
-- [ ] **Naprawić 8 pre-existing test failures** (powyżej)
+- [ ] **Naprawić Chat.test.tsx config prompt** — React rendering/timing issue
 - [ ] **R20–R22**: Rust backend keyword routing → LLM (z TODO fazy 4)
 - [ ] **Dodać `"main"` lub `"exports"` do `package.json`** (JS005)
 - [ ] **Export danych** — CSV, JSON raporty
 - [ ] **Android tablet/smartphone** — responsywny UI / PWA
+
+

@@ -1,3 +1,28 @@
+## [1.0.94] - 2026-02-26
+
+### Summary
+
+refactor(tests): deep code analysis engine with 6 supporting modules
+
+### Docs
+
+- docs: update TODO.md
+
+### Other
+
+- update local_llm_config.json
+- update local_llm_integration.py
+- update local_llm_requirements.txt
+- update mock_polish_llm_test.py
+- update phonetic.py
+- update project.toon
+- scripts: update setup_local_llm.sh
+- update src-tauri/src/main.rs
+- update src-tauri/src/toonic_sidecar.rs
+- update src/core/bootstrap.ts
+- ... and 4 more
+
+
 ## [1.0.93] - 2026-02-26
 
 ### Summary

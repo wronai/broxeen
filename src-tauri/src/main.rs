@@ -26,6 +26,7 @@ mod rss_parser;
 mod settings;
 mod ssh;
 mod stt;
+mod toonic_sidecar;
 mod tts;
 mod tts_backend;
 mod wake_word;
@@ -477,6 +478,12 @@ fn main() {
             remote_machine::remote_list_processes,
             remote_machine::remote_copy_file,
             remote_machine::remote_check_docker,
+            toonic_sidecar::toonic_start,
+            toonic_sidecar::toonic_stop,
+            toonic_sidecar::toonic_status,
+            toonic_sidecar::toonic_proxy_get,
+            toonic_sidecar::toonic_proxy_post,
+            toonic_sidecar::toonic_proxy_delete,
         ])
         .run(tauri::generate_context!())
     {
