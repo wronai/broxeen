@@ -387,6 +387,14 @@ URL: https://html.duckduckgo.com/html/?q=wyszukaj%20kamere%20w%20sieci%20lokalne
 - **cargo check**: ✅ 0 warnings
 - **Testy**: 962 pass / 1 fail (z początkowych 966 pass / 8 fail → naprawiono 7, usunięto 3 dead test files)
 
+### Runda 3 — Integracja toonic
+- [x] **Toonic bridge API** — `toonic/server/transport/broxeen_bridge.py`: dedykowane endpointy `/api/broxeen/*` (health, watch, unwatch, sources, events, snapshot, detect)
+- [x] **Wiring w toonic** — `rest_api.py`: rejestracja bridge routes; `main.py`: import wszystkich 9 watcherów (file, log, stream, http, directory, docker, process, network, database)
+- [x] **Rust sidecar** — `src-tauri/src/toonic_sidecar.rs`: spawn/kill Python sidecar, auto-discovery toonic path (env → dev sibling → pip), LLM key forwarding, proxy GET/POST/DELETE
+- [x] **TS plugin** — `src/plugins/toonic/toonicBridgePlugin.ts`: 10 komend (start/stop/status/watch/unwatch/sources/events/snapshot/detect/help), Polish NLP patterns
+- [x] **Bootstrap** — wired before ChatLlm fallback
+- [x] **Buildy**: tsc ✅ 0 errors, cargo check ✅ 0 warnings, testy 962/963 (0 regresji)
+
 ### Do zrobienia
 - [ ] **Naprawić Chat.test.tsx config prompt** — React rendering/timing issue
 - [ ] **R20–R22**: Rust backend keyword routing → LLM (z TODO fazy 4)

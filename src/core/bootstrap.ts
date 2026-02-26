@@ -338,6 +338,13 @@ async function registerCorePlugins(
     safeRegister(registry, router, new RemoteMachinePlugin(), 'RemoteMachinePlugin');
   } catch (e) { log.warn(`RemoteMachinePlugin unavailable: ${e}`); }
 
+  // ── Toonic Bridge plugin ────────────────────────────────────────
+
+  try {
+    const { ToonicBridgePlugin } = await import('../plugins/toonic/toonicBridgePlugin');
+    safeRegister(registry, router, new ToonicBridgePlugin(), 'ToonicBridgePlugin');
+  } catch (e) { log.warn(`ToonicBridgePlugin unavailable: ${e}`); }
+
   // ── Fallback ─────────────────────────────────────────────────
 
   try {

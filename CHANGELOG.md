@@ -1,3 +1,19 @@
+## [1.0.95] - 2026-02-26
+
+### Summary
+
+feat(docs): deep code analysis engine with 4 supporting modules
+
+### Docs
+
+- docs: update TODO.md
+
+### Other
+
+- update src/core/bootstrap.ts
+- update src/plugins/toonic/toonicBridgePlugin.ts
+
+
 ## [1.0.94] - 2026-02-26
 
 ### Summary
