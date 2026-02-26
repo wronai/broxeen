@@ -1,3 +1,16 @@
+## [1.0.93] - 2026-02-26
+
+### Summary
+
+feat(tests): configuration management system
+
+### Other
+
+- update src/plugins/camera/cameraLivePlugin.test.ts
+- update src/plugins/system/logsPlugin.test.ts
+- update src/utils/quickActionResolver.ts
+
+
 ## [1.0.92] - 2026-02-26
 
 ### Summary

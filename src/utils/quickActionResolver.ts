@@ -31,6 +31,8 @@ const CONFIG_KEYWORDS = /konfigur|config|ustawieni[ae]|setup|api\s*key|model|pod
 const HELP_KEYWORDS = /pomoc|help|co\s+umiesz|co\s+potrafisz/i;
 const PING_KEYWORDS = /ping|reachable|osiągaln|rtt|latenc/i;
 const PORT_KEYWORDS = /port|tcp|udp|open|otwart/i;
+const RSS_KEYWORDS = /rss|feed|kanał\s+rss|atom/i;
+const RSS_URL_RE = /https?:\/\/[^\s<>"']*(?:rss|feed|atom)[^\s<>"']*/gi;
 
 /**
  * Resolve contextual quick-actions for an assistant message.
@@ -123,6 +125,19 @@ export function resolveQuickActions(msg: ChatMessage): QuickActionSet | null {
     if (!actions.some(a => a.id.includes('monitor'))) {
       actions.push(
         { id: `qa-monitor-${ip}`, label: 'Monitoruj', icon: '👁️', type: 'execute', executeQuery: `monitoruj ${ip}`, variant: 'secondary' },
+      );
+    }
+  }
+
+  // ── RSS feeds → offer monitor/refresh ─────────────────
+  if (RSS_KEYWORDS.test(text) && urls.length > 0) {
+    // Try to find a feed-like URL first, then fall back to any URL
+    const rssUrls = [...new Set(Array.from(text.matchAll(RSS_URL_RE), m => m[0]))];
+    const feedUrl = rssUrls[0] || urls[0];
+    if (feedUrl && !actions.some(a => a.id === 'qa-rss-monitor')) {
+      actions.push(
+        { id: 'qa-rss-monitor', label: 'Dodaj do monitoringu', icon: '📡', type: 'execute', executeQuery: `dodaj do monitorowania ${feedUrl}`, variant: 'primary' },
+        { id: 'qa-rss-refresh', label: 'Odśwież', icon: '🔄', type: 'execute', executeQuery: `bridge rss ${feedUrl}`, variant: 'secondary' },
       );
     }
   }

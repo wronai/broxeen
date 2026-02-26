@@ -16,6 +16,9 @@ describe('CameraLivePlugin', () => {
     configStore.set('camera.rtspPath.192.168.188.146', '/h264Preview_01_main');
 
     const tauriInvoke = vi.fn(async (command: string, args?: unknown) => {
+      if (command === 'ping_host_simple') {
+        return { reachable: true };
+      }
       if (command === 'rtsp_capture_frame') {
         const url = (args as { url: string }).url;
         if (url === 'rtsp://admin:123456@192.168.188.146:554/h264Preview_01_main') {
@@ -127,6 +130,9 @@ describe('CameraLivePlugin', () => {
     const plugin = new CameraLivePlugin();
 
     const tauriInvoke = vi.fn(async (command: string) => {
+      if (command === 'ping_host_simple') {
+        return { reachable: true };
+      }
       if (command === 'rtsp_capture_frame') {
         return { base64: 'ok' };
       }
