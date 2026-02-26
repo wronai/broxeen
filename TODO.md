@@ -395,6 +395,16 @@ URL: https://html.duckduckgo.com/html/?q=wyszukaj%20kamere%20w%20sieci%20lokalne
 - [x] **Bootstrap** — wired before ChatLlm fallback
 - [x] **Buildy**: tsc ✅ 0 errors, cargo check ✅ 0 warnings, testy 962/963 (0 regresji)
 
+### Runda 4 — Interaktywna konfiguracja monitoringu + testy
+- [x] **Config prompt przy starcie monitoringu** — `monitoruj IP` bez parametrów pokazuje interaktywny prompt z presetami goal/when/trigger (CCTV: detekcja ludzi, intruzów, parking, pixel-diff; Web: uptime, content, keyword)
+- [x] **Goal/when parsing** — `monitoruj IP goal:"..." when:"..."` uruchamia monitoring z parametrami, forwarding do toonic sidecar
+- [x] **Toonic bridge: goal+when** — `broxeen_bridge.py` POST /api/broxeen/watch akceptuje `goal` i `when`, generuje trigger rules via NLP2YAML
+- [x] **Fix handleLogs** — IP-based matching: "pokaż logi monitoringu Kamera 192.168.x.x" poprawnie znajduje target po adresie IP
+- [x] **Quick actions: AI monitoring** — przycisk "🤖 AI monitoring" w wynikach skanowania kamer (z goal+when)
+- [x] **Testy monitorPlugin** — 9 nowych: config prompt flow (6), IP-based logs (2), pixel-diff bypass (1) — 43/43 pass
+- [x] **Testy toonicBridgePlugin** — 16 nowych: canHandle (3), execute (13) — 16/16 pass
+- [x] **Buildy**: tsc ✅ 0 errors, cargo check ✅ 0 warnings, testy 989/990 (0 regresji, +25 nowych)
+
 ### Do zrobienia
 - [ ] **Naprawić Chat.test.tsx config prompt** — React rendering/timing issue
 - [ ] **R20–R22**: Rust backend keyword routing → LLM (z TODO fazy 4)

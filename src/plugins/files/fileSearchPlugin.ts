@@ -477,6 +477,7 @@ export class FileSearchPlugin implements Plugin {
       .replace(/search\s+file/gi, '')
       .replace(/file\s+search/gi, '')
       .replace(/lista\s+plik[óo]?w/gi, '')
+      .replace(/\bwszystkich\b/gi, '')
       .replace(/wylistuj\s+plik[iy]?/gi, '')
       .replace(/poka[zż]\s+(mi\s+)?plik[iy]?/gi, '')
       .replace(/co\s+(jest|mam|znajduje\s+się)\s+(w|na)/gi, '')

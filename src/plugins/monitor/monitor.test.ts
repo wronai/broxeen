@@ -214,6 +214,81 @@ describe('MonitorPlugin', () => {
     });
   });
 
+  describe('config prompt flow', () => {
+    it('shows config prompt when starting camera monitoring without params', async () => {
+      const result = await plugin.execute('monitoruj 192.168.1.100', browserCtx);
+      expect(result.status).toBe('success');
+      // Should show config prompt, not immediately start
+      expect(result.content[0].data).toContain('Konfiguracja monitoringu');
+      expect(result.content[0].data).toContain('192.168.1.100');
+      // Should have config_prompt content item
+      const promptItem = result.content.find((c: any) => c.type === 'config_prompt');
+      expect(promptItem).toBeDefined();
+      expect(promptItem!.configPrompt.actions.length).toBeGreaterThan(0);
+    });
+
+    it('shows config prompt for camera by name without explicit params', async () => {
+      const result = await plugin.execute('monitoruj kamerę wejściową', browserCtx);
+      expect(result.status).toBe('success');
+      expect(result.content[0].data).toContain('Konfiguracja monitoringu');
+    });
+
+    it('starts immediately when goal and when are provided', async () => {
+      const result = await plugin.execute(
+        'monitoruj 192.168.1.100 goal:"detect people" when:"person detected for 1s"',
+        browserCtx,
+      );
+      expect(result.status).toBe('success');
+      expect(result.content[0].data).toContain('Monitoring uruchomiony');
+      expect(result.content[0].data).toContain('Goal:');
+    });
+
+    it('starts immediately when credentials are provided', async () => {
+      const result = await plugin.execute('monitoruj 192.168.1.100 user:admin admin:pass', browserCtx);
+      expect(result.status).toBe('success');
+      expect(result.content[0].data).toContain('Monitoring uruchomiony');
+    });
+
+    it('starts immediately when interval is provided', async () => {
+      const result = await plugin.execute('monitoruj 192.168.1.100 co 30s', browserCtx);
+      expect(result.status).toBe('success');
+      expect(result.content[0].data).toContain('Monitoring uruchomiony');
+    });
+
+    it('config prompt has camera-specific presets for IP targets', async () => {
+      const result = await plugin.execute('monitoruj 192.168.1.100', browserCtx);
+      const promptItem = result.content.find((c: any) => c.type === 'config_prompt');
+      const labels = promptItem!.configPrompt.actions.map((a: any) => a.label);
+      expect(labels.some((l: string) => /ludzi|pojazd/i.test(l))).toBe(true);
+      expect(labels.some((l: string) => /pixel-diff/i.test(l))).toBe(true);
+    });
+
+    it('pixel-diff goal bypasses toonic and starts immediately', async () => {
+      const result = await plugin.execute(
+        'monitoruj 192.168.1.100 goal:"pixel-diff" when:"none"',
+        browserCtx,
+      );
+      expect(result.status).toBe('success');
+      expect(result.content[0].data).toContain('Monitoring uruchomiony');
+      // Should NOT contain toonic AI info for pixel-diff
+      expect(result.content[0].data).not.toContain('Toonic AI aktywny');
+    });
+  });
+
+  describe('logs IP-based matching', () => {
+    it('finds target logs by IP address in "pokaż logi monitoringu Kamera 192.168.1.100"', async () => {
+      await plugin.execute('monitoruj 192.168.1.100 user:admin admin:pass', browserCtx);
+      const result = await plugin.execute('pokaż logi monitoringu Kamera 192.168.1.100', browserCtx);
+      expect(result.content[0].data).toContain('Rozpoczęto');
+    });
+
+    it('finds target logs by bare IP', async () => {
+      await plugin.execute('monitoruj 192.168.1.50 user: :', browserCtx);
+      const result = await plugin.execute('logi monitoringu 192.168.1.50', browserCtx);
+      expect(result.content[0].data).toContain('Rozpoczęto');
+    });
+  });
+
   describe('initialize: monitored devices from DB', () => {
     it('loads monitored configured_devices and schedules polling', async () => {
       processRegistry.clear();

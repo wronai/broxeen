@@ -14,6 +14,16 @@ describe('IntentRouter - file:search intent detection', () => {
     expect(result.confidence).toBeGreaterThan(0.5);
   });
 
+  it('detects "lista wszystkich plików" as file:search', async () => {
+    const result = await router.detect('lista wszystkich plików');
+    expect(result.intent).toBe('file:search');
+  });
+
+  it('detects "lista wszystkich plików na dysku" as file:search', async () => {
+    const result = await router.detect('lista wszystkich plików na dysku');
+    expect(result.intent).toBe('file:search');
+  });
+
   it('detects "pokaż pliki w katalogu domowym" as file:search', async () => {
     const result = await router.detect('pokaż pliki w katalogu domowym');
     expect(result.intent).toBe('file:search');

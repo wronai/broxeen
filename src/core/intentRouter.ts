@@ -478,7 +478,7 @@ export class IntentRouter implements IIntentRouter {
       /find\s*file/i,
       /search\s*file/i,
       // Listing queries
-      /lista\s+plik[óo]?w/i,
+      /lista\s+(?:wszystkich\s+)?plik[óo]?w/i,
       /wylistuj\s+plik/i,
       /poka[żz]\s+(mi\s+)?plik[iy]?\s+(w|na)/i,
       /co\s+(jest|mam|znajduje\s+się)\s+(w|na)\s+(folderze|katalogu|dysku)/i,

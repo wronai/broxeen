@@ -1,3 +1,25 @@
+## [1.0.96] - 2026-02-26
+
+### Summary
+
+feat(tests): configuration management system
+
+### Docs
+
+- docs: update TODO.md
+
+### Other
+
+- update project.toon
+- update src/core/intentRouter.fileSearch.test.ts
+- update src/core/intentRouter.ts
+- update src/plugins/files/fileSearchPlugin.ts
+- update src/plugins/monitor/monitor.test.ts
+- update src/plugins/monitor/monitorPlugin.ts
+- update src/plugins/toonic/toonicBridgePlugin.test.ts
+- update src/utils/quickActionResolver.ts
+
+
 ## [1.0.95] - 2026-02-26
 
 ### Summary

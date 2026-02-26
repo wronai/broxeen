@@ -430,6 +430,26 @@ export class MonitorPlugin implements Plugin {
       );
     }
 
+    // Extract goal and when from input (set by config prompt buttons)
+    const goalMatch = input.match(/goal:"([^"]+)"/i) || input.match(/goal:(\S+)/i);
+    const whenMatch = input.match(/when:"([^"]+)"/i) || input.match(/when:(\S+)/i);
+    const hasGoalOrWhen = !!(goalMatch || whenMatch);
+
+    // Detect if user provided any explicit parameters (credentials, interval, threshold)
+    const hasExplicitParams = !!(
+      parsed.rtspUsername ||
+      /\buser:/i.test(input) ||
+      /\badmin:/i.test(input) ||
+      /co\s+\d+\s*(s|m|min)/i.test(input) ||
+      /(?:próg|prog)\s*\d+\s*%/i.test(input)
+    );
+
+    // If no goal/when AND no explicit params, show interactive config prompt
+    // This allows tests and explicit commands to proceed directly
+    if (!hasGoalOrWhen && !hasExplicitParams && (parsed.type === 'camera' || parsed.type === 'endpoint')) {
+      return this.buildStartConfigPrompt(parsed, context, start);
+    }
+
     // Resolve implicit targets using persisted device discovery (e.g. "monitoruj rpi")
     if (!parsed.address && parsed.type === 'device') {
       const resolvedIp = await this.resolveDeviceIp(parsed, context);
@@ -631,12 +651,48 @@ export class MonitorPlugin implements Plugin {
     }, target.intervalMs);
     this.timers.set(parsed.id, timer);
 
+    // If goal/when specified, also forward to toonic sidecar for AI-powered monitoring
+    const goal = goalMatch?.[1] || '';
+    const when = whenMatch?.[1] || '';
+    let toonicInfo = '';
+    if (goal && goal !== 'pixel-diff' && context.isTauri && context.tauriInvoke) {
+      try {
+        const watchBody = JSON.stringify({
+          url: target.rtspUrl || target.httpUrl || target.address || '',
+          category: target.type === 'camera' ? 'video' : 'web',
+          interval_s: target.intervalMs / 1000,
+          goal,
+          when,
+          options: {
+            detect_objects: 'true',
+            detect_classes: 'person,car,truck,motorcycle,bicycle',
+            detect_conf: '0.4',
+            min_event_duration_s: '1.0',
+          },
+        });
+        const resp = await context.tauriInvoke('toonic_proxy_post', { path: '/api/broxeen/watch', body: watchBody }) as string;
+        const data = JSON.parse(resp);
+        toonicInfo = `\n🤖 **Toonic AI aktywny:** ${data.watcher_type} (source: \`${data.source_id}\`)\n` +
+          `🎯 **Goal:** ${goal}\n` +
+          `⚡ **Trigger:** ${when || 'event-driven'}\n`;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        toonicInfo = `\n⚠️ **Toonic AI niedostępny:** ${msg}\n` +
+          `💡 Uruchom sidecar: \`toonic start\`\n`;
+      }
+    } else if (goal && goal !== 'pixel-diff') {
+      toonicInfo = `\n🎯 **Goal:** ${goal}\n` +
+        (when ? `⚡ **Trigger:** ${when}\n` : '') +
+        `⚠️ Toonic AI wymaga aplikacji Tauri — używam pixel-diff fallback.\n`;
+    }
+
     let data = `✅ **Monitoring uruchomiony**\n\n` +
       `📌 **Cel:** ${target.name}\n` +
       `📍 **Typ:** ${target.type}\n` +
       (target.address ? `🌐 **Adres:** ${target.address}\n` : '') +
       `⏱️ **Interwał:** co ${target.intervalMs / 1000}s\n` +
       `📊 **Próg zmian:** ${(target.threshold * 100).toFixed(0)}%\n` +
+      toonicInfo +
       credentialsMessage;
     
     // Live preview info for cameras
@@ -863,11 +919,26 @@ export class MonitorPlugin implements Plugin {
   private handleLogs(input: string, start: number): PluginResult {
     const targetName = input.replace(/^.*(?:logi|historia|pokaż|pokaz)\s*(?:monitoringu?\s*|zmian\s*)?/i, '').trim().toLowerCase();
 
-    // Find matching target or show all
+    // Also extract IP from original input for robust matching
+    const ipMatch = input.match(/\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b/);
+    const inputIp = ipMatch?.[1];
+
+    // Find matching target: by name, id, IP address
     let target: MonitorTarget | undefined;
-    if (targetName) {
+    if (targetName || inputIp) {
       for (const t of this.targets.values()) {
-        if (t.name.toLowerCase().includes(targetName) || t.id.includes(targetName)) {
+        // Match by IP address first (most reliable)
+        if (inputIp && t.address === inputIp) {
+          target = t;
+          break;
+        }
+        // Match by name or id substring
+        if (targetName && (t.name.toLowerCase().includes(targetName) || t.id.includes(targetName))) {
+          target = t;
+          break;
+        }
+        // Match by IP in target ID (e.g. "camera-192.168.1.100")
+        if (inputIp && t.id.includes(inputIp)) {
           target = t;
           break;
         }
@@ -2150,6 +2221,137 @@ export class MonitorPlugin implements Plugin {
   }
 
   // ── Helper Functions ───────────────────────────────────────
+
+  private buildStartConfigPrompt(
+    parsed: { id: string; type: MonitorTarget['type']; name: string; address?: string; intervalMs: number; threshold: number; rtspUsername?: string; rtspPassword?: string },
+    context: PluginContext,
+    start: number,
+  ): PluginResult {
+    const addr = parsed.address || parsed.name;
+    const isCamera = parsed.type === 'camera';
+    const isEndpoint = parsed.type === 'endpoint';
+    const credStr = parsed.rtspUsername
+      ? ` user:${parsed.rtspUsername} admin:${parsed.rtspPassword || ''}`
+      : '';
+
+    // Build goal presets per resource type
+    const goalPresets: ConfigAction[] = isCamera ? [
+      {
+        id: 'goal-security',
+        label: '🛡️ Detekcja ludzi i pojazdów',
+        icon: '🛡️',
+        type: 'execute',
+        executeQuery: `monitoruj ${addr}${credStr} goal:"CCTV: detect people and vehicles, describe actions and movement direction" when:"person or car detected for 1 second, otherwise every 1 minute"`,
+        variant: 'primary',
+        description: 'YOLO + LLM: wykrywa osoby/pojazdy, opisuje akcje, kierunek ruchu',
+      },
+      {
+        id: 'goal-intrusion',
+        label: '🚨 Detekcja intruzów',
+        icon: '🚨',
+        type: 'execute',
+        executeQuery: `monitoruj ${addr}${credStr} goal:"security: detect unauthorized persons, describe their actions, classify as resident/visitor/suspicious" when:"person detected for 2 seconds, otherwise every 2 minutes"`,
+        variant: 'warning',
+        description: 'Wysokie bezpieczeństwo: klasyfikacja osób, alerty o podejrzanych',
+      },
+      {
+        id: 'goal-general',
+        label: '👁️ Ogólny monitoring',
+        icon: '👁️',
+        type: 'execute',
+        executeQuery: `monitoruj ${addr}${credStr} goal:"describe what you see in each video frame, note any changes or movement" when:"motion detected, otherwise every 1 minute"`,
+        variant: 'secondary',
+        description: 'Opis sceny, detekcja ruchu, raport zmian',
+      },
+      {
+        id: 'goal-parking',
+        label: '🚗 Monitoring parkingu',
+        icon: '🚗',
+        type: 'execute',
+        executeQuery: `monitoruj ${addr}${credStr} goal:"parking monitoring: count vehicles, detect entry/exit, note illegal parking" when:"car or truck detected for 3 seconds, otherwise every 5 minutes"`,
+        variant: 'secondary',
+        description: 'Zliczanie pojazdów, wjazd/wyjazd, nielegalne parkowanie',
+      },
+      {
+        id: 'goal-pixeldiff',
+        label: '📊 Prosty pixel-diff (bez AI)',
+        icon: '📊',
+        type: 'execute',
+        executeQuery: `monitoruj ${addr}${credStr} goal:"pixel-diff" when:"none"`,
+        variant: 'secondary',
+        description: 'Klasyczny pixel-diff bez YOLO/LLM — niskie zużycie zasobów',
+      },
+    ] : [
+      // Endpoint/website presets
+      {
+        id: 'goal-uptime',
+        label: '🟢 Monitoring dostępności',
+        icon: '🟢',
+        type: 'execute',
+        executeQuery: `monitoruj ${addr} goal:"monitor availability: check HTTP status, response time, SSL certificate" when:"status changes or error detected"`,
+        variant: 'primary',
+        description: 'Status HTTP, czas odpowiedzi, certyfikat SSL',
+      },
+      {
+        id: 'goal-content',
+        label: '📝 Monitoring zmian treści',
+        icon: '📝',
+        type: 'execute',
+        executeQuery: `monitoruj ${addr} goal:"detect content changes: compare page text, highlight new/removed sections" when:"content changed"`,
+        variant: 'secondary',
+        description: 'Porównanie treści strony, wykrywanie nowych/usuniętych sekcji',
+      },
+      {
+        id: 'goal-keyword',
+        label: '🔍 Monitoring słów kluczowych',
+        icon: '🔍',
+        type: 'execute',
+        executeQuery: `monitoruj ${addr} goal:"keyword monitoring: watch for specific terms, price changes, new announcements" when:"keywords detected or content changed"`,
+        variant: 'secondary',
+        description: 'Śledzenie słów kluczowych, zmian cen, nowych ogłoszeń',
+      },
+    ];
+
+    // Additional parameter actions
+    const paramActions: ConfigAction[] = [
+      { id: 'param-interval-10', label: '⚡ Co 10s', type: 'execute', executeQuery: `monitoruj ${addr}${credStr} co 10s goal:"pixel-diff" when:"none"`, variant: 'secondary' },
+      { id: 'param-interval-30', label: '🔄 Co 30s', type: 'execute', executeQuery: `monitoruj ${addr}${credStr} co 30s goal:"pixel-diff" when:"none"`, variant: 'secondary' },
+      { id: 'param-interval-60', label: '⏱️ Co 1min', type: 'execute', executeQuery: `monitoruj ${addr}${credStr} co 60s goal:"pixel-diff" when:"none"`, variant: 'secondary' },
+    ];
+
+    const typeLabel = isCamera ? '📹 Kamera' : '🌐 Strona WWW';
+    const toonicHint = context.isTauri
+      ? '\n\n🤖 **Toonic AI** — predefiniowane opcje z YOLO + LLM uruchomią detekcję obiektów i inteligentny opis zdarzeń.'
+      : '\n\n⚠️ Opcje AI (YOLO + LLM) wymagają aplikacji Tauri i uruchomionego sidecar toonic.';
+
+    const text =
+      `⚙️ **Konfiguracja monitoringu: ${parsed.name}**\n\n` +
+      `**Typ:** ${typeLabel}\n` +
+      (parsed.address ? `**Adres:** \`${parsed.address}\`\n` : '') +
+      `\n**Wybierz cel monitorowania (goal) i warunek wyzwalacza (trigger):**\n` +
+      `Każda opcja definiuje co ma być analizowane i kiedy wysyłać klatki do LLM.\n` +
+      toonicHint +
+      `\n\n---\n` +
+      `💡 Możesz też ręcznie wpisać parametry:\n` +
+      `\`monitoruj ${addr} goal:"twój cel" when:"warunek triggera"\``;
+
+    const configPrompt: ConfigPromptData = {
+      title: `⚙️ Parametry monitorowania — ${parsed.name}`,
+      description: 'Wybierz profil monitorowania lub ustaw ręcznie:',
+      actions: [...goalPresets, ...paramActions],
+      layout: 'cards',
+    };
+
+    return {
+      pluginId: this.id,
+      status: 'success',
+      content: [
+        { type: 'text', data: text, title: `Konfiguracja: ${parsed.name}` },
+        { type: 'config_prompt', data: '⚙️ Profil monitorowania', title: '⚙️ Profil monitorowania', configPrompt },
+      ],
+      metadata: { duration_ms: Date.now() - start, cached: false, truncated: false },
+    };
+  }
 
   private buildMonitoringConfigPrompt(): ConfigPromptData {
     const actions: ConfigAction[] = [];

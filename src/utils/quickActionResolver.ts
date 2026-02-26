@@ -68,6 +68,12 @@ export function resolveQuickActions(msg: ChatMessage): QuickActionSet | null {
         { id: `qa-cam-snap-${ip}`, label: 'Snapshot', icon: '📸', type: 'execute', executeQuery: `snapshot ${ip}`, variant: 'secondary' },
         { id: `qa-cam-monitor-${ip}`, label: 'Monitoruj', icon: '👁️', type: 'execute', executeQuery: `monitoruj ${ip}`, variant: 'secondary' },
       );
+      // Add toonic AI monitoring option for cameras
+      if (SCAN_RESULT_KEYWORDS.test(text) || /rtsp/i.test(text)) {
+        actions.push(
+          { id: `qa-cam-toonic-${ip}`, label: '🤖 AI monitoring', icon: '🤖', type: 'execute', executeQuery: `monitoruj ${ip} goal:"CCTV: detect people and vehicles, describe actions" when:"person or car detected for 1 second, otherwise every 1 minute"`, variant: 'warning' },
+        );
+      }
     }
     if (!actions.some(a => a.id.includes('cam-live'))) {
       actions.push(
