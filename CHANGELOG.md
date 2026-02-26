@@ -1,3 +1,46 @@
+## [1.0.92] - 2026-02-26
+
+### Summary
+
+refactor(tests): configuration management system
+
+### Docs
+
+- docs: update ENVIRONMENT_INTEGRATION_SUMMARY.md
+- docs: update LOCAL_LLM_INTEGRATION_SUMMARY.md
+- docs: update LOCAL_LLM_README.md
+- docs: update NLP2CMD_INTEGRATION_SUMMARY.md
+- docs: update TODO.md
+
+### Test
+
+- update test-can-handle.js
+- update test-debug.js
+- update test-intent.ts
+- update test-llm-classifier.ts
+- update test-monitor-plugin.ts
+- update test-routing.ts
+- update test_monitoring.js
+- update test_monitoring_direct.js
+- update test_monitoring_simulation.js
+- update test_phonetic.py
+- ... and 1 more
+
+### Other
+
+- update .gitignore
+- update local_llm_config.json
+- update local_llm_integration.py
+- update local_llm_requirements.txt
+- update mock_polish_llm_test.py
+- update project.functions.toon
+- scripts: update project.sh
+- update project.toon
+- update project.toon-schema.json
+- scripts: update setup_local_llm.sh
+- ... and 27 more
+
+
 ## [1.0.91] - 2026-02-24
 
 ### Summary

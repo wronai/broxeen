@@ -120,6 +120,7 @@ pub fn normalize_whitespace(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+#[allow(dead_code)]
 pub fn is_bot_protection_text(text: &str) -> bool {
     let lower = text.to_lowercase();
     

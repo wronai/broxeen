@@ -352,3 +352,31 @@ URL: https://html.duckduckgo.com/html/?q=wyszukaj%20kamere%20w%20sieci%20lokalne
 
 - [JS005-noentrypointmainmoduleexports] 🔵 **No entry point (main/module/exports)** (`package.json`)
   - Consider adding a "main" or "exports" field for proper module resolution.
+
+---
+
+## 🧹 Cleanup / Refactoring — 2026-02-26
+
+### Wykonane
+- [x] **Fix TS build error** — `__TAURI__` on Window w `monitorPlugin.ts` (cast do `Window & { __TAURI__?: unknown }`)
+- [x] **Usunięto duplikat `local-network/`** — `src/plugins/local-network/` był klonem `src/plugins/network/` z tymi samymi ID pluginów. Przeniesiono `WakeOnLanPlugin` do `network/`, usunięto cały `local-network/`
+- [x] **Testy dla network/** — nowy `network.test.ts` z 28 testami (wszystkie pass)
+- [x] **Konsolidacja `AudioSettings`** — usunięto duplikat z `main.rs`, jedyne źródło to `settings.rs` z re-exportem `pub use settings::AudioSettings`
+- [x] **Konsolidacja `load_settings()`** — usunięto duplikaty z `tts.rs` i `audio_commands.rs`, import z `crate::settings::load_settings`
+- [x] **Usunięto dead TS hooks** — `useAudio.ts`, `useBackendStt.ts`, `useBackendTts.ts` z `src-tauri/src/` (React hooks w katalogu Rust, nigdzie nie importowane)
+- [x] **Usunięto orphan test files** — 11 plików z roota (`test-*.js/ts`, `test_*.js/py`) + 3 z `src-tauri/` (`test_anon.rs`, `test_read.rs` x2)
+- [x] **0 cargo warnings** — naprawiono `static_mut_refs` w `local_llm.rs` (OnceLock), `#[allow(dead_code)]` dla API publicznego, unused imports/vars
+- [x] **0 tsc errors** — `tsc --noEmit` czyste
+
+### Pre-existing test failures (8 tests, nie spowodowane cleanup)
+- `Chat.test.tsx` — config prompt test
+- `quickActionResolver.test.ts` — RSS monitoring/generic RSS actions (2)
+- `cameraLivePlugin.test.ts` — rtsp URL rebuild + test-streams probing (2)
+- `logsPlugin.test.ts` — clear/show level/handle errors (3)
+
+### Do zrobienia
+- [ ] **Naprawić 8 pre-existing test failures** (powyżej)
+- [ ] **R20–R22**: Rust backend keyword routing → LLM (z TODO fazy 4)
+- [ ] **Dodać `"main"` lub `"exports"` do `package.json`** (JS005)
+- [ ] **Export danych** — CSV, JSON raporty
+- [ ] **Android tablet/smartphone** — responsywny UI / PWA

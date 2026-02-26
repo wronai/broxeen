@@ -3,8 +3,8 @@
 use serde::{Deserialize, Serialize};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Mutex, OnceLock};
-use std::path::PathBuf;
-use serde_json;
+
+use crate::settings::load_settings;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TtsAvailability {
@@ -14,37 +14,6 @@ pub struct TtsAvailability {
 }
 
 static ACTIVE_TTS_CHILD: OnceLock<Mutex<Option<Child>>> = OnceLock::new();
-
-/// Load current settings from disk
-fn load_settings() -> crate::AudioSettings {
-    crate::backend_info("tts.rs: load_settings() called - reading TTS engine preference");
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    let settings_path = PathBuf::from(home).join(".config/broxeen/settings.json");
-    
-    if !settings_path.exists() {
-        crate::backend_warn("tts.rs: Settings file not found, using defaults");
-        return crate::AudioSettings::default();
-    }
-    
-    let data = match std::fs::read_to_string(&settings_path) {
-        Ok(data) => data,
-        Err(err) => {
-            crate::backend_error(format!("tts.rs: Failed to read settings: {}", err));
-            return crate::AudioSettings::default();
-        }
-    };
-    
-    match serde_json::from_str::<crate::AudioSettings>(&data) {
-        Ok(settings) => {
-            crate::backend_info(format!("tts.rs: Loaded TTS engine preference: '{}'", settings.tts_engine));
-            settings
-        },
-        Err(err) => {
-            crate::backend_error(format!("tts.rs: Failed to parse settings: {}", err));
-            crate::AudioSettings::default()
-        }
-    }
-}
 
 fn active_tts_child() -> &'static Mutex<Option<Child>> {
     ACTIVE_TTS_CHILD.get_or_init(|| Mutex::new(None))

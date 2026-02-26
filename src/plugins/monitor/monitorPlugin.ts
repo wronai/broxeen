@@ -1827,7 +1827,7 @@ export class MonitorPlugin implements Plugin {
     maxWidth: number,
   ): Promise<{ base64: string; mimeType: 'image/jpeg' | 'image/png' } | null> {
     // In Tauri, use the backend resize_image command
-    if (typeof window === 'undefined' || window.__TAURI__) {
+    if (typeof window === 'undefined' || (window as Window & { __TAURI__?: unknown }).__TAURI__) {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         const resizedBase64 = await invoke('resize_image', {

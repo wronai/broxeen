@@ -10,7 +10,7 @@
 //! - Polish language support
 
 use std::env;
-use std::sync::Arc;
+use std::sync::OnceLock;
 
 use crate::query_schema::{self, DataSource};
 
@@ -211,21 +211,16 @@ impl LocalLlmConfig {
     }
 }
 
-/// Global local LLM instance
-static mut LOCAL_LLM: Option<LocalLlm> = None;
-static INIT: std::sync::Once = std::sync::Once::new();
+/// Global local LLM instance (safe initialization via OnceLock)
+static LOCAL_LLM: OnceLock<LocalLlm> = OnceLock::new();
 
 /// Get or initialize global local LLM instance
 pub fn get_local_llm() -> &'static LocalLlm {
-    unsafe {
-        INIT.call_once(|| {
-            LOCAL_LLM = Some(LocalLlm::new());
-        });
-        LOCAL_LLM.as_ref().unwrap()
-    }
+    LOCAL_LLM.get_or_init(LocalLlm::new)
 }
 
 /// Setup Bielik model in Ollama
+#[allow(dead_code)]
 pub async fn setup_bielik_model() -> Result<(), String> {
     let local_llm = get_local_llm();
     

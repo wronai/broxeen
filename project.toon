@@ -1,0 +1,1602 @@
+# broxeen | 296f 81757L | typescript:251/python:6/javascript:13/sql:1/rust:50
+# Keys: M=modules, D=details, i=imports, c=classes, f=functions, m=methods
+M[296]:
+  e2e/chat-features.spec.ts,100
+  e2e/logging.spec.ts,32
+  e2e/network-scanning-flow.spec.ts,237
+  e2e/new-plugins.spec.ts,127
+  e2e/plugin-system.spec.ts,214
+  e2e/ssh-docker.spec.ts,152
+  e2e/ssh-integration.spec.ts,110
+  e2e/voice-interface.spec.ts,242
+  local_llm_integration.py,524
+  mock_polish_llm_test.py,287
+  phonetic.py,73
+  playwright.config.ts,48
+  postcss.config.js,6
+  resolver.py,102
+  scripts/add-camera.sql,44
+  scripts/add-reolink-camera.mjs,136
+  scripts/chat-cli.mjs,975
+  scripts/motion_pipeline.py,524
+  scripts/net-diag.mjs,217
+  scripts/test-email.mjs,191
+  src-tauri/benches/file_search_bench.rs,222
+  src-tauri/build.rs,3
+  src-tauri/src/audio_capture.rs,179
+  src-tauri/src/audio_commands.rs,315
+  src-tauri/src/autostart.rs,71
+  src-tauri/src/browse_rendered.rs,301
+  src-tauri/src/content_cleaning.rs,118
+  src-tauri/src/content_extraction.rs,398
+  src-tauri/src/disk_info.rs,170
+  src-tauri/src/docker.rs,254
+  src-tauri/src/email.rs,416
+  src-tauri/src/file_search.rs,489
+  src-tauri/src/frigate_mqtt.rs,129
+  src-tauri/src/llm.rs,99
+  src-tauri/src/llm_query.rs,182
+  src-tauri/src/local_llm.rs,212
+  src-tauri/src/logging.rs,94
+  src-tauri/src/main.rs,441
+  src-tauri/src/main_changes.rs,33
+  src-tauri/src/motion_detection.rs,805
+  src-tauri/src/network.rs,132
+  src-tauri/src/network_info.rs,100
+  src-tauri/src/network_scan.rs,1394
+  src-tauri/src/query_schema.rs,218
+  src-tauri/src/remote_machine.rs,267
+  src-tauri/src/rss_parser.rs,281
+  src-tauri/src/settings.rs,201
+  src-tauri/src/ssh.rs,221
+  src-tauri/src/stt.rs,246
+  src-tauri/src/tts.rs,185
+  src-tauri/src/tts_backend.rs,371
+  src-tauri/src/vision_capture.rs,77
+  src-tauri/src/vision_config.rs,269
+  src-tauri/src/vision_db.rs,340
+  src-tauri/src/vision_detector.rs,272
+  src-tauri/src/vision_llm.rs,282
+  src-tauri/src/vision_motion.rs,145
+  src-tauri/src/vision_movement.rs,95
+  src-tauri/src/vision_pipeline.rs,252
+  src-tauri/src/vision_query_engine.rs,84
+  src-tauri/src/vision_scene_buffer.rs,123
+  src-tauri/src/vision_tracker.rs,203
+  src-tauri/src/wake_word.rs,170
+  src-tauri/tests/edge_cases_file_search.rs,334
+  src-tauri/tests/integration_file_search.rs,187
+  src-tauri/tests/placeholder_test.rs,7
+  src-tauri/tests/test_read.rs,17
+  src/App.tsx,509
+  src/commands/browseCommand.test.ts,149
+  src/commands/browseCommand.ts,165
+  src/commands/copyContextCommand.ts,31
+  src/commands/saveSettingsCommand.ts,39
+  src/commands/sendMessageCommand.ts,59
+  src/components/ActionSuggestions.tsx,438
+  src/components/AlertBridgeComponent.tsx,15
+  src/components/CameraLiveInline.tsx,155
+  src/components/CameraPreview.tsx,616
+  src/components/Chat.test.tsx,731
+  src/components/Chat.tsx,2759
+  src/components/ChatConfigPrompt.test.tsx,158
+  src/components/ChatConfigPrompt.tsx,635
+  src/components/ChatPersistenceBridge.tsx,16
+  src/components/CommandHistory.tsx,335
+  src/components/DeviceDashboardModal.tsx,364
+  src/components/DeviceStrip.test.tsx,156
+  src/components/DeviceStrip.tsx,207
+  src/components/DiagnosticsModal.tsx,304
+  src/components/ErrorReportPanel.tsx,298
+  src/components/FileResultsDisplay.tsx,323
+  src/components/HealthDiagnostic.test.tsx,81
+  src/components/HealthDiagnostic.tsx,318
+  src/components/MessageQuickActions.tsx,87
+  src/components/MessageResultCard.tsx,210
+  src/components/MicSettingsModal.tsx,289
+  src/components/NetworkHistorySelector.tsx,328
+  src/components/NetworkSelector.tsx,295
+  src/components/QuickActionButtons.test.tsx,94
+  src/components/QuickActionButtons.tsx,200
+  src/components/QuickCommandHistory.tsx,175
+  src/components/QuickCommands.tsx,504
+  src/components/Settings.test.tsx,318
+  src/components/Settings.tsx,659
+  src/components/SetupWizardModal.tsx,518
+  src/components/ThinkingMessage.tsx,93
+  src/components/TtsControls.test.tsx,86
+  src/components/TtsControls.tsx,69
+  src/components/TtsSettingsModal.tsx,282
+  src/components/WatchBadge.simple.tsx,45
+  src/components/WatchBadge.tsx,174
+  src/config/appConfig.ts,579
+  src/config/autoConfig.ts,129
+  src/config/configStore.test.ts,90
+  src/config/configStore.ts,181
+  src/config/watchConfig.ts,188
+  src/contexts/CqrsContext.tsx,66
+  src/contexts/pluginContext.tsx,129
+  src/core/actionSchema.test.ts,138
+  src/core/actionSchema.ts,540
+  src/core/bootstrap.ts,292
+  src/core/cache.test.ts,188
+  src/core/cache.ts,377
+  src/core/commandBus.test.ts,87
+  src/core/commandBus.ts,52
+  src/core/fallbackCli.test.ts,170
+  src/core/fallbackHandler.test.ts,163
+  src/core/fallbackHandler.ts,241
+  src/core/intentRouter.fileSearch.test.ts,45
+  src/core/intentRouter.llm.test.ts,55
+  src/core/intentRouter.test.ts,275
+  src/core/intentRouter.ts,727
+  src/core/intentSchema.ts,110
+  src/core/llmIntentClassifier.ts,169
+  src/core/plugin.types.ts,178
+  src/core/pluginRegistry.test.ts,91
+  src/core/pluginRegistry.ts,72
+  src/core/preferenceLearning.test.ts,140
+  src/core/preferenceLearning.ts,167
+  src/core/processRegistry.ts,102
+  src/core/queryBus.ts,89
+  src/core/realtimeSync.test.ts,190
+  src/core/realtimeSync.ts,215
+  src/core/retry.test.ts,94
+  src/core/retry.ts,98
+  src/core/systemContext.test.ts,85
+  src/core/systemContext.ts,163
+  src/core/types.ts,90
+  src/debug-intent.test.ts,54
+  src/debug-plugins.test.ts,41
+  src/discovery/networkScanner.ts,313
+  src/discovery/serviceProber.ts,356
+  src/discovery/types.ts,70
+  src/domain/audioSettings.test.ts,31
+  src/domain/audioSettings.ts,41
+  src/domain/chatAggregate.test.ts,131
+  src/domain/chatAggregate.ts,61
+  src/domain/chatEvents.test.ts,82
+  src/domain/chatEvents.ts,191
+  src/domain/eventStore.test.ts,132
+  src/domain/eventStore.ts,132
+  src/e2e/fileSearch.e2e.test.tsx,292
+  src/hooks/useAlertBridge.ts,66
+  src/hooks/useChatMessages.ts,20
+  src/hooks/useChatPersistence.test.ts,95
+  src/hooks/useChatPersistence.ts,74
+  src/hooks/useDatabaseManager.ts,10
+  src/hooks/useHistoryPersistence.ts,187
+  src/hooks/useLlm.ts,231
+  src/hooks/useSpeech.test.ts,266
+  src/hooks/useSpeech.ts,271
+  src/hooks/useStt.test.ts,76
+  src/hooks/useStt.ts,472
+  src/hooks/useTts.test.ts,171
+  src/hooks/useTts.ts,462
+  src/hooks/useWatchNotifications.ts,115
+  src/integration/autoWatchIntegration.ts,298
+  src/lib/browseGateway.test.ts,320
+  src/lib/browseGateway.ts,1407
+  src/lib/llmClient.test.ts,142
+  src/lib/llmClient.ts,361
+  src/lib/llmPrompts.ts,55
+  src/lib/logger.ts,109
+  src/lib/phonetic.test.ts,105
+  src/lib/phonetic.ts,69
+  src/lib/resolver.test.ts,108
+  src/lib/resolver.ts,241
+  src/lib/runtime.ts,10
+  src/lib/sttClient.test.ts,18
+  src/lib/sttClient.ts,128
+  src/main.tsx,34
+  src/persistence/chatRepository.test.ts,87
+  src/persistence/chatRepository.ts,112
+  src/persistence/configuredDeviceRepository.test.ts,206
+  src/persistence/configuredDeviceRepository.ts,230
+  src/persistence/databaseManager.test.ts,159
+  src/persistence/databaseManager.ts,189
+  src/persistence/deviceRepository.test.ts,91
+  src/persistence/deviceRepository.ts,234
+  src/persistence/historyRepository.test.ts,135
+  src/persistence/historyRepository.ts,149
+  src/persistence/migrations.ts,273
+  src/persistence/scanHistoryRepository.ts,133
+  src/persistence/types.ts,84
+  src/plugins/__tests__/plugins.e2e.test.ts,534
+  src/plugins/authBrowse/authBrowsePlugin.ts,165
+  src/plugins/camera/cameraLivePlugin.test.ts,121
+  src/plugins/camera/cameraLivePlugin.ts,648
+  src/plugins/camera/cameraVendorDatabase.ts,407
+  src/plugins/cameras/cameraHealthPlugin.ts,120
+  src/plugins/cameras/cameraPtzPlugin.ts,144
+  src/plugins/cameras/cameraSnapshotPlugin.ts,93
+  src/plugins/cameras/cameras.test.ts,157
+  src/plugins/cameras/index.ts,6
+  src/plugins/chat/chatPlugin.ts,94
+  src/plugins/discovery/advancedPortScanPlugin.ts,303
+  src/plugins/discovery/autoScanScheduler.test.ts,177
+  src/plugins/discovery/autoScanScheduler.ts,264
+  src/plugins/discovery/cameraDetection.ts,342
+  src/plugins/discovery/deviceConfigPlugin.ts,397
+  src/plugins/discovery/deviceStatusPlugin.test.ts,138
+  src/plugins/discovery/deviceStatusPlugin.ts,267
+  src/plugins/discovery/networkScanPlugin.test.ts,361
+  src/plugins/discovery/networkScanPlugin.ts,1321
+  src/plugins/discovery/serviceProbePlugin.ts,230
+  src/plugins/docker/dockerPlugin.ts,439
+  src/plugins/email/emailPlugin.ts,358
+  src/plugins/files/fileSearchPlugin.scope.test.ts,186
+  src/plugins/files/fileSearchPlugin.test.ts,58
+  src/plugins/files/fileSearchPlugin.ts,466
+  src/plugins/frigate/frigateEventsPlugin.test.ts,214
+  src/plugins/frigate/frigateEventsPlugin.ts,252
+  src/plugins/http-browse/httpBrowse.test.ts,174
+  src/plugins/http-browse/httpBrowsePlugin.ts,279
+  src/plugins/http-browse/index.ts,32
+  src/plugins/http/browsePlugin.test.ts,131
+  src/plugins/http/browsePlugin.ts,175
+  src/plugins/marketplace/index.ts,5
+  src/plugins/marketplace/marketplace.test.ts,102
+  src/plugins/marketplace/marketplaceLoader.ts,304
+  src/plugins/monitor/index.ts,5
+  src/plugins/monitor/monitor.test.ts,652
+  src/plugins/monitor/monitorPlugin.ts,2221
+  src/plugins/monitor/motionDetectionPlugin.test.ts,241
+  src/plugins/monitor/motionDetectionPlugin.ts,448
+  src/plugins/monitoringPlugin.test.ts,130
+  src/plugins/monitoringPlugin.ts,145
+  src/plugins/mqtt/index.ts,16
+  src/plugins/mqtt/mqttPlugin.ts,265
+  src/plugins/network/arpPlugin.ts,125
+  src/plugins/network/mdnsPlugin.ts,136
+  src/plugins/network/network.test.ts,204
+  src/plugins/network/onvifPlugin.ts,157
+  src/plugins/network/pingPlugin.ts,109
+  src/plugins/network/portScanPlugin.ts,135
+  src/plugins/network/wakeOnLanPlugin.ts,75
+  src/plugins/protocol-bridge/index.ts,11
+  src/plugins/protocol-bridge/protocolBridgePlugin.test.ts,308
+  src/plugins/protocol-bridge/protocolBridgePlugin.ts,1487
+  src/plugins/protocol-bridge/rssParser.test.ts,167
+  src/plugins/remote-machine/remoteMachinePlugin.ts,447
+  src/plugins/rtsp-camera/index.ts,49
+  src/plugins/rtsp-camera/rtspCameraPlugin.test.ts,36
+  src/plugins/rtsp-camera/rtspCameraPlugin.ts,343
+  src/plugins/scope/scopeRegistry.ts,226
+  src/plugins/system/diskInfoPlugin.test.ts,149
+  src/plugins/system/diskInfoPlugin.ts,275
+  src/plugins/system/logs.index.ts,7
+  src/plugins/system/logsPlugin.test.ts,173
+  src/plugins/system/logsPlugin.ts,235
+  src/plugins/system/processesPlugin.test.ts,43
+  src/plugins/system/processesPlugin.ts,103
+  src/plugins/system/sshPlugin.test.ts,228
+  src/plugins/system/sshPlugin.ts,457
+  src/plugins/voice/index.ts,7
+  src/plugins/voice/voiceCommandsPlugin.test.ts,111
+  src/plugins/voice/voiceCommandsPlugin.ts,159
+  src/queries/getMessagesQuery.ts,18
+  src/queries/getSettingsQuery.ts,30
+  src/reactive/alertBridge.test.ts,207
+  src/reactive/alertBridge.ts,190
+  src/reactive/changeDetector.ts,303
+  src/reactive/types.ts,58
+  src/reactive/watchManager.ts,444
+  src/services/browseService.ts,8
+  src/services/defaultBrowseAdapter.ts,11
+  src/services/defaultLlmAdapter.ts,35
+  src/services/llmService.ts,19
+  src/test/setup.ts,50
+  src/utils/errorReporting.ts,271
+  src/utils/healthCheck.test.ts,188
+  src/utils/healthCheck.ts,354
+  src/utils/quickActionResolver.test.ts,153
+  src/utils/quickActionResolver.ts,169
+  src/vite-env.d.ts,0
+  tailwind.config.js,23
+  test/broxeen.test.js,5
+  vite.config.ts,259
+D:
+  e2e/chat-features.spec.ts:
+    i: @playwright/test
+    e: openApp
+    openApp(page: Page)
+  e2e/plugin-system.spec.ts:
+    i: @playwright/test
+    e: sendMessage,waitForApp
+    waitForApp(page: import('@playwright/test').Page)
+    sendMessage(page: import('@playwright/test').Page;text: string)
+  e2e/voice-interface.spec.ts:
+    i: @playwright/test
+    e: openApp
+    openApp(page: Page)
+  local_llm_integration.py:
+    i: os,sys,json,asyncio,logging,pathlib.Path,typing.{Any,Dict,Optional,Union}
+    e: LocalLLMConfig,PolishLLMClient,MockPolishLLMClient,GGUFPolishLLMClient,OllamaPolishLLMClient,OpenAIPolishLLMClient,LocalPolishNLP2CMD,setup_mock_environment
+    LocalLLMConfig: from_env(0)  # Configuration for local LLM setup.
+    PolishLLMClient: __init__(1),_initialize_client(0),complete(2)  # Polish language LLM client wrapper.
+    MockPolishLLMClient: __init__(0),_setup_polish_responses(0),complete(2),_generate_polish_response(2)  # Mock Polish LLM client for testing.
+    GGUFPolishLLMClient: __init__(1),_load_model(0),complete(2),_get_polish_system_prompt(0)  # GGUF model client for Polish LLM.
+    OllamaPolishLLMClient: __init__(1),_initialize_client(0),complete(2),_get_polish_system_prompt(0)  # Ollama client for Polish LLM.
+    setup_mock_environment()
+    setup_gguf_environment(model_path:str)
+    setup_ollama_environment(model:str='qwen2.5-coder:7b';base_url:str='http://localhost:11434')
+    test_polish_queries(nlp2cmd:LocalPolishNLP2CMD)
+    main()
+  mock_polish_llm_test.py:
+    i: os,sys,json,pathlib.Path,typing.{Any,Dict,Optional}
+    e: MockPolishLLMClient,MockPolishNLP2CMD,test_polish_queries,test_integration_pattern,show_real_setup_instructions
+    MockPolishLLMClient: __init__(1),generate_plan(2)  # Mock Polish LLM client for testing wi...
+    MockPolishNLP2CMD: __init__(1),process_query(2)  # Mock Polish NLP2CMD integration.
+    test_polish_queries()
+    test_integration_pattern()
+    show_real_setup_instructions()
+  phonetic.py:
+    i: re
+    e: PHONETIC_RULES,_SORTED_RULES,normalize,looks_like_url
+    normalize(text:str)->str
+    looks_like_url(text:str)->bool
+  resolver.py:
+    i: re,dataclasses.{dataclass,field},difflib.SequenceMatcher,domains.KNOWN_DOMAINS,phonetic.{looks_like_url,normalize},urllib.parse.quote_plus
+    e: ResolveResult,fuzzy_match_domain,resolve
+    ResolveResult:   # Result of URL resolution.
+    fuzzy_match_domain(input_str:str;threshold:float=0.55;max_results:int=6)->list[tuple[str, float]]
+    resolve(raw_input:str;threshold:float=0.55)->ResolveResult
+  scripts/add-reolink-camera.mjs:
+    i: ../src/persistence/databaseManager.ts,../src/persistence/deviceRepository.ts
+    e: addCamera
+    addCamera()
+  scripts/chat-cli.mjs:
+    i: child_process,os,readline,fs,path
+    e: hasSqlite3Cli,getLocalCidrs,handlePlugins,handleConfig,runPythonScript,handleMonitorCommand,showPrompt,handleDbCommand
+    col(text)
+    run(cmd)
+    hasCmd()
+    getLocalIp()
+    subnet()
+    getLocalCidrs()
+    detectIntent(q)
+    handlePing(q)
+  scripts/motion_pipeline.py:
+    i: argparse,base64,io,json,logging,os,signal,sqlite3,sys,time
+    e: CLASSES_10,YOLO_TO_10_CLASSES,init_db,save_detection,update_detection_llm,get_statistics,create_bg_subtractor,extract_moving_objects
+    LocalClassifier: __init__(1),_load_model(0),_select_model_path(0),classify(2)
+    LlmVerifier: __init__(2),_crop_to_b64(2),verify(3)
+    MotionPipeline: __init__(1),_is_in_cooldown(1),_update_cooldown(1),_emit_event(1),_maybe_emit_stats(0)
+    init_db(db_path:str)->sqlite3.Connection
+    save_detection(conn:Any;camera_id:str;label:str;confidence:float;crop_img:Any;bbox:tuple;...+1)->int
+    update_detection_llm(conn:Any;det_id:int;llm_label:str;llm_description:str)->None
+    get_statistics(conn:Any;camera_id:Optional[str]=None;hours:int=24)->dict
+    create_bg_subtractor(history:int=500;var_threshold:int=50)->cv2.BackgroundSubtractorMOG2
+    extract_moving_objects(frame:Any;bg_subtractor:Any;min_area:int=2000;max_area:int=200000;target_width:int=640)->list
+    should_send_to_llm(label:str;confidence:float;threshold:float=0.6;night_mode:bool=False;night_person_always:bool=True)->bool
+    parse_args()->argparse.Namespace
+  scripts/net-diag.mjs:
+    i: child_process,os
+    e: run,getLocalIp,nmapScan,pingBroadcast,main,compareWithApp,printMdns,printNmapHosts
+    col(t)
+    sep()
+    run(cmd)
+    has()
+    getLocalIp()
+    printTools()
+    printLocalInfo(localIp;sub)
+    getArpEntries()
+  scripts/test-email.mjs:
+    i: child_process,fs
+    e: run,section,skip,ok,fail,runPy
+    col(t)
+    run(cmd)
+    runPy(script)
+    ok(label)
+    fail(label)
+    skip(label;reason)
+    section(title)
+  src-tauri/benches/file_search_bench.rs:
+    i: std::fs,std::path::PathBuf,std::time::Instant,broxeen::file_search::{file_search, search_with_rust_search},tempfile::TempDir
+    e: create_large_test_dataset,benchmark_search_with_rust_search_direct
+    create_large_test_dataset(temp_dir: &TempDir;file_count: usize)
+    benchmark_search_with_rust_search_direct()
+  src-tauri/build.rs:
+    e: main
+    main()
+  src-tauri/src/audio_capture.rs:
+    i: cpal::traits::{DeviceTrait, HostTrait, StreamTrait},cpal::{SampleRate, StreamConfig},hound::{WavSpec, WavWriter},std::io::Cursor,std::sync::{Arc, Mutex}
+    e: RecordingState,SharedRecordingState,new,list_input_devices,start_recording,stop_and_encode_wav,resample_linear,preferred_input_config
+    RecordingState: new(0)
+    new()->Self
+    list_input_devices()->Result<Vec<String>,
+    start_recording(state: &SharedRecordingState)->Result<cpal::Stream,
+    stop_and_encode_wav(state: &SharedRecordingState)->Result<(String,
+    resample_linear(samples: &[i16];from_rate: u32;to_rate: u32)->Vec<i16>
+    preferred_input_config(device: &cpal::Device)->Result<StreamConfig,
+    base64_encode(data: &[u8])->String
+    get_mic_level(state: &SharedRecordingState)->f32
+  src-tauri/src/audio_commands.rs:
+    i: crate::audio_capture::{self, SharedRecordingState},crate::settings::load_settings,crate::stt,crate::tts_backend,std::sync::{Arc, Mutex},crate::wake_word::{self, SharedWakeWordState}
+    e: ActiveStream,ActiveTts,ActiveWakeWordStream,SttStatus,TtsInfo,AudioDevices,is_wake_word_active,pause_wake_word
+    ActiveStream: 
+    ActiveTts: 
+    ActiveWakeWordStream: 
+    SttStatus: 
+    TtsInfo: 
+    is_wake_word_active(active_wake_word: &ActiveWakeWordStream)->bool
+    pause_wake_word(active_wake_word: &ActiveWakeWordStream)->Result<(),
+    resume_wake_word(_active_wake_word: &ActiveWakeWordStream)->Result<(),
+    stt_start(mode: Option<String>;recording_state: tauri::State<SharedRecordingState>;active_stream: tauri::State<ActiveStream>;active_wake_word: tauri::State<ActiveWakeWordStream>)->Result<String,
+    stt_status(recording_state: tauri::State<SharedRecordingState>)->Result<SttStatus,
+    stt_get_mic_level(recording_state: tauri::State<SharedRecordingState>)->f32
+    stt_is_silence(recording_state: tauri::State<SharedRecordingState>;threshold_seconds: f32;rms_threshold: f32)->bool
+    backend_tts_stop(active_tts: tauri::State<ActiveTts>)
+  src-tauri/src/autostart.rs:
+    i: crate::logging::{backend_info, backend_error},std::fs,std::path::PathBuf
+    e: autostart_dir,desktop_entry_path,current_exe_path,desktop_entry_content,autostart_enable,autostart_disable,autostart_status
+    autostart_dir()->Option<PathBuf>
+    desktop_entry_path()->Option<PathBuf>
+    current_exe_path()->String
+    desktop_entry_content()->String
+    autostart_enable()->Result<String,
+    autostart_disable()->Result<String,
+    autostart_status()->Result<bool,
+  src-tauri/src/browse_rendered.rs:
+    i: std::process::Command,std::env
+    e: detect_chrome_binary,is_available,render_and_extract,extract_visible_text,capture_screenshot,normalize_text
+    detect_chrome_binary()->Option<String>
+    is_available()->bool
+    render_and_extract(url: &str;timeout_secs: u64)->Result<(String,
+    extract_visible_text(document: &scraper::Html)->String
+    capture_screenshot(url: &str;timeout_secs: u64)->Result<String,
+    normalize_text(text: &str)->String
+  src-tauri/src/content_cleaning.rs:
+    i: crate::logging::{backend_warn}
+    e: strip_cookie_banner_text,truncate_to_chars,normalize_whitespace,is_bot_protection_text
+    strip_cookie_banner_text(text: &str)->String
+    truncate_to_chars(text: &str;max_chars: usize)->String
+    normalize_whitespace(text: &str)->String
+    is_bot_protection_text(text: &str)->bool
+  src-tauri/src/content_extraction.rs:
+    i: crate::content_cleaning::{normalize_whitespace, MIN_READABLE_CONTENT_LENGTH, MAX_BACKEND_CONTENT_CHARS, truncate_to_chars},crate::logging::backend_info
+    e: ActionLinks,extract_search_results,extract_content,extract_with_scraper,try_extract_search,extract_action_links,test_extract_action_links_comprehensive,test_extract_action_links_missing_links
+    ActionLinks: 
+    extract_search_results(html: &str;url: &str)->Option<String>
+    extract_content(document: &scraper::Html)->String
+    extract_with_scraper(html: &str;url: &str)->(String,
+    try_extract_search(html: &str;url: &str;_final_url: &str)->Option<(String,
+    extract_action_links(document: &scraper::Html)->ActionLinks
+    test_extract_action_links_comprehensive()
+    test_extract_action_links_missing_links()
+    test_extract_action_links_fallback_patterns()
+  src-tauri/src/disk_info.rs:
+    i: serde::{Deserialize, Serialize},std::process::Command,crate::logging::backend_info
+    e: DiskPartition,DiskInfo,parse_df_output,parse_df_simple,parse_df_line,get_hostname,test_parse_df_line,test_get_hostname
+    DiskPartition: 
+    DiskInfo: 
+    parse_df_output()->Result<Vec<DiskPartition>,
+    parse_df_simple()->Result<Vec<DiskPartition>,
+    parse_df_line(line: &str)->Result<DiskPartition,
+    get_hostname()->String
+    test_parse_df_line()
+    test_get_hostname()
+  src-tauri/src/docker.rs:
+    i: serde::{Deserialize, Serialize},std::process::Command
+    e: DockerContainer,DockerImage,DockerVolume,DockerNetwork,DockerInfo
+    DockerContainer: 
+    DockerImage: 
+    DockerVolume: 
+    DockerNetwork: 
+    DockerInfo: 
+  src-tauri/src/email.rs:
+    i: serde::{Deserialize, Serialize},std::process::Command,std::path::Path,crate::logging::{backend_info, backend_warn, backend_error}
+    e: EmailConfig,EmailMessage,InboxSummary,load_email_config_from_env
+    EmailConfig: 
+    EmailMessage: 
+    InboxSummary: 
+    load_email_config_from_env()->EmailConfig
+  src-tauri/src/file_search.rs:
+    i: serde::{Deserialize, Serialize},std::path::{Path, PathBuf},std::fs,std::time::SystemTime,rust_search::SearchBuilder,crate::logging::backend_info
+    e: FileSearchResult,FileSearchResponse,FileContentResponse,guess_mime_type,classify_file_type,is_text_file,format_time,search_with_rust_search
+    FileSearchResult: 
+    FileSearchResponse: 
+    FileContentResponse: 
+    guess_mime_type(ext: &str)->&'static
+    classify_file_type(ext: &str)->&'static
+    is_text_file(ext: &str)->bool
+    format_time(time: SystemTime)->Option<String>
+    search_with_rust_search(base_path: &Path;query: &str;extensions: &[String];max_results: usize;max_depth: usize)->Vec<FileSearchResult>
+    create_test_files(temp_dir: &TempDir;files: &[(&str;&str)
+    test_guess_mime_type()
+    test_classify_file_type()
+  src-tauri/src/frigate_mqtt.rs:
+    i: crate::logging::{backend_error, backend_info, backend_warn},rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS},serde::{Deserialize, Serialize},std::sync::{Arc, Mutex},std::time::Duration,tauri::AppHandle,tauri::Emitter,tokio::sync::oneshot,tokio::task::JoinHandle
+    e: FrigateMqttEvent,FrigateMqttConfig,FrigateMqttRuntime
+    FrigateMqttEvent: 
+    FrigateMqttConfig: 
+    FrigateMqttRuntime: 
+  src-tauri/src/llm.rs:
+    i: serde::{Deserialize, Serialize},std::env
+    e: LlmResponse
+    LlmResponse: 
+  src-tauri/src/llm_query.rs:
+    i: std::env,crate::query_schema::{self, DataSource}
+    e: NlQueryResult,validate_sql_public,validate_sql
+    NlQueryResult: 
+    validate_sql_public(sql: &str)->Result<(),
+    validate_sql(sql: &str)->Result<(),
+  src-tauri/src/local_llm.rs:
+    i: std::env,std::sync::OnceLock,crate::query_schema::{self, DataSource}
+    e: LocalLlmConfig,LocalLlm,default,new,with_config,from_env,get_local_llm,test_local_llm_config_from_env
+    LocalLlmConfig: default(0),from_env(0)
+    LocalLlm: new(0),with_config(1)
+    default()->Self
+    new()->Self
+    with_config(config: LocalLlmConfig)->Self
+    from_env()->Self
+    get_local_llm()->&'static
+    test_local_llm_config_from_env()
+    test_sql_system_prompt()
+  src-tauri/src/logging.rs:
+    i: std::path::PathBuf,std::sync::{Once, OnceLock},tracing::{error, info, warn},tracing_appender::non_blocking::WorkerGuard,tracing_appender::rolling::{RollingFileAppender, Rotation},tracing_subscriber::fmt::time::UtcTime,tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter}
+    e: resolve_log_dir,build_file_appender,init_logging,backend_info,backend_warn,backend_error
+    resolve_log_dir()->PathBuf
+    build_file_appender()->Option<(RollingFileAppender,
+    init_logging()
+    backend_info(message: impl AsRef<str>)
+    backend_warn(message: impl AsRef<str>)
+    backend_error(message: impl AsRef<str>)
+  src-tauri/src/main.rs:
+    i: audio_capture::SharedRecordingState,wake_word::SharedWakeWordState,serde::{Deserialize, Serialize},std::sync::{Arc, Mutex},crate::logging::{backend_info, backend_warn, backend_error, init_logging},crate::content_cleaning::{
+    strip_cookie_banner_text, truncate_to_chars, normalize_whitespace,
+    MIN_READABLE_CONTENT_LENGTH, MAX_BACKEND_CONTENT_CHARS,
+},crate::content_extraction::{
+    extract_search_results, extract_with_scraper,
+}
+    e: BrowseResult,audio_capture,autostart,audio_commands,browse_rendered,motion_detection,content_cleaning,content_extraction
+    BrowseResult: 
+    main()
+  src-tauri/src/main_changes.rs:
+    i: audio_capture::SharedRecordingState,audio_commands::ActiveStream,std::sync::{Arc, Mutex}
+    e: audio_capture,tts_backend,audio_commands,main
+    main()
+  src-tauri/src/motion_detection.rs:
+    i: serde::{Deserialize, Serialize},std::collections::HashMap,std::sync::Mutex,std::io::{BufRead, BufReader},std::process::{Child, Command, Stdio},std::env,std::thread,crate::vision_db::{VisionDatabase, SCHEMA},crate::vision_llm::LlmClient,crate::vision_query_engine::QueryEngine
+    e: PipelineProcess,NativePipeline,StartPipelineRequest,PipelineStatus,PipelineListResult,DetectionRow,DetectionStats,VisionQueryResult
+    PipelineProcess: 
+    NativePipeline: 
+    StartPipelineRequest: 
+    PipelineStatus: 
+    PipelineListResult: 
+    now_ms()->u64
+    resolve_db_path(db_path: &str)->String
+    resolve_script_path(script: &str)->String
+    nl_to_sql(question: &str;_new_schema: bool)->String
+    extract_time_filter(q: &str)->String
+    extract_number_before(q: &str;suffixes: &[&str])->Option<u32>
+    extract_label_filter(q: &str)->String
+    extract_limit(q: &str)->Option<u32>
+  src-tauri/src/network.rs:
+    i: std::sync::Mutex,std::collections::HashMap,std::path::Path
+    e: db_execute,db_query,db_close,resolve_db_path,open_database_connection,json_to_sqlite_param,sqlite_to_json
+    db_execute(db: String;sql: String;params: Vec<serde_json::Value>)->Result<(),
+    db_query(db: String;sql: String;params: Vec<serde_json::Value>)->Result<Vec<HashMap<String,
+    db_close(db: String)->Result<(),
+    resolve_db_path(db: &str)->Result<String,
+    open_database_connection(db_path: &str)->Result<rusqlite::Connection,
+    json_to_sqlite_param(value: &serde_json::Value)->Box<dyn
+    sqlite_to_json(value: rusqlite::types::Value)->serde_json::Value
+  src-tauri/src/network_info.rs:
+    i: std::net::IpAddr,serde::{Deserialize, Serialize}
+    e: NetworkInfo,get_local_network_info,get_interface_name,list_network_interfaces,test_get_local_network_info,test_list_network_interfaces
+    NetworkInfo: 
+    get_local_network_info()->Result<NetworkInfo,
+    get_interface_name(target_ip: &str)->Option<String>
+    list_network_interfaces()->Result<Vec<(String,
+    test_get_local_network_info()
+    test_list_network_interfaces()
+  src-tauri/src/network_scan.rs:
+    i: serde::{Deserialize, Serialize},std::collections::HashMap,std::net::{IpAddr, SocketAddr, TcpStream},std::sync::{Arc, Mutex},std::str::FromStr,std::time::{Duration, Instant},std::process::Command,std::process::Stdio,std::path::Path,std::sync::atomic::{AtomicBool, Ordering}
+    e: CapturedFrame,LiveFrameCache,RtspWorker,RtspWorkerStat,HttpFetchBase64Result,CameraHealthStatus,PingResult,SimplePingResult
+    CapturedFrame: 
+    LiveFrameCache: 
+    RtspWorker: 
+    RtspWorkerStat: 
+    HttpFetchBase64Result: 
+    anonymize_rtsp_url(text: &str)->String
+    test_anonymize_rtsp_url_with_password()
+    test_anonymize_rtsp_url_with_numeric_password()
+    test_anonymize_rtsp_url_without_password()
+    test_anonymize_rtsp_url_no_auth()
+    test_anonymize_non_rtsp_url()
+    test_anonymize_rtsp_url_multiline()
+    infer_vendor_from_ports(ports: &[u16])->Option<String>
+  src-tauri/src/query_schema.rs:
+    e: DataSource,build_text_to_sql_prompt,db_filename,schema,detect_data_source,detect_data_source_keywords,test_detect_monitoring,test_detect_devices
+    DataSource: db_filename(1),schema(1)
+    build_text_to_sql_prompt(schema: &str)->String
+    db_filename(&self)->&'static
+    schema(&self)->&'static
+    detect_data_source(question: &str)->DataSource
+    detect_data_source_keywords(question: &str)->DataSource
+    test_detect_monitoring()
+    test_detect_devices()
+    test_detect_chat()
+  src-tauri/src/remote_machine.rs:
+    i: serde::{Deserialize, Serialize},std::process::Command
+    e: RemoteMachine,RemoteCommandResult,RemoteSystemInfo,DiskUsage,NetworkInterface,RemoteProcess,AuthType
+    RemoteMachine: 
+    RemoteCommandResult: 
+    RemoteSystemInfo: 
+    DiskUsage: 
+    NetworkInterface: 
+  src-tauri/src/rss_parser.rs:
+    i: crate::logging::{backend_info, backend_warn},serde::{Deserialize, Serialize},tauri::command
+    e: RssItem,RssFeed,AtomEntry,AtomFeed,parse_rss_feed,parse_atom_feed,extract_text,extract_atom_link
+    RssItem: 
+    RssFeed: 
+    AtomEntry: 
+    AtomFeed: 
+    parse_rss_feed(xml_content: &str)->Result<RssFeed,
+    parse_atom_feed(xml_content: &str)->Result<AtomFeed,
+    extract_text(parent: &roxmltree::Node;tag_name: &str)->Option<String>
+    extract_atom_link(parent: &roxmltree::Node)->Option<String>
+    extract_atom_author(parent: &roxmltree::Node)->Option<String>
+    format_rss_feed(feed: &RssFeed;max_items: usize)->String
+    format_atom_feed(feed: &AtomFeed;max_items: usize)->String
+    clean_html_text(html: &str)->String
+  src-tauri/src/settings.rs:
+    i: crate::logging::{backend_info, backend_warn, backend_error},std::env,serde::{Deserialize, Serialize},std::fs,std::path::PathBuf
+    e: AudioSettings,default_tts_enabled,default_tts_rate,default_tts_pitch,default_tts_volume,default_tts_lang,default_tts_engine,default_stt_enabled
+    AudioSettings: default(0)
+    default_tts_enabled()->bool
+    default_tts_rate()->f32
+    default_tts_pitch()->f32
+    default_tts_volume()->f32
+    default_tts_lang()->String
+    default_tts_engine()->String
+    default_stt_enabled()->bool
+    default_stt_engine()->String
+  src-tauri/src/ssh.rs:
+    i: serde::{Deserialize, Serialize},std::process::Command,std::time::Instant,crate::logging::{backend_info, backend_warn, backend_error}
+    e: SshResult,SshTestResult,KnownHost,get_ssh_banner,test_ssh_banner_localhost
+    SshResult: 
+    SshTestResult: 
+    KnownHost: 
+    get_ssh_banner(host: &str;port: u16)->Option<String>
+    test_ssh_banner_localhost()
+  src-tauri/src/stt.rs:
+    i: std::env
+    e: VadResult,rms_energy,zero_crossing_rate,detect_voice_activity,parse_wav_samples,base64_decode,detect_artifacts
+    VadResult: 
+    rms_energy(samples: &[i16])->f32
+    zero_crossing_rate(samples: &[i16])->f32
+    detect_voice_activity(samples: &[i16];sample_rate: u32)->VadResult
+    parse_wav_samples(wav_bytes: &[u8])->Result<Vec<i16>,
+    base64_decode(input: &str)->Result<Vec<u8>,
+    detect_artifacts(text: &str)->Result<(),
+  src-tauri/src/tts.rs:
+    i: serde::{Deserialize, Serialize},std::process::{Child, Command, Stdio},std::sync::{Mutex, OnceLock},crate::settings::load_settings
+    e: TtsAvailability,active_tts_child,detect_backend,normalize_lang,map_rate,map_pitch,map_volume,stop_active_tts_child
+    TtsAvailability: 
+    active_tts_child()->&'static
+    detect_backend()->Option<&'static
+    normalize_lang(lang: &str)->String
+    map_rate(rate: f32)->i32
+    map_pitch(pitch: f32)->i32
+    map_volume(volume: f32)->i32
+    stop_active_tts_child()->Result<(),
+    tts_is_available()->TtsAvailability
+  src-tauri/src/tts_backend.rs:
+    i: rodio::{Decoder, OutputStream, Sink},std::io::{BufReader, Cursor},std::path::PathBuf,std::process::Command
+    e: TtsEngine,piper_dir,piper_binary,piper_model,detect_tts_engine,tts_engine_info,select_tts_engine,synthesize_to_wav
+    piper_dir()->PathBuf
+    piper_binary()->PathBuf
+    piper_model()->PathBuf
+    detect_tts_engine()->TtsEngine
+    tts_engine_info()->String
+    select_tts_engine(preferred: &str)->TtsEngine
+    synthesize_to_wav(text: &str;rate: f32;lang: &str)->Result<Vec<u8>,
+    synthesize_to_wav_with_engine(text: &str;rate: f32;lang: &str;preferred_engine: &str)->Result<Vec<u8>,
+  src-tauri/src/vision_capture.rs:
+    i: anyhow::{bail, Result},opencv::{
+    core::Mat,
+    prelude::*,
+    videoio::{VideoCapture, CAP_FFMPEG, CAP_PROP_BUFFERSIZE, CAP_PROP_FPS},
+},std::time::Duration,tracing::{error, info, warn}
+    e: CaptureStream,open,next_frame,reconnect
+    CaptureStream: open(3),next_frame(1),reconnect(1)
+    open(url: &str;camera_id: &str;process_every: u32)->Result<Self>
+    next_frame(&mut self)->Result<Option<Mat>>
+    reconnect(&mut self)->Result<()>
+  src-tauri/src/vision_config.rs:
+    i: serde::Deserialize,std::env
+    e: VisionConfig,CameraConfig,DetectorConfig,PipelineConfig,TrackerConfig,SceneConfig,DatabaseConfig,LlmConfig
+    VisionConfig: 
+    CameraConfig: 
+    DetectorConfig: default(0)
+    PipelineConfig: default(0)
+    TrackerConfig: default(0)
+    default_camera_id()->String
+    default_model_path()->String
+    default_confidence_threshold()->f32
+    default_nms_threshold()->f32
+    default_input_size()->u32
+    default_use_openvino()->bool
+    default_intra_threads()->u16
+    default()->Self
+  src-tauri/src/vision_db.rs:
+    i: anyhow::Result,chrono::{DateTime, Local, Utc},rusqlite::{params, Connection},serde::{Deserialize, Serialize},std::path::Path
+    e: LocalDetection,LlmEvent,Statistics,VisionDatabase,open,migrate,insert_detection,insert_llm_event
+    LocalDetection: 
+    LlmEvent: 
+    Statistics: 
+    VisionDatabase: open(1),migrate(1),insert_detection(8),insert_llm_event(8),get_statistics(3)
+    open(path: &str)->Result<Self>
+    migrate(&self)->Result<()>
+    insert_detection(&self;camera_id:   &str;track_id:    &str;label:       &str;confidence:  f32;movement:    Option<&str>;...+1)->Result<i64>
+    insert_llm_event(&self;camera_id:    &str;period_start: DateTime<Utc>;period_end:   DateTime<Utc>;narrative:    &str;provider:     &str;...+1)->Result<i64>
+    get_statistics(&self;camera_id: Option<&str>;hours: u32)->Result<Statistics>
+    execute_query(&self;sql: &str)->Result<(Vec<String>,
+    get_thumbnail(&self;id: i64)->Result<Vec<u8>>
+    get_recent_llm_events(&self;camera_id: Option<&str>;limit: u32)->Result<Vec<LlmEvent>>
+  src-tauri/src/vision_detector.rs:
+    i: anyhow::{anyhow, Result},ndarray::Array4,opencv::{core::Mat, imgproc, prelude::*},ort::session::Session,tracing::debug
+    e: Detection,Detector,ObjectClass,as_str,from_coco_id,new,detect_from_jpeg,detect_frame
+    Detection: 
+    Detector: new(5),detect_from_jpeg(2),detect_frame(2),detect(2)
+    as_str(&self)->&'static
+    from_coco_id(id: usize)->Self
+    new(model_path: &str;input_size: u32;conf_threshold: f32;nms_threshold: f32;_use_openvino: bool)->Result<Self>
+    detect_from_jpeg(&self;jpeg_bytes: &[u8])->Result<Option<Detection>>
+    detect_frame(&self;frame: &Mat)->Result<Vec<Detection>>
+    detect(&self;crop: &Mat)->Result<Option<Detection>>
+    letterbox(src: &Mat;target: i32)->Result<(Mat,
+    mat_to_chw_f32(mat: &Mat;size: usize)->Result<Vec<f32>>
+  src-tauri/src/vision_llm.rs:
+    i: anyhow::{anyhow, Result},base64::{engine::general_purpose::STANDARD as B64, Engine},serde::Serialize,serde_json::Value,tracing::{debug, info, warn},crate::vision_config::LlmConfig
+    e: ChatRequest,Message,ImageUrlData,ObjectDescription,SceneNarrativeResult,LlmClient,LlmProvider,ContentPart
+    ChatRequest: 
+    Message: 
+    ImageUrlData: 
+    ObjectDescription: 
+    SceneNarrativeResult: 
+    label(&self)->String
+    from_config(cfg: &LlmConfig)->Self
+    active_provider_label(&self)->String
+    parse_object_response(raw: &str;fallback: &str)->ObjectDescription
+    parse_standard()
+    parse_fallback()
+    parse_extended_labels()
+  src-tauri/src/vision_motion.rs:
+    i: anyhow::Result,opencv::{
+    core::{Mat, Point, Scalar, Size, Vector, BORDER_DEFAULT},
+    imgproc::{
+        self, CHAIN_APPROX_SIMPLE, MORPH_CLOSE, MORPH_ELLIPSE, MORPH_OPEN, RETR_EXTERNAL,
+    },
+    prelude::*,
+    video::create_background_subtractor_mog2,
+}
+    e: MovingObject,MotionDetector,new,process_frame
+    MovingObject: 
+    MotionDetector: new(5),process_frame(2)
+    new(history: i32;var_threshold: f64;min_area: f64;max_area: f64;max_output_px: u32)->Result<Self>
+    process_frame(&mut self;frame: &Mat)->Result<Vec<MovingObject>>
+  src-tauri/src/vision_movement.rs:
+    i: crate::vision_tracker::CompletedTrack
+    e: MovementSummary,classify_zone,bbox_center,analyse_movement,movement_tag
+    MovementSummary: 
+    classify_zone(x: f32;y: f32)->String
+    bbox_center(bbox: &(f32;f32;f32;f32)
+    analyse_movement(track: &CompletedTrack)->MovementSummary
+    movement_tag(summary: &MovementSummary;class: &str)->String
+  src-tauri/src/vision_pipeline.rs:
+    i: anyhow::Result,std::sync::Arc,tokio::sync::watch,tracing::{info, warn},crate::vision_capture::CaptureStream,crate::vision_config::VisionConfig,crate::vision_db::VisionDatabase,crate::vision_detector::Detector,crate::vision_llm::LlmClient,crate::vision_movement
+    e: TrackMsg,PipelineHandle,Pipeline,stop,new,start
+    TrackMsg: 
+    PipelineHandle: stop(1)
+    Pipeline: new(1),start(1)
+    stop(&self)
+    new(cfg: VisionConfig)->Self
+    start(app_handle: Option<tauri::AppHandle>)->Result<PipelineHandle>
+  src-tauri/src/vision_query_engine.rs:
+    i: anyhow::Result,serde::{Deserialize, Serialize},tracing::info,crate::vision_db::{VisionDatabase, SCHEMA},crate::vision_llm::LlmClient
+    e: QueryResult,QueryEngine,format_table,new
+    QueryResult: format_table(1)
+    QueryEngine: 
+    format_table(&self)->String
+    new(db: &'a VisionDatabase;client: &'a LlmClient)->Self
+  src-tauri/src/vision_scene_buffer.rs:
+    i: chrono::{DateTime, Utc},std::collections::VecDeque,std::time::Instant,tracing::{debug, info},crate::vision_tracker::CropSnapshot,crate::vision_movement::MovementSummary
+    e: ObjectEvent,MinuteBatch,MinuteBuffer,build_timeline,select_crops,new,push,should_flush
+    ObjectEvent: 
+    MinuteBatch: build_timeline(2),select_crops(3)
+    MinuteBuffer: 
+    build_timeline(&self;camera_id: &str)->String
+    select_crops(&self;min: usize;max: usize)->Vec<(Vec<u8>,
+    new(flush_secs: u64;ring_capacity: usize;min_crops: usize)->Self
+    push(&mut self;event: ObjectEvent)
+    should_flush(&self)->bool
+    drain(&mut self)->Option<MinuteBatch>
+    force_drain(&mut self)->Option<MinuteBatch>
+  src-tauri/src/vision_tracker.rs:
+    i: chrono::{DateTime, Utc},opencv::{core::Mat, imgcodecs, imgproc, prelude::*},tracing::debug,uuid::Uuid,crate::vision_detector::Detection
+    e: CropSnapshot,CompletedTrack,ActiveTrack,Tracker,new,update,compute_iou,extract_crop
+    CropSnapshot: 
+    CompletedTrack: 
+    ActiveTrack: 
+    Tracker: new(5),update(3)
+    new(iou_threshold: f32;max_age: u32;min_hits: u32;crop_max_px: u32;crops_per_track: usize)->Self
+    update(&mut self;detections: &[Detection];frame: &Mat)->Vec<CompletedTrack>
+    compute_iou(a: (f32;f32;f32;f32)
+    extract_crop(frame: &Mat;bbox_norm: (f32;f32;f32;f32)
+  src-tauri/src/wake_word.rs:
+    i: cpal::traits::{DeviceTrait, HostTrait, StreamTrait},std::sync::{Arc, Mutex},std::collections::VecDeque,tauri::Emitter
+    e: WakeWordState,SharedWakeWordState,new,reset,match_wake_word,start_wake_word_listening,stop_wake_word_listening,check_wake_word_triggered
+    WakeWordState: new(0),reset(1)
+    new()->Self
+    reset(&mut self)
+    match_wake_word(audio: &[f32];sample_rate: u32)->f32
+    start_wake_word_listening(state: &SharedWakeWordState;app_handle: tauri::AppHandle)->Result<cpal::Stream,
+    stop_wake_word_listening(state: &SharedWakeWordState)
+    check_wake_word_triggered(state: &SharedWakeWordState)->bool
+    wake_word_get_level(state: tauri::State<SharedWakeWordState>)->f32
+  src-tauri/tests/placeholder_test.rs:
+    e: placeholder_test
+    placeholder_test()
+  src-tauri/tests/test_read.rs:
+    i: url::Url,std::io::Cursor
+    e: test_extractor
+    test_extractor()
+  src/App.tsx:
+    i: react,@tauri-apps/api/core,lucide-react,
+    persistSettings(next: AudioSettings)
+    updateSettings(partial: Partial<AudioSettings>)
+  src/commands/browseCommand.ts:
+    i: ..{/domain/chatAggregate,/domain/eventStore,/lib/logger,/services/browseService,/services/llmService}
+    e: BrowseCommandParams,BrowseCommand
+    BrowseCommand: constructor(4),execute(1)
+  src/commands/copyContextCommand.ts:
+    i: ..{/domain/chatAggregate,/lib/logger}
+    e: CopyContextCommand
+    CopyContextCommand: constructor(1),execute(1)
+  src/commands/saveSettingsCommand.ts:
+    i: ..{/domain/audioSettings,/domain/eventStore,/lib/logger,/lib/runtime}
+    e: SaveSettingsCommand
+    SaveSettingsCommand: constructor(1),execute(1)
+  src/commands/sendMessageCommand.ts:
+    i: ..{/domain/chatAggregate,/domain/eventStore,/lib/logger,/services/llmService}
+    e: SendMessageCommand
+    SendMessageCommand: constructor(3),execute(2)
+  src/components/ActionSuggestions.tsx:
+    i: react,lucide-react
+    e: ActionSuggestion,ActionSuggestionsProps
+    getSmartTitle(query: string)
+    getSmartIcon(category: string)
+    getCategoryColor(category: ActionSuggestion['category'])
+    getCategoryIcon(category: ActionSuggestion['category'])
+    handleSuggestionClick(suggestion: ActionSuggestion)
+  src/components/AlertBridgeComponent.tsx:
+    i: ..{/hooks/useAlertBridge,/plugins/discovery/autoScanScheduler}
+    e: AlertBridgeComponent,AlertBridgeComponentProps
+    AlertBridgeComponent()
+  src/components/CameraPreview.tsx:
+    i: react,lucide-react,../contexts/pluginContext
+    e: CameraPreviewProps,FrameAnalysis
+    handlePlay()
+    handlePause()
+    createRTSPStream()
+    createMJPEGStream()
+    createWebRTCStream()
+    startStreamMonitoring()
+    stopStreamMonitoring()
+    handleMuteToggle()
+  src/components/Chat.test.tsx:
+    i: vitest,@testing-library/react,react,@tauri-apps/api/core,./Chat,..{/config/configStore,/contexts/CqrsContext,/contexts/pluginContext}
+    makePluginResponse(data: string)
+    render(ui: React.ReactElement;options?)
+    mockTauriEnvironment()
+  src/components/Chat.tsx:
+    i: react,@tauri-apps/api/core,lucide-react,react-markdown,remark-gfm,remark-breaks,..{/hooks/useSpeech,/hooks/useStt,/lib/phonetic,/lib/resolver}
+    e: ChatProps,ScopeOption,QueryScope
+    nextMessageId()
+  src/components/ChatConfigPrompt.tsx:
+    i: lucide-react,react,..{/config/appConfig,/config/configStore,/core/preferenceLearning}
+    e: ChatConfigPromptProps,ConfigPromptData,ConfigAction,ChatConfigPrompt
+    ChatConfigPrompt()
+  src/components/ChatPersistenceBridge.tsx:
+    i: ..{/contexts/CqrsContext,/hooks/useChatPersistence,/persistence/databaseManager}
+    e: Props,ChatPersistenceBridge
+    ChatPersistenceBridge()
+  src/components/CommandHistory.tsx:
+    i: react,lucide-react
+    e: CommandHistoryItem,CommandHistory,CategoryFilter,CommandHistoryProps
+    CommandHistory()
+  src/components/DeviceDashboardModal.tsx:
+    i: react,lucide-react
+    e: DeviceEntry,DeviceServiceEntry,timeAgo,inferDeviceType,deviceIcon,DeviceDashboardModalProps,statusColor
+    timeAgo(ts: number)->string
+    statusColor(device: DeviceEntry)->string
+    inferDeviceType(device: DeviceEntry)->"camera" | "server" | "device"
+    deviceIcon(device: DeviceEntry)
+    dispatchChatAction(mode: 'prefill' | 'execute';text: string)
+  src/components/DeviceStrip.test.tsx:
+    i: vitest,@testing-library/react,./DeviceStrip,..{/persistence/configuredDeviceRepository,/persistence/databaseManager}
+    makeDevice(overrides: Partial<ConfiguredDevice>)
+  src/components/DeviceStrip.tsx:
+    i: react,lucide-react,..{/persistence/configuredDeviceRepository,/persistence/databaseManager}
+    e: deviceTypeIcon,DeviceStripProps,statusDot
+    deviceTypeIcon(type: string;size)
+    statusDot(device: ConfiguredDevice)
+  src/components/ErrorReportPanel.tsx:
+    i: react,../utils/errorReporting
+    e: ErrorReportPanelProps
+    refreshData()
+    getFilterOptions()
+    copyErrorReport()
+    clearAllErrors()
+    resolveError(errorId: string)
+    showNotification(message: string;type: 'success' | 'error')
+    getSeverityColor(severity: string)
+    getSeverityIcon(severity: string)
+  src/components/FileResultsDisplay.tsx:
+    i: react,lucide-react
+    e: FileResult,getFileIcon,FileResultsDisplay,formatBytes,FileResultsDisplayProps
+    getFileIcon(ext: string;mime: string)
+    formatBytes(bytes: number)->string
+    FileResultsDisplay()
+  src/components/HealthDiagnostic.tsx:
+    i: react,../utils/healthCheck
+    e: HealthDiagnosticProps
+    copyErrorsToClipboard()
+    showNotification(message: string;type: 'success' | 'error')
+    runHealthCheck()
+  src/components/MessageQuickActions.tsx:
+    i: react,lucide-react,./ChatConfigPrompt,..{/domain/chatEvents,/utils/quickActionResolver}
+    e: MessageQuickActions,MessageQuickActionsProps
+    MessageQuickActions()
+    getVariantClasses(variant: ConfigAction['variant'];isExecuted: boolean)
+  src/components/MicSettingsModal.tsx:
+    i: react,@tauri-apps/api/core,lucide-react,.
+    e: MicSettingsModalProps
+    update(partial: Partial<AudioSettings>)
+    handleSave()
+  src/components/NetworkSelector.tsx:
+    i: react,lucide-react,./NetworkHistorySelector
+    e: NetworkScope,NetworkSelectorProps,NetworkConfig,NetworkSelector
+    NetworkSelector()
+  src/components/QuickActionButtons.tsx:
+    i: react,lucide-react,../domain/chatEvents
+    e: QuickActionButtonsProps,MessageWithQuickActions,QuickActionButtons,ActionLink
+    QuickActionButtons()
+    MessageWithQuickActions()
+  src/components/Settings.test.tsx:
+    i: vitest,@testing-library/react,@tauri-apps/api/core,./Settings,../lib/runtime
+    e: stubMediaDevices,renderSettings,stubPermissions
+    stubMediaDevices()
+    stubPermissions(state: "granted" | "denied" | "prompt")
+    renderSettings(props: Partial<typeof baseProps>)
+  src/components/Settings.tsx:
+    i: react,@tauri-apps/api/core,lucide-react,.
+    e: SettingsProps
+    update(partial: Partial<AudioSettings>)
+    handleSave()
+  src/components/SetupWizardModal.tsx:
+    i: react,@tauri-apps/api/core,lucide-react,..{/config/appConfig,/config/configStore,/lib/llmClient,/lib/runtime}
+    e: SetupWizardModalProps
+    toggleAutostart()
+    handleSave()
+    testApiKey()
+    canProceed()
+  src/components/ThinkingMessage.tsx:
+    i: react,lucide-react
+    e: ThinkingMessage,ThinkingMessageProps
+    ThinkingMessage()
+  src/components/TtsControls.tsx:
+    i: lucide-react,../lib/logger
+    e: TtsControlsProps
+    handlePause()
+    handleResume()
+    handleStop()
+  src/components/TtsSettingsModal.tsx:
+    i: react,@tauri-apps/api/core,lucide-react,..{/domain/audioSettings,/hooks/useTts,/lib/logger,/lib/runtime}
+    e: TtsSettingsModalProps
+    update(partial: Partial<AudioSettings>)
+    handleSave()
+  src/components/WatchBadge.simple.tsx:
+    i: react,lucide-react
+    e: WatchBadge,WatchBadgeProps
+    WatchBadge()
+  src/config/appConfig.ts:
+    e: LocaleConfig,NetworkScanConfig,AppConfig,EmailAppConfig,SshAppConfig,SttAppConfig,LlmAppConfig,ConfigFieldMeta
+    getConfigFieldsByCategory()->Map<string, ConfigFieldMeta[]>
+  src/config/autoConfig.ts:
+    i: ./configStore,..{/components/ChatConfigPrompt,/lib/logger}
+    e: pickBestInterface,isValidCandidateIp,interfaceScore,runAutoConfig,buildWelcomeMessage,isPrivateIp,AutoConfigResult
+    runAutoConfig()->Promise<AutoConfigResult>
+    buildWelcomeMessage(caps: AutoConfigResult['capabilities'];needsSetup: boolean)->string
+    isPrivateIp(ip: string)->boolean
+    isValidCandidateIp(ip: string)->boolean
+    interfaceScore(ifaceName: string;ip: string)->number
+    pickBestInterface(interfaces: Array<[string; string]>)->[string, string] | null
+  src/config/configStore.ts:
+    i: ./appConfig,../lib/logger
+    e: ConfigStatus,ConfigStoreImpl,ConfigListener
+    ConfigStoreImpl: constructor(0),load(0),persist(0),getAll(0),get(1)
+  src/config/watchConfig.ts:
+    i: ..{/discovery/types,/integration/autoWatchIntegration,/persistence/types,/reactive/types}
+    e: getWatchConfig,validateWatchConfig,mergeWatchConfig,getAutoWatchConfig,getChangeThreshold,getPollingInterval
+    getWatchConfig()->WatchConfig
+    getAutoWatchConfig()->AutoWatchConfig
+    getPollingInterval(serviceType: keyof typeof servicePollIntervals)->number
+    getChangeThreshold(serviceType: keyof typeof serviceChangeThresholds)->number
+    validateWatchConfig(config: Partial<WatchConfig>)->string[]
+    mergeWatchConfig(base: WatchConfig;override: Partial<WatchConfig>)->WatchConfig
+  src/contexts/CqrsContext.tsx:
+    i: react,.
+    e: CqrsProvider,CqrsContextValue
+    CqrsProvider()
+  src/contexts/pluginContext.tsx:
+    i: react,@tauri-apps/api/core,..{/config/configStore,/core/bootstrap,/core/types,/lib/runtime},../core/plugin.types
+    e: PluginProvider,PluginProviderProps,usePlugins,PluginContextValue
+    PluginProvider()
+    usePlugins()->PluginContextValue
+  src/core/actionSchema.ts:
+    i: ../components/ChatConfigPrompt
+    e: ActionSchema,findMatchingSchemas,getAllDomains,findDomainSchemas,schemasToLlmContext,getSchemasByDomain,schemasToConfigActions,scoreMatch
+    getSchemasByDomain(domain: ActionDomain)->ActionSchema[]
+    getAllDomains()->ActionDomain[]
+    scoreMatch(query: string;schema: ActionSchema)->number
+    findMatchingSchemas(query: string;limit)->Array<ActionSchema & { score: number }>
+    getDomainHints()->Map<string, ActionDomain>
+    findDomainSchemas(query: string)->ActionSchema[]
+    schemasToConfigActions(schemas: ActionSchema[])->ConfigAction[]
+    schemasToLlmContext(schemas: ActionSchema[])->string
+  src/core/bootstrap.ts:
+    i: .{/commandBus,/intentRouter,/llmIntentClassifier,/pluginRegistry,/types},..{/config/configStore,/domain/eventStore,/persistence/databaseManager,/plugins/scope/scopeRegistry}
+    e: registerCorePlugins,safeRegister,bootstrapApp
+    bootstrapApp(config: {   isTauri: boolean;   tauriInvoke?: (command: string; args?: any) => Promise<any>;   cameras?: import('./types').CameraConfig[];   mqtt?: import('./types').MqttConfig;   describeImage?: (imageUrl: string) => Promise<string>; })->Promise<AppContext>
+    safeRegister(registry: PluginRegistry;router: IntentRouter;plugin: any;label: string)->void
+    registerCorePlugins(registry: PluginRegistry;router: IntentRouter;bus: CommandBus;isTauri: boolean;tauriInvoke?)->Promise<void>
+  src/core/cache.ts:
+    i: ../lib/logger
+    e: CacheFactory,CacheConfig,CacheStats,CacheEntry,Cache
+    Cache: constructor(1),get(1),set(3),delete(1),has(1)
+    CacheFactory: create(2),get(1),delete(1),getAllStats(0),clearAll(0)
+  src/core/commandBus.ts:
+    i: ./types
+    e: CommandBus,CommandHandler
+    CommandBus: register(2),unregister(1),execute(2),getRegisteredCommands(0),has(1)
+  src/core/fallbackHandler.ts:
+    i: .{/actionSchema,/preferenceLearning,/systemContext},..{/components/ChatConfigPrompt,/lib/logger}
+    e: injectFavorites,generateFallback,rankByPreference,FallbackResult,tryLlmFallback,keywordFallback,FallbackOptions
+    tryLlmFallback(options: FallbackOptions)->Promise<FallbackResult | null>
+    rankByPreference(actions: ConfigAction[])->ConfigAction[]
+    injectFavorites(actions: ConfigAction[];limit)->ConfigAction[]
+    keywordFallback(options: FallbackOptions)->FallbackResult
+    generateFallback(options: FallbackOptions)->Promise<FallbackResult>
+  src/core/intentRouter.test.ts:
+    i: vitest,.{/intentRouter,/types}
+    e: MockPlugin
+    MockPlugin: constructor(3),canHandle(2),execute(2)
+  src/core/intentRouter.ts:
+    i: .{/llmIntentClassifier,/types},../plugins/scope/scopeRegistry
+    e: IntentRouter,PluginQuery,buildQuery
+    IntentRouter: constructor(1),initializeDefaultPatterns(0),registerPlugin(1),registerDataSourcePlugin(1),detect(1)
+    buildQuery(intent: string;rawInput: string;overrides: Partial<Omit<PluginQuery; 'intent' | 'rawInput'>>)->PluginQuery
+  src/core/intentSchema.ts:
+    i: ./actionSchema
+    e: getAllIntentSchemas,registerIntentSchema,registerIntentSchemas,getSchemasByPlugin,getSchemasByDomain,clearIntentSchemas,canPluginHandle,getIntentSchema
+    registerIntentSchema(schema: IntentSchema)->void
+    registerIntentSchemas(schemas: readonly IntentSchema[])->void
+    getIntentSchema(intent: string)->IntentSchema | undefined
+    getAllIntentSchemas()->IntentSchema[]
+    getSchemasByPlugin(pluginId: string)->IntentSchema[]
+    getSchemasByDomain(domain: ActionDomain)->IntentSchema[]
+    clearIntentSchemas()->void
+    matchIntentByPatterns(input: string)->{
+  schema: IntentSchema;
+  subAction?: string;
+} | null
+  src/core/llmIntentClassifier.ts:
+    i: .{/actionSchema,/systemContext},../lib/logger
+    e: clearIntentCache,getIntentCacheStats,LlmResponse,cacheGet,LlmIntentResult,classifyIntent,cacheSet,getCacheKey
+    getCacheKey(query: string)->string
+    cacheSet(key: string;result: LlmIntentResult)->void
+    cacheGet(key: string)->LlmIntentResult | null
+    buildIntentPrompt(schemas: ActionSchema[])->string
+    classifyIntent(query: string)->Promise<LlmIntentResult | null>
+    isLlmClassifierAvailable()->boolean
+    clearIntentCache()->void
+    getIntentCacheStats()->{ size: number; maxSize: number }
+  src/core/plugin.types.ts:
+    e: DataSourcePlugin,IQueryBus,ICommandHandler,ResultMetadata,IPluginRegistry,IQueryHandler,PluginEventHandler,isPersistent
+    isStreamable(plugin: DataSourcePlugin)
+    isVisual(plugin: DataSourcePlugin)
+    isPersistent(plugin: DataSourcePlugin)
+  src/core/pluginRegistry.test.ts:
+    i: vitest,.{/pluginRegistry,/types}
+    e: MockPlugin
+    MockPlugin: constructor(3),canHandle(2),execute(2),initialize(1),dispose(0)
+  src/core/pluginRegistry.ts:
+    i: ./types
+    e: PluginRegistry
+    PluginRegistry: register(1),unregister(1),get(1),getAll(0),findByIntent(1)
+  src/core/preferenceLearning.ts:
+    i: ./actionSchema,../lib/logger
+    e: PreferenceLearningStore,PreferenceScore,PreferenceEntry
+    PreferenceLearningStore: ensureLoaded(0),save(0),normalizeKey(2),recordChoice(1),score(2)
+  src/core/processRegistry.ts:
+    e: ProcessType,ProcessRegistry,ProcessRecord,ProcessInfo,ProcessStatus
+    ProcessRegistry: upsertRunning(1),complete(1),fail(2),stop(1),remove(1)
+  src/core/queryBus.ts:
+    i: ./plugin.types
+    e: ListPluginsQuery,GetPluginStatusQuery,PluginInfo,QueryMiddleware,QueryBus,cachingMiddleware
+    QueryBus: register(2),unregister(1),use(1),dispatch(1),registeredQueries(0)
+    cachingMiddleware(ttlMs: number)->QueryMiddleware
+  src/core/realtimeSync.ts:
+    i: ..{/domain/chatEvents,/lib/logger}
+    e: disposeRealtimeSync,SyncMessage,RealtimeSync,RealtimeSyncConfig,getRealtimeSync
+    RealtimeSync: constructor(1),generateSourceId(0),checkSupport(0),initialize(0),initializeLocalStorageFallback(0)
+    getRealtimeSync()->RealtimeSync
+    disposeRealtimeSync()->void
+  src/core/retry.ts:
+    e: sleep,retry,isProbablyTransientErrorMessage,computeDelayMs,RetryDecision,shouldRetryUnknownAsTransient,resolveDecision,isProbablyTransientHttpStatus
+    resolveDecision(decision: boolean | RetryDecision | undefined)->RetryDecision
+    sleep(ms: number)->Promise<void>
+    computeDelayMs(attempt: number;baseDelayMs: number;maxDelayMs: number;jitterRatio: number)->number
+    retry(fn: (attempt: number) => Promise<T>;options: RetryOptions)->Promise<T>
+    isProbablyTransientHttpStatus(status: number)->boolean
+    isProbablyTransientErrorMessage(message: string)->boolean
+    shouldRetryUnknownAsTransient(error: unknown)->RetryDecision
+  src/core/systemContext.ts:
+    i: ..{/lib/logger,/lib/runtime}
+    e: getSystemContext,updateSystemContext,resetSystemContext,detectOs,detectCapabilities,buildSystemContextPrompt,detectUser,detectShell
+    detectOs()->OsPlatform
+    detectUser()->string
+    detectHomeDir(os: OsPlatform;user: string)->string
+    detectShell(os: OsPlatform)->string
+    detectCapabilities(runtime: RuntimeType)->string[]
+    getSystemContext()->SystemContext
+    updateSystemContext(patch: Partial<SystemContext>)->void
+    resetSystemContext()->void
+  src/discovery/networkScanner.ts:
+    i: ./types,..{/persistence/databaseManager,/persistence/types}
+    e: NetworkScanner
+    NetworkScanner: constructor(2),scanNetwork(0),performScan(1),pingSweep(0),mdnsDiscovery(0)
+  src/discovery/serviceProber.ts:
+    i: ./types,..{/persistence/databaseManager,/persistence/types}
+    e: ServiceProber
+    ServiceProber: constructor(2),probeDevice(2),probeHttpService(2),probeRtspService(2),probeMqttService(2)
+  src/domain/audioSettings.ts:
+    e: AudioSettings,withAudioSettingsDefaults
+    withAudioSettingsDefaults(partial: Partial<AudioSettings>)->AudioSettings
+  src/domain/chatAggregate.ts:
+    i: ./chatEvents
+    e: ChatAggregate
+    ChatAggregate: apply(1),replayAll(1),getMessages(0),getNextId(0),getMessage(1)
+  src/domain/chatEvents.ts:
+    i: ./audioSettings
+    e: ChatMessage,projectChatMessages,createEvent,DomainEvent,ChatEvent,ChatMessageRole
+    createEvent(type: T;payload?)->DomainEvent
+    projectChatMessages(current: ChatMessage[];event: ChatEvent | DomainEvent)->ChatMessage[]
+  src/domain/eventStore.ts:
+    i: ./chatEvents,..{/core/realtimeSync,/lib/logger}
+    e: EventHandler,EventStore
+    EventStore: append(1),on(2),onAll(1),getEvents(1),project(1)
+  src/hooks/useAlertBridge.ts:
+    i: react,..{/contexts/CqrsContext,/lib/logger,/plugins/discovery/autoScanScheduler,/reactive/alertBridge}
+    e: useAlertBridge
+    useAlertBridge(autoScanScheduler: AutoScanScheduler | null)->AlertBridge | null
+  src/hooks/useChatMessages.ts:
+    i: react,..{/contexts/CqrsContext,/domain/chatEvents}
+    e: useChatMessages
+    useChatMessages()
+  src/hooks/useChatPersistence.ts:
+    i: react,..{/domain/chatEvents,/domain/eventStore,/lib/logger,/persistence/chatRepository,/persistence/databaseManager}
+    e: getSessionConversationId,useChatPersistence
+    getSessionConversationId()->string
+    useChatPersistence(eventStore: EventStore | null;databaseManager: DatabaseManager | null)
+  src/hooks/useDatabaseManager.ts:
+    i: react,../persistence/databaseManager
+    e: useDatabaseManager
+    useDatabaseManager()->DatabaseManager | null
+  src/hooks/useHistoryPersistence.ts:
+    i: react,..{/lib/logger,/persistence/databaseManager,/persistence/historyRepository}
+    e: addToCommandHistoryLocalStorage,addToNetworkHistoryLocalStorage,loadNetworkHistoryLocalStorage,loadCommandHistoryLocalStorage,CommandHistoryItem,useHistoryPersistence,NetworkHistoryItem
+    useHistoryPersistence(databaseManager: DatabaseManager | null)
+    addToCommandHistoryLocalStorage(command: string;result?;category;success)
+    loadCommandHistoryLocalStorage()->CommandHistoryItem[]
+    addToNetworkHistoryLocalStorage(scope: string;name: string;address: string;description: string)
+    loadNetworkHistoryLocalStorage()->NetworkHistoryItem[]
+  src/hooks/useLlm.ts:
+    i: react,..{/lib/llmClient,/lib/llmPrompts,/lib/logger}
+    e: IntentType,UseLlmOptions,UseLlmReturn,useLlm
+    useLlm(options: UseLlmOptions)->UseLlmReturn
+  src/hooks/useSpeech.test.ts:
+    i: vitest,@testing-library/react,./useSpeech
+    e: MockRecognition
+    makeMockRecognition()
+  src/hooks/useSpeech.ts:
+    i: react,..{/lib/logger,/lib/runtime}
+    e: SpeechRecognitionErrorEvent,SpeechRecognitionInstance,getSpeechRecognitionCtor,useSpeech,SpeechRecognitionEvent,getUnsupportedReason
+    getSpeechRecognitionCtor()->| (new () => SpeechRecognitionInstance)
+  | undefined
+    getUnsupportedReason(supported: boolean;runtimeIsTauri: boolean)->string | null
+    useSpeech(lang: string)
+  src/hooks/useStt.ts:
+    i: react,@tauri-apps/api/core,..{/domain/audioSettings,/lib/logger,/lib/runtime,/lib/sttClient}
+    e: toErrorDetails,getUnsupportedReason,blobToWavBase64,getAudioSettings,useStt,arrayBufferToBase64,UseSttReturn,writeWavPcm16
+    getAudioSettings()->Promise<AudioSettings>
+    arrayBufferToBase64(buf: ArrayBuffer)->string
+    writeWavPcm16(audioBuffer: AudioBuffer)->ArrayBuffer
+    blobToWavBase64(blob: Blob)->Promise<{ base64: string; format: SttAudioFormat }>
+    getUnsupportedReason()->string | null
+    toErrorDetails(e: unknown)
+    useStt(options: UseSttOptions)->UseSttReturn
+  src/hooks/useTts.ts:
+    i: react,@tauri-apps/api/core,..{/lib/logger,/lib/runtime}
+    e: TauriTtsAvailability,TtsOptions,estimateBackendSpeechDurationMs,useTts,getSpeechSynthesisApi,BackendTtsInfo,preprocessForTts
+    getSpeechSynthesisApi()->SpeechSynthesis | undefined
+    preprocessForTts(text: string)->string
+    estimateBackendSpeechDurationMs(text: string;rate: number)->number
+    useTts(options: Partial<TtsOptions>)
+  src/hooks/useWatchNotifications.ts:
+    i: react,..{/reactive/types,/reactive/watchManager}
+    e: mapChangeToNotification,UseWatchNotificationsReturn,useWatchNotifications,WatchNotification
+    useWatchNotifications(watchManager: WatchManager | null)->UseWatchNotificationsReturn
+    mapChangeToNotification(change: ChangeDetectedEvent)->WatchNotification
+  src/integration/autoWatchIntegration.ts:
+    i: ..{/domain/chatEvents,/lib/logger,/persistence/databaseManager,/reactive/watchManager}
+    e: AutoWatchIntegration,AutoWatchStats,AutoWatchConfig
+    AutoWatchIntegration: constructor(3),processMessage(1),extractIntentInfo(1),shouldAutoWatch(2),hasRecentQuery(4)
+  src/lib/browseGateway.ts:
+    i: @tauri-apps/api/core,.{/logger,/runtime},../core/retry
+    e: BrowseResult,getSmartFetchers,isValidContent,getRandomReferer,delay,generateOnetCookies,fetchViaJina,extractBrowserReadableContent
+    getRandomUserAgent()->string
+    getRandomReferer(targetUrl: string)->string
+    getRandomAcceptLanguage()->string
+    generateAdvancedHeaders(url: string)->Record<string, string>
+    generateWPPLCookies()->string
+    generateOnetCookies()->string
+    generateInteriaCookies()->string
+    generateRandomIP()->string
+  src/lib/llmClient.test.ts:
+    i: vitest
+    e: mockFetchSuccess,mockFetchError
+    mockFetchSuccess(responseText: string;model)
+    mockFetchError(status: number;body: string)
+  src/lib/llmClient.ts:
+    i: .{/logger,/runtime},../config/configStore
+    e: LlmMessage,LlmConfig,describeImage,chat,chatDirect,describeImageChange,summarizeForTts,LlmContentPart
+    getConfig()->LlmConfig
+    chat(messages: LlmMessage[];configOverride?)->Promise<LlmResponse>
+    chatDirect(messages: LlmMessage[];cfg: LlmConfig)->Promise<LlmResponse>
+    chatViaTauri(messages: LlmMessage[];cfg: LlmConfig)->Promise<LlmResponse>
+    askAboutContent(pageContent: string;question: string)->Promise<string>
+    describeImage(base64Image: string;mimeType;prompt)->Promise<string>
+    describeImageChange(previousBase64Image: string;currentBase64Image: string;mimeType;prompt)->Promise<string>
+    summarizeForTts(pageContent: string;maxSentences)->Promise<string>
+  src/lib/llmPrompts.ts:
+    e: getPrompt,PromptMode
+    getPrompt(mode: PromptMode;override?)->string
+  src/lib/logger.ts:
+    e: createScopedLogger,normalizeLogArg,LogLevel,ScopedLogger,LogMethod,safeStringify,logAsyncDecorator,emit
+    normalizeLogArg(arg: any)
+    safeStringify(value: any)->string
+    emit(level: LogLevel;scope: string | undefined;message: string)
+    createScopedLogger(scope?)
+    logSyncDecorator(scope: string;operationName: string;fn: (...args: TArgs) => TResult)->(...args: TArgs) => TResult
+    logAsyncDecorator(scope: string;operationName: string;fn: (...args: TArgs) => Promise<TResult>)->(...args: TArgs) => Promise<TResult>
+  src/lib/phonetic.ts:
+    i: ./logger
+    e: looksLikeUrl,normalize
+    normalize(text: string)->string
+    looksLikeUrl(text: string)->boolean
+  src/lib/resolver.ts:
+    i: .{/logger,/phonetic}
+    e: ResolveResult,resolve,fuzzyMatchDomain,similarity,levenshtein
+    levenshtein(a: string;b: string)->number
+    similarity(a: string;b: string)->number
+    fuzzyMatchDomain(input: string;threshold;maxResults)->Array<[string, number]>
+    resolve(rawInput: string;threshold)->ResolveResult
+  src/lib/runtime.ts:
+    e: isTauriRuntime
+    isTauriRuntime()->boolean
+  src/lib/sttClient.ts:
+    i: @tauri-apps/api/core,.{/logger,/runtime},../config/configStore
+    e: SttConfig,transcribeAudio,SttAudioFormat,buildSttRequestBody,getSttConfig
+    buildSttRequestBody(params: {   model: string;   prompt: string;   audioBase64: string;   format: SttAudioFormat;   maxTokens: number;   temperature: number; })
+    getSttConfig()->SttConfig
+    transcribeAudio(audioBase64: string;format: SttAudioFormat;languageOverride?;configOverride?)->Promise<string>
+  src/persistence/chatRepository.ts:
+    i: ./databaseManager,..{/domain/chatEvents,/lib/logger}
+    e: ChatRepository
+    ChatRepository: constructor(1),ensureConversation(1),saveMessage(2),saveMessages(2),loadMessages(2)
+  src/persistence/configuredDeviceRepository.ts:
+    i: ./databaseManager,../lib/logger
+    e: ConfiguredDevice,rowToDevice,genId,ConfiguredDeviceRepository,ConfiguredDeviceInput,ConfiguredDeviceRow
+    ConfiguredDeviceRepository: constructor(1),save(1),listAll(0),listMonitored(0),getById(1)
+    rowToDevice(r: ConfiguredDeviceRow)->ConfiguredDevice
+    genId()->string
+  src/persistence/databaseManager.ts:
+    i: .{/migrations,/types},../lib/logger
+    e: DbAdapter,InMemoryDbAdapter,TauriDbAdapter,DatabaseManager
+    TauriDbAdapter: constructor(2),isOpen(0),execute(2),query(2),queryOne(2)
+    InMemoryDbAdapter: constructor(1),isOpen(0),execute(2),query(2),queryOne(2)
+    DatabaseManager: constructor(2),initialize(0),getDevicesDb(0),getChatDb(0),runMigrations(3)
+  src/persistence/deviceRepository.ts:
+    i: .{/databaseManager,/types},../lib/logger
+    e: DeviceRepository
+    DeviceRepository: constructor(1),saveDevice(1),saveDevices(1),saveService(1),listDevices(1)
+  src/persistence/historyRepository.test.ts:
+    i: vitest,.{/databaseManager,/historyRepository}
+    e: createMockDb
+    createMockDb()
+  src/persistence/historyRepository.ts:
+    i: ./databaseManager,../lib/logger
+    e: NetworkHistoryRow,CommandHistoryRow,HistoryRepository
+    HistoryRepository: constructor(1),saveCommand(1),upsertCommand(4),listCommands(1),saveNetworkEntry(1)
+  src/persistence/scanHistoryRepository.ts:
+    e: ScanHistoryRepository,IncrementalScanRecommendation,ScanHistoryEntry
+    ScanHistoryRepository: constructor(1),save(1),list(1),getLastSuccessfulBySubnet(1),shouldUseIncrementalScan(1)
+  src/plugins/__tests__/plugins.e2e.test.ts:
+    i: vitest,.,../..{/core/intentRouter,/core/pluginRegistry}
+    e: makeTauriCtx
+    makeTauriCtx(invokeImpl: (cmd: string; args?: any) => Promise<any>)->PluginContext
+  src/plugins/authBrowse/authBrowsePlugin.ts:
+    i: ../..{/core/types,/lib/logger}
+    e: AuthBrowsePlugin
+    AuthBrowsePlugin: canHandle(2),execute(2)
+  src/plugins/camera/cameraLivePlugin.ts:
+    i: ./cameraVendorDatabase,../../core/types
+    e: CameraLivePlugin
+    CameraLivePlugin: canHandle(2),execute(2),resolveVendorFromDb(2),mapVendorStringToId(1),handleTestStreams(5)
+  src/plugins/camera/cameraVendorDatabase.ts:
+    e: buildRtspUrl,buildSnapshotUrl,CameraVendor,detectCameraVendor,getVendorInfo
+    detectCameraVendor(options: {   hostname?: string;   mac?: string;   httpHeaders?: Record<string; string>;   httpContent?: string;   rtspPath?: string; })->string
+    getVendorInfo(vendorId: string)->CameraVendor
+    buildRtspUrl(ip: string;username: string;password: string;vendorId: string;quality: 'main' | 'sub' | 'mobile';port: number)->string
+    buildSnapshotUrl(ip: string;username: string;password: string;vendorId: string;port: number)->string
+  src/plugins/cameras/cameraHealthPlugin.ts:
+    i: ../../core/types
+    e: CameraStatus,CameraHealthPlugin
+    CameraHealthPlugin: canHandle(2),execute(2),formatStatuses(1),extractCameraId(1),errorResult(2)
+  src/plugins/cameras/cameraPtzPlugin.ts:
+    i: ../../core/types
+    e: CameraPtzPlugin,PtzDirection,PtzCommand
+    CameraPtzPlugin: canHandle(2),execute(2),parseCommand(1),extractCameraId(1),directionLabel(1)
+  src/plugins/cameras/cameraSnapshotPlugin.ts:
+    i: ../../core/types
+    e: CameraSnapshotPlugin
+    CameraSnapshotPlugin: canHandle(2),execute(2),extractCameraId(1),cameraLabel(1),errorResult(2)
+  src/plugins/chat/chatPlugin.ts:
+    i: ../..{/core/systemContext,/core/types}
+    e: ChatLlmPlugin
+    ChatLlmPlugin: canHandle(2),execute(2),initialize(1),dispose(0)
+  src/plugins/discovery/advancedPortScanPlugin.ts:
+    i: ./cameraDetection,../../core/types
+    e: AdvancedPortScanPlugin
+    AdvancedPortScanPlugin: canHandle(2),execute(2),scanSingleHost(1),scanSubnet(1),probePort(2)
+  src/plugins/discovery/autoScanScheduler.test.ts:
+    i: vitest,./autoScanScheduler
+    makeTauriCtx(invokeImpl?)
+  src/plugins/discovery/autoScanScheduler.ts:
+    i: ../..{/core/types,/lib/logger,/persistence/deviceRepository,/persistence/scanHistoryRepository,/reactive/alertBridge}
+    e: AutoScanScheduler,AutoScanConfig,DeviceStatusChangeCallback
+    AutoScanScheduler: constructor(2),setStatusChangeCallback(1),start(1),stop(0),isRunning(0)
+  src/plugins/discovery/cameraDetection.ts:
+    e: identifyVendor,generateRtspUrls,CameraVendor,PortScanResult,getAllCameraPorts,CameraDetectionResult,generateRecommendations
+    getAllCameraPorts()->number[]
+    identifyVendor(httpContent: string;headers: Record<string; string>)->{ vendor: string; confidence: number } | null
+    generateRtspUrls(ip: string;vendor?)->string[]
+    generateRecommendations(result: CameraDetectionResult)->string[]
+  src/plugins/discovery/deviceConfigPlugin.ts:
+    i: ../..{/core/types,/lib/logger,/persistence/configuredDeviceRepository}
+    e: DeviceConfigPlugin
+    DeviceConfigPlugin: initialize(1),resolveRoute(1),canHandle(2),execute(2),listConfiguredDevices(1)
+  src/plugins/discovery/deviceStatusPlugin.ts:
+    i: ../..{/core/types,/lib/logger,/persistence/deviceRepository}
+    e: DeviceStatusPlugin
+    DeviceStatusPlugin: initialize(1),canHandle(2),execute(2),showGeneralStatus(0),showOnlineDevices(0)
+  src/plugins/discovery/networkScanPlugin.ts:
+    i: ../.
+    e: NetworkDevice,NetworkScanResult,NetworkScanPlugin
+    NetworkScanPlugin: resolveRoute(1),initialize(1),canHandle(2),isStatusQuery(1),isFilterQuery(1)
+  src/plugins/discovery/serviceProbePlugin.ts:
+    i: ../..{/core/types,/discovery/types}
+    e: ServiceProbePlugin
+    ServiceProbePlugin: initialize(1),canHandle(2),execute(2),extractTarget(1),performSimpleProbe(1)
+  src/plugins/docker/dockerPlugin.ts:
+    i: ../../core/types
+    e: DockerInfo,DockerVolume,DockerNetwork,DockerContainer,DockerPlugin,DockerImage
+    DockerPlugin: initialize(1),dispose(0),canHandle(2),execute(2),extractContainerId(1)
+  src/plugins/email/emailPlugin.ts:
+    i: ../..{/config/configStore,/core/types}
+    e: EmailPlugin,InboxSummary,EmailMessage,EmailConfig
+    EmailPlugin: resolveRoute(1),canHandle(2),execute(2),isPollConfigRequest(1),handleConfig(2)
+  src/plugins/files/fileSearchPlugin.ts:
+    i: ../..{/core/systemContext,/core/types}
+    e: FileContentResponse,FileSearchResponse,FileSearchResult,FileSearchPlugin
+    FileSearchPlugin: canHandle(2),execute(2),executeSearch(3),executeRead(3),buildGridResult(2)
+  src/plugins/frigate/frigateEventsPlugin.test.ts:
+    i: vitest,./frigateEventsPlugin,../..{/core/types,/lib/llmClient}
+    tauriCtx(overrides?)
+  src/plugins/frigate/frigateEventsPlugin.ts:
+    i: ../..{/config/configStore,/core/types,/lib/logger}
+    e: FrigateEventsPlugin,FrigateMqttEnvelope,UnlistenFn,FrigateEvent
+    FrigateEventsPlugin: initialize(1),dispose(0),resolveRoute(1),canHandle(2),execute(2)
+  src/plugins/http-browse/httpBrowse.test.ts:
+    i: vitest,./httpBrowsePlugin,../../core/intentRouter
+    e: createMockStrategy
+    createMockStrategy(name: string;priority: number;result?;shouldFail)->FetchStrategy
+  src/plugins/http-browse/httpBrowsePlugin.ts:
+    i: ../../core/plugin.types
+    e: JinaReaderStrategy,FetchStrategy,ContentExtractor,FetchStrategyResult,AllOriginsJsonStrategy,TauriFetchStrategy,HttpBrowsePlugin,CorsProxyStrategy
+    AllOriginsJsonStrategy: isAvailable(0),fetch(1)
+    AllOriginsRawStrategy: isAvailable(0),fetch(1)
+    CorsProxyStrategy: isAvailable(0),fetch(1)
+    JinaReaderStrategy: isAvailable(0),fetch(1)
+    TauriFetchStrategy: constructor(1),isAvailable(0),fetch(1)
+  src/plugins/http-browse/index.ts:
+    i: ./httpBrowsePlugin,../../core/pluginRegistry
+    e: registerHttpBrowsePlugin
+    registerHttpBrowsePlugin(registry: PluginRegistry;options: HttpBrowsePluginOptions & {     tauriInvoke?: (cmd: string; args?: Record<string; unknown>) => Promise<unknown>;   })->HttpBrowsePlugin
+  src/plugins/http/browsePlugin.ts:
+    i: ../../core/types
+    e: HttpBrowsePlugin
+    HttpBrowsePlugin: isLanUrl(1),extractUrlFromInput(1),sanitizeExtractedUrl(1),canHandle(2),execute(2)
+  src/plugins/marketplace/marketplaceLoader.ts:
+    i: ../scope/scopeRegistry,../../core/types
+    e: MarketplaceEntry,MarketplacePlugin
+    MarketplacePlugin: resolveRoute(1),canHandle(2),execute(2),handleBrowse(1),handleSearch(2)
+  src/plugins/monitor/monitorPlugin.ts:
+    i: ../.
+    e: MonitorLogEntry,MonitorTarget,MonitorPlugin,MonitorUiEventDetail,CaptureMetadata
+    MonitorPlugin: buildDbConflictPrompt(0),canHandle(2),execute(2),parseToggleMonitoring(1),handleToggleMonitoring(4)
+  src/plugins/monitor/motionDetectionPlugin.test.ts:
+    i: vitest,./motionDetectionPlugin,../../core/types
+    makeTauriCtx(invokeImpl?)
+    makeBrowserCtx()
+  src/plugins/monitor/motionDetectionPlugin.ts:
+    i: ../..{/components/ChatConfigPrompt,/config/configStore,/core/types,/lib/logger}
+    e: MotionDetectionPlugin,UnlistenFn,DetectionStats,DetectionRow,PipelineStatus
+    MotionDetectionPlugin: initialize(1),dispose(0),canHandle(2),execute(2),handleStart(3)
+  src/plugins/monitoringPlugin.ts:
+    i: ..{/lib/logger,/lib/runtime},../core/plugin.types
+    e: MonitoringPlugin,VisionQueryResult,formatQueryResult
+    MonitoringPlugin: initialize(0),isAvailable(0),execute(1),dispose(0)
+    formatQueryResult(result: VisionQueryResult;elapsedMs: number)->string
+  src/plugins/mqtt/index.ts:
+    i: ./mqttPlugin,../../core/pluginRegistry
+    e: registerMqttPlugin
+    registerMqttPlugin(registry: PluginRegistry;config: MqttConfig;client: MqttClientAdapter)->MqttPlugin
+  src/plugins/mqtt/mqttPlugin.ts:
+    i: ../../core/plugin.types
+    e: MqttPlugin,MqttClientAdapter,TopicValue,MqttConfig
+    MqttPlugin: connected(0),constructor(2),initialize(0),isAvailable(0),execute(1)
+  src/plugins/network/arpPlugin.ts:
+    i: ../../core/types
+    e: ArpHost,ArpPlugin
+    ArpPlugin: canHandle(2),execute(2),formatHosts(3),extractSubnet(1),errorResult(2)
+  src/plugins/network/mdnsPlugin.ts:
+    i: ../../core/types
+    e: MdnsService,MdnsPlugin
+    MdnsPlugin: canHandle(2),execute(2),formatServices(2),groupByType(1),friendlyType(1)
+  src/plugins/network/onvifPlugin.ts:
+    i: ../../core/types
+    e: OnvifPlugin,OnvifCamera
+    OnvifPlugin: canHandle(2),execute(2),browserProbe(2),formatCameras(2),extractSubnet(1)
+  src/plugins/network/pingPlugin.ts:
+    i: ../../core/types
+    e: PingPlugin,PingResult
+    PingPlugin: canHandle(2),execute(2),extractTarget(1),formatResult(3),errorResult(2)
+  src/plugins/network/portScanPlugin.ts:
+    i: ../../core/types
+    e: PortScanPlugin,PortScanResult
+    PortScanPlugin: canHandle(2),execute(2),extractTarget(1),extractPorts(1),formatResult(3)
+  src/plugins/network/wakeOnLanPlugin.ts:
+    i: ../../core/types
+    e: WakeOnLanPlugin
+    WakeOnLanPlugin: canHandle(2),execute(2),extractMac(1),errorResult(2),initialize(1)
+  src/plugins/protocol-bridge/protocolBridgePlugin.ts:
+    i: ../..{/core/types,/lib/logger}
+    e: SseStream,MqttCacheEntry,BridgeMessage,BridgeDirection,ActionHint,BridgeProtocol,BridgeEndpoint,WsConnection
+    ProtocolBridgePlugin: resolveRoute(1),canHandle(2),execute(2),detectProtocolFromInput(1),handleAdd(2)
+  src/plugins/remote-machine/remoteMachinePlugin.ts:
+    i: ../../core/types
+    e: RemoteMachinePlugin,RemoteCommandResult,RemoteSystemInfo,NetworkInterface,RemoteProcess,DiskUsage,RemoteMachine
+    RemoteMachinePlugin: initialize(1),dispose(0),canHandle(2),execute(2),handleAddMachine(1)
+  src/plugins/rtsp-camera/index.ts:
+    i: ./rtspCameraPlugin,../../core/pluginRegistry
+    e: RegisterRtspCameraOptions,registerRtspCameraPlugin
+    registerRtspCameraPlugin(registry: PluginRegistry;options: RegisterRtspCameraOptions)->RtspCameraPlugin
+  src/plugins/rtsp-camera/rtspCameraPlugin.ts:
+    i: ../../core/plugin.types
+    e: FrameGrabber,SceneDescriber,RtspCameraPlugin,LlmSceneDescriber,blobToBase64,CapturedFrame,RtspCameraPluginOptions,CameraConfig
+    HttpSnapshotGrabber: isAvailable(0),capture(1)
+    TauriRtspGrabber: constructor(1),isAvailable(0),capture(1)
+    LlmSceneDescriber: constructor(1),describe(2)
+    RtspCameraPlugin: constructor(1),initialize(0),isAvailable(0),execute(1),captureFrame(1)
+    blobToBase64(blob: Blob)->Promise<string>
+  src/plugins/scope/scopeRegistry.ts:
+    e: RemotePluginManifest,ScopeDefinition,ScopeRegistry,ScopeId
+    ScopeRegistry: normalizeScopeId(1),constructor(0),getScope(1),getAllScopes(0),getActiveScope(0)
+  src/plugins/system/diskInfoPlugin.ts:
+    i: ../../core/types
+    e: DiskPartition,DiskInfo,DiskInfoPlugin,SshResult
+    DiskInfoPlugin: canHandle(2),execute(2),buildConfigPrompt(1),buildProgressBar(2),executeTauri(3)
+  src/plugins/system/logsPlugin.ts:
+    i: ../..{/config/configStore,/core/types,/lib/logger}
+    e: LogCommandAction,LogsPlugin,LogCommand
+    LogsPlugin: initialize(1),canHandle(2),execute(2),executeCommand(2),downloadLogs(0)
+  src/plugins/system/processesPlugin.ts:
+    i: ../..{/core/processRegistry,/core/types}
+    e: ProcessesPlugin
+    ProcessesPlugin: canHandle(2),execute(2)
+  src/plugins/system/sshPlugin.ts:
+    i: ../..{/config/configStore,/core/retry,/core/types}
+    e: SshPlugin,KnownHost,SshExecResult,SshTestResult
+    SshPlugin: canHandle(2),execute(2),handleExecute(3),listKnownHosts(2),testConnection(4)
+  src/plugins/voice/voiceCommandsPlugin.ts:
+    i: ../..{/core/types,/lib/logger}
+    e: VoiceCommand,VoiceCommandAction,VoiceCommandsPlugin
+    VoiceCommandsPlugin: initialize(1),canHandle(2),execute(2),executeCommand(1),dispose(0)
+  src/queries/getMessagesQuery.ts:
+    i: ..{/domain/chatAggregate,/domain/chatEvents}
+    e: GetMessagesQuery
+    GetMessagesQuery: constructor(1),execute(0),getById(1),getLastUserQuery(1)
+  src/queries/getSettingsQuery.ts:
+    i: ..{/domain/audioSettings,/lib/logger,/lib/runtime}
+    e: GetSettingsQuery
+    GetSettingsQuery: execute(0)
+  src/reactive/alertBridge.test.ts:
+    i: vitest,.{/alertBridge,/types,/watchManager},../domain/eventStore
+    e: makeStore,captureMessages
+    makeStore()->EventStore
+    captureMessages(store: EventStore)
+  src/reactive/alertBridge.ts:
+    i: .{/types,/watchManager},..{/domain/chatEvents,/domain/eventStore,/lib/logger}
+    e: DeviceStatusChange,AlertBridge,AlertBridgeOptions
+    AlertBridge: constructor(2),attachWatchManager(1),detachWatchManager(0),emitChangeAlert(1),notifyDeviceStatusChange(1)
+  src/reactive/changeDetector.ts:
+    i: ./types,..{/persistence/databaseManager,/persistence/types}
+    e: ChangeDetector
+    ChangeDetector: constructor(1),detectChanges(5),getLatestSnapshot(2),createSnapshot(4),recordChangeHistory(6)
+  src/reactive/watchManager.ts:
+    i: .{/changeDetector,/types},..{/persistence/databaseManager,/persistence/types}
+    e: WatchManager
+    WatchManager: constructor(2),start(0),stop(0),createWatchRule(1),autoWatch(4)
+  src/services/defaultBrowseAdapter.ts:
+    i: ./browseService,../lib/browseGateway
+    e: DefaultBrowseAdapter
+    DefaultBrowseAdapter: fetch(1)
+  src/services/defaultLlmAdapter.ts:
+    i: ./llmService,../lib/llmClient
+    e: DefaultLlmAdapter
+    DefaultLlmAdapter: chat(1),ask(2),summarize(2),summarizeSearch(2),detectIntent(1)
+  src/utils/errorReporting.ts:
+    i: ../lib/logger
+    e: captureError,ErrorReporting,capturePluginError,captureSystemError,captureUserError,captureNetworkError,ErrorReport
+    ErrorReporting: constructor(0),generateSessionId(0),setupGlobalHandlers(0),getContext(0),captureError(1)
+    captureError(error: Partial<ErrorReport>)
+    captureNetworkError(message: string;details?)
+    capturePluginError(pluginId: string;message: string;details?)
+    captureUserError(message: string;details?)
+    captureSystemError(message: string;details?)
+  src/utils/healthCheck.ts:
+    i: ..{/lib/logger,/persistence/databaseManager}
+    e: runQuickHealthCheck,HealthReport,HealthCheckResult,runHealthCheck,HealthChecker
+    HealthChecker: constructor(0),registerDefaultChecks(0),addCheck(3),runChecks(0),runQuickCheck(0)
+    runHealthCheck()
+    runQuickHealthCheck()
+  src/utils/quickActionResolver.test.ts:
+    i: vitest,./quickActionResolver,../domain/chatEvents
+    e: msg
+    msg(text: string;overrides: Partial<ChatMessage>)->ChatMessage
+  src/utils/quickActionResolver.ts:
+    i: ..{/components/ChatConfigPrompt,/domain/chatEvents}
+    e: QuickActionSet,resolveQuickActions
+    resolveQuickActions(msg: ChatMessage)->QuickActionSet | null
+  vite.config.ts:
+    i: vite,@vitejs/plugin-react,vitest/config,child_process,os
+    e: chatApiPlugin
+    chatApiPlugin()->Plugin

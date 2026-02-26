@@ -1,4 +1,5 @@
 .idea
+venv_llm
 test-results
 pnpm-lock.yaml
 screenshots/

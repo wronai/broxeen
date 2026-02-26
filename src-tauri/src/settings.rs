@@ -93,6 +93,32 @@ pub fn settings_path() -> PathBuf {
     path
 }
 
+/// Load settings from disk (used by tts.rs, audio_commands.rs, etc.)
+pub fn load_settings() -> AudioSettings {
+    let path = settings_path();
+
+    if !path.exists() {
+        backend_warn(format!("Settings file not found at {}. Using defaults.", path.display()));
+        return AudioSettings::default();
+    }
+
+    let data = match fs::read_to_string(&path) {
+        Ok(data) => data,
+        Err(err) => {
+            backend_error(format!("Failed to read settings file {}: {}", path.display(), err));
+            return AudioSettings::default();
+        }
+    };
+
+    match serde_json::from_str::<AudioSettings>(&data) {
+        Ok(settings) => settings,
+        Err(err) => {
+            backend_error(format!("Failed to parse settings: {}", err));
+            AudioSettings::default()
+        }
+    }
+}
+
 #[tauri::command]
 pub fn get_settings() -> AudioSettings {
     backend_info("Command get_settings invoked");

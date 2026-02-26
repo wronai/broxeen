@@ -1,5 +1,5 @@
 /**
- * Unit tests for all Local Network plugins
+ * Unit tests for all Network plugins (canonical implementations)
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
@@ -33,16 +33,17 @@ describe('PingPlugin', () => {
 
   it('canHandle recognizes Polish ping requests', async () => {
     expect(await plugin.canHandle('ping 192.168.1.1', browserCtx)).toBe(true);
-    expect(await plugin.canHandle('sprawdź host router.local', browserCtx)).toBe(true);
-    expect(await plugin.canHandle('czy router odpowiada', browserCtx)).toBe(true);
+    expect(await plugin.canHandle('sprawdź dostępność hosta', browserCtx)).toBe(true);
+    expect(await plugin.canHandle('czy jest dostępny', browserCtx)).toBe(true);
     expect(await plugin.canHandle('jaka pogoda', browserCtx)).toBe(false);
   });
 
-  it('returns demo result in browser mode', async () => {
+  it('returns result in browser mode', async () => {
+    // Browser mode uses HTTP HEAD fallback
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')));
     const result = await plugin.execute('ping 192.168.1.1', browserCtx);
     expect(result.status).toBe('success');
     expect(result.content[0].data).toContain('192.168.1.1');
-    expect(result.content[0].data).toContain('demonstracyjny');
   });
 
   it('returns error when no target given', async () => {
@@ -52,11 +53,11 @@ describe('PingPlugin', () => {
   });
 
   it('calls tauriInvoke in Tauri mode', async () => {
-    const ctx = { ...tauriCtx, tauriInvoke: vi.fn().mockResolvedValue({ reachable: true, latency_ms: 5, ttl: 64 }) };
+    const ctx = { ...tauriCtx, tauriInvoke: vi.fn().mockResolvedValue({ reachable: true, sent: 3, received: 3, lost: 0, lossPercent: 0, avgRtt: 5 }) };
     const result = await plugin.execute('ping 192.168.1.1', ctx);
-    expect(ctx.tauriInvoke).toHaveBeenCalledWith('network_ping', { host: '192.168.1.1' });
+    expect(ctx.tauriInvoke).toHaveBeenCalledWith('ping_host', { host: '192.168.1.1', count: 3 });
     expect(result.status).toBe('success');
-    expect(result.content[0].data).toContain('Dostępny');
+    expect(result.content[0].data).toContain('dostępny');
   });
 
   it('handles Tauri invoke failure gracefully', async () => {
@@ -85,7 +86,8 @@ describe('PortScanPlugin', () => {
     expect(await plugin.canHandle('jaka pogoda', browserCtx)).toBe(false);
   });
 
-  it('returns demo result in browser mode', async () => {
+  it('returns result in browser mode', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')));
     const result = await plugin.execute('skanuj porty 192.168.1.1', browserCtx);
     expect(result.status).toBe('success');
     expect(result.content[0].data).toContain('192.168.1.1');
@@ -97,7 +99,7 @@ describe('PortScanPlugin', () => {
   });
 
   it('calls tauriInvoke in Tauri mode', async () => {
-    const ctx = { ...tauriCtx, tauriInvoke: vi.fn().mockResolvedValue({ open_ports: [22, 80, 443], scan_duration_ms: 1200 }) };
+    const ctx = { ...tauriCtx, tauriInvoke: vi.fn().mockResolvedValue({ scanned: 20, open: [{ port: 22, rtt: 5 }, { port: 80, rtt: 3 }], filtered: [] }) };
     const result = await plugin.execute('skanuj porty 192.168.1.1', ctx);
     expect(ctx.tauriInvoke).toHaveBeenCalled();
     expect(result.status).toBe('success');
@@ -118,27 +120,26 @@ describe('ArpPlugin', () => {
   });
 
   it('canHandle recognizes ARP requests', async () => {
-    expect(await plugin.canHandle('tablica arp', browserCtx)).toBe(true);
-    expect(await plugin.canHandle('adresy mac', browserCtx)).toBe(true);
-    expect(await plugin.canHandle('arp table', browserCtx)).toBe(true);
+    expect(await plugin.canHandle('arp scan', browserCtx)).toBe(true);
+    expect(await plugin.canHandle('wszystkie urządzenia', browserCtx)).toBe(true);
+    expect(await plugin.canHandle('urządzenia lan', browserCtx)).toBe(true);
     expect(await plugin.canHandle('random text', browserCtx)).toBe(false);
   });
 
-  it('returns demo entries in browser mode', async () => {
-    const result = await plugin.execute('pokaż tablicę arp', browserCtx);
+  it('returns result in browser mode', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')));
+    const result = await plugin.execute('skanuj arp', browserCtx);
     expect(result.status).toBe('success');
-    expect(result.content[0].data).toContain('Tablica ARP');
-    expect(result.content[0].data).toContain('192.168.1.1');
-    expect(result.metadata.deviceCount).toBe(5);
+    expect(result.content[0].data).toContain('ARP');
   });
 
   it('calls tauriInvoke in Tauri mode', async () => {
-    const entries = [{ ip: '10.0.0.1', mac: 'AA:BB:CC:DD:EE:01', vendor: 'Cisco' }];
-    const ctx = { ...tauriCtx, tauriInvoke: vi.fn().mockResolvedValue(entries) };
-    const result = await plugin.execute('arp table', ctx);
-    expect(ctx.tauriInvoke).toHaveBeenCalledWith('network_arp_scan', {});
+    const hosts = [{ ip: '10.0.0.1', mac: 'AA:BB:CC:DD:EE:01', vendor: 'Cisco' }];
+    const ctx = { ...tauriCtx, tauriInvoke: vi.fn().mockResolvedValue(hosts) };
+    const result = await plugin.execute('arp scan', ctx);
+    expect(ctx.tauriInvoke).toHaveBeenCalledWith('arp_scan', expect.objectContaining({ timeout: 3000 }));
     expect(result.status).toBe('success');
-    expect(result.metadata.deviceCount).toBe(1);
+    expect((result.metadata as any).deviceCount).toBe(1);
   });
 });
 
@@ -196,30 +197,23 @@ describe('MdnsPlugin', () => {
   it('canHandle recognizes mDNS requests', async () => {
     expect(await plugin.canHandle('mdns discovery', browserCtx)).toBe(true);
     expect(await plugin.canHandle('bonjour services', browserCtx)).toBe(true);
-    expect(await plugin.canHandle('odkryj usługi', browserCtx)).toBe(true);
+    expect(await plugin.canHandle('odkryj urządzenia', browserCtx)).toBe(true);
     expect(await plugin.canHandle('random text', browserCtx)).toBe(false);
   });
 
-  it('returns demo services in browser mode', async () => {
+  it('returns info in browser mode', async () => {
     const result = await plugin.execute('odkryj usługi mdns', browserCtx);
     expect(result.status).toBe('success');
     expect(result.content[0].data).toContain('mDNS');
-    expect(result.metadata.serviceCount).toBeGreaterThan(0);
-  });
-
-  it('filters demo by service type', async () => {
-    const result = await plugin.execute('odkryj usługi rtsp kamer', browserCtx);
-    expect(result.status).toBe('success');
-    expect(result.content[0].data).toContain('_rtsp._tcp');
   });
 
   it('calls tauriInvoke in Tauri mode', async () => {
-    const services = [{ name: 'Test', type: '_http._tcp', host: 'test.local', port: 80, ip: '10.0.0.1' }];
+    const services = [{ name: 'Test', type: '_http._tcp', host: 'test.local', ip: '10.0.0.1', port: 80 }];
     const ctx = { ...tauriCtx, tauriInvoke: vi.fn().mockResolvedValue(services) };
     const result = await plugin.execute('mdns', ctx);
     expect(ctx.tauriInvoke).toHaveBeenCalled();
     expect(result.status).toBe('success');
-    expect(result.metadata.serviceCount).toBe(1);
+    expect((result.metadata as any).deviceCount).toBe(1);
   });
 });
 
@@ -237,26 +231,24 @@ describe('OnvifPlugin', () => {
 
   it('canHandle recognizes ONVIF requests', async () => {
     expect(await plugin.canHandle('onvif discover', browserCtx)).toBe(true);
-    expect(await plugin.canHandle('odkryj kamery', browserCtx)).toBe(true);
-    expect(await plugin.canHandle('pokaż kamery w sieci', browserCtx)).toBe(true);
+    expect(await plugin.canHandle('wykryj kamery', browserCtx)).toBe(true);
+    expect(await plugin.canHandle('kamery w sieci', browserCtx)).toBe(true);
     expect(await plugin.canHandle('random text', browserCtx)).toBe(false);
   });
 
-  it('returns demo cameras in browser mode', async () => {
+  it('returns result in browser mode', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')));
     const result = await plugin.execute('odkryj kamery onvif', browserCtx);
     expect(result.status).toBe('success');
-    expect(result.content[0].data).toContain('Kamery ONVIF');
-    expect(result.content[0].data).toContain('Hikvision');
-    expect(result.content[0].data).toContain('Dahua');
-    expect(result.metadata.deviceCount).toBe(3);
+    expect(result.content[0].data).toContain('ONVIF');
   });
 
   it('calls tauriInvoke in Tauri mode', async () => {
-    const cameras = [{ ip: '10.0.0.1', port: 80, name: 'Test Cam', manufacturer: 'Test' }];
+    const cameras = [{ ip: '10.0.0.1', port: 80, name: 'Test Cam', manufacturer: 'Test', requiresAuth: false }];
     const ctx = { ...tauriCtx, tauriInvoke: vi.fn().mockResolvedValue(cameras) };
     const result = await plugin.execute('onvif', ctx);
-    expect(ctx.tauriInvoke).toHaveBeenCalledWith('onvif_discover', { timeout: 5000 });
+    expect(ctx.tauriInvoke).toHaveBeenCalledWith('discover_onvif_cameras', expect.objectContaining({ timeout: 5000 }));
     expect(result.status).toBe('success');
-    expect(result.metadata.deviceCount).toBe(1);
+    expect((result.metadata as any).deviceCount).toBe(1);
   });
 });

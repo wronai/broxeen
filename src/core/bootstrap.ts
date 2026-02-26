@@ -171,7 +171,7 @@ async function registerCorePlugins(
   } catch (e) { console.warn('RtspCameraPlugin unavailable:', e); }
 
   try {
-    const { WakeOnLanPlugin } = await import('../plugins/local-network/wakeOnLanPlugin');
+    const { WakeOnLanPlugin } = await import('../plugins/network/wakeOnLanPlugin');
     safeRegister(registry, router, new WakeOnLanPlugin(), 'WakeOnLanPlugin');
   } catch (e) { console.warn('WakeOnLanPlugin unavailable:', e); }
 

@@ -14,6 +14,7 @@ const OPENROUTER_URL: &str = "https://openrouter.ai/api/v1/chat/completions";
 /// Call the LLM to generate SQL from a natural language question.
 /// Returns the raw SQL string or an error.
 /// Tries local LLM first, falls back to OpenRouter API.
+#[allow(dead_code)]
 pub async fn text_to_sql(question: &str, data_source: DataSource) -> Result<String, String> {
     // Try local LLM first if available
     #[cfg(feature = "local-llm")]

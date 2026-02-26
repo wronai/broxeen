@@ -222,7 +222,7 @@ fn ensure_rtsp_worker(camera_id: &str, url: &str) -> LiveFrameCache {
             return;
         }
 
-        let run_worker = |include_timeouts: bool| -> Result<(), String> {
+        let run_worker = |_include_timeouts: bool| -> Result<(), String> {
             let mut cmd = Command::new("ffmpeg");
             cmd.args([
                 "-hide_banner",

@@ -1,6 +1,9 @@
 /**
- * Wake-on-LAN Plugin - sends WoL magic packets to wake devices
- * Scope: local-network
+ * @module plugins/network/wakeOnLanPlugin
+ * @description Wake-on-LAN Plugin - sends WoL magic packets to wake devices
+ *
+ * Intents: "network:wol", "network:wake"
+ * Scope: local, network
  */
 
 import type { Plugin, PluginContext, PluginResult } from '../../core/types';
@@ -78,6 +81,6 @@ export class WakeOnLanPlugin implements Plugin {
     };
   }
 
-  async initialize(context: PluginContext): Promise<void> { console.log('WakeOnLanPlugin initialized'); }
-  async dispose(): Promise<void> { console.log('WakeOnLanPlugin disposed'); }
+  async initialize(context: PluginContext): Promise<void> {}
+  async dispose(): Promise<void> {}
 }

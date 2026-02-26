@@ -13,40 +13,10 @@
 //! ])
 
 use crate::audio_capture::{self, SharedRecordingState};
+use crate::settings::load_settings;
 use crate::stt;
 use crate::tts_backend;
 use std::sync::{Arc, Mutex};
-use std::path::PathBuf;
-use serde_json;
-use cpal::traits::StreamTrait;
-
-/// Load current settings from disk
-fn load_settings() -> crate::AudioSettings {
-    crate::backend_info("load_settings() called - reading TTS engine preference");
-    let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".into());
-    let settings_path = PathBuf::from(home).join(".config/broxeen/settings.json");
-    
-    if !settings_path.exists() {
-        crate::backend_warn("Settings file not found, using defaults");
-        return crate::AudioSettings::default();
-    }
-    
-    let data = match std::fs::read_to_string(&settings_path) {
-        Ok(data) => data,
-        Err(err) => {
-            crate::backend_error(format!("Failed to read settings: {}", err));
-            return crate::AudioSettings::default();
-        }
-    };
-    
-    match serde_json::from_str::<crate::AudioSettings>(&data) {
-        Ok(settings) => settings,
-        Err(err) => {
-            crate::backend_error(format!("Failed to parse settings: {}", err));
-            crate::AudioSettings::default()
-        }
-    }
-}
 
 /// Active recording stream, stored in Tauri state.
 pub struct ActiveStream(pub Arc<Mutex<Option<cpal::Stream>>>);
@@ -83,7 +53,7 @@ fn pause_wake_word(active_wake_word: &ActiveWakeWordStream) -> Result<(), String
 }
 
 /// Resume wake word detection (needs to be recreated)
-fn resume_wake_word(active_wake_word: &ActiveWakeWordStream) -> Result<(), String> {
+fn resume_wake_word(_active_wake_word: &ActiveWakeWordStream) -> Result<(), String> {
     // Note: This would need to recreate the wake word stream
     // For now, we'll just log that it needs to be restarted
     crate::backend_info("▶️ Wake word detection needs to be restarted manually");
