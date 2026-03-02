@@ -146,6 +146,23 @@ pub async fn toonic_start(port: Option<u16>, goal: Option<String>) -> Result<Too
         }
     }
 
+    // Forward Ollama / Local LLM configuration for visual models
+    for key in ["VISION_OLLAMA_MODEL", "VISION_OLLAMA_BASE_URL", "LLM_BASE_URL", 
+                "LOCAL_LLM_MODEL", "LOCAL_LLM_OLLAMA_URL", "LOCAL_LLM_OLLAMA_PORT"] {
+        if let Ok(val) = std::env::var(key) {
+            cmd.env(key, &val);
+        }
+    }
+    
+    // If VISION_OLLAMA_BASE_URL is set, also set LLM_BASE_URL for Toonic litellm
+    if let Ok(base_url) = std::env::var("VISION_OLLAMA_BASE_URL") {
+        cmd.env("LLM_BASE_URL", &base_url);
+        // Set empty API key for Ollama (no auth needed)
+        if !std::env::var("LLM_API_KEY").is_ok() {
+            cmd.env("LLM_API_KEY", "ollama");
+        }
+    }
+
     let child = cmd.spawn().map_err(|e| {
         backend_error(format!("Failed to spawn toonic: {}", e));
         format!("Failed to spawn toonic: {}", e)

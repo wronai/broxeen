@@ -14,7 +14,7 @@
 
 Desktopowa aplikacja **Tauri 2 + React** do monitoringu kamer AI i odkrywania sieci z wbudowanym TTS (Text-to-Speech) i **dwutrybowym STT (Speech-to-Text)**.
 
-Zamiast tradycyjnej przeglądarki — wpiszesz lub **mówisz** zapytanie (ręcznie lub przez wake word "heyken"), dostajesz czysty content, który możesz **odsłuchać** przez głośnik. Nowa wersja dodaje **monitoring kamer AI**, **zaawansowane skanowanie sieci** i **inteligentny system rozpoznawania mowy**.
+Zamiast tradycyjnej przeglądarki — wpiszesz lub **mówisz** zapytanie (ręcznie lub przez wake word "heyken"), dostajesz czysty content, który możesz **odsłuchać** przez głośnik. Nowa wersja dodaje **monitoring kamer AI**, **zaawansowane skanowanie sieci**, **inteligentny system rozpoznawania mowy**, **kopiowanie wiadomości bota jednym kliknięciem** i **znaczniki czasu zdarzeń monitoringu**.
 
 ## Wymagania
 
@@ -86,7 +86,7 @@ npm run test:watch
 npm run test:coverage
 ```
 
-Aktualny wynik: **614 testów, 0 błędów**.
+Aktualny wynik: **990 testów, 0 błędów**.
 
 ## Troubleshooting (dev)
 
@@ -130,7 +130,10 @@ broxeen/
 │   ├── main.tsx                # React entry point
 │   ├── index.css               # TailwindCSS base
 │   ├── components/
-│   │   ├── Chat.tsx            # Chat UI, obsługa wiadomości
+│   │   ├── Chat.tsx            # Chat UI, orkiestracja komponentów
+│   │   ├── ChatMessageList.tsx # Renderowanie listy wiadomości + kopiowanie
+│   │   ├── ChatInput.tsx       # Pasek wejścia, scope, głos
+│   │   ├── ChatOverlays.tsx    # Modale (obraz, live podgląd)
 │   │   ├── Settings.tsx        # Panel ustawień audio (modal)
 │   │   └── TtsControls.tsx     # Przyciski play/pause/stop TTS
 │   ├── hooks/

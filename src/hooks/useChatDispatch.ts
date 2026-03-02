@@ -379,7 +379,8 @@ export function useChatDispatch(deps: UseChatDispatchDeps) {
     });
 
     // ── Config commands — handled locally with interactive prompts ──
-    const configResult = handleConfigCommand(query);
+    // Use originalQuery (without scope prefix) so anchored regexes match correctly
+    const configResult = handleConfigCommand(originalQuery);
     if (configResult) {
       eventStore.append({
         type: "message_added",

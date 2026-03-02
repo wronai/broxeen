@@ -236,6 +236,7 @@ pub struct LlmConfig {
 
     // ── Local fallback (Ollama / llama.cpp / LM Studio) ──────────────────
     /// Local server base URL (e.g. "http://localhost:11434/v1")
+    #[serde(default = "default_local_base_url")]
     pub local_base_url: Option<String>,
     /// Local model name (e.g. "llava:7b" for Ollama with vision)
     #[serde(default = "default_local_model")]
@@ -256,8 +257,15 @@ fn default_openrouter_model() -> String {
     })
 }
 fn default_local_model() -> String {
-    env::var("VISION_LOCAL_MODEL").unwrap_or_else(|_| {
-        env::var("VITE_VISION_LOCAL_MODEL").unwrap_or_else(|_| "llava:7b".to_string())
+    env::var("VISION_OLLAMA_MODEL").unwrap_or_else(|_| {
+        env::var("VISION_LOCAL_MODEL").unwrap_or_else(|_| {
+            env::var("VITE_VISION_LOCAL_MODEL").unwrap_or_else(|_| "llava:7b".to_string())
+        })
+    })
+}
+fn default_local_base_url() -> Option<String> {
+    env::var("VISION_OLLAMA_BASE_URL").ok().or_else(|| {
+        Some("http://localhost:11434/v1".to_string())
     })
 }
 fn default_max_tokens() -> u32 {
@@ -272,7 +280,7 @@ impl Default for LlmConfig {
         Self {
             openrouter_api_key: None,
             openrouter_model: default_openrouter_model(),
-            local_base_url: Some("http://localhost:11434/v1".to_string()),
+            local_base_url: default_local_base_url(),
             local_model: default_local_model(),
             max_tokens: default_max_tokens(),
             max_narrative_tokens: default_max_narrative_tokens(),

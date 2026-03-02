@@ -33,28 +33,28 @@ describe('IntentRouter - LLM Integration', () => {
     expect(result.entities).toBeDefined();
   });
 
-  it('should use LLM classifier when enabled and return LLM result on success', async () => {
+  it('should use LLM classifier as fallback when no regex matches', async () => {
     const { classifyIntent, isLlmClassifierAvailable } = await import('./llmIntentClassifier');
     
     // Mock LLM as available
     vi.mocked(isLlmClassifierAvailable).mockReturnValue(true);
     
-    // Mock LLM to succeed
+    // Mock LLM to succeed — use input that no regex pattern matches
     vi.mocked(classifyIntent).mockResolvedValue({
       intent: 'network:scan',
-      entities: { query: 'skanuj sieć' },
+      entities: { query: 'check my local devices' },
       confidence: 0.9,
       subAction: 'scan'
     });
     
     router = new IntentRouter({ useLlmClassifier: true });
     
-    const result = await router.detect('skanuj sieć');
+    const result = await router.detect('check my local devices');
     
-    // Should return LLM result
+    // Regex found nothing, so LLM result should be returned
     expect(result.intent).toBe('network:scan');
     expect(result.confidence).toBe(0.9);
-    expect(result.entities).toEqual({ query: 'skanuj sieć' });
+    expect(result.entities).toEqual({ query: 'check my local devices' });
   });
 
   it('should use regex when LLM classifier is disabled', async () => {

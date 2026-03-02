@@ -1,3 +1,30 @@
+## [1.0.98] - 2026-03-02
+
+### Summary
+
+feat(ui): copy button on every bot message, monitoring timestamps, LLM cost optimization
+
+### Features
+
+- **Copy button on all assistant messages** — every bot response now has a persistent clipboard copy button (bottom-right) with visual feedback (checkmark on success)
+- **Monitoring event timestamps** — camera/video monitoring messages now display the event time (🕐 HH:MM:SS) in the header
+- **Chat.tsx refactoring** — extracted `ChatOverlays.tsx`, `useChatSpeech.ts`, `useChatDispatch.ts`, `ChatMessageList.tsx`, `ChatInput.tsx` from monolithic Chat.tsx
+
+### Bug Fixes
+
+- **Config commands no longer hit LLM API** — `konfiguruj monitoring`, `pomoc`, `konfiguracja` etc. are now handled locally without any API call. Root causes: scope prefix broke regex matching in `handleConfigCommand`, and `intentRouter.detect()` tried LLM before free regex patterns
+- **Intent router: regex-first, LLM-second** — deterministic commands are matched instantly via regex; LLM classifier is only used as fallback for unrecognized queries, saving API credits
+- **TTS controls** — now only appear during active TTS playback (not on every last message)
+
+### Tests
+
+- Updated monitoring test to verify timestamp display (🕐 emoji)
+- Updated TTS test to verify copy buttons on all assistant messages
+- Updated intentRouter LLM test to reflect regex-first detection order
+- All 990 tests pass
+
+---
+
 ## [1.0.97] - 2026-03-02
 
 ### Summary

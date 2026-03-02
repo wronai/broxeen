@@ -405,6 +405,15 @@ URL: https://html.duckduckgo.com/html/?q=wyszukaj%20kamere%20w%20sieci%20lokalne
 - [x] **Testy toonicBridgePlugin** — 16 nowych: canHandle (3), execute (13) — 16/16 pass
 - [x] **Buildy**: tsc ✅ 0 errors, cargo check ✅ 0 warnings, testy 989/990 (0 regresji, +25 nowych)
 
+### Runda 5 — UX, refaktoring Chat.tsx, optymalizacja kosztów LLM
+- [x] **Copy button na każdej wiadomości bota** — `CopyMessageButton` w `ChatMessageList.tsx`: clipboard API + fallback, wizualny feedback (✓ checkmark)
+- [x] **Timestamp monitoringu** — zdarzenia kamery/video pokazują czas (🕐 HH:MM:SS) w nagłówku
+- [x] **Refaktoring Chat.tsx** — wydzielono: `ChatMessageList.tsx`, `ChatInput.tsx`, `ChatOverlays.tsx`, `useChatSpeech.ts`, `useChatDispatch.ts`
+- [x] **Fix: komendy config nie trafiają do LLM** — `handleConfigCommand` dostawał query z prefixem scope (`local$ konfiguruj monitoring`), regex nie łapał. Naprawiono: `originalQuery`
+- [x] **IntentRouter: regex-first, LLM-second** — oszczędność kredytów API, deterministyczne komendy bez opóźnień
+- [x] **TTS controls** — wyświetlane tylko podczas aktywnego odtwarzania
+- [x] **Buildy**: tsc ✅ 0 errors, testy 990/990 (0 regresji)
+
 ### Do zrobienia
 - [ ] **Naprawić Chat.test.tsx config prompt** — React rendering/timing issue
 - [ ] **R20–R22**: Rust backend keyword routing → LLM (z TODO fazy 4)
@@ -412,4 +421,9 @@ URL: https://html.duckduckgo.com/html/?q=wyszukaj%20kamere%20w%20sieci%20lokalne
 - [ ] **Export danych** — CSV, JSON raporty
 - [ ] **Android tablet/smartphone** — responsywny UI / PWA
 
+Jak połączyć razem jako uslugi paczki python 
+- nlp2cmd
+- toonic
+- stts
+- litellm z ollama/
 

@@ -1,10 +1,11 @@
-import { type RefObject } from "react";
+import { type RefObject, useState, useCallback } from "react";
 import {
   Globe,
   Search,
   Zap,
   Loader2,
   Copy,
+  Check,
   Bot,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -171,6 +172,38 @@ export interface ChatMessageListProps {
   // Welcome screen context
   getRecentQueries: () => string[];
   getCurrentContext: () => any;
+}
+
+// ── Copy button for assistant messages ────────────────────
+
+function CopyMessageButton({ message, onCopy }: { message: ChatMessage; onCopy: (msg: ChatMessage) => void }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(message.text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Fallback: use the context copy handler
+      onCopy(message);
+    }
+  }, [message, onCopy]);
+
+  return (
+    <button
+      onClick={handleCopy}
+      className={`rounded-lg p-1.5 transition ${
+        copied
+          ? 'text-green-400 bg-green-900/30'
+          : 'text-gray-500 hover:bg-gray-700 hover:text-gray-300'
+      }`}
+      title={copied ? 'Skopiowano!' : 'Kopiuj wiadomość'}
+    >
+      {copied ? <Check size={14} /> : <Copy size={14} />}
+    </button>
+  );
 }
 
 // ── Component ─────────────────────────────────────────────
@@ -744,7 +777,7 @@ export function ChatMessageList({
               {msg.role === "assistant" &&
                 !msg.loading &&
                 msg.text.length > 50 &&
-                (tts.isSpeaking || messages[messages.length - 1]?.id === msg.id) && (
+                tts.isSpeaking && (
                   <div className="mt-3 flex items-center gap-2 border-t border-gray-700/50 pt-2">
                     <TtsControls
                       isSpeaking={tts.isSpeaking}
@@ -754,18 +787,14 @@ export function ChatMessageList({
                       onResume={tts.resume}
                       onStop={tts.stop}
                     />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onCopyMessageContext(msg);
-                      }}
-                      className="ml-auto rounded-lg p-1.5 text-gray-500 transition hover:bg-gray-700 hover:text-gray-300"
-                      title="Kopiuj tę interakcję"
-                    >
-                      <Copy size={14} />
-                    </button>
                   </div>
                 )}
+              {/* Copy button — always visible on every assistant message */}
+              {msg.role === "assistant" && !msg.loading && msg.text.length > 0 && (
+                <div className="mt-1.5 flex justify-end">
+                  <CopyMessageButton message={msg} onCopy={onCopyMessageContext} />
+                </div>
+              )}
             </div>
           </div>
         );

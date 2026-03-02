@@ -639,24 +639,7 @@ export class IntentRouter implements IIntentRouter {
     const normalizedInput = input.toLowerCase().trim();
     console.log(`🔍 Detecting intent for input: "${input}"`);
 
-    // LLM-first approach when enabled
-    if (this.useLlmClassifier) {
-      try {
-        const llmResult = await classifyIntent(input);
-        if (llmResult) {
-          console.log(`✅ LLM Intent detected: ${llmResult.intent} (confidence: ${llmResult.confidence})`);
-          return {
-            intent: llmResult.intent,
-            confidence: llmResult.confidence,
-            entities: llmResult.entities,
-          };
-        }
-      } catch (error) {
-        console.warn(`⚠️ LLM intent classification failed, falling back to regex:`, error);
-      }
-    }
-
-    // Fallback to regex-based detection
+    // Try deterministic regex patterns first (free, instant)
     console.log(`🔄 Using regex-based intent detection for: "${normalizedInput}"`);
     for (const [intent, patterns] of this.intentPatterns) {
       if (intent === 'chat:ask') continue; // skip fallback for now
@@ -670,6 +653,23 @@ export class IntentRouter implements IIntentRouter {
             entities: this.extractEntities(normalizedInput, intent),
           };
         }
+      }
+    }
+
+    // No regex match — try LLM classifier as a smarter fallback
+    if (this.useLlmClassifier) {
+      try {
+        const llmResult = await classifyIntent(input);
+        if (llmResult) {
+          console.log(`✅ LLM Intent detected: ${llmResult.intent} (confidence: ${llmResult.confidence})`);
+          return {
+            intent: llmResult.intent,
+            confidence: llmResult.confidence,
+            entities: llmResult.entities,
+          };
+        }
+      } catch (error) {
+        console.warn(`⚠️ LLM intent classification failed:`, error);
       }
     }
 

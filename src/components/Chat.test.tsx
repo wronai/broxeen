@@ -334,6 +334,8 @@ describe("Chat — wpisywanie i wysyłanie", () => {
       await Promise.resolve();
     });
 
+    const fixedTimestamp = new Date('2026-03-02T14:30:15Z').getTime();
+
     await act(async () => {
       window.dispatchEvent(
         new CustomEvent("broxeen:monitor_change", {
@@ -341,7 +343,7 @@ describe("Chat — wpisywanie i wysyłanie", () => {
             targetId: "cam-1",
             targetName: "Kamera testowa",
             targetType: "camera",
-            timestamp: Date.now(),
+            timestamp: fixedTimestamp,
             changeScore: 0.23,
             summary: "Ktoś wszedł do pokoju.",
             thumbnailBase64: "ZmFrZV9pbWFnZV9iYXNlNjQ=",
@@ -355,6 +357,8 @@ describe("Chat — wpisywanie i wysyłanie", () => {
       expect(screen.getAllByText(/Monitoring/i).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Kamera testowa/i).length).toBeGreaterThan(0);
       expect(screen.getAllByText(/Ktoś wszedł do pokoju/i).length).toBeGreaterThan(0);
+      // Timestamp should be visible in the monitoring header
+      expect(screen.getAllByText(/🕐/i).length).toBeGreaterThan(0);
     });
 
     const img = document.querySelector("img[src^='data:image']") as HTMLImageElement | null;
@@ -633,10 +637,10 @@ describe("Chat — TTS auto-play", () => {
     expect(window.speechSynthesis.speak).toHaveBeenCalledTimes(2);
   });
 
-  it("TTS controls appear only on latest message when not speaking", async () => {
+  it("Copy buttons appear on all assistant messages; TTS controls only when speaking", async () => {
     mockAskFn = vi.fn()
-      .mockResolvedValueOnce(makePluginResponse('Pierwsza długa treść wiadomości, która powinna mieć TTS controls'))
-      .mockResolvedValueOnce(makePluginResponse('Druga długa treść wiadomości, która powinna mieć TTS controls jako najnowsza'));
+      .mockResolvedValueOnce(makePluginResponse('Pierwsza długa treść wiadomości, która powinna mieć przycisk kopiowania'))
+      .mockResolvedValueOnce(makePluginResponse('Druga długa treść wiadomości, która powinna mieć przycisk kopiowania'));
 
     render(<Chat settings={{ ...defaultSettings, tts_enabled: true }} />);
     const input = screen.getByPlaceholderText(/Wpisz adres/i);
@@ -661,10 +665,13 @@ describe("Chat — TTS auto-play", () => {
     expect(screen.queryByText(/Pierwsza długa treść wiadomości/i)).toBeTruthy();
     expect(screen.queryByText(/Druga długa treść wiadomości/i)).toBeTruthy();
 
-    // When TTS is not speaking, only the latest message should have TTS controls
-    // Look for "Pauza" buttons - should only be one (on the latest message)
-    const listenButtons = screen.queryAllByTitle(/Pauza/i);
-    expect(listenButtons.length).toBe(1);
+    // Copy buttons should appear on every assistant message
+    const copyButtons = screen.queryAllByTitle(/Kopiuj wiadomość/i);
+    expect(copyButtons.length).toBeGreaterThanOrEqual(2);
+
+    // When TTS is not speaking, no TTS controls should be visible
+    const pauseButtons = screen.queryAllByTitle(/Pauza/i);
+    expect(pauseButtons.length).toBe(0);
   });
 });
 

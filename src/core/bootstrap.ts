@@ -68,6 +68,18 @@ export async function bootstrapApp(config: {
 
   log.info(`Plugin system initialized — ${pluginRegistry.getAll().length} plugins, scope: ${scopeRegistry.getActiveScope().id}`);
 
+  // Auto-start Toonic sidecar (Tauri only)
+  if (config.isTauri && config.tauriInvoke) {
+    try {
+      const status = await config.tauriInvoke('toonic_start', {}) as { running: boolean; pid?: number; port: number; url: string };
+      if (status.running) {
+        log.info(`Toonic sidecar auto-started (pid=${status.pid}, port=${status.port})`);
+      }
+    } catch (e) {
+      log.warn(`Toonic sidecar auto-start failed (manual start with "toonic start"): ${e}`);
+    }
+  }
+
   // Start periodic auto-scan (Tauri only)
   let autoScanSchedulerInstance: import('../plugins/discovery/autoScanScheduler').AutoScanScheduler | null = null;
   if (config.isTauri && config.tauriInvoke) {

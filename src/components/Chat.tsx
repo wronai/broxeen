@@ -332,6 +332,11 @@ export default function Chat({ settings }: ChatProps) {
       });
 
       const pct = Math.round(detail.changeScore * 100);
+      const eventTime = new Date(detail.timestamp).toLocaleTimeString('pl-PL', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
       const mime = detail.thumbnailMimeType || "image/jpeg";
       const dataUrl = detail.thumbnailBase64
         ? `data:${mime};base64,${detail.thumbnailBase64}`
@@ -340,7 +345,7 @@ export default function Chat({ settings }: ChatProps) {
       console.log('[Chat] Data URL created:', dataUrl ? `YES (${dataUrl.length} chars)` : 'NO');
 
       const monitoringText = [
-        `👁️ **Monitoring**: **${detail.targetName}** (${pct}%)`,
+        `👁️ **Monitoring**: **${detail.targetName}** (${pct}%) — 🕐 ${eventTime}`,
         dataUrl ? `\n\n![](${dataUrl})` : "",
         `\n\n${detail.summary}`,
       ].join("");
