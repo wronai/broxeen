@@ -1,3 +1,29 @@
+## [1.0.97] - 2026-03-02
+
+### Summary
+
+feat(docs): code analysis engine
+
+### Docs
+
+- docs: update README
+- docs: update context.md
+
+### Config
+
+- config: update goal.yaml
+
+### Other
+
+- scripts: update project.sh
+- update project/analysis.toon
+- update project/evolution.toon
+- update project/project.toon
+- update project/prompt.txt
+- update src/components/Chat.tsx
+- update src/components/ChatMessageList.tsx
+
+
 ## [1.0.96] - 2026-02-26
 
 ### Summary
