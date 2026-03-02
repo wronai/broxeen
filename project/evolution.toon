@@ -1,0 +1,20 @@
+# code2llm/evolution | 25 func | 2f | 2026-03-02
+
+NEXT[1] (ranked by impact):
+  [1] !! SPLIT           scripts/motion_pipeline.py
+      WHY: 624L, 3 classes, max CC=7
+      EFFORT: ~4h  IMPACT: 4368
+
+
+RISKS[1]:
+  ⚠ Splitting scripts/motion_pipeline.py may break 23 import paths
+
+METRICS-TARGET:
+  CC̄:          3.4 → ≤2.4
+  max-CC:      10 → ≤5
+  god-modules: 1 → 0
+  high-CC(≥15): 0 → ≤0
+  hub-types:   0 → ≤0
+
+HISTORY:
+  (first run — no previous data)

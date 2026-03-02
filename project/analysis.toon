@@ -1,0 +1,69 @@
+# code2llm | 2f 753L | py:2 | 2026-03-02
+# CC̄=3.4 | critical:1/25 | dups:0 | cycles:0
+
+HEALTH[0]: ok
+
+REFACTOR[0]: none needed
+
+COUPLING: no cross-package imports detected
+
+LAYERS:
+  ./                              CC̄=6.5    ←in:0  →out:0
+  │ !  resolver                   129L  1C    2m  CC=10     ←0
+  │
+  scripts/                        CC̄=3.1    ←in:0  →out:0
+  │ !! motion_pipeline            624L  3C   23m  CC=7      ←0
+  │
+
+DUPLICATES[0]: none
+
+FUNCTIONS (CC≥10, 1 of 25):
+   10.0  resolve                                    21n   8exit  cond+ret
+
+  summary:
+    critical(≥10): 1 | high(5-10): 7 | medium(2-5): 10 | low(<2): 7
+    4% CC≥10  32% CC≥5
+
+HOTSPOTS:
+  #1  save_detection                       fan=14   "calls 14 functions"
+  #2  MotionPipeline.process_frame         fan=13   "analysis pipeline, 13 stages"
+  #3  MotionPipeline.run                   fan=13   "MotionPipeline method, fan-out=13"
+  #4  extract_moving_objects               fan=11   "calls 11 functions"
+  #5  LocalClassifier.classify             fan=9    "LocalClassifier method, fan-out=9"
+  #6  LlmVerifier.verify                   fan=9    "LlmVerifier method, fan-out=9"
+  #7  fuzzy_match_domain                   fan=8    "calls 8 functions"
+  #8  resolve                              fan=7    "calls 7 functions"
+  #9  LlmVerifier._crop_to_b64             fan=6    "LlmVerifier method, fan-out=6"
+  #10 MotionPipeline.__init__              fan=6    "MotionPipeline method, fan-out=6"
+
+CLASSES:
+  MotionPipeline                 ████████████████████████   7m  CC̄=3.3   max=6   
+  LocalClassifier                █████████████              4m  CC̄=4.0   max=7   
+  LlmVerifier                    ██████████                 3m  CC̄=3.0   max=6   
+  ResolveResult                                             0m  CC̄=0.0   max=0.0 
+
+D:
+  resolver.py:
+    e: ResolveResult,fuzzy_match_domain,resolve
+    ResolveResult  # Result of URL resolution....
+    fuzzy_match_domain(input_str,threshold,max_results)
+    resolve(raw_input,threshold)
+  scripts/motion_pipeline.py:
+    e: LocalClassifier,LlmVerifier,MotionPipeline,init_db,save_detection,update_detection_llm,get_statistics,create_bg_subtractor,extract_moving_objects,should_send_to_llm,parse_args,main
+    LocalClassifier
+      __init__(1)  CC=1.0
+        → _load_model(0)  CC=3.0
+        → _select_model_path(0)  CC=5.0
+    LlmVerifier
+      __init__(2)  CC=1.0
+    MotionPipeline
+      __init__(1)  CC=3.0
+    init_db(db_path)
+    save_detection(conn,camera_id,label,confidence,crop_img,bbox,max_crop_px)
+    update_detection_llm(conn,det_id,llm_label,llm_description)
+    get_statistics(conn,camera_id,hours)
+    create_bg_subtractor(history,var_threshold)
+    extract_moving_objects(frame,bg_subtractor,min_area,max_area,target_width)
+    should_send_to_llm(label,confidence,threshold,night_mode,night_person_always)
+    parse_args()
+    main()
